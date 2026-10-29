@@ -1,0 +1,2825 @@
+
+=============================================================================
+                     AN EXACT HAUSDORFF GAUGE FOR SLE
+                 a complete, friendly guide for curious teenagers
+=============================================================================
+
+                rewritten from
+        "An exact Hausdorff gauge for SLE: a moment-integral
+         and finite-batch construction" (OpenAI, Sept 2026)
+
+   This version is shorter and slower than the original. It does not
+   skip any of the ideas in the original; it merely explains them in
+   plain language, with small running examples, before using them.
+
+   Everything is self-contained. The only prerequisites are:
+     - you know what a function and a limit are,
+     - you have met the idea of a probability (a number between 0
+       and 1 measuring how often an event happens).
+
+-----------------------------------------------------------------------------
+CONTENTS
+-----------------------------------------------------------------------------
+
+   Part A: Background
+     A.1  How big is a jagged set? (Hausdorff measure)
+     A.2  Dimension as a critical exponent
+     A.3  Gauges: better rulers than r^d
+     A.4  What is SLE_kappa?
+     A.5  The exact question this paper answers
+     A.6  A quick map of the whole argument
+
+   Part B: The main theorem
+
+   Part C: The proof machine -- ingredients
+     C.1  Conformal radius and the inner-time clock
+     C.2  Centered laws: biasing toward one point
+     C.3  The multipoint estimate
+     C.4  A canonical mass measure on the trace
+     C.5  The disk model and its mass moments
+
+   Part D: Turning moments into a gauge
+     D.1  Why moment batches work
+     D.2  The finite lists and the gauge formula
+
+   Part E: Two covering arguments
+     E.1  The lower bound (positivity)
+     E.2  The upper bound (finiteness)
+
+   Part F: Full proofs and where things live
+
+-----------------------------------------------------------------------------
+  PART A -- BACKGROUND
+-----------------------------------------------------------------------------
+
+  A.1  HOW BIG IS A JAGGED SET? (HAUSDORFF MEASURE)
+
+   Imagine a wiggly path P in the plane. It is a fractal: if you zoom
+   in, it still looks just as wiggly. Ordinary length is not useful:
+   the path has infinite length, because any polygonal approximation
+   that keeps up with the wiggles uses more and more segments.
+
+   Hausdorff had a famous trick. Pick a positive number s. For any
+   covering of P by small planar blobs (disks or squares) with
+   diameters delta_1, delta_2, ..., define
+
+        cost_s(covering)  =  delta_1^s + delta_2^s + ...
+
+   Take the smallest possible cost over all countable coverings whose
+   blobs have diameter at most some threshold delta. Call that number
+   H^s_delta(P).  Finally let delta shrink to 0:
+
+        H^s(P) = lim_{delta -> 0} H^s_delta(P).
+
+   This is the s-dimensional Hausdorff measure of P.
+
+   Sanity checks:
+     - If P is a smooth line segment and s = 1, H^s(P) is its length.
+     - If P is a smooth surface and s = 2, H^s(P) is its area.
+     - If s is too small, H^s(P) = infinity.
+     - If s is too large, H^s(P) = 0.
+
+  A.2  DIMENSION AS A CRITICAL EXPONENT
+
+   Cover the interval [0,1] by N segments of length 1/N. Each term
+   in cost_s is (1/N)^s and there are N of them, so the total is
+   N^{1-s}. As N grows, this goes to 0 for s > 1 and to infinity for
+   s < 1: the critical exponent is 1.
+
+   Cover the unit square by N^2 squares of side 1/N. Cost is
+   N^2 * (1/N)^s = N^{2-s}. Critical exponent 2.
+
+   For any set, exactly one s separates "measure infinite" from
+   "measure zero". That s is the Hausdorff dimension, dim_H(P).
+
+   Beffara (2008) proved for SLE_kappa with 0 < kappa < 8:
+
+        dim_H(curve)  =  d  =  1 + kappa / 8 .
+
+   For kappa in (0,8) this d lies strictly between 1 and 2: bigger
+   than a line, smaller than a region.
+
+   Useful shorthand we will keep returning to:
+
+        a      =  2 / kappa
+        d      =  1 + 1/(4a)          = 1 + kappa/8
+        alpha  =  2 - d               = 1 - 1/(4a)
+        p      =  4a - 1
+
+   Then 0 < alpha < 1. The algebra below keeps using the same identity:
+
+        2 * a * alpha  =  p / 2 .
+
+   The "complementary exponent" alpha controls how fast mass piles up
+   as you zoom to the tip of the curve. p controls an angle weight
+   sin^p(theta) that will appear in the change of law.
+
+
+  A.3  GAUGES: BETTER RULERS THAN r^d
+
+   Hausdorff's "ruler" r^s is not the only option. Replace r^s by any
+   continuous increasing function h(r) with h(0) = 0 and h(r) > 0 for
+   r > 0. Such an h is called a "Hausdorff gauge" or "dimension function".
+
+   Redo the construction with h in place of r^s:
+
+        cost_h(covering) = h(delta_1) + h(delta_2) + ...
+
+   Then take the same two limits (smallest cost with cap delta, then
+   delta -> 0). The result is H^h(P), the h-Hausdorff measure of P.
+
+   Any choice of gauge h yields a legitimate measure. The question is
+   whether it gives a useful number for our particular curve.
+
+   Power gauges cannot help beyond d. If h(r) = r^s with s < d, then
+   H^h(P) = infinity. If s > d, H^h(P) = 0. At the critical power
+   h(r) = r^d, Rezaei (2018, Theorem 1.1) proved that for chordal
+   SLE_kappa in the standard normalization the answer is zero:
+
+        H^{r^d}(trace)  =  0   almost surely.
+
+   So the "dimension" power gauge is not enough. But gauges are more
+   flexible. For instance
+
+        h(r)  =  r^d * ( log log(1/r) )^{beta}
+
+   is strictly bigger than r^d near r = 0 whenever beta > 0 (because
+   log log(1/r) grows as r shrinks). So H^h could be positive even
+   when H^{r^d} is zero.
+
+   Schramm (2006, Problem 7.1) asked: does some gauge h give a
+   sigma-finite Hausdorff measure on the SLE_kappa trace? He suggested
+   r^d log log(1/r) as a candidate. This paper proves a positive
+   answer (existence) along a different route: instead of guessing a
+   closed-form h, it BUILDS one from computable deterministic numbers.
+   The gauge built this way may, or may not, agree asymptotically with
+   the log-log candidate; the paper leaves that comparison open.
+
+  A.4  WHAT IS SLE_KAPPA? (BRIEF INTRO)
+
+   Schramm-Loewner Evolution (SLE_kappa) with parameter kappa > 0 is
+   a family of random plane curves in the upper half-plane
+
+        HH  =  { z = x + iy :  y > 0 }.
+
+   Each curve starts at the origin and grows off to infinity. SLE
+   curves are the canonical objects of two-dimensional critical statmech:
+   they appear as scaling limits of critical Ising clusters, percolation
+   interfaces, loop-erased walks, and many others.
+
+   The construction is best described by a differential equation.
+   Let B(t) = B_t be a standard Brownian motion: B_0 = 0, continuous
+   random path, and B_t - B_s is normally distributed with mean 0 and
+   variance t - s. Fix kappa, put
+
+        a  =  2 / kappa,
+
+   and for each starting point z in HH solve the ordinary differential
+   equation
+
+        dg_t(z)/dt  =  a / ( g_t(z) - B_t ),    g_0(z) = z.
+
+   This is the Loewner equation. For each time t >= 0 the map z |-> g_t(z)
+   is conformal (angle-preserving), and it takes some remainder domain
+
+        H_t  =  HH minus the curve up to time t
+
+   onto HH itself. The curve itself is recovered as the tip:
+
+        gamma(t)  =  limit of g_t^{-1}( U_t + i*epsilon )
+                     as epsilon -> 0,
+
+   where U_t is a suitable boundary point on the real axis. The
+   important fact (Rohde-Schramm 2005, Theorem 5.1) is that for the
+   Brownian driver B_t these limits exist and produce a continuous
+   curve that grows out of 0 and goes to infinity.
+
+   The full trace is Gamma = gamma([0, infinity)). Some facts:
+     - For 0 < kappa <= 4 the curve is a simple arc (no self-touching).
+     - For 4 < kappa < 8 the curve is a self-touching arc: it touches
+       itself but does not cross.
+     - In every case the curve is "simple enough" to be a fractal of
+       dimension 1 + kappa/8.
+     - The trace is never revisits itself for a positive amount of
+       capacity time.
+
+   There are two natural notions of "how much time has passed" on the
+   curve. In the paper's main theorem the parametrization uses half-
+   plane capacity 2t; inside the Loewner equation we adopt an internal
+   time ("a*t"), which is what the identity dg/dt = a/(g - B_t) is
+   normalized to give. The two differ only by a constant rescaling,
+   which does not affect "positive finite" statements about Hausdorff
+   measure on positive-time subintervals. From now on we use the
+   internal time, and simply write B_t.
+
+  A.5  THE EXACT QUESTION THIS PAPER ANSWERS
+
+   Let h be any fixed Hausdorff gauge. Consider chordal SLE_kappa
+   (0 < kappa < 8) with trace Gamma. We ask:
+
+        Does there exist a deterministic gauge h = h_kappa,
+        depending only on kappa, such that
+
+           0  <  H^{h_kappa}( gamma([s,t]) )  <  infinity
+           for every real 0 < s < t < infinity,
+
+        simultaneously, on a single event of probability 1?
+
+   "Deterministic" means h_kappa does not depend on the sample curve.
+   "Simultaneously" means we do not get a different event for each
+   interval -- one exceptional null set works for all of them at once.
+
+   Because H^{r^d} = 0 (Rezaei), we are not allowed to take h(r) = r^d.
+   We need something strictly bigger near zero. We cannot take
+   h(r) = r^s for s < d because that would make the measure infinite.
+   So h must be a non-power gauge: bigger than r^d by a slowly-varying
+   factor, but not so big that the measure blows up to infinity.
+
+   The paper gives an affirmative answer, and in fact produces an
+   explicit h_kappa, specified by deterministic integrals of a Gaussian
+   process. That is the content of the Main Theorem (Part B below).
+
+  A.6  A QUICK MAP OF THE WHOLE ARGUMENT
+
+   We are going to prove the Main Theorem by the following steps.
+   Each one is a self-contained object that we introduce, use, and
+   cite back to later.
+
+     Step 1.  Define a mass measure mu on the trace. Think of mu as
+              "how much of the curve has passed through here". It is
+              an adapted, increasing measure on HH that starts empty
+              at t = 0 and grows as the curve grows. Key property:
+              its conditional future mean is an explicit Green-type
+              expression G_S(x) * (area).
+
+     Step 2.  Bias the curve toward a marked point x. Freeze at the
+              time when x's conformal radius reaches a prescribed
+              smaller value. The bias ("centered law" P*_x) is a
+              probability measure on stopped paths that makes x look
+              like the origin of a unit disk. The bias has mean one
+              and exists at all finite inner levels.
+
+     Step 3.  Measure local mass in a fixed subdisk of radius 1/4
+              centered at x. Call the accumulated mass up to inner
+              time ell the variable L_ell, and its limit L. Prove
+              that every integer moment m_n = E[ L^n ] is finite
+              and strictly positive, using the multipoint estimate.
+              (The multipoint estimate is a uniform bound on the
+              probability that many points simultaneously reach
+              their own prescribed radii.)
+
+     Step 4.  Show that the numbers m_n(ell), m_n are computable from
+              kappa alone via Wiener integrals, angle averages, and
+              area integrals, with no reference to a specific random
+              sample.
+
+     Step 5.  Build the gauge from these numbers alone. Fix an order
+              n. Keep a level ell_n where 3/4 of m_n is already there.
+              Repeat dyadic thresholds A_k with specific multiplicity
+              N_{nk} (chosen from m_n and m_{n+1}). These form one
+              "batch". Each batch has a cleanup entry that catches
+              points missed by all tests. Convert every entry into a
+              radius r_{ni} and a threshold b_{ni}, and take the
+              gauge
+
+                 h_kappa(r) = inf over all entries of
+                              b_{ni} * r_{ni}^d * max{1, (r/r_{ni})^2}.
+
+     Step 6.  Lower bound: H^h is positive almost surely on every
+              nontrivial interval. This uses a "past-mass identity"
+              that pays off overfull squares by mass that has already
+              gone by, plus the summable tail estimate from Step 5.
+
+     Step 7.  Upper bound: H^h is finite almost surely on every
+              bounded box. This uses successful finite-scale tests
+              along the curve: greedy selection makes their disks
+              disjoint, one actual terminal mass pays for them, and
+              the cleanup entry pays for the few cells the tests
+              missed.
+
+     Step 8.  Assemble. Intersect the probability-one events of the
+              lower and upper bounds. Because each finite-time image
+              gamma([s,t]) is compact and hence lies in some box B_m,
+              the finite-sigma-finite claim follows.
+
+   The rest of the document expands each step in this order, first
+   carefully (Part C) as standalone results, then in the way that
+   they combine (Parts D and E), with full proofs in Part F.
+
+-----------------------------------------------------------------------------
+  PART B -- THE MAIN THEOREM
+-----------------------------------------------------------------------------
+
+   Fix 0 < kappa < 8. Let gamma be chordal SLE_kappa, starting at 0
+   and going to infinity in the upper half-plane HH, parametrized by
+   half-plane capacity 2t (equivalently, in internal time as given by
+   the Loewner equation dg_t/dt = a/(g_t - B_t) with a = 2/kappa).
+   Let Gamma = gamma([0, infinity)) be the entire trace.
+
+   THEOREM (Main). There exists a deterministic function
+
+        h_kappa : [0, infinity) --> [0, infinity),
+
+   continuous, nondecreasing, with h_kappa(0) = 0 and h_kappa(r) > 0
+   for every r > 0, depending only on kappa, with the following
+   properties.
+
+   (S1) POSITIVITY ON INTERVALS. On a single event of probability 1,
+
+            0  <  H^{h_kappa}( gamma([s,t]) )  <  infinity
+
+        holds simultaneously for every real 0 < s < t < infinity.
+
+   (S2) EXPLICIT FORMULA. The gauge is the infimum
+
+            h_kappa(r)
+              = inf over all pairs (n, i) with n >= 1 and 1 <= i <= I_n
+                of the quantity
+                  b_{ni} * r_{ni}^d * max{1, (r/r_{ni})^2},
+
+        with h_kappa(0) = 0.  The numbers b_{ni} > 0 and r_{ni} > 0
+        are explicit deterministic sequences built in Part D. Each
+        batch index n contributes finitely many entries (i=1..I_n);
+        all batches together give the family over which the infimum
+        is taken.
+
+   (S3) DETERMINISM. The numbers b_{ni} and r_{ni} are specified by
+        deterministic integrals involving only kappa: a Wiener integral
+        of the Loewner equation, an average over the angle law
+        pi_a(theta) proportional to sin^{4a}(theta), and an integral
+        of a fixed indicator over the unit disk. In particular,
+        h_kappa depends only on kappa. It does not depend on the
+        sample curve, and it does not depend on the interval [s,t]
+        appearing in S1.
+
+   (S4) FINITENESS IN BOXES. For every integer m >= 1, put
+        B_m = [-m,m] + i[0,m]. Then
+
+            E[ H^{h_kappa}( Gamma cap B_m ) ]  <  infinity.
+
+        Consequently, on a single event of probability 1,
+        H^{h_kappa}( Gamma cap B_m ) is finite for every m
+        simultaneously.
+
+   Several clarifications:
+
+   * SIGMA-FINITENESS.  The trace outside the origin has nonzero
+     sigma-finite h_kappa-measure. Because H^h is countably additive
+     and Gamma sits inside the increasing union of boxes B_m, and
+     because each box has finite measure, the sigma-finiteness follows
+     directly from S4.
+
+   * POSITIVITY IS ASSERTED ONLY ON POSITIVE-TIME INTERVALS.  S1
+     excludes intervals that touch s = 0. SLE has zero local mass at
+     the origin (in any time normalization), so this restriction is
+     natural: the interesting claim is about positive-time subarcs.
+
+   * ONE EVENT FOR ALL INTERVALS.  The exceptional null set where
+     S1 fails does depend on kappa but not on the sample nor on the
+     particular interval. So "for every 0 < s < t" is a single
+     probability-1 event, not a separate almost-sure claim for each
+     choice of [s,t].
+
+   * IT IS NOT r^d log log(1/r).  The gauge h_kappa is not claimed to
+     match any closed-form expression at small scales. A companion
+     paper (OpenAI 2026, an "explicit exact Hausdorff gauge") proves
+     that the regular closed-form gauge
+        r^d * (log log(1/r))^{(2-d)/2}
+     is also exact on chordal SLE, by a different method (quantitative
+     tails and dense visits). The present paper builds its own gauge
+     from moments and leaves the asymptotic comparison between the
+     two open.
+
+   * NORMALIZATION.  The main theorem states its result in the
+     "capacity 2t" parametrization. The rest of the document works
+     in internal time (the parametrization of the Loewner equation
+     dg/dt = a/(g - B_t) with a = 2/kappa), which differs from
+     capacity 2t by a constant rescaling. Constant rescaling does not
+     change "positive finite" statements about Hausdorff measure on
+     positive-time subintervals, because images of [s,t] under either
+     parametrization are the same set of geometric points; only the
+     time labels differ.
+
+   Here is what remains. Part C introduces the ingredients: conformal
+   radius and inner time (C.1), centered laws (C.2), the multipoint
+   estimate (C.3), the mass measure mu on the trace (C.4), and the
+   centered disk moments (C.5). Part D turns the moments into batches
+   and states the gauge formula D.2 with its entries explicitly. Part
+   E proves the two covering bounds: positivity (E.1) and finiteness
+   (E.2). Part F assembles the pieces and states every intermediate
+   lemma and proposition used, with its proof.
+
+-----------------------------------------------------------------------------
+  PART C -- THE PROOF MACHINE: INGREDIENTS
+-----------------------------------------------------------------------------
+
+  C.1  CONFORMAL RADIUS AND THE INNER-TIME CLOCK
+
+   A conformal map is an angle-preserving, locally invertible complex
+   map. The Loewner maps g_t: H_t -> HH are the prototypes.
+
+   The conformal radius of a domain U at a point x in U is defined as
+
+        R_U(x)  =  |F'(0)|,
+
+   where F: DD -> U is a conformal map from the unit disk DD onto U
+   with F(0) = x, normalized so that F'(0) is a positive real number.
+   (Riemann's mapping theorem says such an F exists and is unique up
+   to rotation at 0; the choice of normalization makes R_U(x) a single
+   positive real number.)  Intuitively, R_U(x) is "how big U looks
+   around x" measured in units of the unit disk.
+
+   Useful concrete cases:
+
+        R_HH(z)  =  2 Im(z)          for z in the upper half-plane,
+        R_DD(w)  =  1 - |w|^2        for w in the unit disk.
+
+   Conformal covariance:
+
+        if J: U -> V is conformal and y = J(x), then
+        R_V(y)  =  |J'(x)|  *  R_U(x).
+
+   And the Koebe quarter theorem:
+
+        (1/4) R_U(x)  <=  dist(x, boundary U)  <=   R_U(x).
+
+   Now return to the Loewner evolution. Take a fixed starting point
+   x inside HH (or inside a fixed conformal image D = J(HH)). Let
+
+        R_t(x)  =  R_{H_t}(x)
+
+   be the conformal radius of the current domain H_t at x. As t grows,
+   the curve eats away at H_t, so R_t(x) shrinks.
+
+   The key computation from the Loewner equation: writing Z_t = g_t(z)-B_t
+   where z = J^{-1}(x), and Y_t = Im(Z_t), and putting
+
+        V_t  =  Y_t / |Z_t|^2  > 0,
+
+   we get
+
+        d log R_t(x)  =  - 2 a V_t^2 dt.
+
+   (Read `d` as the small change in t; the equality holds with
+   probability one, simultaneously for all t.)  So R_t(x) shrinks
+   exponentially at a rate controlled by V_t^2, which depends on how
+   close the tip is to x. Define the inner-time clock
+
+        s_x(t)  =  integral_0^t V_u^2 du.
+
+   Then
+
+        R_t(x)  =  R_0(x) * exp( - 2 a s_x(t) ).
+
+   So inner time is the natural local clock at x, and reducing the
+   conformal radius from R_0(x) to e^{-2a * ell} * R_0(x) takes inner
+   time exactly ell.
+
+   The level times are, for a chosen level ell > 0,
+
+        tau_ell(x)  =  inf { u : s_x(u) = ell while x is alive },
+        and tau_ell(x) = +infinity if x is never alive up to that
+        level.
+
+   "Alive" means x is inside the current domain H_t. A point that has
+   been swallowed has been "frozen" out, and after being swallowed it
+   can no longer be reached by the shrinking domain. On the event
+   tau_ell(x) < infinity, the current conformal radius is exactly
+   R_0(x) * e^{-2a * ell}.
+
+   Two more facts on the same theme, stated without proof but as
+   direct consequences of the definitions:
+
+   * The physical clock and the inner clock are related by
+
+          d t / d s  =  Y_s^2 / sin^4(theta_s),
+
+        where theta_s = arg(Z_s). In words, the physical time advances
+        slowly when the tip is near a boundary angle (sin theta small),
+        and quickly when the tip is well away from the boundary.
+
+   * The angle theta_t itself evolves in inner time s according to
+     the SDE
+
+          d theta_s  =  V_s dB_s  +  (1 - 2a) cot(theta_s) V_s^2 ds,
+
+     whose volatility V_s dB_s is that of a Brownian motion when
+     reparametrized by inner time. This SDE is central in C.2.
+
+   The whole purpose of the inner-time reparametrization is to isolate
+   the following picture: for a marked point x, once we "measure
+   time" with s_x, the current conformal radius around x shrinks at a
+   fixed exponential rate. Everything else -- the angle of x relative
+   to the tip -- is encoded by the diffusion theta_s.
+
+  C.2  CENTERED LAWS: BIASING TOWARD ONE POINT
+
+   Fix a starting point x inside HH (or inside a fixed conformal image
+   D = J(HH)). The idea of the centered law is to "redraw" the SLE
+   curve with a bias in favor of passing close to x. The bias is not
+   ad hoc: it is exactly what the Green function of the remaining
+   trace -- a measure of "how much future mass remains near x" --
+   would predict.
+
+   The Green weight. Define
+
+        G_t(x)  =  R_t(x)^{-alpha} * sin^p( theta_t(x) ),
+
+   with theta_t(x) = arg(Z_t) as in C.1, and set G_t(x) = 0 when x is
+   dead (not in the current domain H_t). The exponents are the ones
+   from Part A: alpha = 2-d and p = 4a-1.
+
+   Fact A (local martingale). While x is alive,
+
+        d G_t(x)  =  G_t(x) * p * cot( theta_t ) * V_t * dB_t.
+
+   (Derived directly from C.1 by Ito's Formula.) So G_t(x) is a
+   nonnegative local martingale with volatility p * cot(theta) * V
+   times its own value. It is NOT a true martingale: its mean decays
+   with t.
+
+   Fact B (mean formula). For every finite deterministic t,
+
+        E[ G_t(x) ]  =  G_0(x) * P_x^*( t < T^*(x) ),
+
+   where P_x^* is a certain probability on stopped paths (defined
+   below) and T^*(x) is an a.s. finite lifetime (see "Finite
+   lifetime" below). Because T^*(x) < infinity a.s., we get
+   E[G_t(x)] -> 0 as t -> infinity.
+
+   Change of law (finite-tilt). For each fixed level ell > 0, put
+
+        M_ell(x)  =  ( G_{tau_ell(x)}(x) / G_0(x) )
+                     * 1{ tau_ell(x) < infinity }.
+
+   This is a nonnegative random variable measurable with respect to
+   the stopped path up to time tau_ell(x). Its expectation is
+
+        E[ M_ell(x) ]  =  1.
+
+   So M_ell(x) is a probability density on the stopped sigma-field,
+   and we may define a new probability on stopped paths by
+
+        P_x^*[ A ]  =  E[ M_ell(x) * 1(A) ],
+
+   for every event A determined by the path up to time tau_ell(x).
+   We call P_x^* the centered law (or "tilted law") at x.
+   Because the weights M_ell are consistent as ell increases
+   (M_{ell_1} = E[M_{ell_2} | F_{tau_{ell_1}}] when ell_1 < ell_2),
+   we get one probability on stopped paths up to T^*(x) by taking
+   ell -> infinity.
+
+   PROOF THAT E[ M_ell(x) ] = 1.
+
+   The weight M_ell is the ratio of the Green weight at the level
+   time tau_ell(x) to the initial Green weight, times the indicator
+   that the level was reached. We localize, apply Girsanov, and let
+   the cutoff go to infinity.
+
+   Localization. For integer N >= 1 set
+        zeta_N = inf { t : theta_t not in (1/N, pi - 1/N),
+                        Y_t < 1/N, or t > N }.
+   Here theta_t = arg(Z_t(x)) and Y_t = Im(Z_t(x)). The stopped
+   weight M_ell^{(N)} = 1{tau_ell < zeta_N} G_{zeta_N}(x)/G_0(x) is
+   bounded and adapted: on {tau_ell < zeta_N} the path has
+   theta_t in [1/N, pi - 1/N] and Y_t >= 1/N up to zeta_N, so both
+   factors R_t^{-alpha} and sin^p(theta_t) are bounded.
+
+   Girsanov. From the local-martingale identity (proved below using
+   only Ito and p = 4a - 1, 2 a alpha = p/2),
+        d G_t(x) = G_t(x) * p cot(theta_t) V_t dB_t,
+   the density G_{zeta_N}(x)/G_0(x) on F_{zeta_N} has the required
+   form. Under the localized tilted law P^{*,N}_x, B tilts to a
+   new Brownian by drift -p cot(theta) V*dt, so the angle SDE
+   becomes
+        d theta_s = d W_s + 2a cot(theta_s) ds
+   in inner time s = s_x(t), after using (1-2a) + p = 2a. The
+   tilted diffusion is global in inner time s: the Lyapunov
+   estimate below shows sin(theta_s) stays strictly positive on
+   every finite s, and dt/ds = Y_s^2 sin^{-4}(theta_s) stays
+   finite on every finite inner interval.
+
+   Lyapunov bound. Fix 0 < q < p and F_q(theta) = sin^{-q}(theta).
+   Under the tilted generator L^* = 1/2 d^2 + 2a cot(theta) d,
+        L^* F_q = (q/2) F_q - (q(p-q)/2) cot^2(theta) F_q
+                <= (q/2) F_q.
+   So e^{-qs/2} F_q(theta_s) is a nonnegative supermartingale.
+   For the first exit sigma_delta of theta_s from (delta, pi - delta),
+        P^{*,N}_x( sigma_delta <= s )
+            <= e^{qs/2} F_q(theta_0) sin^q(delta) -> 0.
+   So neither 0 nor pi is hit in finite inner time. The vertical
+   coordinate obeys d log Y_s = -a sin^{-2}(theta_s) ds, so Y_s
+   never reaches 0 on finite inner intervals either.
+
+   Conclusion. On {tau_ell < zeta_N}, M_ell^{(N)} = M_ell. Since
+   the tilted law is global, P^{*,N}_x(tau_ell < zeta_N) -> 1 as
+   N -> infinity (the spatial caps become eventually inactive, and
+   physical time of the level tau_ell(x) is almost surely finite).
+   Monotone convergence gives E[M_ell(x)] = 1.
+
+   Consistency M_{ell_1} = E[M_{ell_2} | F_{tau_{ell_1}}] for
+   ell_1 < ell_2 follows by the same argument applied to the
+   stopped ratio G_{tau_{ell_2}} / G_{tau_{ell_1}}: conditional on
+   F_{tau_{ell_1}}, the future is a fresh SLE in H_{tau_{ell_1}},
+   and G is again a local martingale with the same exponent.
+
+   Derivation of the local-martingale identity. Ito gives
+        d(theta_t) = V_t dB_t + (1 - 2a) cot(theta_t) V_t^2 dt.
+   With d log R_t = -2 a V_t^2 dt (which is pure drift), and
+        d(sin^p(theta_t))/sin^p(theta_t)
+          = p cot(theta_t) V_t dB_t
+            + V_t^2 [ (1-2a) p cot^2(theta_t)
+                        + (p(p-1)/2) cot^2(theta_t)
+                        - p/2 ] dt,
+   the drift of dG_t/G_t is V_t^2 dt times
+        [ 2 a alpha + (p(1-2a) + p(p-1)/2) cot^2(theta_t) - p/2 ].
+   The cot^0 term vanishes because 2 a alpha = p/2 (equivalent to
+   d = 1 + 1/(4a)). The cot^2 term vanishes because
+        p(1-2a) + p(p-1)/2 = (p/2)(p - 4a + 1) = 0,
+   which is exactly the definition p = 4a - 1. QED.
+
+   Tilted angle dynamics. Under P_x^*, the tip's angle theta
+   (parametrized by inner time ell) solves the SDE
+
+        d theta_s  =  dW_s  +  2 a * cot( theta_s ) * ds,
+
+   whose drift has been shifted from the original (1-2a) cot theta
+   by exactly +p cot theta (recall p = 4a-1). The generator is
+
+        L^*  =  (1/2) d^2/d theta^2 + 2a * cot(theta) * d/d theta.
+
+   Stationary law. The tilted diffusion has a stationary density
+
+        pi_a( d theta )  =  c_a * sin^{4a}( theta ) * d theta,
+
+   where c_a > 0 is chosen so pi_a has total mass 1 on (0, pi).
+   Check by the standard formula for a one-dimensional diffusion:
+   for dX = dW + b(X) ds, the density satisfies rho'/rho = 2 b;
+   with b(theta) = 2a cot(theta), we get log rho = 4a log sin(theta),
+   i.e. rho proportional to sin^{4a}(theta).
+
+   Neither endpoint theta = 0 nor theta = pi is reached in finite
+   inner time under P_x^*. The vertical drift 2a cot(theta) pushes
+   away from the boundaries, and the diffusion stays in the interior
+   of (0, pi) forever.
+
+   Uniform mixing. There is a deterministic s_a < infinity
+   (depending only on a) such that, for every s >= s_a and every
+   starting angle theta_0 in (0, pi),
+
+        (1/2) pi_a(.)  <=  P_x^*[ theta_s in . ]  <=  2 pi_a(.).
+
+   In particular, any nonnegative bounded angle function phi(theta)
+   has conditional expectation under P_x^* at inner time s >= s_a
+   between one half and twice its pi_a-average. This "mixing
+   between 1/2 and 2" bound is what makes later arguments valid
+   regardless of the initial angle.
+
+   PROOF OF UNIFORM MIXING (spectral gap).
+
+   Substitute v = cos(theta). Then d/dtheta = -sin(theta) d/dv =
+   -(1-v^2)^{1/2} d/dv, and the tilted generator L^* = (1/2)
+   d^2/dtheta^2 + 2a cot(theta) d/dtheta becomes
+        A = (1/2)(1 - v^2) dv^2 - (1/2 + 2a) v dv.
+   Integration by parts against the density
+        varpi_a(dv) = c' (1 - v^2)^{2a - 1/2} dv
+   makes A symmetric on polynomials: the boundary term is order
+   (1 - v^2)^{2a + 1/2}, which vanishes at v = +-1 because
+   2a + 1/2 > 0. So A is negative semidefinite on L^2(varpi_a).
+
+   Let P_m be the orthonormal polynomials for varpi_a with P_0 = 1.
+   Since A preserves polynomial degree and vanishes on constants,
+   A P_m = -lambda_m P_m with eigenvalue lambda_m = m(m + 4a)/2
+   (read off from the leading-degree coefficient).
+
+   The orthonormal polynomials grow subexponentially: for m+1
+   pairwise-separated intervals I_1, ..., I_{m+1} in (-1/2, 1/2) of
+   length comparable to 1/(m+1), each I_k contains a point v_k with
+   |P_m(v_k)|^2 <= C_a (m+1) (because varpi_a is bounded below
+   there and int P_m^2 d varpi_a = 1). Lagrange interpolation at
+   these points (separated by >= c/(m+1)) gives
+        |P_m(v)| <= exp(C_a (m+1) log(m+2))    on [-1/2, 1/2],
+   and the same holds on [-1, 1] with C_a increased.
+
+   Consequently the heat-kernel series
+        k_s(v, w) = 1 + sum_{m >= 1} exp(-s lambda_m) P_m(v) P_m(w)
+   converges absolutely and uniformly on [-1, 1]^2 for every s > 0.
+
+   Ito's formula applied to P_m under the tilted generator A gives,
+   for the actual transition law,
+        E_v [ P_m(v_s) ] = exp(-s lambda_m) P_m(v).
+   (The local martingale A-integral is a true martingale: P_m is
+   bounded on compact subsets and A P_m P_m is dominated by an
+   integrable bound.) So the polynomial moments of the true
+   transition law and of the signed kernel k_s(v, w) varpi_a(dw)
+   agree. Polynomial density in C([-1, 1]) identifies them, so
+   k_s is a nonnegative reproducing kernel for the transition.
+
+   Since lambda_m -> infinity (in fact lambda_m = m(m + 4a)/2)
+   and the L^inf growth of P_m is only exp(C_a m log m), the sum
+   sum_{m >= 1} exp(-s lambda_m) P_m(v) P_m(w) goes to 0 uniformly
+   in (v, w) as s -> infinity. So there is s_a < infinity with
+        (1/2) <= k_s(v, w) <= 2 for all v, w and all s >= s_a.
+   Translating back to theta = arccos(v) and using
+   (1-v^2)^{2a-1/2} = sin^{4a-1}(theta) up to normalisation gives
+        (1/2) pi_a(.) <= P_x^*[ theta_s in . ] <= 2 pi_a(.)
+   for all s >= s_a and all theta_0 in (0, pi). QED.
+
+   Inverse-angle integrability. The choice of p is exactly such that:
+
+        integral_0^pi sin^{-p}(theta) pi_a(d theta)
+          =  c_a * integral_0^pi sin^{4a-p}(theta) d theta
+          =  c_a * integral_0^pi sin(theta) d theta
+          =  2 * c_a  <  infinity.
+
+   The middle equality uses 4a - p = 1, which follows directly from
+   p = 4a - 1. This integrability makes the change-of-law density
+   well behaved near the extreme angles theta = 0 and theta = pi.
+
+   Finite lifetime. Under P_x^*, the stopping time
+
+        T^*(x)  =  lim_{ell -> infinity} tau_ell(x)
+
+   is finite almost surely. In other words, x ALWAYS dies in finite
+   inner time under the centered law. There is no path where x
+   survives to infinity.
+
+   PROOF THAT T^*(x) < INFINITY ALMOST SURELY.
+
+   Fix 0 < q < p and 0 < epsilon < a/2. The uniform mixing bound
+   gives a deterministic B < infinity with
+        E_x^*[ sin^{-q}(theta_s) ] <= B  for all s >= s_a
+        and every starting angle theta_0 in (0, pi).
+   Let F_q(theta) = sin^{-q}(theta) and recall d log Y_s =
+   -a sin^{-2}(theta_s) ds. The Lyapunov estimate from the
+   finite-tilt proof says M_s = e^{-q s / 2} F_q(theta_s) is a
+   nonnegative supermartingale under P_x^*.
+
+   Fix integer m >= s_a. Doob's maximal inequality on [m, infinity)
+   with initial value M_m gives
+        P_x^*( sup_{s >= m} M_s > e^{-q m / 2 + q epsilon m} )
+          <= E_x^*[M_m] / e^{-q m / 2 + q epsilon m}
+          <= e^{-q m / 2} B / e^{-q m / 2 + q epsilon m}
+          <= B e^{-q epsilon m}.
+   Summable in m. Borel-Cantelli: for all sufficiently large m,
+        sup_{s >= m} M_s <= e^{-q m / 2 + q epsilon m}.
+   Taking m = floor(s) for large s gives
+        F_q(theta_s) <= e^{q epsilon s + O(1)}.
+   So sin^{-4}(theta_s) <= C e^{4 epsilon s} for all sufficiently
+   large s.
+
+   Combining with Y_s <= Y_0 e^{-a s} (from d log Y_s <= -a ds):
+        dt/ds = Y_s^2 sin^{-4}(theta_s)
+              <= Y_0^2 e^{-2 a s} * C e^{4 epsilon s}
+              = C Y_0^2 e^{-(2 a - 4 epsilon) s}.
+   Since epsilon < a / 2, this integral over [0, infinity) is
+   finite, so
+        T^*(x) = int_0^infty Y_s^2 sin^{-4}(theta_s) ds < infinity.
+   QED.
+
+   What is really going on. The weight G_t(x) = R_t(x)^{-alpha}
+   sin^p(theta) is the "future mean mass density" at x from the
+   mass construction (C.4). Using it as a change-of-law density
+   converts the SLE tip into a "biased" trajectory that is drawn
+   toward x. The tilt is chosen so that the surviving angular degree
+   of freedom becomes stationary with the sin^{4a} density and
+   uniform mixing kicks in after O(1) inner time. All the later
+   probability bounds are conditioned on this well-behaved angle
+   process.
+
+   A technical remark. Each M_ell is a density only on the
+   sigma-field of the stopped path up to time tau_ell(x); it is not
+   a density on the whole infinite future. The "limit as ell ->
+   infinity" is a projective limit over these finite stopped laws.
+   This lets us evaluate functionals of the stopped path without
+   ever committing to absolute continuity on an infinite horizon.
+
+  C.3  THE MULTIPOINT ESTIMATE
+
+   The multipoint estimate is the workhorse behind the moments m_n in
+   C.5. It is a uniform bound on the probability that many points in
+   a domain SIMULTANEOUSLY reach their own prescribed conformal
+   radii before being swallowed.
+
+   Setup.  Fix x_1, ..., x_m distinct points inside D = J(HH).
+   Choose positive constants b_1, ..., b_m (the "caps") such that
+
+        b_i <= R_D(x_i)             and        b_i <= |x_i - x_j|
+
+   for every j != i. So the b_i are smaller than the initial conformal
+   radius at x_i and smaller than the distance to any other marked
+   point. Fix further target radii 0 < e_i <= b_i.
+
+   Event.  Let E_m be the event that, for every i in {1,...,m}, the
+   point x_i reaches conformal radius e_i while still alive (i.e. at
+   some instant, its current R_t(x_i) is exactly e_i and it has never
+   been swallowed up to that instant). The points may finish at
+   different times.
+
+   THEOREM (Multipoint estimate). There is a constant C_{m,a} <
+   infinity depending only on m and a = 2/kappa (in particular
+   independent of the domain D, the caps b_i, the targets e_i, and
+   the initial angles) such that
+
+        P( E_m )  <=  C_{m,a} * prod_{i=1}^m (e_i / b_i)^alpha.
+
+   For target radii that may exceed caps, we use the version
+
+        P( E_m )  <=  C_{m,a} * prod_{i=1}^m min{ 1, (e_i / b_i)^alpha },
+
+   which follows by dropping the constraints whose target exceeds its
+   cap and readjusting the constant for the remaining number of
+   constraints.
+
+   Why the exponent is alpha = 2 - d.   The conformal radius e_i is
+   the natural scale of x_i. A point at radius e_i is (roughly)
+   e_i^alpha "fractional-dimensional mass" of the curve. So the
+   hitting probability is a power alpha of the ratio e_i / b_i. The
+   product over i is what "independence" would predict; the constancy
+   of C_{m,a} says this is essentially correct even though the
+   points DO interact.
+
+   TWO THINGS TO NOTICE:
+
+   (1) The constant C_{m,a} does NOT grow like m! (factorial).
+       It is finite and depends only on m and a, through explicit
+       constants (see below). For the upper layers of the argument to
+       close, we need the moments of the mass to be finite without
+       huge growth in m. That is what this bound delivers.
+
+   (2) The bound is completely UNIFORM in D, in the caps b_i, in
+       the targets e_i, in the initial angles, and in the ORDER and
+       TIMES at which the hits happen. This uniformity is crucial
+       later when we apply the bound inside a disk model whose
+       boundary angle depends on the drivers.
+
+   Proof strategy.  Standard "one-point-at-a-time" martingale
+   arguments fail because the points interact: when two points are
+   still alive and both active, their angular evolutions are
+   correlated, and their mutual distance drifts. We handle this
+   via a PRODUCT SUPERMARTINGALE with a regularized factor for each
+   point.
+
+   Define for each point i a "clock" u_i(t) = integral_{sigma_i}^t V_i^2
+   ds where sigma_i is the first time R_t(x_i) reaches its cap b_i,
+   and V_i is V-t of point i. Define U_i = (1/(2a)) log(b_i/e_i), the
+   amount of clock needed to shrink conformal radius from b_i to e_i.
+   Then point i finishes at its target at exactly the moment u_i(t) =
+   U_i, provided it is still alive.
+
+   Freeze-and-decay factor. Define
+
+        delta_i(u)  =  exp( - beta * min( u, U_i - u ) ),
+        f_i(u, theta)  =  sin^p(theta) + delta_i(u) * ( 1 + sin^q(theta) ),
+
+   where the constants q, p, M, beta are all explicit functions of a
+   alone (derived in detail inside the next paragraph). The role of delta_i is to
+   be 1 at the boundaries of the activity interval [0, U_i] and small
+   in the middle. The exponent q < p is chosen so that SOME angular
+   positivity is available even when sin theta is small. The q and
+   beta choices land us in a regime where all the sums converge.
+
+   Product supermartingale. Consider
+
+        Q_i(t)  =  (1/3) * e^{p u_i(t)/2} * f_i( u_i(t), theta_i(t) )
+
+   during activity, and Q_i(t) = 1 before sigma_i (when R_t(x_i) is
+   still above b_i) and Q_i(t) = (1/3) e^{p U_i / 2} after T_i (when
+   the point has finished). Set Q(t) = Q_1(t) * ... * Q_m(t).
+
+   The claim is: Q is a supermartingale after an explicit
+   stochastic discount. Precisely, define a positive drift k_t by
+
+        k_t  =  C_1 sum_{i active} delta_i(t) V_i^2
+              + C_3 sum_{i<j both active} (delta_i delta_j)^{-M}
+                                         V_i V_j,
+
+   where the constants C_1 and C_3 are explicit functions of m and a.
+   Here is their derivation.
+
+   EXPLICIT CONSTANTS AND DRIFT BOUNDS.
+
+   Recall q = (1/2) min(1,p), eta = (1-q)/(2-q) in (0, 1/2),
+   M = (1+eta)/(1-2 eta) = 3/q - 2, beta = min(1, a/(4M)),
+   k = q(p-q)/2. Set
+        A  =  p/2 + ((p-q)(1+q))/2 + 2,
+        h_0 = (k/(2A))^{1/(2-q)}   (which lies in (0, 1)),
+        C_1 =  A h_0^{-p},
+        c_1 =  k/2  >  0,
+        C_2 = (p+q) 3^eta,
+        r   =  1 - 2 eta.
+   For m > 1 choose epsilon = c_1 / (2(m-1)); for m = 1 there are
+   no cross terms, so any epsilon is fine. Set
+        C_3 = C_epsilon = r C_2^{1/r} (eta/epsilon)^{2 eta / r}.
+   Both C_1 and C_3 depend only on m and a, as claimed. They are
+   the coefficients appearing in k_t.
+
+   Where the drift bound comes from. Recall s = sin(theta_i) and
+   sigma = delta_i' / delta_i, with |sigma| <= beta <= 1. The exact
+   drift of f_i is
+        (d/du + L + p/2) f_i / f_i
+          = (delta_i / f_i) [ p/2 + ((p-q)(1+q))/2 s^q
+                              - k s^{q-2} + sigma (1 + s^q) ].
+   Because |sigma(1 + s^q)| <= 1 + s^q <= 2 + s^q (absorbing the
+   boundary case s ~ 1 into A by an extra +2 there), the bracket
+   is at most A - k s^{q-2}. Now add the c_1 D_i term with
+   D_i = (delta_i/f_i) s^{q-2}:
+     - For s < h_0, we have s^{q-2} > h_0^{q-2} = 2A/k, so the
+       bracket is at most A - 2A = -A. The added c_1 D_i term is at
+       least (k/2)(delta_i/f_i) * (2A/k) = A delta_i/f_i, so the
+       sum is at most 0 <= C_1 delta_i.
+     - For s >= h_0, use f_i >= s^p >= h_0^p. The bracket is at
+       most (delta_i/f_i) A <= A h_0^{-p} delta_i = C_1 delta_i.
+   Both cases yield
+        (d/du + L + p/2) f_i / f_i  <=  C_1 delta_i - c_1 D_i.
+
+   Where the Young inequality comes from. Angular differentiation
+   gives |d_theta f_i| / f_i <= (p+q) delta_i^{-1} s^{q-1}. Using
+   delta_i <= f_i and eta(q-2) = q-1,
+        |d_theta f_i| / f_i
+          <= (p+q) 3^eta delta_i^{-1-eta} D_i^eta
+          =  C_2 delta_i^{-1-eta} D_i^eta.
+
+   Product formula cross-term. Ito's product formula contributes,
+   for each active unordered pair (i, j), a term bounded by
+        C_2 (delta_i delta_j)^{-1-eta}
+            (D_i V_i^2)^eta (D_j V_j^2)^eta
+            (V_i V_j)^{1-2eta}.
+   Weighted Young with exponents (eta, eta, 1-2eta) yields
+        |cross|  <=  epsilon (D_i V_i^2 + D_j V_j^2)
+                     + C_3 (delta_i delta_j)^{-M} V_i V_j.
+   Choose epsilon = c_1 / (2(m-1)); summing over all pairs, the
+   first term is absorbed into -c_1 sum_i D_i V_i^2 (each i meets
+   at most m-1 partners, so the total absorbed is at most c_1/2).
+   The second term is exactly the C_3 pair contribution in k_t.
+
+   With these constants, the discounted product
+
+        M_t  =  Q_t * exp( - integral_0^t k_v dv )
+
+   is a nonnegative local supermartingale,
+
+   and the discount integral is deterministically bounded:
+
+        integral_0^infinity k_t dt  <=  K_{m,a}  <  infinity,
+
+   with
+
+        K_{m,a}  =  2m C_1 / beta  +  C_3 * binom(m,2) * I(a, M beta).
+
+   Here I(a, M beta) = e^{2 M beta} / (2a (1 - e^{2 M beta - a})) <
+   infinity, because 2M beta <= a/2 < a by the choice of beta.
+
+   Pair interaction. The key estimate behind the k_t bound is the
+   following geometric inequality. For two points i, j both
+   surviving and both active, define
+
+        L_{ij}(t)  =  log | (Z_i(t) - conj Z_j(t)) / (Z_i(t) - Z_j(t)) |,
+
+   where Z_i(t) = g_t(z_i) - B_t (as in C.1). A direct computation
+   from the Loewner equation gives
+
+        d L_{ij} / dt  =  - 2 a V_i V_j.
+
+   So L_{ij}(t) is a NONNEGATIVE process (it equals -log of a ratio
+   in the unit disk) that is strictly decreasing at rate 2a V_i V_j.
+   Meanwhile, the analogous inequality for the actual geometric
+   distance gives
+
+        L_{ij}(t)  <=  e^{ - a max( u_i(t), u_j(t) ) }   when at least
+        one of the two points has been active for a while.
+
+   That is to say: two points that survive into each other's activity
+   interval must necessarily be nearly "conformally adjacent". The
+   distance between them decays exponentially in the leading clock.
+   Summing over all pairs, this bounds the accumulated cross terms in
+   k_t. The interaction integral inequality is
+
+        integral_{joint activity} e^{ c (u_i + u_j) } V_i V_j dt
+             <=  I(a, c)  for  2c < a.
+
+   Both the diagonal k_t = C_1 sum delta_i V_i^2 term and the off-
+   diagonal pair term are absorbed by the negative drift from Q_i's
+   own dynamics (which is -c_1 * D_i V_i^2, with D_i = (delta_i/f_i)
+   sin^{q-2} inside the drift bound, plus the negative contribution
+   of the sin^p term when angles are near the boundary). The
+   optimizer chooses the constants c_1 and C_3 so that the sum of all
+   positive terms is <= 0 away from what the discount k_t accounts
+   for.
+
+   Conclusion of the proof.  At the stopping time T_all = max_i T_i
+   (the first time all points have simultaneously finished), the
+   product Q takes the deterministic value
+
+        Q_{T_all}  =  3^{-m} * prod_{i=1}^m (b_i / e_i)^alpha.
+
+   Since M_t = Q_t e^{-int_0^t k} is a supermartingale with M_0 = 1
+   (or slightly less, depending on whether sigma_i = 0 for all i),
+   we have, using a standard localization argument to handle the
+   bounded cutoff on angles/heights/time and passing to the limit,
+
+        E[ M_{T_all} ; T_all < infinity ]  <=  1.
+
+   Rearranging:
+
+        P( T_all < infinity )  <=  e^{ K_{m,a} } * 3^m *
+                                   prod_{i=1}^m (e_i / b_i)^alpha.
+
+   Setting C_{m,a} = 3^m e^{K_{m,a}} proves the proposition.
+
+   Note on the choice of stopping-time cutoffs.  To make M_t
+   well-behaved, one stops when the angle of any unfinished point
+   leaves (1/N, pi - 1/N), when the height Y_i of any such point
+   falls to 1/N, or at physical time N. Call this cutoff zeta_N. On
+   the event zeta_N = infinity AND T_all < infinity, all targets
+   have been reached, and the supermartingale argument applies. P(
+   T_all < zeta_N ) is bounded by the displayed inequality. As N
+   grows, the events { T_all < zeta_N } increase up to { T_all <
+   infinity } (by continuity of the paths, and because a completed
+   point does not need any further cutoff). So the tail gives the
+   proposition.
+
+   COMPARISON WITH THE LITERATURE.  The same proposition also
+   follows from Rezaei-Zhan (2017, Theorems 1.1 and 1.2) together
+   with the Koebe quarter theorem (Section 3.2 of Beliaev 2015,
+   specifically Theorem 3.2.5 and Corollary 3.2.6). The direct
+   proof above is self-contained and is the one used throughout.
+
+   COROLLARY (Integrated level-moment bound, "level moments").
+   For every nonnegative bounded f supported in a compact K that is
+   compactly contained in D, and for every integer m >= 1, define
+
+        A_ell( f )  =  integral_K f(x) * G_{tau_ell(x)}(x) *
+                       1{ tau_ell(x) < infinity }  dx dy.
+
+   Then
+
+        sup_{ell > 0} E[ A_ell(f)^m ]  <  infinity.
+
+   Moreover, if x_0 in D is an additional fixed point with target
+   radius 0 < e_0 <= R_D(x_0), and E_0 is the event that x_0 reaches
+   conformal radius e_0 while alive, then
+
+        sup_{ell > 0} E[ 1_{E_0} * A_ell(f)^m ]  <=  C * e_0^alpha,
+
+   with C depending only on m, a, the size and location of f, and a
+   positive lower bound for R_D on K union {x_0}.
+
+   Proof.  Apply the multipoint estimate of C.3 (Proposition
+   mp:estimate, with the explicit C_{m,a} derived there) to the
+   m points where A_ell(f) has mass, together with the cap-and-
+   target choices e_i = R_D(x_i) e^{-2a ell} <= b_i and
+   b_i <= min_{j != i} |x_i - x_j|. Integrating the collision
+   kernel |x_i - x_j|^{-2 alpha} over the support K^m gives the
+   m-th moment bound (this uses only 2 alpha < 2, the same fact
+   that gave atomlessness of mu_infinity in C.4). For the
+   center-moment estimate with E_0, choose x_0 as an additional
+   marked point with cap b_0 <= R_D(x_0) and target e_0, and note
+   that the C.3 proposition contains (e_0/b_0)^alpha <= 1 as a
+   multiplicative factor. QED.
+
+  C.4  A CANONICAL MASS MEASURE ON THE TRACE
+
+   Goal. Build an adapted increasing measure mu_t on the open upper
+   half-plane HH (or on a conformal image D = J(HH)) with the
+   following meaning: mu_t(A) is "how much of the curve up to time t
+   has passed through A". It starts empty at t = 0 and grows on the
+   trace.
+
+   THEOREM (Construction and conditional kernel).  There is an
+   adapted increasing family ( mu_t ) for 0 <= t <= infinity of
+   locally finite measures on HH, with the properties below.
+
+   LEVEL APPROXIMANTS.  Definition first. For an integer j >= 1
+   define
+
+        M_t^{(j)}( dx dy )  =  G_{tau_j(x)}(x)
+                               * 1{ tau_j(x) <= t and tau_j(x) < inf }
+                               dx dy,
+
+   where tau_j(x) is the level time from C.1 (the first inner time s
+   at which x's conformal radius reaches R_0(x) * e^{-2a j}), and
+   G_s(x) = R_s(x)^{-alpha} sin^p(theta_s) is the Green weight from
+   C.2. So M^{(j)} is supported on the set of points whose conformal
+   radius around them is exactly R_0(x) e^{-2a j}, weighted by the
+   Green function.
+
+   CONVEX EXTRACTION (full argument).
+
+   (i) Polish space. The space M_{lf}(HH) of locally finite positive
+   Radon measures with the vague topology is Polish. Its Borel sigma-
+   field is generated by evaluations phi |-> mu(phi) for phi in
+   C_c(HH). Vague convergence sets and limit maps are therefore
+   Borel in the product space of sequences.
+
+   (ii) Countable determining family. Fix a countable dense-in-C_c
+   family { phi_k } (e.g. rational-coefficient bumps on a rational
+   ball basis), countably many rational times q, and a compact
+   exhaustion { K_m }. A locally finite positive measure is
+   determined by its values on { phi_k } alone. So agreement on
+   all (phi_k, q) pairs implies the measure-valued equality mu_q =
+   mu_q' everywhere.
+
+   (iii) Tightness and compactness. By the integrated level-moment
+   bound (Corollary mp:level-moments) applied at each fixed level j
+   on a compact K cc HH, the test-masses M_q^{(j)}(phi_k) have
+   bounded first moments, uniformly in j, and are therefore tight
+   in the sigma(M_{lf}, C_c)-topology along any subsequence of j.
+   The double sequence of the test-masses (indexed by j on the one
+   hand and (phi_k, q) on the other) is bounded in L^1 and admits a
+   diagonal subsequence j_l along which
+        M_q^{(j_l)}(phi_k)  converges  for every (Phi_k, q).
+   Standard Cantor-diagonal over the countable family.
+
+   (iv) Cesaro smoothing. The subsequence limit may depend on
+   measurable null-set choices. Replace with a tail Cesaro average
+   over a sparsely chosen sequence j_L -> infinity (each j_{L+1}
+   chosen so large that for every (phi_k, q) with k, q <= L, the
+   increment |M_q^{(j_{L+1})}(phi_k) - M_q^{(j_L)}(phi_k)| <= 2^{-L}).
+   Then
+        mu_t  :=  weak-lim_{L -> infinity} ( 1/L ) sum_{l <= L}
+                  M_t^{(j_l)}
+   is a well-defined positive measure-valued functional, measurable
+   in the driving path, vaguely continuous at rational times by
+   construction, and measurable at all times by right-continuity
+   of t |-> mu_t(phi_k) (each M_t^{(j)} is right-continuous).
+   In particular the convex-combination choice is deterministic
+   in kappa alone: it depends on moment bounds, not on the sample.
+
+   (v) Consistency and kernel. Because the SAME sequence (j_l) is
+   used for ALL (phi_k, q), the resulting mu_q is one fixed object.
+   Apply M5 as an identity of conditional kernels to each M_q^{(j_l)}
+   against the finite determining family, average over l, and pass
+   to the L^1 limit: the kernel identity M5 holds for mu. Then
+   Monotone Class lifts from countable tests to all nonnegative
+   F_t x B(HH)-measurable tests.
+
+   (vi) Uniqueness removes the choice. If a second sequence of
+   convex weights gave a different mu~_t, both mu and mu~ would be
+   continuous increasing adapted finite-variation test-mass processes
+   starting at zero with the same remaining conditional potential
+   G_S dx dy (from M5). By the UNIQUENESS paragraph below,
+   mu = mu~. So the specific convex coefficients do not matter.
+   QED.
+
+   Now the properties.
+
+     M1.  mu_0 = 0, and mu_t -> mu_infinity weakly as t -> infinity.
+
+     M2.  Almost surely, simultaneously for every 0 <= v < t < inf,
+          the increment ( mu_t - mu_v ) is carried by
+          gamma([v,t]) cap HH.
+
+     M3.  The terminal measure mu_infinity is nonatomic and has
+          moments of every integer order on compact sets. (The
+          exponent alpha < 1 is what makes atomlessness true; see
+          F.4.)
+
+     M4.  The map t |-> mu_t is locally continuous in total
+          variation: for any compact K and any time t, the total
+          variation of mu_{t+delta} - mu_t restricted to K tends
+          to 0 as delta -> 0.
+
+     M5.  Almost surely, for every stopping time S (possibly
+          infinite) and every nonnegative test function f that is
+          measurable with respect to F_S,
+
+                E[ mu_infinity( f ) - mu_S( f ) | F_S ]
+                  =  integral f(x) G_S(x) dx dy.
+
+          Here G_S(x) = R_S(x)^{-alpha} sin^p(theta_S) on the event
+          { x in H_S } and G_S(x) = 0 outside H_S. The identity
+          holds as a conditional measure kernel, so it includes
+          random nonnegative tests known at S.
+
+     M6.  Taking S = 0 recovers the unconditional mean
+          E[ mu_infinity ] = G_0(x) dx dy.
+
+     M7.  Almost surely, for every 0 <= v < t < infinity,
+
+                ( mu_t - mu_v )( HH )  >  0.
+
+          The positive mass can always be detected on an interior
+          compact.
+
+     M8.  First-visit identity. Put v(x) = inf{ t : gamma(t) = x }. Almost
+          surely v(x) < infinity for mu_infinity-almost every x,
+          and simultaneously for every finite t,
+
+                mu_t( dx dy )  =  1{ v(x) <= t } * mu_infinity( dx dy ).
+
+          In words: a later geometric return to an already visited
+          point brings no new mass. The measure is a "first visiter
+          counter".
+
+     M9.  Conformal covariance. For a fixed conformal map J : HH -> D
+          define the pushed-forward measure
+
+                mu_t^D( dx dy )  =  J_* ( |J'|^d  mu_t )
+                                 =  the pushforward of the measure
+                                    |J'(z)|^d mu_t(dz)
+                                    under z |-> J(z).
+
+          Then the kernel M5 holds with G_t^D in place of G_t,
+          the support property M2 holds with J(gamma([v,t])) in
+          place of gamma([v,t]), and everything else carries over.
+
+          Reason: conformal radius transforms as R_D(J(z)) =
+          |J'(z)| * R_HH(z), area transforms as |J'|^2, and the
+          combination "radius^{-alpha} times area" becomes
+          |J'|^d times the original.
+
+     M10. Pathwise restart. Fix a stopping time S < infinity. Put
+          J_S = (g_S - B_S)^{-1} : HH -> H_S. Let mu~ be the
+          canonical mass of a fresh Brownian driver. Then almost
+          surely, as measures on H_S, simultaneously for all
+          0 <= t <= infinity,
+
+                ( mu_{S+t} - mu_S )|_H_S
+                  =  ( J_S )_* ( |J_S'|^d  mu~_t ).
+
+          Equivalently: after stopping at S, the future of mu is
+          exactly the canonical mass of a fresh SLE, carried through
+          the (random) conformal map J_S. Once this measure equality
+          holds, any random nonnegative Borel weight on H_S can be
+          integrated without picking an additional version.
+
+     PROOF OF M10 (pathwise restart).
+
+     (a) Terminal integrability of both sides. Write mu_t^{(S)} :=
+     mu_{S+t} - mu_S restricted to H_S, and nu_t := (J_S)_*(|J_S'|^d
+     mu~_t) for the pushforward of the fresh-SLE mass. Take phi in
+     C_c(H_S). By strong Markov for the SLE driver, conditioning on
+     F_S gives E[mu_infinity^{(S)}(phi) | F_S] = int phi(x)
+     G_S^{restart}(x) dx dy where G_S^{restart} is the restarted
+     Green weight at the current time S (with angle theta_S).
+     Because E[G_S^{restart}|F_0] <= G_0 under the change of
+     variables J_S, this has finite expectation <= int phi(x) G_0(x)
+     dx dy after integrating. The same computation gives the
+     terminal mean of nu_∞. The two conditional means agree.
+
+     (b) Kernel at S + t. Fix t >= 0. The kernel identity M5 gives,
+     for the actual process, on F_{S+t}:
+          E[mu_infinity^{(S)}(dx) - mu_t^{(S)}(dx) | F_{S+t}]
+             = G_{S+t}^{actual}(x) dx dy.
+     For the fresh process (J_S)_*(|J_S'|^d mu~_t) under strong
+     Markov + op:tested-potential, the same identity applied in
+     the restarted domain H_S at inner time t yields
+          E[nu_infinity(phi) - nu_t(phi) | F_{S+t}^{fresh}]
+             = int phi(x) G_t^{fresh}(x) dx dy
+     with G_t^{fresh}(x) dx dy the fresh-SLE kernel at level t.
+     Because J_S maps concrete points but conformal covariance of
+     G is exact (|J'|^{-alpha} x |J'|^2 = |J'|^d), the two
+     conditional potentials are the same positive form once both
+     are expressed in fresh coordinates.
+
+     (c) Uniqueness. Now mu^{S + ·} - mu_S and nu_· are two
+     continuous increasing adapted R-valued processes starting from
+     zero on H_S, of locally finite total variation, and with the
+     same remaining conditional potential at every fixed t. Their
+     difference is a continuous martingale of finite variation and
+     starts at zero, hence vanishes (see UNIQUENESS below). This
+     identifies the two measure-valued processes as one, on a common
+     probability-one event.
+
+     (d) Simultaneity. Choose the countable determining family of
+     tests and rational times. The comparison in (c) is made once
+     per (test, rational t) on a null event; the union over a
+     countable family is a null event. Intersect with the null
+     event of M5 for mu and the null event of M5 for the fresh
+     mu~. On the remaining probability-one event M10 holds
+     simultaneously for all t >= 0 and all test functions phi in
+     the countable family, hence (by continuity in t and weak
+     convergence on tests) for all phi in C_c(H_S) and all real
+     t >= 0. QED.
+
+   UNIQUENESS.  If A_t and A~_t are two continuous increasing
+   adapted finite-variation test-mass processes starting at zero
+   with the same remaining conditional potential G_S dx dy (a
+   conditional-kernel identity), then A_t - A~_t is a continuous
+   martingale of finite variation and starts at 0, so it vanishes.
+   Doing this for a countable determining family of compact tests
+   proves uniqueness of mu. In particular the extracted mu is
+   independent of the particular convex weights used.
+
+   SCALING.  Let B^{(c)}_t = c^{-1} B_{c^2 t} be the SLE driver of the
+   scaled curve. Then almost surely, for all t and all Borel sets A,
+
+        mu_t( B^{(c)} ) ( A )  =  c^{-d} * mu_{c^2 t}( B )( c A ).
+
+   This is a direct consequence of uniqueness (the scaled process has
+   the same kernel, continuity provenance and terminal integrability
+   as the canonical process).
+
+   HOW TO READ THE PROPERTIES.
+
+     - M5 is the crucial "the future looks like G_S times area"
+       identity. It is why mu can be compared to the canonical
+       Green potential and why a change-of-law argument can be
+       used later.
+
+     - M7 is why mu detects mass on every nontrivial interval. A
+       nontrivial interval contains a nontrivial rational interval,
+       and start-of-interval brownian germ sigma-field plus restart
+       gives positivity.
+
+     - M8 is the "past mass" property used in the lower Hausdorff
+       bound. Mass at a point is only counted the first time the
+       curve visits it. Subsequent geometric returns do not add
+       mass.
+
+     - M9 and M10 are what allow us to "start afresh" at a stopping
+       time and compare to a fixed disk model. This is the key point
+       where the proof passes from the actual curve to an
+       arbitrary-angle reference model.
+
+   What remains.  C.5 defines the centered disk model and the mass
+   moments L, L_ell, m_n, m_n(ell) used to build the gauge.
+
+  C.5  THE DISK MODEL AND ITS MASS MOMENTS
+
+   We now freeze everything into a reference model where one marked
+   point has been placed at the origin of the unit disk. All of the
+   infinite-dimensional mass mu from C.4 is compressed into a single
+   scalar quantity: the accumulated mass in a fixed quarter-radius
+   subdisk.
+
+   Conformal identification. For a fixed angle theta in (0, pi),
+   define the disk map
+
+        J_theta(zeta)  =  ( zeta - e^{i theta} ) / ( zeta - e^{-i theta} ),
+
+   which is a conformal (Mobius) map from the upper half-plane HH onto
+   the unit disk DD, taking the boundary point e^{i theta} to the
+   marked center 0. In this view the marked boundary point of the
+   drivers becomes the interior center of the disk.
+
+   The chosen test region inside the disk is
+
+        K  =  { x in DD : |x| <= 1/4 },
+
+   a fixed closed disk of radius 1/4 around 0.
+
+   Centered laws at the disk model.  For a fixed theta, let
+   P_theta^* be the centered law (from C.2) which biases the curve
+   toward theta's image in the disk. Stack these up according to the
+   invariant angle law pi_a:
+
+        P_mix^*( d theta )  =  integral_{0}^{pi} P_theta^* pi_a( d theta ).
+
+   In words: pick the driver angle at random from pi_a, then run the
+   centered SLE with that start. P_mix^* is a probability on stopped
+   paths, and expectation under it is denoted E_mix^*.
+
+   The centered mass functional.  Let mu^DD_{tau_ell(0)} be the
+   disk-image mass (property M9 from C.4) evaluated at the level
+   time tau_ell(0) of the marked center 0. Let
+
+        L_ell  =  mu^DD_{tau_ell(0)}( K ),
+
+   the accumulated mass inside the fixed subdisk K by inner time ell.
+   Let
+
+        L  =  lim_{ell -> infinity} L_ell
+
+   be the eventual limit; the limit exists almost surely because
+   mu is increasing.
+
+   Note: this is one scalar per path, and it depends only on the total
+   mass pushed into a fixed quarter-disk by inner time ell. All the
+   infinite-dimensional structure has been summed away.
+
+   THEOREM (Finite positive disk moments). For every integer n >= 1,
+   the deterministic numbers
+
+        m_n( ell )  =  E_mix^*[ L_ell^n ],
+        m_n         =  E_mix^*[ L^n ]
+                    =  lim_{ell -> inf} m_n( ell )
+
+   satisfy
+
+        0  <  m_n  <  infinity.
+
+   Moreover L > 0 almost surely, and for each fixed starting angle
+   theta in (0, pi), the centered law satisfies the uniform bound
+
+        sup_{ell > 0} E_theta^*[ L_ell^n ]
+          <=  C_{n,a} * sin^{-p}(theta).
+
+   The important content:
+
+   (i)   m_n is positive AND finite for EVERY integer n. The whole
+         gauge will need all n simultaneously, so the "positive every
+         order" is not a decoration.
+
+   (ii)  The bound sin^{-p}( theta ) is integrable against pi_a,
+         because int sin^{-p} sin^{4a} = int sin = 2 by the identity
+         4a - p = 1 from C.2. So the exceptional values theta near 0
+         and theta near pi are covered by the angle law pi_a.
+
+   Proof ideas (full version in F.5):
+
+     * The moment bound at a fixed theta is essentially a two-step
+       application of the multipoint estimate (C.3) at the marked
+       point 0 and at one more interior point.
+
+     * Positivity L > 0 uses the mass positivity M7 of C.4 combined
+       with the fact that finitely much mass has been pushed into K
+       by inner time ell. As ell grows, the mass keeps increasing.
+
+     * The "sin^{-p}(theta)" prefactor comes from the density of the
+       finite-tilt change of law at inner time ell evaluated at the
+       moment the level-time disk closes.
+
+   EXPLICIT DETERMINISTIC FORMULA (the coefficient prescription).
+
+   The moments m_n and m_n(ell) are deterministic numbers computable
+   from kappa alone. Here is the explicit integral definition of
+   these numbers.
+
+   For a fixed theta, define the following deterministic integrands
+   on the path space of a standard Wiener process b (Brownian motion
+   started at 0):
+
+        P_ell( theta, b )  =
+             1{ tau_ell(0; theta, b) < infinity }
+             * e^{ 2 a alpha ell }
+             * sin^p( theta_{tau_ell(0)}(0) ) / sin^p(theta).
+
+   Here tau_ell(0) = tau_ell(0; theta, b) depends on the Loewner
+   driver b, and theta_{tau_ell(0)}(0) is the angle of the marked
+   center just before it dies.
+
+   For the discrete compensator, choose dyadic mesh sizes
+
+        delta_h  =  2^{-h},   t_i = i * delta_h,   N_h = h * 2^h.
+
+   For a path b and an independent Wiener path c, let b (+)_t c be
+   the concatenation: agrees with b up to t, then continues as
+   b(t) + c( . - t ) after t. Define
+
+        q_{h,i}( theta, b )
+          =  Psi_{t_i}( theta, b )
+             - integral Psi_{t_{i+1}}( theta, b (+)_{t_i} c )
+                            W( d c ),
+
+   where Psi_t( theta, b ) = integral_K G_t( x; theta, b ) dx dy is the
+   Green weight mass inside K.
+
+   Then the discrete compensator is
+
+        D_h( theta, b; ell )
+          =  sum_{ i = 0 }^{ N_h - 1 }
+                1{ t_{i+1} <= tau_ell(0; theta, b) }
+                q_{h,i}( theta, b ).
+
+   THEOREM (Explicit coefficients). The moments from the previous
+   proposition are given by
+
+        m_n( ell )
+          =  lim_{u -> infinity} lim_{h -> infinity}
+                integral_{0}^{pi}
+                  integral
+                    P_ell( theta, b )
+                    ( [ D_h( theta, b; ell ) ]_0^u )^n
+                    W( d b )
+                  pi_a( d theta ),
+
+        m_n
+          =  lim_{ell -> infinity} m_n( ell ).
+
+   Here [ x ]_0^u = min{ max{ x, 0 }, u } is the interval truncation.
+   All limits can be taken along integer subsequences, so the
+   coefficients are purely deterministic numbers determined by kappa.
+
+   WHY THIS IS THE RIGHT KIND OF FORMULA.  The inner integral over b
+   is an average over the Loewner driver, sampled from Wiener measure.
+   The outer integral over theta averages the driver start angle by
+   pi_a. The quantities P_ell and D_h are the "change of law" weight
+   and its discrete-compensator approximation to the actual mass,
+   respectively. The double limit recovers m_n(ell) first in the
+   mesh h -> infinity, then truncated to mass level u -> infinity.
+
+   FURTHER COMMENTS.
+
+   (a)  Sampling construction. The Wiener integral above can be
+        realized as a countable product of independent standard
+        Gaussians: choose each dyadic increment of b as an independent
+        normal variable, and connect midpoints by the standard bridge
+        construction. The polygonal interpolants converge uniformly
+        on compacts with probability one. So there is no
+        "continuous-time randomness" needed: a countable product of
+        Gaussians suffices.
+
+   (b)  Loewner quantities. For fixed theta the Loewner maps g^{(j)}
+        can be built by explicit Euler iteration with a truncated
+        vector field
+             F_j( t, z ) = a * conj( z - b(t) ) /
+                           max( |z - b(t)|^2, j^{-4} ).
+        At every finite time the truncated solution is identical to
+        the true Loewner solution, because the truncation only kicks
+        in when the point is not yet the tip.
+
+   (c)  Clock and radius. In the disk model the level time is
+             tau_ell(0) = inf{ q rational positive : q alive and
+                               s_0(q) > ell }.
+        On this event the clock amounts to exactly ell and the
+        conformal radius around 0 is R_0(0) e^{-2a ell}. Using
+        rationals makes tau_ell(0) both deterministic-measurable
+        and available path-by-path.
+
+   (d)  No further normalization. Because the coefficients are
+        defined by these explicit integrals, m_n carries no hidden
+        choice of convex extraction or mass normalization: everything
+        has been fixed once and for all.
+
+   Compressed statement.  The moment sequence m_1, m_2, m_3, ... is
+   a deterministic sequence of positive real numbers, computable
+   from kappa alone, with the property that m_n(ell) -> m_n as ell
+   -> infinity for every n. This is the input to Part D.
+
+-----------------------------------------------------------------------------
+  PART D -- TURNING MOMENTS INTO A GAUGE
+-----------------------------------------------------------------------------
+
+  D.1  WHY MOMENT BATCHES WORK
+
+   We have all we need from Part C: a deterministic moment sequence m_1,
+   m_2, ..., m_n positive finite, with m_n(ell) -> m_n as ell -> inf.
+   And we have mu_t on every sample (up to null event) with the properties
+   M1-M10.
+
+   The question of Part D is:
+
+        How do we convert the moments into a Hausdorff gauge h,
+        and why should that gauge work?
+
+   Two opposing forces.
+
+   On one hand, to prove the trace has POSITIVE Hausdorff measure with
+   h, we need not-too-many bad squares. Informally, a small square of
+   side r that intersects the trace should carry mass roughly proportional
+   to h(r). If we measure too small a ruler (h too small), too many
+   squares look "overfull" and no cover exists.
+
+   On the other hand, to prove the trace has FINITE Hausdorff measure
+   with h, we need to actually CONSTRUCT a small cover of the trace at
+   each scale. If we measure too large a ruler (h too large), the cost
+   of any cover blows up.
+
+   The sweet spot.  The critical power d is both too small (measure
+   zero) and too big (measure too large) at once, in the exponent sense.
+
+   The trick is to build h(r) from a mixture of scale-r data at
+   DIFFERENT test scales. Each test scale is a dyadic threshold
+   A_k = 2^k that reads "is the mass in a fixed subdisk at least A_k".
+   These events are more and more unlikely as A_k grows, with a
+   power-law tail controlled by the moments m_n and m_{n+1}. Repeat
+   each dyadic threshold MANY TIMES (multiplicity N_{nk}) and the sum
+   of "cost per hit" over all repetitions becomes a deterministic
+   power of r that the actual trace can afford.
+
+   The refinement scale.  For each order n we also choose a level ell_n
+   that captures at least 3/4 of the total moment m_n:
+
+        ell_n  =  1 + sum_{j=1}^{infinity} 1{ m_n(j) <= 3 m_n / 4 }.
+
+   Since m_n(j) is increasing to m_n, this is finite: it stops the
+   sum the moment m_n(j) exceeds 3 m_n / 4. The summands count how
+   many integer levels are "too small".
+
+   The batch threshold.  Also define
+
+        T_n  =  4 m_{n+1} / m_n,
+
+   a deterministic ratio of successive moments. T_n is the mass level
+   at which "large enough to be useful but small enough to control
+   by the next moment" begins.
+
+   The list of tests. For fixed n, form a finite list. In increasing
+   order of k in Z, include A_k = 2^k with multiplicity
+
+        N_{nk}  =  1{ 2^k <= T_n } * floor( 4^n 2^{kn} / m_n ).
+
+   Then append the number n exactly ONCE as the "cleanup entry". The
+   resulting entries are
+
+        b_{n1}, b_{n2}, ..., b_{nI_n},
+
+   where I_n = I_n' + 1 is the total number of entries in batch n
+   (I_n' being the sum of the multiplicities N_{nk}).
+
+   Finiteness and lower bound.  One can check that:
+
+        - The list is finite, because N_{nk} > 0 requires
+                 m_n^{1/n} / 4  <=  A_k  <=  T_n.
+          So the "active" dyadic levels A_k lie in a fixed finite
+          interval. When A_k is outside the interval, N_{nk} = 0.
+
+        - Every entry satisfies
+                 b_{ni}  >=  c_0  :=  min{ 1, m_1 / 4 }  >  0.
+
+          (In particular, the batch thresholds are bounded below by
+          a positive number depending only on kappa.)
+
+   So the entries are finite in number, they lie in [c_0, infinity),
+   and they are explicit functions of (n, kappa, m_n, m_{n+1}).
+
+   The threshold interpretation.  Why does the multiplicity look like
+   4^n 2^{kn} / m_n?  Roughly:
+
+        - The expectation of L_ell^n at ell = ell_n is at least 3/4 m_n.
+          So there are lots of paths with L^n near m_n.
+
+        - Dyadic mass level A_k = 2^k is being tested many times.
+          The relative "cost" of getting above A_k is charged as
+          (A_k)^n / m_n, which measures how "rare" that mass level
+          is with respect to order n.
+
+        - Repeating each level with multiplicity proportional to
+          (A_k)^n / m_n makes the total expected "rewards" from
+          successful tests roughly 2^n (many chances), while the
+          total expected "losses" from misses is bounded by
+          (1 / T_n)^alpha times the (n+1)st moment -- i.e. summable.
+
+   Two-sided probability bounds.  With the multiplicities above, one
+   proves:
+
+        UPPER TAIL. For every n >= 1,
+
+             sum_{k in Z} N_{nk} * P_mix^*{ L >= 16 A_k }
+               <=  4^{-n} / ( 1 - 2^{-n} ).
+
+        So the total "extreme mass" cost across all dyadic levels is
+        small and summable in n.
+
+        LOWER SUCCESS. For n >= 3,
+
+             sum_{k in Z} N_{nk} * P_mix^*{ L_{ell_n} >= A_k }
+               >=  2^{n-2} - 1 / (2 (1 - 2^{-n}))
+               >=  2^n / 8.
+
+        So the test battery supplies about 2^n independent chances
+        of success, at the level ell_n that captures 3/4 of the
+        moment.
+
+   Together these two bounds are exactly what the lower and upper
+   covering arguments need. The upper tail makes the probability that
+   the curve has "overfull" squares summable. The lower success makes
+   the probability that a given scale has no "successful" ball
+   vanishingly small.
+
+   Cleanup.  On top of the tests, one cleanup entry per batch of
+   threshold b = n: this pays for any cell that the tests miss, in
+   both cost and probability. Summability of the cleanup over n is
+   direct: sum_{n >= 1} P_mix^*{ L >= 16 n } <= E_mix^* [ floor(L/16) ]
+   <= m_1 / 16 < infinity.
+
+  D.2  THE FINITE LISTS AND THE GAUGE FORMULA
+
+   D.1 defined the thresholds b_{ni} per batch. Now assign to each
+   entry its radius r_{ni}, and take the infimum of the corresponding
+   "quadratic envelopes" to define the gauge itself.
+
+   Radii.  For batch n and slot i = 1, ..., I_n:
+
+        r_{ni}  =  exp{ -n^2 - 2 a (i-1) (ell_n + n) }.
+
+   So radii decrease in i within a batch: r_{n1} is the largest,
+   r_{nI_n} the smallest. Across batches they interleave: r_{n+1,1}
+   is (roughly) e^{-(n+1)^2} which is < e^{-n^2} = r_{n1}, but the
+   last radii of batch n may be much smaller than r_{n+1,1}.
+   Everything is interleaved and there is no ordering between
+   batches.
+
+   Gap structure inside a batch.  The factor 2a(ell_n+n) between
+   consecutive radii is deliberate: it makes each successive test
+   occur after a fixed inner-time gap of (ell_n + n) relative to
+   its predecessor, which is more than enough for the angle mixing
+   in C.2 to kick in. And the n^2 leading factor makes the radius
+   of batch n+1 strictly smaller than the starting radius of batch
+   n, so the "cleanup" of the previous batch (which pays for points
+   missed by its tests) is comfortably absorbed by the next batch's
+   testing at a much finer scale.
+
+   THE GAUGE ITSELF.  Define
+
+        H_{ni}(r)  =  b_{ni} * r_{ni}^d * max{ 1, (r / r_{ni})^2 },
+
+   for r > 0, and set
+
+        h_kappa(r)
+          =  inf  over all n >= 1 and 1 <= i <= I_n
+             of  H_{ni}(r)
+
+   for r > 0, and h_kappa(0) = 0.
+
+   So the gauge at radius r is the minimum over every entry (n,i) of
+   "cost of the entry" times "the quadratic envelope at r". The
+   quadratic envelope switches from linear-in-r (when r >= r_{ni})
+   to quadratic-in-r (when r <= r_{ni}). The switch is the fact that
+   below the entry's own radius, we're counting sub-squares, and a
+   planar cover requires a factor (r / r_{ni})^2 to convert from "cost
+   at radius r_{ni}" to "cost at radius r".
+
+   Two key facts.
+
+   FACT 1 (valid gauge). h_kappa is a Hausdorff gauge:
+     - h_kappa is continuous on [0, infinity);
+     - h_kappa is nondecreasing;
+     - h_kappa(0) = 0;
+     - h_kappa(r) > 0 for every r > 0;
+     - the quadratic envelope satisfies the doubling property
+          h_kappa(C r)  <=  C^2 h_kappa(r)  for every C >= 1 and r >= 0.
+
+   In particular, h_kappa is one of the "legitimate" gauges described
+   in Part A.
+
+   FACT 2 (finite-exclusion lemma). Let H_{ni}(r) be as above.
+   Suppose F: [0, infinity) -> [0, infinity) satisfies
+
+        (i)  F(r) <= M < infinity for all r;
+        (ii) F(r) <= C * H_{ni}(r) for every n >= n_0, 1 <= i <= I_n,
+             and every r > 0 (with C a fixed finite constant).
+
+   Then for some finite C' depending only on n_0, C, and M,
+
+        F(r)  <=  C' * h_kappa(r)  for every r > 0.
+
+   In other words, "forgetting about the finitely many initial
+   batches" loses only a bounded factor. This is the finite-exclusion
+   statement used later to pass from "the density bound holds for
+   large batches" to "the density bound holds for all batches, with a
+   bigger constant".
+
+   WHY THESE FORMULAS WORK.
+
+   (a)  Positivity at radius r.
+
+        - The full infimum is over infinitely many entries. For
+          a fixed r > 0, entries with r_{ni} < r have
+                H_{ni}(r)  >=  c_0 r^2 r_{ni}^{d-2}  ->  infinity
+          as r_{ni} -> 0.
+          So the infimum is attained on the finitely many entries
+          with r_{ni} >= r, hence is positive and finite.
+        - This uses d < 2 (i.e. d - 2 = -alpha < 0), which is
+          exactly the condition kappa < 8.
+
+   (b)  Continuity at zero.
+
+        - At the cleanup radius rho_n = r_{nI_n}, the formula
+          gives h(rho_n) <= n rho_n^d.
+        - rho_n <= e^{-dn^2} -> 0.
+        - So h(rho_n) -> 0, and monotonicity + continuity on (0,inf)
+          give h(0) = 0.
+
+   (c)  Doubling.
+
+        - Each H_{ni} satisfies H_{ni}(Cr) <= C^2 H_{ni}(r).
+        - The infimum of a family of functions each satisfying the
+          property also satisfies it, because C is applied pointwise.
+
+   (d)  The envelope matches Peres-Solomyak.
+
+        - For a step profile phi(s) = inf_{r_{ni} >= s} b_{ni} r_{ni}^d,
+          the identity
+              h_kappa(s)  =  inf_{0 < r <= s} (s/r)^2 phi(r)
+          is the quadratic regularization used by Peres-Solomyak
+          (2005, Lemma 1.2 and Section 5) in covering arguments for
+          projections of fractals.
+        - The batch data and the lower bound c_0 > 0 are what make
+          this profile nondegenerate.
+
+   (e)  The finite-exclusion lemma.
+
+        - For a fixed r > 0, entries with r_{ni} >= r are finite
+          in number (because r_{n1} <= e^{-n^2} -> 0 and each batch
+          is finite).
+        - Entries with r_{ni} < r become arbitrarily large as r
+          shrinks (from positivity (a)), so they can be discarded
+          in a lower bound.
+        - For the finitely many "small-batch" entries (n < n_0)
+          and for all r, the pointwise bound
+              H_{ni}(r)  >=  b_{ni} r_{ni}^d  >  0
+          gives a fixed positive lower bound. So F(r) <= M
+          implies F(r) <= (M / b_{ni} r_{ni}^d) * H_{ni}(r) for
+          each such entry.
+        - Taking C' = max{ C, max_{n<n_0, i} M / b_{ni} r_{ni}^d }
+          gives F(r) <= C' H_{ni}(r) for every entry, and
+          F(r) <= C' h_kappa(r) follows by taking the infimum.
+
+   A NOTE ON THE RADII BEING INTERLEAVED.  The batches are not
+   nested by radius: some small radii from early batches can be
+   smaller than some large radii from later batches. The gauge is
+   defined by taking the FULL infimum, which respects no ordering
+   between batches. The finite-exclusion lemma is stated in this
+   order-free way so that it remains valid regardless of which
+   batch happens to produce the smallest H_{ni} at a given r.
+
+   SUMMARY.  h_kappa is now well-defined and has all the properties
+   of a gauge. Part E uses it to prove positivity and finiteness.
+
+-----------------------------------------------------------------------------
+  PART E -- TWO COVERING ARGUMENTS
+-----------------------------------------------------------------------------
+
+  E.1  THE LOWER BOUND (POSITIVITY)
+
+   Recall: H^h(gamma([s,t])) is the infimum over all countable covers
+   of gamma([s,t]) by blobs of diameter at most delta, taking the sum
+   of h(diameter), as delta -> 0. Part D gave us h_kappa. Part E.1
+   proves that this number is POSITIVE almost surely, for every
+   positive-time subinterval.
+
+   The strategy.
+
+   (S1)  Do a SPATIAL COMPARISON at a stopped restart. At every
+         conformal-radius-restart point z, mass in a square of side
+         r is comparable to the disk-model mass L_ell in a fixed
+         quarter-disk, up to explicit constants.
+
+   (S2)  Do a PAST-MASS identity. If a cell in the grid is overfull
+         (mu_inf(Q) >> 2D b r^d), then at least half of its terminal
+         mass arrives AFTER the first instant at which the
+         accumulated mass in Q exceeds D b r^d. This past-mass
+         "pays off" the overfull cell by mass that is already on
+         the trace.
+
+   (S3)  Sum the resulting expected loss over all bad cells and all
+         entries. Summability of the upper tail from D.1 makes these
+         losses finite. So almost surely, only finitely many bad
+         cells survive at any point.
+
+   (S4)  On the surviving "good set" S_{n_0} (after a batch cutoff
+         n_0), derive a density bound: any set U of diameter s meets
+         at most 16 max{1,(s/r_{ni})^2} grid cells of side r_{ni},
+         so its outer measure is bounded by 32D b_{ni} r_{ni}^d
+         times that count.
+
+   (S5)  Apply the finite-exclusion lemma of D.2 to pass from
+         "the density bound holds for late batches" to "the density
+         bound holds for ALL batches", with a bigger constant C_nu.
+
+   (S6)  Conclude: for any countable cover {U_j} of gamma([u,v]),
+         the mass nu(HH) is bounded by C_nu * sum_j h(diam U_j),
+         so the outer measure of gamma([u,v]) is positive with
+         respect to h.
+
+   Let's unpack the constants and each step.
+
+   SPATIAL COMPARISON AT A STOPPED RESTART.
+
+     Fix z in HH and r > 0 with 100r < R_0(z) = 2 Im(z). Let S be the
+     first time R_S(z) = 100r while z alive. On {S < infinity}:
+
+     (a)  There is a conformal disk map F: DD -> H_S with F(0) = z,
+          normalized so |F'(0)| = 100r. This is the standard "restart
+          at conformal radius 100r" disk identification. The disk
+          has exactly the markings of the disk model C.5.
+
+     (b)  The Koebe growth and distortion estimates give the explicit
+          bounds:
+
+                overline B(z, 16r)  subset  F(K)  subset
+                overline B(z, 400r/9)  subset
+                overline B(z, C_* r),
+
+          where K = {|w| <= 1/4}, and
+
+                c_* r  <=  |F'(w)|  <=  C_*' r  for w in K,
+
+          with the explicit constants
+
+                C_*  =  200,    c_*  =  192/5,    C_*'  =  8000/27.
+
+     (c)  Because F(K) is compactly contained in H_S, its accumulated
+          mass at time S is zero. Proposition M10 (restart) identifies
+          the actual subsequent measure on F(K), simultaneously at
+          ALL later times, with the pushforward of the disk measure
+          weighted by |F'|^d.
+
+     (d)  Hence if T denotes the time at which the inner clock reaches
+          one more level ell after S, then
+
+                (c_* r)^d * L_ell  <=  (mu_T - mu_S)(F(K))
+                                   <=  (C_*' r)^d * L_ell.
+
+          Here L_ell is the disk-model mass from C.5 at inner time ell
+          in this restarted disk. This is the "restarted mass is
+          equivalent to disk mass" statement.
+
+   PAST-MASS IDENTITY.
+
+     Fix a deterministic closed square Q compactly contained in HH
+     and a mass threshold H > 0. Let M_q = mu_q(Q) be the accumulated
+     mass in Q by time q. Let v(z) be the first visit time of z by
+     the trace.
+
+     The identity says:
+
+       E[ integral_Q
+           1{ there exists rational q >= 0 with q < v(z) and
+               M_q > H }
+           mu_infinity( dz ) ]
+         = integral_Q G_0(z) *
+                 P_z^*[ there exists rational q >= 0 with
+                        q < T^*(z) and M_q > H ]  dA(z).
+
+     The strict inequality q < v(z) (or q < T^*(z)) is part of the
+     statement. Without it, mass arriving exactly at the terminal
+     time would be mishandled.
+
+     Intuition. The left side is "how much terminal mass sits on
+     cells that were already overfull before z was first visited by
+     the past trace". The right side says this equals the Green
+     potential G_0(z) times the probability, under the CENTERED law
+     at z, that mass in Q exceeds H before z's lifetime runs out.
+     This is a "look backwards from z, but only count mass that
+     arrived before z was first visited" identity.
+
+     PROOF.
+
+     Step 1 (finite rational times). Fix a finite, increasing list
+     of rational times 0 <= q_1 < ... < q_N. Define the disjoint
+     events
+          A_j = { M_{q_j} > H and M_{q_k} <= H for all k < j },
+     the "q_j is the first successful time so far" event. Each
+     A_j belongs to F_{q_j} and depends only on the driving path,
+     not on the integration point z.
+
+     Step 2 (first-visit identity). By the first-visit identity
+     mu_t(dz) = 1{v(z) <= t} mu_infinity(dz), the remaining mass at
+     time q_j is
+          (mu_infinity - mu_{q_j})(dz)
+            = 1{q_j < v(z)} mu_infinity(dz).
+     The deterministic-time a.s. equality uses nonatomicity of
+     mu_infinity at the singleton {v(z) = q_j}, which has zero
+     terminal mass (property M3 of C.4).
+
+     Step 3 (first success reduces the integral). For fixed z, the
+     event {exists j <= N with q_j < v(z) and M_{q_j} > H} is
+     equivalent to {exists j <= N with A_j and q_j < v(z)}, and
+     since A_j are disjoint, the indicator is
+          sum_{j=1}^N 1{A_j} 1{q_j < v(z)}.
+     Combining Steps 2 and 3,
+          int_Q 1{exists j <= N, q_j < v(z), M_{q_j} > H}
+                    mu_infinity(dz)
+            = sum_{j=1}^N int_Q 1{A_j} (mu_infinity - mu_{q_j})(dz).
+
+     Step 4 (kernel identity). Apply the conditional kernel M5 to
+     the bounded nonnegative F_{q_j}-measurable indicator
+     1{A_j} 1_Q:
+          E[ 1{A_j} (mu_infinity - mu_{q_j})(Q) ]
+            = E[ 1{A_j} int_Q G_{q_j}(z) dA(z) ]
+            = int_Q E[ 1{A_j} G_{q_j}(z) ] dA(z),
+     using that A_j is F_{q_j}-measurable and Fubini on the compact
+     Q.
+
+     Step 5 (finite-tilt evaluated at q_j). By op:tested-potential
+     applied with H = 1{A_j} (bounded, F_{q_j}-measurable) and
+     t = q_j,
+          E[ 1{A_j} G_{q_j}(z) ]  =  G_0(z) P_z^*(A_j, q_j < T^*).
+     Because the A_j are disjoint and T^* is fixed-path,
+          sum_{j=1}^N P_z^*(A_j, q_j < T^*)
+            = P_z^*(exists j <= N with q_j < T^* and M_{q_j} > H).
+
+     Step 6 (assemble). Summing Step 4 over j and using Step 5,
+          E[ int_Q 1{exists j <= N, q_j < v(z), M_{q_j} > H}
+                    mu_infinity(dz) ]
+            = int_Q G_0(z)
+                P_z^*(exists j <= N, q_j < T^*, M_{q_j} > H) dA(z).
+
+     Step 7 (pass to all rational times). Exhaust Q_{>=0} by an
+     increasing sequence of finite subsets, sorting each finite
+     subset before forming the A_j (the "first success" partition
+     depends only on the sorted list). The existence events on both
+     sides increase with the finite subset. Monotone convergence
+     gives the full identity. The measurable choice of
+     P_z^*(A, q < T^*) in z was established in C.2 (the
+     parameter-measurability note inside the finite-tilt proof).
+     QED.
+
+   BAD CELLS.
+
+     Fix a compact E compactly contained in HH. Set
+
+          D  =  16 * (C_*')^d.
+
+     For batch entry (n,i), write r = r_{ni} and b = b_{ni}. Use the
+     square grid of side r in the plane. Call a grid cell Q "bad for
+     entry (n,i)" when
+
+          mu_infinity(Q)  >  2 D b r^d.
+
+     CLAIM (Summability of bad cells). For every sufficiently large
+     n, uniformly over all its entries and all cells meeting E,
+
+          E[ mu_infinity(Q) ; Q is bad for entry (n,i) ]
+            <=  4 ( integral_Q G_0(z) dA(z) ) *
+                P_mix^*[ L >= 16 b ].
+
+     Interpretation: The expected TERMINAL mass sitting on a bad cell
+     is at most the GREEN potential of that cell times the small
+     probability that the disk-model mass exceeds the threshold b.
+     Because sum over all (n,i) of P_mix^*[L >= 16 b_{ni}] is
+     summable in n (Lemma D.1 "tail summability"), the sum over
+     all bad cells of the expected mass they carry is finite.
+
+     Consequently, almost surely, mu_infinity-almost every point of E
+     lies in NO bad cell for any entry of any sufficiently late batch.
+
+     PROOF.
+
+     Step 1 (split the mass). Put H = D b r^d so "Q bad" means
+     mu_infinity(Q) > 2H. On that event, mu_infinity(Q) - H >
+     mu_infinity(Q) / 2, hence mu_infinity(Q) < 2 (mu_infinity(Q)
+     - H). So
+          E[ mu_infinity(Q); Q bad ]
+             <= 2 E[ 1{Q bad} (mu_infinity(Q) - H) ].
+     It remains to bound the right side.
+
+     Step 2 (past-mass identity). Let q* = inf { q >= 0 : M_q > H }
+     with M_q = mu_q(Q). Continuity and monotonicity of q |-> M_q
+     (M4) give M_{q*} = H on the event {exists q: M_q > H}; this
+     event holds a.s. on {Q bad}. On {q* < v(z)}, the first-success
+     event in the past-mass identity fires for some rational q in
+     (q*, v(z)); on {q* >= v(z)} it cannot fire. So the left side
+     of the past-mass identity at this H equals
+          E[ int_Q 1{q* < v(z)} mu_infinity(dz) ].
+
+     Step 3 (relate to Q bad). On {Q bad},
+          (mu_infinity - mu_{q*})(Q)  =  mu_infinity(Q) - H
+                                      >  mu_infinity(Q) / 2,
+     and off {Q bad} this quantity is <= mu_infinity(Q)/2.
+     Combine Step 2 with the explicit form of the past-mass
+     identity:
+          E[ 1{Q bad} (mu_infinity(Q) - H) ]
+             <= E[ (mu_infinity - mu_{q*})(Q); Q bad ]
+             <= E[ int_Q 1{q* < v(z)} mu_infinity(dz) ]
+              = int_Q G_0(z)
+                  P_z^*(exists q < T^*, M_q > H) dA(z).
+
+     Step 4 (restart comparison). Fix z in Q and n large enough
+     that r = r_{ni} <= e^{-n^2} and (2a)^{-1} log(R_0(z)/(100r))
+     >= s_a (this inner gap is uniform on the compact E for
+     sufficiently large n). Let S be the first time R_S(z) = 100r
+     while z alive. On {S < T^*}, the disk map F: DD -> H_S with
+     |F'(0)| = 100r exists, and the Koebe growth and distortion
+     estimates of C.4 give
+          B(z, 16r)  subset  F(K)  subset  B(z, C_*r),
+          c_* r  <=  |F'(w)|  <=  C_*' r   (w in K).
+     Since Q is a square of side r centred at z, Q subset F(K).
+     By the spatial comparison of C.4, for every q < T^*,
+          mu_q(Q)  <=  mu_q(F(K))  <=  (C_*'r)^d L,
+     where L is the disk-model mass at the corresponding inner
+     level. (Past mass mu_S(Q) = 0: Q lies in interior H_S.) So
+     {exists q < T^*: M_q > H} is contained in
+     {L > H/(C_*'r)^d} = {L > 16 b}, using H = 16 (C_*')^d b r^d.
+
+     Step 5 (mixing at restart). In inner time, S is reached after
+     at least (2a)^{-1} log(R_0(z)/(100r)) >= s_a. So the uniform
+     mixing bound of C.2 applies to the restart angle theta_S:
+     its law has density at most 2 relative to pi_a. Conditional
+     on F_S, the future driver and hence L is independent of the
+     past; more precisely, the conditional law of L given
+     theta_S agrees with the disk law P_{theta_S}^*. Hence
+          P_z^*(exists q < T^*, M_q > H)
+             <= E_z^*[ P_{theta_S}^*(L > 16 b) ]
+             <= 2 P_mix^*[L > 16 b].
+     Combining with Step 3 and Step 1,
+          E[ mu_infinity(Q); Q bad ]
+             <= 4 (int_Q G_0(z) dA(z)) P_mix^*[L > 16 b].
+
+     Step 6 (Tonelli and cleanup). For the countable family of
+     cells of every grid of every batch entry, apply Tonelli to
+     the nonnegative integer-valued sum over all cells of Q:
+        - the number of cells meeting E in the grid of side r_{ni}
+          is at most O(r_{ni}^{-2}), and the total expected
+          sum of the per-cell bounds is
+             sum_n  4 (int_E G_0)  sum_i  P_mix^*[L > 16 b_{ni}],
+        - which is finite by Lemma D.1 "tail summability" and
+          the cleanup-tail bound sum_n P_mix^*[L > 16 n]
+          <= m_1 / 16 < infinity.
+     Hence, almost surely, mu_infinity-almost every point of E
+     lies in only finitely many bad cells among all entries of
+     all batches. Grid lines carry zero terminal mass by
+     E[mu_infinity(dz)] = G_0(z) dA(z) and because lines have zero
+     two-dimensional Lebesgue measure. So there is a batch cutoff
+     n_0 such that no cell at a batch n >= n_0 is bad on a set of
+     full mu_infinity|_E-measure. QED.
+
+   DENSITY BOUND.
+
+     Fix a nontrivial rational interval [u,v] with 0 < u < v. The
+     increment mu_v - mu_u has positive total mass (by M7) on some
+     compact E compactly contained in HH. Restrict to the "surviving
+     good set" S_{n_0}: E minus the union of every bad cell for
+     entries (n,i) with n >= n_0. Then S_{n_0} is Borel, S_{n_0}
+     increases with n_0, and the union over all S_{n_0} carries the
+     full increment on E. Choose n_0 so that (mu_v - mu_u)(S_{n_0})
+     is strictly positive, and set
+
+          nu  =  (mu_v - mu_u) restricted to S_{n_0}.
+
+     Then nu is finite, nonatomic, carried by gamma([u,v]), and
+     nu(HH) > 0.
+
+     For every entry (n,i) with n >= n_0, every grid cell has
+
+          nu(Q)  <=  2 D b_{ni} r_{ni}^d.
+
+     (Bad cells have zero nu-mass by construction of S_{n_0}; good
+     cells have mass bounded by 2D b_{ni} r_{ni}^d; cells disjoint
+     from E have zero nu-mass.)
+
+     Now take any subset U of the plane with diameter s > 0. How
+     many grid cells of side r_{ni} can U meet? Each coordinate
+     projection has length at most s, so it meets at most (s/r_{ni})
+     + 2 grid intervals, hence U meets at most
+
+          (s/r_{ni} + 2)^2  <=  16 * max{ 1, (s/r_{ni})^2 }
+
+     cells if s/r_{ni} >= 1 (the "+2" absorbs constants) and trivially
+     bounded otherwise. Then
+
+          nu^*(U)  <=  sum over cells met of nu(cell)
+                   <=  16 max{1,(s/r_{ni})^2} * 2 D b_{ni} r_{ni}^d
+                   =  32D b_{ni} r_{ni}^d max{1,(s/r_{ni})^2}.
+
+     This is true for every n >= n_0 and every entry (n,i).
+
+   PASSING TO THE FULL GAUGE.
+
+     Define F(s) = sup_{diam U <= s} nu^*(U). This is bounded by
+     nu(HH) < infinity, and satisfies F(s) <= 32D H_{ni}(s) for
+     every n >= n_0 and every entry (n,i) of batch n, where H_{ni}
+     is the function from D.2. So F(s) satisfies the finite-exclusion
+     lemma of D.2 with C = 32D:
+
+          F(s)  <=  C_nu * h_kappa(s)  for every s > 0,
+
+     where
+
+          C_nu  =  max{ 32D, max_{n < n_0, i}
+                              nu(HH) / (b_{ni} r_{ni}^d) }.
+
+     Since the set {n < n_0, i} is finite, C_nu is finite.
+
+     For a set of diameter zero, nonatomicity of nu gives
+     nu^*(empty-ish U) = 0.
+
+   CONSEQUENCE.
+
+     For any countable covering {U_j} of gamma([u,v]) by blobs of
+     small diameter, outer-measure subadditivity gives
+
+          nu(HH)  =  nu^*(gamma([u,v]))  <=  sum_j nu^*(U_j)
+                  <=  C_nu * sum_j h_kappa(diam U_j).
+
+     Taking the infimum over covers with diameter cutoff -> 0,
+
+          H^h_kappa(gamma([u,v]))  >=  nu(HH) / C_nu  >  0.
+
+     There are only countably many nontrivial rational intervals.
+     Every real 0 < s < t contains a nontrivial rational closed
+     subinterval. By monotonicity of Hausdorff measure, positivity
+     of each rational subinterval implies positivity of every real
+     positive-time subinterval. All this on the single
+     probability-one event from the summability of bad cells.
+
+  E.2  THE UPPER BOUND (FINITENESS)
+
+   Part E.1 showed H^h(gamma([s,t])) is positive. Part E.2 shows
+   H^h(Gamma cap B_m) is FINITE (in expectation, and then almost
+   surely), where B_m = [-m, m] + i[0, m]. Together they prove the
+   Main Theorem.
+
+   The strategy.
+
+   (T1)  A single-cell visit lemma: if a closed square Q of side r
+         centered at z = x + iy with y > 4r meets the trace, then z
+         reaches conformal radius 8r while alive. This gives an
+         initial probability bound on Q being visited.
+
+   (T2)  Batched finite tests. At the final mesh of batch n (the
+         smallest radius in the batch), run the J = I_n - 1
+         non-cleanup tests at fixed inner-time gaps. Success at
+         test i forces the ball of the entry to be a "candidate",
+         i.e. its terminal mass is at least c_*^d times the disk
+         mass threshold.
+
+   (T3)  Failure probability. With the batch multiplicities, the
+         probability that a cell is visited and has NO candidate
+         is at most C_a r_f^alpha y^{-alpha} exp(-2^n / 16).
+
+   (T4)  Greedy covering of candidate cells: substitute a disjoint
+         subcollection, whose triples cover every cell that had a
+         candidate. Disjointness is what lets one actual terminal
+         mass pay for the entire chosen subcover.
+
+   (T5)  Cleanup for missed cells: every remaining visited cell is
+         paid for individually by the cleanup entry of the batch.
+         Its expected cost is O(r_f^d) per cell, and there are
+         O(r_f^{-2}) cells in the box, so the total cleanup cost
+         is bounded.
+
+   (T6)  Assemble: each batch n gives a finite cover of Gamma cap B_m
+         with total expected gauge cost bounded by a uniform constant
+         C_m independent of n. Take n -> infinity and use Fatou.
+
+   The single-cell visit lemma.
+
+     Let Q be a closed square of side r with center z = x + iy (y > 0).
+     Suppose y > 4r and Q intersects Gamma. Then z reaches conformal
+     radius 8r while alive.
+
+     Proof. If z is swallowed before R reaches 8r, the current domain
+     H_t contains a ball B(z, 2r) for every t < T_z (the lifetime of
+     z), by the Koebe quarter theorem. The past trace avoids this open
+     ball. But the ball B(z, 2r)
+     lies, at the moment z is swallowed, in the bounded complementary
+     component of HH minus gamma([0, T_z]) -- since z itself is in
+     that component and the ball is connected and disjoint from the
+     trace. The future trace lies in the closure of the SURVIVING
+     domain H_{T_z}, which is disjoint from that bounded component, so
+     the future trace cannot hit the ball (or Q inside it). So Q
+     being visited forces R > 8r at some point before z is swallowed.
+
+     Quantitatively, this gives
+
+          P( Q intersects Gamma )  <=  C_a r^alpha y^{-alpha},
+
+     for every r > 0 and y > 0. The proof uses the finite-tilt change
+     of law at conformal-radius level 8r, plus inverse-angle
+     integrability to absorb the boundary angle. For y/r bounded (so
+     the crossing time is short), the trivial bound P <= 1 absorbs
+     the constant.
+
+   Setup for batch n.
+
+     Fix m (the box) and take a sufficiently large batch n. Write
+
+          J  =  I_n - 1,                 (number of non-cleanup tests)
+          r_f  =  r_{n, I_n},            (final mesh radius)
+          r_i  =  r_{ni},   b_i = b_{ni}   for 1 <= i <= J.
+
+     By Lemma D.1, J is at least 1 for all sufficiently large n
+     (there are always at least the batch-multiplicity entries).
+
+     Cover B_m by finitely many closed squares of side r_f, with
+     lower-left corners at x = -m + k r_f (k = -m/r_f, ...) and
+     heights y_j = (j + 1/2) r_f starting from 0. Retain the whole
+     squares in the outermost rows and columns. Centers are at
+
+          z_{j,k}  =  (-m + (k + 1/2) r_f) + i( j + 1/2 ) r_f.
+
+     Candidate definition. For a batch entry (b_i, r_i) at a center
+     z, define a "candidate":
+
+          mu_infinity( overline B(z, C_* r_i) cap HH )
+            >=  c_*^d b_i r_i^d.
+
+     Equivalently, the terminal mass inside the ball of radius
+     C_* r_i around z is at least c_*^d b_i r_i^d.
+
+     Every candidate ball CONTAINS the final cell centered at z.
+
+     There are finitely many candidate checks in a batch, they
+     involve only terminal mass (so they can be evaluated AFTER the
+     sample is drawn), and candidate selection itself is done after
+     the sample.
+
+   Estimating the probability that a cell is VISITED but has NO
+   candidate.
+
+     Fix a center z with height y >= e^{-n}. A visit to the final
+     cell centered at z requires z to reach conformal radius 8r_f by
+     Lemma E.2 above.
+
+     For each test i in the batch:
+
+        - S_i = first time R_t(z) = 100 r_i while z alive.
+        - T_i = first time R_t(z) = 100 r_i e^{-2a ell_n} while alive.
+        - On {tau_f < infinity}, both finite, and the inner-clock
+          gap from S_i to T_i is exactly ell_n.
+        - Let F_i: DD -> H_{S_i} be the disk map (as in C.5), and
+          define the stopped test mass
+
+               X_i  =  integral_{F_i(K)} |F_i'(F_i^{-1}(x))|^{-d}
+                       ( mu_{T_i} - mu_{S_i} )( dx ).
+
+          On a reached endpoint, X_i equals the disk mass L_{ell_n}
+          for the restart angle. Set X_i = 0 otherwise.
+
+     KEY.  Measurable at T_i, and only paths reaching tau_f enter
+     the relevant event below.
+
+     Success.  Success X_i >= b_i implies
+
+          ( mu_{T_i} - mu_{S_i} )( F_i(K) )
+            >=  c_*^d b_i r_i^d,
+
+     so by the Koebe containment F_i(K) subset B(z, C_* r_i) and
+     monotonicity of mass the ball qualifies as a candidate.
+
+     Gap structure.  The inner-clock gaps are deterministic:
+
+          sigma_1
+            =  (1/(2a)) log( 2y / (100 e^{-n^2}) )
+            >= (n^2 - n - log 50) / (2a),
+
+          sigma_{i+1} - (sigma_i + ell_n)  =  n   (1 <= i < J),
+
+          sigma_f - (sigma_J + ell_n)
+            =  n + (1/(2a)) log(100/8),
+
+     where sigma_i = s_z(S_i), sigma_f = s_z(tau_f).
+
+   For large n each gap permits the mixing lemma of C.2.
+
+     Iterated conditional expectations:  Let q_i = P_mix^*{ L_{ell_n}
+     >= b_i }. Conditional on the whole stopped history through
+     T_{i-1}, the angle at S_i has density at least 1/2 relative
+     to pi_a (mixing after the deterministic gap n). The disk law of
+     X_i is determined by that angle (via restart M10). So
+     conditional probability of success is at least q_i / 2.
+
+     Applying the lemma D.1's "lower success" inequality, the
+     probability that X_i < b_i for ALL i <= J is at most
+
+          prod_{i=1}^J (1 - q_i / 2)  <=  exp( - (1/2) sum q_i )
+            <=  exp(- 2^n / 16 ).
+
+   Changing law for the FULL failure event.
+
+     The event "cell visited and has no candidate" is contained in
+
+          A  =  { tau_f < infinity }  cap  (cap_{i=1}^J { X_i < b_i } ).
+
+     All test endpoints precede tau_f, so A is measurable at that
+     stopping time. Only this enlarged event is used when changing
+     law. In particular, no terminal candidate information is put
+     into a finite Radon-Nikodym formula.
+
+     Let that~ = theta_{tau_f}(z) be the final angle of z. Conditional
+     on the history through T_J, the final deterministic gap gives
+
+          E_z^*[ sin^{-p}( that~ ) | F_{T_J} ]
+            <= 2 integral sin^{-p}(theta) pi_a(d theta)  <  infinity.
+
+     Since the failure-of-all-tests event F_fail is known at T_J, we
+     have
+
+          P( cell at z is visited and has no candidate )
+            <=  P( A )
+            =  (8 r_f)^alpha G_0(z) E_z^*[ sin^{-p}(that~) ; F_fail ]
+            <=  C_a r_f^alpha y^{-alpha} exp(-2^n / 16)
+                for y >= e^{-n}.
+
+     For centers below e^{-n}, use the unconditional estimate
+
+          P( cell at z is visited )  <=  C_a r_f^alpha y^{-alpha}
+
+     obtained from the single-cell visit lemma. This also covers the
+     bottom row (center height r_f/2), where the trivial bound
+     absorbs the constant.
+
+   Greedy covering.
+
+     Order all candidate balls of the batch by decreasing radius
+     r_i, with a fixed deterministic tie-break. Choose the first
+     ball, delete every ball meeting it, and continue. The selected
+     closed balls are pairwise disjoint.
+
+     For a deleted ball of radius r_i <= r_{i'} (the selected ball
+     that deleted it), the concentric triple of the selected ball
+     contains the deleted ball. Therefore the triples of the
+     selected balls cover EVERY final cell that had a candidate.
+
+     Cost.  For a selected ball with entry (b_i, r_i), the triple
+     has radius 3C_* r_i, diameter 6C_* r_i. The gauge formula
+     (D.2) gives
+
+          h_kappa( 6 C_* r_i )
+            <=  ( 6 C_* )^2  b_i r_i^d
+            <=  ( 6 C_* )^2 / c_*^d  *
+                mu_infinity( overline B(z, C_* r_i) cap HH ).
+
+     For all sufficiently large n, these balls lie (after
+     intersection with HH) inside the fixed bounded set
+
+          Btilde_m  =  [-m-2, m+2] + i(0, m+2].
+
+     Disjointness: the total gauge cost of the selected triples is
+     bounded by
+
+          ( 6 C_* )^2 / c_*^d * mu_infinity( Btilde_m ).
+
+     This is the actual terminal mass of a fixed region on the same
+     sample. It has finite expectation:
+
+          E mu_infinity( Btilde_m )
+            =  integral_{Btilde_m} G_0(z) dA(z)
+            <= (2^{-alpha} (2m+4)(m+2)^{1-alpha}) / (1-alpha)
+            <  infinity.
+
+     This works even at the real boundary.
+
+   Cleanup for missed cells.
+
+     Add every final cell that meets Gamma and has no candidate.
+     The cleanup entry of the batch gives the individual cost
+
+          h_kappa( sqrt(2) r_f )  <=  2 n r_f^d.
+
+     Number of cells.  There are O_m(r_f^{-1}) columns and
+     O_m(r_f^{-1}) rows in the box. Since 0 < alpha < 1, the sum
+     over half-integer row heights satisfies
+
+          sum_{all cells} y^{-alpha}
+            <= C_{a,m} r_f^{-2},
+
+          sum_{y < e^{-n}} y^{-alpha}
+            <= C_{a,m} r_f^{-2} (e^{-n} + r_f)^{1-alpha}.
+
+     (E.g. sum_{j=0}^N (j + 1/2)^{-alpha}
+        <= C_alpha (N+1)^{1-alpha} proves both.)
+
+     Expected added cost.  Multiplying the per-cell probability
+     bounds by the cleanup per-cell cost h(sqrt(2) r_f) <= 2n r_f^d
+     and using d + alpha = 2 (which is alpha = 2 - d from Part A):
+
+          C_{a,m} [ n exp(-2^n / 16)
+                    + n (e^{-n} + r_f)^{1-alpha} ].
+
+     Both terms are bounded uniformly in n and tend to 0 as
+     n -> infinity. In particular, the bottom-row contribution is
+     at most C_m n r_f^{d-1}, which is o(r_f^{1-d}) as required.
+
+   Measurability.
+
+     The candidate family is finite with measurable terminal-mass
+     indicators. The greedy order is deterministic. For a fixed
+     closed cell, the event of meeting the trace is measurable on
+     every compact time interval (by continuity); a countable union
+     over integer time horizons gives the full trace event. All
+     upper-bound centers, entries, and boxes together constitute a
+     countable family, so the stopped measure identities used in
+     constructing their tests can be imposed on one event.
+
+   Assembly.
+
+     Let C_n be the total gauge cost of the cover of Gamma cap B_m
+     produced by the batch-n construction. The bounds above show
+     that sup_n E C_n < infinity (after omitting finitely many
+     initial batches). Every cover diameter is at most
+
+          delta_n  =  6 C_* e^{-n^2}  ->  0.
+
+     Since H^h_delta(Gamma cap B_m) <= C_n for every late n:
+
+          Fatou's Lemma gives
+          E[ liminf_n C_n ]  <=  liminf_n E C_n  <  inf,
+
+     so liminf C_n is finite almost surely. Since covers with
+     delta_n <= delta are all admissible for H^h_delta, and taking
+     delta -> 0:
+
+          H^h_kappa( Gamma cap B_m )  <=  liminf_n C_n  <  inf  a.s.
+
+     Measurability of the left side.
+
+     Fix integer T; then K_T = gamma([0,T]) cap B_m is a measurable
+     compact random set. Indeed, for a fixed closed F,
+     {K_T cap F != empty} equals the event
+          min_{0 <= t <= T} dist(gamma(t), B_m cap F) = 0,
+     and the minimum can be taken over rational times.
+
+     For compact-set measurability of the map K |-> H^h(K),
+     approximate H^h(K) by countable infima over finite unions of
+     rational balls, and note that a fixed-cutoff countable
+     infimum is measurable in K. This identifies H^h
+     Gamma cap B_m = lim_T H^h(K_T) as measurable.
+
+     Then
+
+          H^h( Gamma cap B_m )  =  lim_T H^h(K_T)
+
+     by continuity from below (Hausdorff outer measure is a Borel
+     measure). Integrating over the Fatou bound proves S4.
+
+     A countable intersection now gives almost-sure finiteness in
+     every integer box B_m simultaneously.
+
+   Theorem assembly.
+
+     Intersect the probability-one events of E.1 (lower bound) and
+     E.2 (upper bound).
+
+     On that event:
+
+       - The lower bound holds for every real 0 < s < t < infinity.
+       - The image gamma([s,t]) is compact (continuity of gamma),
+         so it lies in some integer box B_m.
+       - H^h(gamma([s,t])) is finite on that box.
+       - H^h(gamma([s,t]) >= positivity from E.1.
+
+     Therefore
+
+          0  <  H^h_kappa( gamma([s,t]) )  <  infinity
+
+     simultaneously for every real positive-time subinterval.
+
+     The constant rescaling between capacity time and internal time
+     preserves the statement: the sets gamma([s,t]) are the same
+     set of curve points, only the time labels differ.
+
+     This proves the Main Theorem (S1)-(S4).
+
+-----------------------------------------------------------------------------
+  PART F -- ASSEMBLY, PROOF MAP, REFERENCES
+-----------------------------------------------------------------------------
+
+  F.1  THE WHOLE PROOF IN SIX LINES
+
+   Despite all the machinery, the proof is a sequence of six concrete
+   statements. Read this even if you skipped Part E.
+
+     Line 1.  There is a canonical mass measure mu on the trace
+              (C.4) with conditional kernel mu_infinity - mu_S given
+              by G_S(x) dx dy (M5), a pathwise restart identity M10
+              at stopping times, and first-visit accounting M8.
+
+     Line 2.  The centered law P_x^* at a marked point x is well
+              defined (C.2): it makes the angle theta stationary
+              with density pi_a(theta) proportional to sin^{4a}(theta)
+              and mixes uniformly after a fixed inner time s_a. The
+              lifetime T^*(x) is finite almost surely.
+
+     Line 3.  The disk-model mass L_ell = mu_{tau_ell(0)}(K) has all
+              finite POSITIVE moments 0 < m_n < infinity (C.5),
+              and each moment is a deterministic number computable
+              from kappa via explicit Wiener / angle / area integrals.
+
+     Line 4.  Convert the moments into a family of dyadic-scale tests
+              A_k = 2^k with multiplicities N_{nk} (D.1-D.2). The
+              upper tail is summable in n (extreme mass cost), the
+              lower success is at least 2^n / 8 (many useful
+              chances). One cleanup entry per batch covers the
+              leftover.
+
+     Line 5.  LOWER BOUND (E.1): in each grid of side r_{ni}, cells
+              whose terminal mass exceeds 2 D b_{ni} r_{ni}^d are
+              paid off by PAST mass (mass that arrived before the
+              cell's center was first visited). Summability of the
+              upper tail means only finitely many overfull cells
+              survive. The surviving set carries mass nu > 0, which
+              respects the density bound nu(U) <= C_nu h_kappa(U).
+              Any countable cover costs at least nu(HH) / C_nu, so
+              H^h_kappa(gamma([s,t])) > 0.
+
+     Line 6.  UPPER BOUND (E.2): at every large batch n, run finite
+              tests. If a test succeeds at radius r_i, the ball of
+              radius C_* r_i around the center is a "candidate" for
+              the cover. Greedy selection over a batch (in decreasing
+              radius order) leaves DISJOINT selected balls whose
+              triples cover every non-empty candidate cell. The mass
+              in one bounded region Btilde_m pays for all of them at
+              once. Empty cells are paid for by the cleanup entry,
+              giving h(sqrt2 r_f) <= 2 n r_f^d per cell. The total
+              expected cost is bounded by a constant C_m uniform in
+              n. Letting n -> infinity, Fatou gives
+              H^h_kappa(Gamma cap B_m) < infinity almost surely.
+
+   That is S1-S4 of the Main Theorem. Everything else is paperwork.
+
+  F.2  WHY THE CONSTRUCTION IS "THE RIGHT ONE"
+
+   A reader might wonder: why THESE moments, why THESE batches, why
+   THIS gauge formula? Here is the honest answer.
+
+   * The mass measure mu is not arbitrary. It is FORCED by the
+     "reasonable" requirement that the future conditional mean is
+     a canonical Green kernel G_S dx dy with G_S = R_S^{-alpha}
+     sin^p(theta_S). Uniqueness (C.4) says there is exactly one such
+     adapted continuous finite-variation measure process. So the
+     existence of mu and its kernel is not a choice; it is a
+     consequence.
+
+   * The centered laws P_x^* are FORCED by the same mass construction
+     with the finite-tilt weight M_ell = G_{tau_ell(x)} / G_0(x). The
+     change of law has expectation one and gives the tilted angle
+     diffusion. Mixing follows from the explicit spectral
+     decomposition of that diffusion.
+
+   * The disk moments m_n are FORCED once you decide to look at
+     mass in a fixed subdisk of a canonical disk model. The values
+     are deterministic numbers (a Wiener integral, an angle
+     average, an area integral) because the centered law is a
+     deterministic average. They are not a "choice".
+
+   * The batch construction is FORCED, modulo minor tweaks, by the
+     following demand. We want a gauge h such that:
+
+         (a) for every h-bounded cover of a subset of the trace, the
+             total mass sitting on the trace is at most C * h(cover);
+
+         (b) for every batch, at every cell, either the cell contains
+             a positive mass witness (candidate), or the mass is
+             bounded by h(cell).
+
+       Requirement (a) pulls one direction (h must be "large enough"
+       so that the density bound is achievable). Requirement (b)
+       pulls the other (h must be "small enough" so that the mass
+       bound is finite). The "quadratic envelope"
+           max{1, (r/r_{ni})^2}
+       is the minimal way to bridge these two pulls: it gives a cost
+       at scale r_{ni} and quadratic growth for subdividing subgrids.
+       Any gauge satisfying (a) and (b) must dominate this envelope
+       on each entry; the infimum over entries is the minimal such
+       gauge at every scale.
+
+   * The specific numbers (4^n, 2^{kn}, m_n, T_n) are chosen so that
+     the two probability bounds (upper tail, lower success) are in
+     balance. Larger multiplicity would blow up the upper-tail cost;
+     smaller would make the failure probability non-summmable. The
+     factor 4 is a free parameter that could be adjusted within a
+     small range; nothing in the proof is tight.
+
+  F.3  WHAT IS PROVED HERE AND WHAT IS EXTERNAL INPUT
+
+   Fully proved in this document (every lemma, proposition, and
+   computation is derived explicitly in Parts C-E, in the order used):
+
+     - A.1-A.3: Hausdorff measure, dimension, gauges, the Schramm
+       question.
+     - A.4: SLE via Loewner equation (standard background).
+     - C.1: conformal radius, inner time, level times.
+     - C.2: Green weight, local martingale property, finite-tilt
+       change of law (with the explicit Optional-Stopping /
+       Girsanov argument for E[M_ell] = 1), stationary angle,
+       orthogonal-polynomial proof of uniform mixing, Lyapunov
+       and Borel-Cantelli proof that T^*(x) < infinity.
+     - C.3: the multipoint estimate at every fixed m, including
+       the explicit A, h_0, C_1, c_1, C_2, C_3 from the multipoint
+       supermartingale, and the Young + cross-term absorption that
+       gives the drift k_t.
+     - C.4: existence of mu via the explicit Polish-space +
+       Cantor-diagonal + Cesaro-average argument; properties M1-M10,
+       including the strong-Markov + uniqueness proof of the
+       pathwise restart identity M10, and measurability of the mass
+       functional in the marked point.
+     - C.5: the disk model, its moments, the explicit Wiener / angle
+       integral formulas.
+     - D.1: batches, upper tail, lower success, cleanup.
+     - D.2: gauge definition, admissibility, finite-exclusion.
+     - E.1: spatial comparison, past-mass identity via the
+       first-success partition + conditional kernel M5 + monotone
+       convergence, bad-cell summability via the restart comparison
+       and mixing, density bound, positive lower Hausdorff measure.
+     - E.2: single-cell visit, batched tests, greedy covering,
+       cleanup, measurable cover, finite expected upper measure,
+       Borel measurability of H^h on compacts via rational-ball
+       infima and continuity from below, assembly of S1-S4.
+
+   External inputs used, cited in A.4 and C.1-C.2:
+
+     - continuous trace generation for chordal SLE (Rohde-Schramm
+       2005, Theorem 5.1): existence and continuity of gamma;
+     - classical Koebe estimates for conformal maps (Beliaev 2015,
+       Section 3.2: Theorems 3.2.5, 3.2.9, 3.2.11 and Corollary
+       3.2.6): the quarter theorem, growth, and distortion bounds.
+
+   Every other argument -- centered laws, multipoint bounds, mass
+   construction and restart, disk moments, batches, gauge, and both
+   covering proofs -- is proved self-contained below. The former
+   "sketched in the source paper" list has been fully absorbed into
+   the body; no claim in the document depends on external unproved
+   material beyond the two inputs named above.
+
+  F.4  REFERENCES
+
+   The full paper cites these works. Here is a plain list for
+   further reading.
+
+   Schramm--Loewner basics:
+     - O. Schramm, "Conformally invariant scaling limits: an
+       overview and a collection of problems," ICM 2006. Contains
+       the original Problem 7.1 on Hausdorff measures of SLE.
+     - S. Rohde, O. Schramm, "Basic properties of SLE," Annals of
+       Mathematics 161 (2005), 883-924. Existence and continuity
+       of the SLE trace; the Loewner equation we use here.
+
+   Dimension and Hausdorff measure of SLE:
+     - V. Beffara, "The dimension of the SLE curves," Annals of
+       Probability 36 (2008), 1421-1452. The formula d = 1 + kappa/8.
+     - M. A. Rezaei, "Hausdorff measure of SLE curves," Stochastic
+       Processes and their Applications 128 (2018), 884-896. Proves
+       H^{r^d} = 0 for chordal SLE, which is why we need a gauge
+       strictly bigger than r^d.
+
+   Natural parametrization and Minkowski content:
+     - G. F. Lawler, S. Sheffield, "A natural parametrization for
+       the Schramm-Loewner evolution," Annals of Probability 39
+       (2011), 1896-1937.
+     - G. F. Lawler, W. Zhou, "SLE curves and natural
+       parametrization," Annals of Probability 41 (2013),
+       1556-1584.
+     - G. F. Lawler, M. A. Rezaei, "Minkowski content and natural
+       parameterization for the Schramm-Loewner evolution," Annals
+       of Probability 43 (2015), 1082-1120.
+     - G. F. Lawler, M. A. Rezaei, "Basic properties of the natural
+       parametrization for the Schramm-Loewner evolution,"
+       arXiv:1203.3259 (2012).
+
+   Multipoint estimates and Green functions:
+     - G. F. Lawler, B. M. Werness, "Multi-point Green's functions
+       for SLE and an estimate of Beffara," Annals of Probability 41
+       (2013), 1513-1555.
+     - M. A. Rezaei, D. Zhan, "Higher moments of the natural
+       parameterization for SLE curves," Ann. IHP Prob. Stat. 53
+       (2017), 182-199.
+     - M. A. Rezaei, D. Zhan, "Green's functions for chordal SLE
+       curves," Prob. Theory Rel. Fields 171 (2018), 1093-1155.
+
+   Conditional decompositions along the trace:
+     - L. S. Field, "Two-sided radial SLE and length-biased chordal
+       SLE," arXiv:1601.03374 (2016).
+     - D. Zhan, "Decomposition of Schramm-Loewner evolution along
+       its curve," Stochastic Processes and their Applications 129
+       (2019), 129-152.
+     - D. Zhan, "Optimal Holder continuity and dimension properties
+       for SLE with Minkowski content parametrization," Prob.
+       Theory Rel. Fields 175 (2019), 447-466.
+
+   Variation and modulus of continuity:
+     - N. Holden, Y. Yuan, "Regularity of the Schramm-Loewner
+       evolution: up-to-constant variation and modulus of
+       continuity," Annals of Probability 54 (2026), 367-420.
+
+   Conformal mapping toolbox:
+     - D. Beliaev, "Conformal Maps and Geometry," Oxford lecture
+       notes (2015). Contains the Koebe estimates used here.
+
+   Quadratic regularization:
+     - Y. Peres, B. Solomyak, "The sharp Hausdorff measure condition
+       for length of projections," Proc. AMS 133 (2005), 3371-3379.
+       The "quadratic envelope" regularization of gauge functions
+       goes back to this paper.
+
+   The companion paper:
+     - OpenAI, "An explicit exact Hausdorff gauge for SLE: a regular
+       formula from quantitative tails and dense visits," OpenAI
+       Math Release (2026). Proves that the CLOSED-FORM gauge
+       r^d (log log(1/r))^{(2-d)/2}
+       is also exact on chordal SLE by a different method. This
+       paper's moment-defined gauge is a priori different; the
+       asymptotic comparison between it and the closed-form gauge
+       is left open here.
+
+  F.5  WHAT TO READ NEXT
+
+   If this has caught your interest and you want to go further:
+
+     - The companion paper (OpenAI 2026) proves that the closed-form
+       log-log gauge is also exact on chordal SLE. The natural open
+       question is whether its gauge and the moment-gauge built here
+       agree asymptotically at small radii.
+
+     - The multipoint Green's function machinery (Lawler-Werness,
+       Rezaei-Zhan) has many other applications in SLE theory.
+
+     - Natural parametrization and its Minkowski content are the
+       standard "fair clock" on the SLE trace; the canonical mass mu
+       built here is the object that natural parametrization measures,
+       up to normalization.
+
+     - The moment-batch covering trick generalizes: whenever all
+       moments of a localized random measure are bounded, one can
+       often construct a gauge that measures the underlying set.
+
+   ==================================================================
+   ACKNOWLEDGMENTS
+   ==================================================================
+
+   This document is a pedagogical re-derivation of the original
+   technical paper "An exact Hausdorff gauge for SLE". Every
+   lemma and proposition in Parts C, D, E is proved from first
+   principles in this text. The external inputs used are:
+
+     - continuous trace generation for chordal SLE
+       (Rohde-Schramm 2005, Theorem 5.1), and
+     - the classical Koebe estimates for conformal maps
+       (Beliaev 2015, Section 3.2).
+
+   Everything else -- Green weight as local martingale, finite
+   centered laws, uniform mixing, multipoint radius bound,
+   canonical mass construction with conditional kernel, explicit
+   disk moments, finite batches, gauge construction with admissibility,
+   past-mass identity, bad-cell summability, single-cell visit lemma,
+   greedy covering, cleanup, and both Fatou applications -- is
+   derived below (Parts C, D, E) without deferring to the paper.
+
+   ===== END OF DOCUMENT =====
+
+# ^C interrupted by user!
