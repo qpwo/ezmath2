@@ -1,0 +1,1414 @@
+Random-subspace tests and trace smoothing for coordinate sweeps
+================================================================
+
+A self-contained introduction, with the full proof, aimed at a reader
+who has seen a little linear algebra, group actions, and probability.
+
+
+0. A note to the reader
+----------------------------------------------------------------
+
+This is a proof that a certain shuffling procedure is fast.  The proof
+uses some genuinely non-elementary tools (Schur-Weyl duality, Schatten
+norms, hook-length formulas), so first-time readers should read
+sections 1-3 for the idea, then read section 4 onward as the detailed
+argument.  Every lemma and proposition is fully stated (with its
+hypotheses) where it is first used, and every proof is complete, with
+a few external inputs clearly labeled as "Input" from a companion
+paper.
+
+Notation is standard.  Comments in brackets like [why?] explain a step
+that a careful reader might want to check.  Short "in plain words"
+boxes (marked >>) restate a technical step in everyday language.
+
+
+1. What is the Thorp shuffle?
+----------------------------------------------------------------
+
+Take n = 2^d cards, and lay them on the 2^d corners of a d-dimensional
+cube.  Each corner is a binary string of length d.  One physical
+shuffle does three things:
+
+    (i)  for every corner v that ends in 0, flip a fair coin xi(v) and
+         use it to decide a "swap": the cards at v and at v+xi(v)*e_d
+         (the partner across the last coordinate) either trade
+         places or stay put -- one specific behavior per coin.
+
+    (ii) rotate every corner left by one binary coordinate: (x_1,...,x_d)
+         becomes (x_2,...,x_d,x_1).
+
+    (iii) done.  Repeat d such physical shuffles and the rotation has
+         come back to where it started.
+
+Equivalently:  a "coordinate sweep" applies, for every coordinate
+i = 1,2,...,d, the random coordinate matching between the two halves
+of the cube cut out by the i-th coordinate.  The coordinates are done
+in sequence, and the d physical shuffles one after another make one
+sweep.  Then you start over.
+
+We write Q_n for the average over all coin flips of one full sweep: a
+probability distribution on the symmetric group S_n, viewed as an
+operator on functions of the deck (or on any representation of S_n).
+
+Why would anyone care?  Morris and others proved that O(log^4 n)
+sweeps suffice (log^4 n ~ d^4 for n = 2^d) using entropy; the present
+paper shows O(d) sweeps suffice and that this order is optimal.  Each
+sweep is d physical shuffles, so O(d) sweeps = O(d^2) physical
+shuffles; that is the famous folklore conjecture for Thorp mixing, up
+to order in the exponent of d.
+
+
+2. The main theorem, and how to read it
+----------------------------------------------------------------
+
+We measure mixing by the total variation distance:  for two
+probability measures mu, nu on S_n,
+
+    ||mu - nu||_TV = (1/2) sum_{g in S_n} |mu(g) - nu(g)|,
+
+which takes values in [0,1], is 1 for disjoint supports, and is 0
+exactly when mu = nu.
+
+For a permutation-average Q_n we define its action Q_n(lambda) on each
+irreducible representation V_lambda of S_n by averaging over
+permutations in the support of Q_n.  For a matrix Y we set
+|Y| = (Y^* Y)^{1/2}, and for p >= 1 we define the Schatten p-norm
+||Y||_p = (Tr |Y|^p)^{1/p};  all traces in this paper are
+unnormalized.
+
+The regular trace of a group-algebra element X on S_n is
+
+    Tr_reg(X) = sum_{lambda partition of n}  D_lambda * Tr_{V_lambda} (X(lambda)),
+
+where D_lambda = dim V_lambda.  It is literally the trace of X acting
+on the regular representation, in which each V_lambda appears D_lambda
+times.  The trivial representation (all of S_n acting trivially)
+contributes exactly 1 to Tr_reg|Q_n|^P:  Q_n acts as the identity
+there, and |1|^P = 1.
+
+Theorem A (regular-trace smoothing).
+  There is an absolute constant P >= 2 such that for every dyadic
+  n = 2^d >= 2,
+
+       Tr_reg|Q_n|^P  <=  1 + n^{-10}.                                (2.1)
+
+  Moreover, for any integer v with 2v >= P, the law mu_v of v
+  independent sweeps satisfies
+
+       ||mu_v - U_{S_n}||_TV  <=  (1/2) n^{-5},
+
+  where U_{S_n} is the uniform distribution on S_n.  The bound is
+  uniform over every deterministic initial deck.
+
+In plain words:  after an absolute (i.e. n-independent) number of
+sweeps, the regular-trace moment sits within n^{-10} of what it would
+be for the uniform distribution, and this converts to a total-variation
+distance that decays as n^{-5}.
+
+Corollary B (order-optimal mixing).
+  One sweep is d physical shuffles, so Theorem A gives O(d) physical
+  shuffles sufficient.  We show in section 8 that no algorithm can
+  mix in fewer than 2d - O(1) physical shuffles;  so O(d) is optimal
+  in order of d.
+
+
+3. Roadmap of the proof
+----------------------------------------------------------------
+
+The proof controls the trace in (2.1) by splitting the sum over
+partitions into three groups.  Writing X_lambda = log D_lambda,
+
+    (A) LARGE DIMENSION:  X_lambda >= A_1 * n.
+        Handled by the coarse-smoothing estimate (Proposition 4.1),
+        which bounds the moment of a fixed power by e^{Cn} / D_lambda.
+
+    (B) VERY LONG FIRST ROW:  1 <= n - lambda_1 <= n * e^{-M*sqrt(log n)}.
+        Handled by a sparse-row estimate (Proposition 5.1): the
+        symmetric group's permutation module on a small partial deck
+        contains lambda with high multiplicity, and the moment there
+        is bounded by D_lambda^{\-A} for any fixed A.
+
+    (C) THE REST:  ne^{-A_0*sqrt(log n)} <= X_lambda <= A_1 * n.
+        Handled by the grid-overlap estimate (Proposition 6.1).  We
+        split the coordinates into balanced groups to see a sweep as
+        a composition of row and column shuffles, and use random
+        low-dimensional subspaces to control the overlap of the two
+        symmetry actions.
+
+The three pieces are stitched together using a version of the
+Araki-Lieb-Thirring inequality (Proposition 7.2):  for positive
+matrices B, C and exponent r >= 1,
+
+    Tr |B C|^r  <=  Tr (B^* B)^{r/2} (C C^*)^{r/2}.
+
+The left side is bounded via row and column Schatten moments
+(one Schro\"dinger for each side) using the corresponding subgroup
+estimates; the "overlap" between the two sides is exactly what the
+grid test measures.
+
+Finally, the induction runs on the bit length d = log_2 n.  Splitting
+d-bit strings along the middle coordinate gives a balanced (a,b)
+grid with a,b both about sqrt(n), and the induction hypothesis applies
+at bit lengths floor(d/2) and ceil(d/2).  The exponent P(n) grows by
+a factor (1 + 2 (log n)^{-1/4}) at each step, but the product over
+halvings is uniformly bounded, giving an absolute P in Theorem A.
+
+The lower bound (section 8) is elementary:  one physical shuffle
+uses tn/2 independent coin bits, so the support of t physical
+shuffles contains at most 2^{tn/2} permutations;  no distribution
+supported on such a small set can be close to uniform when t < 2d
+is too small.
+
+
+
+4. Input: partial-deck smoothing
+----------------------------------------------------------------
+
+The first estimate is imported from a companion paper and is the only
+external input in the whole proof.
+
+Input 4.1 (Corollary 6.2 of "Routing densities and representation
+contraction for Thorp sweeps").
+
+  Let n = 2^d, d >= 0, and let Q_n be a sweep in any fixed order of
+  the d coordinates.  For either B_n = Q_n^* Q_n or B_n = Q_n Q_n^*,
+  there exist absolute constants u >= 1 (an integer) and C < infinity
+  such that for every pair of ordered injections x, y of l distinct
+  cards, 0 <= l <= n,
+
+        B_n^u(x,y)  <=  e^{C l} / (n)_l.                       (4.1)
+
+  Here (n)_l = n!/(n-l)! is the falling factorial, with (n)_0 = 1.
+  The same constants (u, C) work for every coordinate order.
+
+  Consequence:  taking l = n in (4.1) gives
+
+        Tr_reg |Q_n|^{2u}  <=  e^{C n}.                        (4.2)
+
+  Proof of the consequence.  When l = n, the "injection module of
+  size n" is literally the regular representation of S_n.  There are
+  n! ordered injections of length n (that is, n! distinct permutations
+  of the n cards) and each diagonal entry of B_n^u there is at most
+  e^{C n}/n!.  Summing the n! entries gives at most e^{C n}.  Finally
+  (Q_n^*Q_n)^u = (Q_n^*Q_n)^{u} = |Q_n|^{2u} (Schatten powers).  []
+
+  Interpretation.  B_n^u is very close to (a power of) the uniform
+  distribution on the partial injection: it is at most e^{C l} times
+  the uniform probability 1/(n)_l at every point.  The "classical
+  Thorp shuffle applied to l cards on a full deck of n positions" is
+  what this measures.
+
+>> In plain words.  Take a sweep, take any power of it, take the
+>> squared singular values in Schatten form.  The result is an operator
+>> that is uniformly very small (roughly uniform on its part of the
+>> deck, up to an exponential correction e^{C l}.
+
+This single estimate is what makes the "large dimension" and
+"moderate but still non-negligible dimension" cases work.
+
+
+5. Long first rows: a sparse-row estimate
+----------------------------------------------------------------
+
+Now consider partitions lambda of n whose first row is almost the
+whole diagram:  n - lambda_1 = k is small relative to n.  Such
+partitions have extremely high dimension but appear with very high
+multiplicity in the permutation module on a partial deck.  Because
+that module is small (its base is a small subset of S_n), controlling
+its Schatten moments gives a big win once the multiplicity is
+correctly tracked.
+
+The precise statement is Proposition 5.1:
+
+Proposition 5.1 (Sparse-row contribution).
+  There exist absolute constants M > 0 and P_s >= 2 such that, for
+  all sufficiently large dyadic n,
+
+    sum over {lambda partition of n : 1 <= n - lambda_1 <= n e^{-M sqrt(log n)}}
+        D_lambda * Tr_{V_lambda} |Q_n(lambda)|^{P_s}   <=   n^{-12}.    (5.1)
+
+The rest of this section proves Proposition 5.1.
+
+
+5.1  A deformation on partial decks
+----------------------------------------------------------------
+
+Fix p_0 >= 4u with p_0 > 2, where u is from Proposition 4.1.
+
+We work on the space V_q of ordered q-tuples of distinct cards
+("ordered injections" of length q).  The action of S_n is the natural
+one on the underlying set of positions; the space V_q carries the
+induced (permutation) representation on the q-tuple.
+
+Partition the d coordinates into consecutive blocks of length about
+sqrt(d).  There are g = O(sqrt(log n)) such blocks.  Each block
+corresponds to a set of "coarse" positions of size b_i = 2^(block size),
+and b_i is at most exp(C sqrt(log n)) for a universal C.
+
+Definition (coarse update).  "Updating coarse coordinate i" means:
+for every line parallel to block i (i.e., for every choice of all
+fine coordinates outside block i), apply an independent cube sweep
+Q_{b_i} on that line.  The lines are joint by sweep order, but
+since a single block covers exactly one coarse coordinate, each
+line's content is updated independently.  This is one factor in the
+full sweep decomposition.
+
+Now consider the extension to complex z, 0 <= Re z <= 1.  Write each
+line operator Y = W |Y| in its polar decomposition.  Define
+
+    Y(z)  =  W |Y|^{p_0 z / 2},    0 <= Re z <= 1,
+
+with the value zero on the nullspace of Y.  Let Q(z) be the product
+of these operators in sweep order.
+
+Boundary values:
+  - At z = 2/p_0, Y(z) = W |Y| = Y  (the original placement sweep).
+  - On Re z = 0, every factor has operator norm <= 1, and so does
+    the product.
+  - On Re z = 1, within one l-card line-block, singular-value
+    Cauchy-Schwarz gives
+
+        |Y(z)_{yx}|  <=  ((|Y|^{p_0/2})_{xx} (|Y^*|^{p_0/2})_{yy})^{1/2}
+                     <=  e^{C l} / (b_i)_l.                     (5.2)
+
+  Here the second inequality uses Proposition 4.1 twice: once with
+  B_i = Y^* Y (so |Y|^{p_0/2} is bounded by |Y|^{2u}, because
+  p_0/2 >= 2u), once with B_i = Y Y^* (for |Y^*|^{p_0/2}).  For l = 0
+  and l = 1 the exponential factor e^{C l} is unnecessary (it is 1):
+  a single card is exactly uniform after the full line has been
+  swept, since the sweep applies every coordinate matching at least
+  once, and a single-card distribution is uniform after one sweep.
+  The deformation leaves this exactness untouched because W|Y|^0 = W
+  has exactly the same effect on one-card inputs as W|Y| does.
+
+
+5.2  Contact counts for the deformed kernel
+----------------------------------------------------------------
+
+Now we compare Q(z) with an auxiliary kernel K(x, y) which uses an
+independent uniform permutation on every coarse line:
+
+    K(x, y)  =  product over coarse lines of  1 / (b_i)_{l_i},
+
+where l_i = number of distinguished cards in line i on both ends, and
+K(x,y) = 0 if an intermediate placement has a collision.
+
+Let U(x, y) = sum over coarse lines of l_i * 1_{l_i >= 2};  it counts
+"visits of a coarse line by at least two distinguished cards".  Use
+U(x,y) = 0 for invalid paths.
+
+Claim (5.3).  On Re z = 1,
+
+    |Q(z)_{yx}|  <=  K(x,y) * e^{C U(x,y)},                        (5.3)
+    K(x,y)       <=  n^{-q} * e^{C U(x,y)}.                        (5.3b)
+
+  Proof of (5.3):  each line contributes at most e^{C l_i}/(b_i)_{l_i}
+  by (5.2), and the product over lines gives the extra factor
+  e^{C sum l_i} = e^{C U} once we use l_i = 1 for the boundary terms.
+
+  Proof of (5.3b):  compare (b_i)_{l_i} with b_i^{l_i}:
+  b_i^{l_i} / (b_i)_{l_i} = (1 - 1/b_i)(1 - 2/b_i)...
+  <= (l_i)^{l_i} / l_i!  <=  e^{l_i},  with equality when l_i <= 1.
+  Multiply over lines:  the product of b_i^{-l_i} is n^{-q} when all
+  the q distinguished cards land on distinct lines, and the product
+  of the 1/(b_i)_{l_i} is at most n^{-q} times e^{U}.  []
+
+  Combined bound.  Square (5.3), then use (5.3b) on one factor of
+  K:
+
+      |Q(z)_{yx}|^2  <=  K(x,y) * e^{C U(x,y)} * |Q(z)_{yx}|
+                     <=  n^{-q} * e^{C U(x,y)} * |Q(z)_{yx}|
+
+  Summing over y, and writing the sum as an expectation over a
+  uniformly random injection x and independent random line
+  permutations producing the y-values,
+
+      ||Q(z)||_{HS}^2  <=  (n)_q * n^{-q} * E[ e^{C U} ].     (5.4)
+
+  Here E is over the uniform input injection x and the independent
+  uniform line permutations defining K.
+
+
+5.3  The contact-count bound
+----------------------------------------------------------------
+
+Condition on all line permutations, and trace the paths of all n
+inputs through the sweep.  Join two inputs if they ever share a line
+in some coarse block.  Result: a graph G whose maximum degree is at
+most
+
+    Delta  =  sum_i (b_i - 1)  <=  exp(C'' sqrt(log n)).       (5.5)
+
+The distinguished q inputs form a uniformly random q-subset of the
+n vertices of G.  Let R_* = number of selected vertices that have at
+least one selected neighbor.  Then U <= g R_*, because each visit
+counted by U is at most one block wide and a vertex visited at least
+once in a block where it shares a line counts once in R_*.
+
+Bound E[e^{C g R_*}].  For a set S of size w, the number of connected
+subsets of G of size w is at most n * Delta^{2(w-1)}   (encode S by
+a rooted spanning-tree traversal).  Any fixed union of v <= q
+vertices is entirely selected with probability
+
+    (q)_v / (n)_v  <=  (q/n)^v,
+
+and with probability zero if v > q.
+
+The nontrivial components of the selected graph are a disjoint family
+of connected sets, each of size at least 2.  Therefore e^{C g R_*} is
+dominated by
+
+    sum over families {S_1, S_2, ..., S_m}  of disjoint connected sets
+    of size >= 2,  whose union is contained in the selected set,
+    of the product   product_j   e^{C g |S_j|}.
+
+Drop disjointness and factorize as an exponential sum:
+
+    E[e^{C g R_*}]
+      <=  exp(  sum_{w >= 2}   n * Delta^{2(w-1)} * (q/n)^w * e^{C g w} ).
+
+Since Delta^{2} <= e^{2 C'' sqrt(log n)} and g = O(sqrt(log n)), for
+a sufficiently large absolute C_2 the terms are bounded by
+
+    (q/n) * e^{C_2 sqrt(log n)}   <=  1/2.
+
+Therefore
+
+    E[e^{C g R_*}]  <=  exp( n * (q^2/n) * e^{C_3 sqrt(log n)} )
+                    =   exp( (q^2/n) * e^{C_3 sqrt(log n)} ).  (5.6)
+
+[Here I used:  sum over w >= 2 of (const)^w  is  (const)^2 times a
+bounded factor, and Delta^{2(w-1)} * e^{C g w} <= e^{C_2 sqrt(log n) * w}.]
+
+Combining (5.4) with (5.6), we get a Hilbert-Schmidt bound on
+Re z = 1.  Interpolate the operator-norm bound on Re z = 0 with this
+boundary.  At z = 2/p_0, the interpolation gives a Hilbert-Schmidt
+norm bound, so the Schatten exponent is p_0:
+
+    Tr_{q placements} |Q_n|^{p_0}
+        <=  exp( (q^2/n) e^{C_3 sqrt(log n)} ).                (5.7)
+
+The three-lines argument (Stein's):  pair Q(z) with a dual Schatten
+unit matrix of exponent p_0' = p_0/(p_0-1), raise its singular values
+to p_0'(1 - z/2), leave zeros zero.  The pairing has trace norm one
+at Re z = 0, Hilbert-Schmidt norm one at Re z = 1, and recovers the
+original dual matrix at z = 2/p_0.  Raise the interpolated norm bound
+to p_0, and you get (5.7).
+
+>> The trick:  we know Q is Hilbert-Schmidt on Re z = 1 with an
+>> exponential bound depending only on the "contacts" between paths,
+>> and we know Q is a contraction on Re z = 0.  Interpolation gives
+>> a Schatten p_0 bound at z = 2/p_0.
+
+
+5.4  From placement moments to regular multiplicities
+----------------------------------------------------------------
+
+Proof of Proposition 5.1.
+
+For k = n - lambda_1 in the sparse range, put
+
+    q = floor( k * (n/k)^{1/5} ).                            (5.8)
+
+For M large enough in the hypothesis of (5.7), the bound is
+applicable and its right side is at most e^k:  indeed q^2/n <=
+k (k/n)^{3/5}, and (k/n)^{3/5} <- log(n/k) when log(n/k) grows.
+Also q/k -> infinity and q/n -> 0 uniformly over the sparse range.
+
+Let beta = (lambda_2, lambda_3, ...) be a partition of k.  The
+stabilizer of an ordered q-card placement is S_{n-q}, so branching of
+the action on V_q identifies the multiplicity m_lambda of V_lambda
+with the number of standard tableaux of the skew shape lambda/(n-q).
+For large n, the leftover first-row segment is well separated from
+beta (indeed n - q >= beta_1), so by the branching rule
+
+    m_lambda  =  binom(q, k) * D_beta.                       (5.9)
+
+The hook-length formula, with beta' the transpose of beta, gives
+
+    D_lambda  =  binom(n, k) * D_beta  *
+        product over i = 1, ..., beta_1 of
+            ( 1 + beta'_i / (n - k - i + 1) )^{-1}.          (5.10)
+
+Since sum_i beta'_i = k and k = o(n), the product of logarithms
+loses at most k/(n - 2k + 1), so in particular
+
+    log D_lambda  >=  (1/2) k log(n/k)                       (5.11)
+
+for all sufficiently large n in the sparse range.
+
+The multiplicity is a substantial power of the dimension:
+
+    log m_lambda  >=  (1/5) k log(n/k) - O(k) + log D_beta,
+    log D_lambda  <=  k log(n/k) + k + log D_beta.
+
+Because log(n/k) -> infinity uniformly (i.e., over the whole sparse
+range, not just a subsequence), these give
+
+    m_lambda  >=  D_lambda^{1/10}.                          (5.12)
+
+Now sum over ordered q-placements.  The trace on V_q includes m_lambda
+copies of the V_lambda block.  Using (5.12) and (5.7):
+
+    Tr_{V_lambda} |Q_n(lambda)|^{p_0}
+        <=  e^k * D_lambda^{-1/10}
+        <=  D_lambda^{-1/20}.                                (5.13)
+
+For any fixed large A, choose a fixed P_s with P_s / p_0 >= 20(A+1).
+The power-sum inequality  sum_j a_j^t <= (sum_j a_j)^t  (for
+a_j >= 0 and t >= 1) then gives
+
+    D_lambda * Tr_{V_lambda} |Q_n(lambda)|^{P_s}
+        <=  D_lambda^{-A}.                                   (5.14)
+
+To finish.  There are at most 2^k possible tails beta of size k.
+For k <= sqrt(n), the dimension lower bound (5.11) makes their
+total contribution at most
+
+    sum_{k >= 1} (2 n^{-A/4})^k.
+
+For k > sqrt(n), use log(n/k) >= M sqrt(log n);  then the
+contribution is at most
+
+    sum_{k > sqrt n} exp( k log 2 - (1/2) A M k sqrt(log n) ).
+
+Take A sufficiently large;  the sum of these two bounds is at most
+n^{-12} for all sufficiently large n.  This proves Proposition 5.1.  []
+
+
+6. The grid-overlap estimate
+----------------------------------------------------------------
+
+This is the heart of the proof.  We split the coordinates into an
+(a, b) board and show that row and column symmetry actions have almost
+disjoint ranges of singular values inside any irreducible
+representation, up to a controlled exponential factor.
+
+Setup 6.0.
+
+  Split the n positions into an a-by-b grid, with ab = n and
+
+      sqrt(n)/2 <= a, b <= 2 sqrt(n).                      (6.0)
+
+  Write R = (S_b)^a for the subgroup acting on the rows (each row is a
+  copy of S_b) and F = (S_a)^b for the subgroup acting on the columns.
+  These commute?  No -- they do not commute as subgroups of S_n;  they
+  are two decompositions of the same symmetric group into different
+  products of Young subgroups.  So we must handle their actions
+  carefully.
+
+  We use Fourier projections on R and on F.  Let V_mu be a real
+  orthogonal irreducible representation of R, let v_R in V_mu be a
+  real unit vector, and let D_R = dim V_mu.  In the restriction of a
+  fixed irreducible V_lambda of S_n to R, let E_R act as
+
+      |v_R><v_R| tensor I_{M_mu}   on   V_mu tensor M_mu,
+      zero on every other isotypic summand of V_lambda | R.
+
+  So E_R projects onto the specific isotypic type V_mu, then projects
+  onto the specific unit vector within V_mu, retaining all multiplicity
+  copies M_mu.  It is a fixed element of the group algebra of R
+  acting on V_lambda.
+
+  Define E_F and D_F identically for F.
+
+Proposition 6.1 (Grid overlap).
+  Fix A_0, A_1 > 0.  For all sufficiently large n, if
+
+      n e^{-A_0 sqrt(log n)} <= X := log D_lambda <= A_1 n,   (6.1)
+
+  then for every pair of projections (E_R, E_F) just defined,
+
+      D_lambda * Tr_{V_lambda}(E_R E_F)
+          <=  D_R D_F * exp( X / (log n)^{1/3} ).              (6.2)
+
+The rest of this section proves Proposition 6.1.
+
+Overview of the proof.
+  The strategy is to view Tr(E_R E_F) as the square-norm of a single
+  invariant tensor phi, up to elementary factors.  Then we bound that
+  square-norm in two ways.  On the "retention" side, a random
+  low-dimensional test preserves a controlled fraction of the
+  lambda-component.  On the "compression" side, the tensor is forced
+  to lie in a small subspace after the test, and a Fourier-analytic
+  compression costs exp(-n).  The bookkeeping is:
+
+    - Normalization (Stirling).  Converting overlap to tensor norm
+      costs (n!) / (|R| |F|) <= exp(n + O(sqrt(n) log n)).
+
+    - Retention.  The random planes must cumulatively retain at
+      least a fraction alpha_H alpha_H' of the lambda-component, where
+      log(1/(alpha_H alpha_H')) is only O(n^{0.6}).
+
+    - Compression.  The cell-tag structure saves exp(-n) (with the
+      dimension window supplying the remaining slack).
+
+  The +n from the first line is canceled by the -n from the third.
+  The remaining slack X / (log n)^{1/3} is compared with the true
+  window (6.1).
+
+
+6.1  The tagged realization
+----------------------------------------------------------------
+
+Put r = floor(n^{1/100}).  For a partition nu, define s(nu) as the
+number of boxes of nu strictly below its first r rows and strictly to
+the right of its first r columns.  In other words, s(nu) is the
+number of boxes of nu that lie outside the r-by-r square anchored at
+the top-left corner.
+
+Claim 6.1a.  With s = s(lambda), we have (for sufficiently large n)
+
+      s  <=  C X / log n                                       (6.3)
+
+for an absolute C.
+
+  Proof.  Tile the diagram by r-by-r squares, aligned at the top-left.
+  Each tile that meets the counted boxes has, immediately up and to
+  the left, a completely filled tile;  so the counted boxes are
+  supported by at least s full tiles.  Each full r-by-r tile
+  contributes at least r^2 (log r - O(1)) to the logarithm of the
+  tableau count D_lambda (standard hook-length estimate).  Ordering
+  the tiles by row and then by column, and filling partial tiles in
+  any fixed legal way, respects the Young order on tableaux.  So
+  D_lambda >= exp( r^2 (log r - O(1)) * (number of full tiles) )
+            >= exp( r^2 (log r - O(1)) * s / r^2 )
+            =   exp( (log r - O(1)) * s ).
+
+  Since log D_lambda = X and r = n^{1/100}, we get
+  log r = (1/100) log n, and so
+      s <= X / ((1/100) log n - O(1)) <= (200) X / log n  for large n.
+  []
+
+The rest of this subsection builds a tensor realization of V_lambda
+which lets us compute Tr(E_R E_F).
+
+Definition (graded alphabet action).  Hilbert tensor powers of an
+alphabet with even and odd letter spaces carry a graded symmetric
+group action.  For homogeneous letters u, v set
+
+      u (x) v   |->   (-1)^{p(u) p(v)} v (x) u
+                                                  on adjacent slots,   (6.4)
+
+where p in {0, 1} is the parity of a letter in its good/exceptional
+class.  This action extends to all of S_n by transpositions; it is
+unitary;  whenever nonconsecutive slots are grouped together, we use
+the same graded reordering.  In particular it carries actions within
+those slot sets to tensor-product actions, and carries parity-stable
+tag subspaces to the corresponding reordered tag subspaces.
+
+Definition (r-hook alphabet).  Call an alphabet with r evenly graded
+"good" letters of one parity, r evenly graded "good" letters of the
+other parity, and any number of "exceptional" even letters, an
+r-hook alphabet.  The r-hook alphabet realizes precisely the shapes
+nu contained in the r-hook (first r rows union first r columns): this
+is the classical Berele-Regev statement, restated in Regev 2013,
+Theorem 2.1.  If, in addition to the good letters, we have at least
+s(nu) exceptional even letters, then nu can be realized using
+exactly s(nu) exceptional slots, and no fewer.  []
+
+  Sketch.  By Pieri, the good even letters first supply at most r
+  rows.  The good odd letters add at most r vertical strips, so the
+  r-hook is filled.  Each additional exceptional slot adds at most
+  one box outside the resulting hook.  Conversely, build the top r
+  rows by the even letters, then the remaining hook columns by the
+  odd letters, then the outside boxes with distinct exceptional
+  letters.  []
+
+Realize lambda with exactly s = s(lambda) exceptional slots.  Restrict
+to R.  If the chosen R-type mu has row components mu_1, ..., mu_a,
+it occurs in some sector of lambda whose exceptional slots are split
+among the rows.  Counting the minimum exceptional load of each row
+gives
+
+      h_A  :=  sum_i s(mu_i)  <=  s.                        (6.5)
+
+The same argument applies to the column components.
+
+Now for each i choose an alphabet A_i with r good letters of each
+parity and s(mu_i) exceptional even letters.  Set A = oplus_i A_i.
+The good even space of A has dimension H = a r (r good letters per
+row, a rows).  The good odd space of A likewise has dimension H.
+Embed the row representation (V_{mu_i}^{tensor multiplicity}) inside
+the tensor power A_i^{otimes b}.  The tensor product of these
+embeddings realizes the whole chosen R-representation on A^{otimes n},
+and hence realizes the specific unit carrier vector v_R (which might
+be entangled across rows).  Denote the image by psi in A^{otimes n}.
+Then psi is a unit vector with exactly h_A exceptional slots, and the
+slot in row i has tag A_i.
+
+For g in R, set f_R(g) = <v_R, g v_R>, where g acts in the chosen row
+representation.  Because a permutation not preserving the row
+structure changes the tag of at least one slot, the matrix coefficient
+of psi vanishes outside R:
+
+      <psi, g psi>  =  f_R(g)  for g in R,   0 otherwise.    (6.6)
+
+Analogously, we build a column-tagged unit vector eta in B^{otimes n},
+where B = oplus_j B_j, with alphabet B_j of r good letters of each
+parity and s(nu_j) exceptional even letters, and hence
+h_B = sum_j s(nu_j) <= s.  Its coefficient on F is
+f_F(g) = <v_F, g v_F>, and it vanishes outside F.
+
+6.2  A normalization: overlap as a tensor norm
+----------------------------------------------------------------
+
+On A^{otimes n} (x) B^{otimes n}, let P_* be the projection onto
+"diagonal invariants": vectors invariant under the diagonal action
+of S_n acting on both tensor factors simultaneously.  Let
+P_A^lambda, P_B^lambda be the isotypic projections onto lambda on the
+A and B sides.  Put
+
+      e     =  psi (x) eta,
+      phi   =  sqrt(n!) * P_* e.                            (6.7)
+
+Claim 6.2a.  ||phi|| = 1, and P_A^lambda phi = P_B^lambda phi.
+
+   Proof of the unit norm.  The projection formula on diagonal
+   invariants is
+
+       P_* e  =  (1/n!) sum_{g in S_n} g e.
+
+   Pairing e against P_* e,
+
+       <e, P_* e>  =  (1/n!) sum_g <e, g e>
+                   =  (1/n!) sum_g <psi, g psi> <eta, g eta>
+                   =  (1/n!) sum_g f_R(g) f_F(g).
+
+   For g not in R the factor f_R(g) vanishes, and for g not in F the
+   factor f_F(g) vanishes.  Since R cap F = {1} in S_n, the product
+   f_R(g) f_F(g) is zero for every g != 1, and is 1 at g = 1.  Thus
+   <e, P_* e> = 1/n!.  Because P_* is an orthogonal projection,
+   ||P_* e||^2 = <e, P_* e> = 1/n!, and hence ||phi||^2 = n! * (1/n!)
+   = 1.  []
+
+  Proof of agreement of projections.  On the diagonal invariants, the
+  A-action of g equals the B-action of g^{-1}.  The two sides therefore
+  have the same character values, and the two projection operators
+  agree on this subspace.  []
+
+We now compute ||P_A^lambda phi||^2.  Expand the two averaging
+formulas
+
+      P_A^lambda  =  (D_lambda / n!) sum_{g in S_n} chi_lambda(g^{-1}) rho_A(g),
+      P_*         =  (1 / n!) sum_{g in S_n} rho(g),
+
+where rho_A is the A-side action and rho is the diagonal action.
+Insert these into ||P_A^lambda phi||^2 = <P_A^lambda phi, phi>, use
+the factorizations (6.6) (f_R vanishes outside R and f_F vanishes
+outside F), and note that R cap F = {1}.  Only the pairs
+(z, x) in R x F survive:
+
+      ||P_A^lambda phi||^2
+        =  (D_lambda / n!) sum_{x in F, z in R}
+                chi_lambda(z^{-1} x) f_R(z) f_F(x).              (6.8)
+
+Both f_R and f_F are real and unchanged by inversion (v_R and v_F are
+real unit vectors).  Consequently the group-algebra coefficients of
+E_R (as an element of the group algebra of S_n) are (D_R / |R|) f_R,
+and similarly for E_F.  Multiply the trace of the product of the two
+group-algebra elements by D_lambda / n!  *  |R| |F| / (D_R D_F),
+identity (6.8) becomes
+
+      ||P_A^lambda phi||^2
+        =  |R| |F| / (D_R D_F n!)  *  D_lambda Tr_{V_lambda}(E_R E_F).   (6.9)
+
+This is the normalization we will invert at the end of the proof.
+
+>> In plain words.  Tr(E_R E_F) is a codimension-2 quantity:  it is
+>> how much the row-Fourier projection "comes from" the column-Fourier
+>> projection inside V_lambda.  Equation (6.9) changes variables to
+>> the squared norm of a unit vector after a projection to the
+>> lambda-component.  Now we will bound that squared norm in two
+>> ways:  from below via retention, from above via compression.
+
+
+6.3  Random-plane retention: lambda-component is not lost
+----------------------------------------------------------------
+
+Recall H = a r, the dimension of the good even (and of the good odd)
+space of the alphabet A.  Choose an independent, unitarily invariant
+complex r-plane in each of those two spaces, and set
+
+    V_A = (r-plane in even good) (+) (r-plane in odd good),    (6.10)
+
+so V_A has complex dimension 2r and sits inside A (x) C.
+
+Let T_A be the spectral projector onto the vectors in A^{otimes n}
+(x) C that have at most L_A slots outside V_A, where
+
+    L_A  =  3 s + 2 r H.                                        (6.11)
+
+Every slot that carries an exceptional letter counts as outside V_A.
+Level-A bad count:  we allow the "outside" contribution to be at most
+2 r H slots for the good letters not landing in the chosen r-plane
+(complement of an r-plane inside an H-dim space has dimension H - r,
+so we pay rH per parity).  The 3s allowance breaks into
+h_A + 2s:  h_A for the exceptional slots (h_A <= s by (6.5)), and
+2s for the Schur-Weyl complement counts of rho and xi (each <= s + rH).
+So
+
+    h_A + 2 (s + rH)  <=  s + 2s + 2rH  =  3s + 2rH  =  L_A.
+
+Write overline T_A for the average of T_A over the random r-planes.
+
+Lemma 6.3 (Plane retention).  On the sector with exactly h_A
+exceptional slots,
+
+    overline T_A  >=  alpha_H P_A^lambda,
+    alpha_H  =  (n+H)^{-2 r H}.                                (6.12)
+
+The inequality holds on all multiplicity spaces.
+
+Proof.  Fix also the counts k, m of good even and good odd slots.
+Apply ordinary Schur-Weyl separately to these two species.  For
+unitary highest weights rho of size k and xi of size m, the
+symmetric-group side is induced from the Specht representations of
+rho, xi' (transpose), and the exceptional tensor representation; the
+arrangements of the three species among the slots give the induced
+representation.  If this summand contains lambda, then branching and
+reciprocity give
+
+    rho  <=  lambda,     xi'  <=  lambda   (in Young order).    (6.13)
+
+The highest weights rho and xi have height at most H (the number of
+rows in the unitary group).  Therefore both rho and xi have at most
+s + rH boxes strictly below the first r rows:  for rho, at most rH of
+those boxes lie within the first r columns, and the rest are counted
+by s(lambda);  for xi, use s(lambda') = s(lambda).
+
+For fixed r-planes, the two complement-counts (even and odd) are
+Lie-algebra operators on the two unitary factors.  So the test T_A
+is a spectral projection of the sum of these two counts, plus
+h_A * I.  On multiplicity spaces, it acts as the identity even
+before averaging.  Its average is scalar on each pair of unitary
+types, with scalar equal to its value for reference planes.
+
+For one highest weight nu, replace the r-plane inside the H-dim
+unitary space by the first r coordinate directions.  The HW vector
+of nu has complement count sum_{i > r} nu_i.  The U(H-r)-rep
+generated from it has the same complement count (the complement-count
+operator is central for U(H-r)); its highest weight is
+(nu_{r+1}, ..., nu_H).  Weyl's dimension formula gives its dimension
+relative to the full U(H)-rep as
+
+    (prod_{r < i < j <= H} ( 1 + (nu_i - nu_j)/(j - i) ))
+      / (prod_{1 <= i < j <= H} ( 1 + (nu_i - nu_j)/(j - i) ))
+        >=  (n+H)^{-rH}.                                    (6.14)
+
+On the product of the two such subrepresentations (even and odd), the
+test succeeds because h_A + 2 (s + rH) <= L_A.  The resulting relative
+trace is at least alpha_H, proving the lemma.  []
+
+Use the column side analogously:  H' = b r, L_B = 3 s + 2 r H', and
+corresponding projector T_B.  Diagonal averaging preserves the
+exceptional counts, so phi lies in both sectors to which Lemma 6.3
+applies.  The two positive operator inequalities tensor together.
+Because P_A^lambda P_B^lambda phi = P_A^lambda phi (both projections
+act the same on phi), we get
+
+    alpha_H alpha_H' ||P_A^lambda phi||^2
+        <=  E || (T_A (x) T_B) phi ||^2.                    (6.15)
+
+This is the lower bound for the tested norm.  We now obtain its upper
+bound, for every fixed choice of planes, in the next subsection.
+
+>> In plain words.  The random planes retain at least a fraction
+>> alpha_H alpha_H' ~ exp(-O(n^{0.52})) of the lambda-component.  So
+>> fixing the planes does not lose too much of phi.
+
+
+6.4  Cell-tag compression: the tested norm is tiny
+----------------------------------------------------------------
+
+Regroup the two alphabets into D^{otimes n}, where D = A (x) B has
+parity equal to the sum of the two parities.  The identification is
+unitary and uses graded signs (moving a B-letter past a later-slot
+A-letter contributes a minus sign when both are odd).  Checking
+adjacent transpositions shows that the diagonal action becomes the
+graded permutation action on D.  The parity-preserving slot tests
+are identified without additional signs.
+
+The slot in cell (i,j) now has tag
+
+    D_{ij}  =  A_i (x) B_j.                                  (6.16)
+
+These n tag spaces are mutually orthogonal, and e lies in their
+product tag subspace.  We do not (and do not need to) assert any
+factorization of e across the slots.
+
+Passing both tests leaves at most L_A + L_B slots outside W = V_A
+(x) V_B.  The tests preserve diagonal invariants.  In an invariant
+graded tensor, the number of slots in the odd part of W is at most
+its dimension:  after fixing their positions and grouping them,
+those factors alternate.  Let W_0 be the even part of W, and let
+Delta_* be the test that at most
+
+    T  =  L_A + L_B + 4 r^2                                  (6.17)
+
+slots lie outside W_0.  We obtain
+
+    || (T_A (x) T_B) phi ||^2  <=  || Delta_* phi ||^2
+                               =   n! || P_* Delta_* e ||^2.  (6.18)
+
+The equality uses the commutation of Delta_* with the diagonal
+action (Delta_* is a slot-content projector and hence diagonal-
+invariant) and the definition phi = sqrt(n!) P_* e:
+||Delta_* phi||^2 = n! ||Delta_* P_* e||^2 = n! ||P_* Delta_* e||^2.
+
+Also
+
+    dim W_0  <=  4 r^2,    T  <=  C X / log n  <  n/2      (6.19)
+
+for large n:  the terms in T not involving s are O(n^{0.52}), and
+the lower endpoint of (6.1) absorbs them.
+
+Lemma 6.4 (Cell-tag compression).  With the notation above, put
+
+    M_*  =  sum_{t <= T} binom(n, t).                        (6.20)
+
+Then
+
+    n! || P_* Delta_* e ||^2
+        <=  n! * M_*^2 * max_{0 <= t <= T}
+                dim(Sym^{n-t} W_0) / (t! (n-t)^{n-t}).       (6.21)
+
+Proof.  Write Delta_* = sum_{|S| <= T} Delta_S, where Delta_S
+specifies exactly the slots outside W_0 (as a graded slot-content
+projector).  Fix S, put t = |S|, m = n - t, and group the remaining
+slots before those in S, using graded reordering.  Parity-stability
+of the tags ensures that the reordered vector still lies in the
+corresponding product tag subspace.
+
+The full invariant projection P_* is the projection onto symmetric
+n-tensors of D, and S_m x S_t is a subgroup of S_n.  Therefore
+P_* is dominated, in the Loewner order, by the product of the
+"within-group symmetric" projections
+
+    P_*  <=  P_{S_m-symm} (x) P_{S_t-symm}.
+
+Since Delta_S commutes with those two projections, and the vector
+Delta_S e lives in W_0^{otimes m} (x) D^{otimes t}, we may replace
+each factor by its tight version on the vector's support:
+
+    || P_* Delta_S e ||^2  <=  quadratic form of
+        Pi_m (x) Pi_t ,
+
+    Pi_m  =  P_{Sym^m W_0},     Pi_t = P_{graded symmetric in D^{otimes t}}.   (6.22)
+
+We now compress this operator to the product tag subspace.  The
+compression splits into the tensor product of the two compressed
+operators:  no tag projection is required to commute with P_{W_0}.
+On the S-slots every nonidentity permutation changes a tag, so the
+compression of Pi_t is exactly identity divided by t!.
+
+For the other factor, unitary invariance and irreducibility give
+
+    Pi_m  =  dim(Sym^m W_0) * E_z  |z^{otimes m}><z^{otimes m}|,    (6.23)
+
+where z is a uniform complex unit vector in W_0.  This is the
+compact coherent-orbit resolution of Perelomov (Section 2).  If C_l
+projects onto the tag of the remaining slot l, then the compressed
+rank-one operator has norm
+
+    prod_{l=1}^{m} ||C_l z||^2  <=  m^{-m},                  (6.24)
+
+by orthogonality of the tags and the arithmetic-geometric mean
+inequality:  for z a unit vector in W_0 with ||z|| = 1, the tag
+projectors C_l satisfy sum_l ||C_l z||^2 = ||z||^2 = 1 (the tags
+partition the slot), and the arithmetic-geometric mean says
+||C_l z||^2 product <= (1/m)^{m}.  Consequently the compression of
+Pi_m has norm at most dim(Sym^m W_0) * m^{-m}.
+
+The product of these two operator bounds applies to any unit vector
+in the tag subspace, including the entangled vector e.  Thus each
+assignment S contributes at most the fraction in the lemma.
+
+Cauchy-Schwarz in the sum of the M_* vectors P_* Delta_S e gives
+the additional factor M_*^2, proving the lemma.  []
+
+>> In plain words.  Each permutation assignment S contributes only a
+>> tiny amount because the tags force the "spread" of e.  Bounding
+>> how many assignments there are gives M_*;  Cauchy-Schwarz ensures
+>> we only pay the square of M_*.
+
+
+6.5  Finishing the proof of Proposition 6.1
+----------------------------------------------------------------
+
+The number of assignments is at most
+
+    M_*  <=  exp( C T log(en/T) ).                            (6.25)
+
+Use dim W_0 <= 4 r^2 and Stirling in the compression lemma.  In
+particular, for each t,
+
+    n! / (t! (n-t)^{n-t})
+        =  binom(n, t) exp( -(n-t) + O(log n) ).              (6.26)
+
+We get
+
+    E || (T_A (x) T_B) phi ||^2
+        <=  exp( -n + O( T log(en/T) + r^2 log n ) ).         (6.27)
+
+The inverse retention factor in (6.15) costs
+
+    log( 1 / (alpha_H alpha_H') )  =  O(n^{0.6}).             (6.28)
+
+Finally, (6.9) restores the subgroup normalization:
+
+    D_lambda Tr(E_R E_F) / (D_R D_F)
+        =  ||P_A^lambda phi||^2 * n! / (|R||F|).              (6.29)
+
+By Stirling,
+
+    n! / (|R||F|)  <=  exp( n + O(sqrt(n) log n) ).           (6.30)
+
+Combining (6.27), (6.28), (6.30), the compression factor -n from
+(6.27) cancels the +n from (6.30) exactly.  What remains is
+
+    D_lambda Tr(E_R E_F) / (D_R D_F)
+        <=  exp( O( T log(en/T) + r^2 log n + n^{0.6}
+                     + sqrt(n) log n ) ).                     (6.31)
+
+Now use the dimension window (6.1) and T <= C X/log n.  The bound
+
+    T log(en/T)  <=  O( X / sqrt(log n) )                     (6.32)
+
+is proved as follows.  The function T |-> T log(en/T) is increasing
+for 0 < T < n/e, and T = T_max <= CX/log n << n/e for large n.  So
+its maximum over 0 <= T <= T_max is at T = T_max.  At that point,
+log(en/T_max) = log(en) - log(T_max) = log(en) - log(CX/log n)
+= O( sqrt(log n) ) using X >= n e^{-A_0 sqrt(log n)}.  Hence
+T_max log(en/T_max) = O( X / sqrt(log n) ).
+
+The remaining terms on the right of (6.31) are absorbed by the
+dimension window.  Indeed, r^2 log n = O(n^{0.02} log n) = o(n);
+n^{0.6} = o(n);  sqrt(n) log n = o(n);  and X >= n e^{-A_0 sqrt(log n)}
+satisfies X = n^{1-o(1)}, so each of these terms is
+O(X / sqrt(log n)) for large n.
+
+Therefore, for sufficiently large n,
+
+    D_lambda Tr(E_R E_F) / (D_R D_F)
+        <=  exp( O( X / sqrt(log n) ) ).                     (6.33)
+
+Since sqrt(log n) is much larger than (log n)^{1/3} for large n,
+this is at most
+
+    exp( X / (log n)^{1/3} ),
+
+which is (6.2).  This proves Proposition 6.1.  []
+
+
+7. The uniform moment induction
+----------------------------------------------------------------
+
+Now we assemble the proof of Theorem A.  The induction is on the bit
+length d = log_2 n.  Conclusion:  Tr_reg|Q_n|^P <= 1 + n^{-10}.
+
+At each dyadic n we choose an exponent P(n), prove (2.1) at
+P = P(n), and afterwards show P(n) is uniformly bounded in n.
+
+
+7.1  Covering the representation ranges
+----------------------------------------------------------------
+
+Throughout X = log D_lambda.
+
+Proposition 7.1 (Ranges covered).  There exist absolute constants
+A_0, A_1 > 0 and P_c >= 2 such that, for all sufficiently large
+dyadic n,
+
+    sum over lambda partition of n, lambda != trivial, such that
+        X >= A_1 n   or   1 <= n - lambda_1 <= n e^{-M sqrt(log n)}
+    of  D_lambda Tr_{V_lambda} |Q_n(lambda)|^{P_c}
+        <=  n^{-12}.                                        (7.1)
+
+Here M is the constant from Proposition 5.1.
+
+Moreover, every nontrivial lambda not counted in (7.1) and not of
+height > n/2 satisfies
+
+    n e^{-A_0 sqrt(log n)}  <=  X  <=  A_1 n.               (7.2)
+
+Proof of (7.1).
+
+(i)  Annihilation for height > n/2.
+     A coordinate matching average is the operator
+     Q_match = (1 / 2^{n/2}) sum_{g in (S_2)^{n/2}} g on the
+     n cards, where (S_2)^{n/2} is the elementary abelian subgroup
+     swapping two halves along a fixed coordinate.  Its image is
+     the permutation module on perfect matchings, whose irreducible
+     components by Pieri are exactly the partitions of height <= n/2.
+     Since each of the d coordinate matchings appears once in the
+     sweep Q_n, the same vanishing holds for Q_n(lambda).  So lambdas
+     of height > n/2 contribute zero.
+
+(ii)  Heavy dimension.
+     Apply Proposition 4.1 at power 2u.  Then
+     Tr_{V_lambda} |Q_n(lambda)|^{2u} * D_lambda is exactly the
+     lambda-contribution to Tr_reg |Q_n|^{2u} <= e^{Cn}.  So
+     Tr_{V_lambda} |Q_n(lambda)|^{2u} <= e^{Cn} / D_lambda.
+
+     For p' >= 2u, use sum_j a_j^t <= (sum_j a_j)^t:
+     Tr_{V_lambda} |Q_n(lambda)|^{p'}
+         <= (e^{Cn} / D_lambda)^{p'/(2u)}.
+
+     Set A_1 = 2 C and p' >= 12 u.  Then on X >= A_1 n,
+         Tr_{V_lambda} |Q_n(lambda)|^{p'}
+             <= D_lambda^{-p'/(4u)} <= D_lambda^{-3}.
+
+     So
+         sum over X >= A_1 n  D_lambda Tr |Q_n(lambda)|^{p'}
+             <=  sum over those lambdas  D_lambda^{-2}
+             <=  e^{O(sqrt n)} * e^{-2 A_1 n}     [D_lambda >= e^{A_1 n}]
+             <=  n^{-12}                                    (7.3)
+
+     for large n.  Uses:  #partitions of n is at most e^{O(sqrt n)}
+     (evaluating prod_l (1 - x^l)^{-1} at x = e^{-1/sqrt n}).
+
+(iii)  Sparse rows.
+     Directly Proposition 5.1 with exponent P_s.  Its contribution is
+     at most n^{-12}.
+
+     Since all singular values of Q_n(lambda) are at most 1, raising
+     P_s to P_c = max{P_s, 12u} can only decrease the sum.  So (7.1)
+     holds with P_c = max{P_s, 12u}.  []
+
+Proof that every remaining lambda has X >= ne^{-A_0 sqrt(log n)}.
+We assume lambda is not covered by (7.1):  not trivial, not in the
+sparse range, not of height > n/2.  Also X < A_1 n (else (7.1)
+applies).
+
+Case A: first row or first column has length L >= n/8.
+     Transpose if necessary;  D_lambda is invariant under transpose.
+     Retain the first row together with a subdiagram of
+        t = floor(n e^{-M sqrt(log n)})
+     boxes below it.  There are enough boxes:  in the row case we
+     excluded the sparse range, so the tail below the first row has
+     at least n e^{-M sqrt(log n)} >= t boxes;  in the column case
+     the original height is <= n/2, so the transposed tail has at
+     least n/2 >> t boxes.
+
+     Since t = o(L) (L >= n/8 >> t), the hook comparison (5.10)
+     applied to this smaller diagram gives log D_lambda >= t for
+     large n.  Branching bounds the smaller diagram's dimension by
+     D_lambda.  Hence
+
+         X  >=  t  >=  n e^{-(M+1) sqrt(log n)}.
+
+     So set A_0 = M + 1.
+
+Case B: both first row and first column have length < n/8.
+     Every hook length in lambda is at most n/4 (first row plus first
+     column), and the hook formula gives
+
+         D_lambda  >=  n! / (n/4)^n,
+         log D_lambda >= c n
+
+     for an absolute c > 0, by Stirling.  Choose A_0 also >= 1;
+     then X >= c n >> n e^{-A_0 sqrt(log n)} for large n.  []
+
+
+7.2  Closing the induction
+----------------------------------------------------------------
+
+Proof of (2.1) in Theorem A.
+
+Base case.  Fix a threshold n_0 large enough for all the preceding
+estimates.  For each of the finitely many dyadic sizes 2 <= n < n_0,
+every nonconstant "regular singular value" of Q_n is strictly less
+than one.  [Why?  Equality would force a common invariant vector for
+all coordinate switches;  those generate S_n, so only constants can
+have equality.]
+
+Choose a common finite power P(n) >= P_c large enough (there are
+finitely many singular values to handle) so that
+
+    Tr_reg|Q_n|^{P(n)}  <=  1 + n^{-10}
+
+holds for all dyadic n < n_0.
+
+Inductive step.  Let n = 2^d with d > log_2 n_0.  Split the d
+coordinates into consecutive groups of sizes floor(d/2) and
+ceil(d/2).  This induces a balanced (a, b) grid:
+
+    a = 2^{floor(d/2)}, b = 2^{ceil(d/2)}, ab = n,
+    sqrt(n)/2 <= a <= sqrt(n) <= b <= 2 sqrt(n).  (7.4)
+
+In matrix-product order Q_n = YZ:  Y is the "row law"
+(independent b-card cube sweeps on the rows), Z is the "column law"
+(independent a-card cube sweeps on the columns).
+
+Define
+    p    =  max{ P(a), P(b), P_c },
+    P(n) =  (1 + 2 (log n)^{-1/4}) p.                       (7.5)
+
+The already controlled classes (from Proposition 7.1) retain
+their bounds at this larger power, since raising an exponent by a
+factor t >= 1 keeps values <= 1;  on X >= A_1 n and on the sparse
+rows this is exactly what (7.3) requires (apply (7.3) at exponent
+P_c, then raise).
+
+Consider a remaining representation lambda, with X in (7.2).
+
+Araki-Lieb-Thirring.  For positive matrices B, C and exponent
+r >= 1,
+
+    Tr |B C|^r  <=  Tr (B^* B)^{r/2} (C C^*)^{r/2}.       (7.6)
+
+Apply with B = Y(lambda), C = Z(lambda) and r = p/2 >= 1.  The
+left side is exactly Tr_{V_lambda} |Q_n(lambda)|^p.
+
+Take spectral decompositions of the two positive powers
+(Y^*Y)^{p/2} and (ZZ^*)^{p/2} on their own subgroups irreducibles,
+then restrict to V_lambda.  Because the models are real orthogonal,
+real eigenvectors exist;  so the resulting projections are
+*exactly* the E_R, E_F controlled by Proposition 6.1.  Each such
+projection acts on all copies of its carrier, with a nonnegative
+spectral coefficient.
+
+For either subgroup, the sum of those coefficients times the carrier
+dimension is its regular Schatten-p moment on the corresponding
+subgroup.  Product subgroup laws are independent across lines, so
+those moments factor:
+
+    row side:     (1 + b^{-10})^a       (induction hypothesis at size b);
+    column side:  (1 + a^{-10})^b       (induction hypothesis at size a).
+
+Multiplying (7.6) by D_lambda and applying Proposition 6.1 and the
+induction hypothesis:
+
+    D_lambda Tr_{V_lambda} |Q_n(lambda)|^p
+        <=  exp( X / (log n)^{1/3} )
+            * (1 + b^{-10})^a * (1 + a^{-10})^b.             (7.7)
+
+The last two factors are bounded by an absolute constant
+(concretely, (1 + b^{-10})^a <= exp(a/b^{10}) <= exp(2) for a,b as
+in (7.4) with n large).  The lower endpoint in (7.2)
+n e^{-A_0 sqrt(log n)} <= X absorbs that constant.  Hence
+
+    Tr_{V_lambda} |Q_n(lambda)|^p
+        <=  exp(-X + X / (log n)^{1/3}).                    (7.8)
+
+Raise to the power t = P(n)/p = 1 + 2 (log n)^{-1/4}:
+
+    sum_j a_j^t  <=  (sum_j a_j)^t     for a_j >= 0, t >= 1.
+
+So
+    D_lambda Tr_{V_lambda} |Q_n(lambda)|^{P(n)}
+        <=  ( D_lambda Tr_{V_lambda} |Q_n(lambda)|^p )^t
+        <=  exp( -t X + t X / (log n)^{1/3} ).
+
+The exponent is
+    -t X + t X / (log n)^{1/3}
+        =  -X * t * ( 1 - (log n)^{-1/3} )
+        =  -X * ( 1 + 2 (log n)^{-1/4} ) ( 1 - (log n)^{-1/3} )
+        =  -X * ( 1 + 2 (log n)^{-1/4} - (log n)^{-1/3} + O((log n)^{-7/12}) ).
+
+For large n this bracket is at least 1 + c (log n)^{-1/4} for an
+absolute c > 0, since 2 (log n)^{-1/4} > (log n)^{-1/3}.  So
+
+    D_lambda Tr_{V_lambda} |Q_n(lambda)|^{P(n)}
+        <=  exp( -c X / (log n)^{1/4} ).                    (7.9)
+
+Summability.  Using the lower bound (7.2) on X and Proposition 7.1
+(finitely many pieces), we estimate the total over all remaining
+nontrivial lambdas:
+
+    sum over remaining lambda  D_lambda Tr |Q_n(lambda)|^{P(n)}
+        <=  sum over e^{O(sqrt n)} partitions
+                exp( -c n e^{-A_0 sqrt(log n)} / (log n)^{1/4} )
+        <=  n^{-12}                                          (7.10)
+
+for sufficiently large n.
+
+Total.  Add (7.1), (7.10), and the trivial contribution (= 1):
+
+    Tr_reg|Q_n|^{P(n)}  <=  1 + 3 n^{-12}  <=  1 + n^{-10}.  (7.11)
+
+Uniformity of P(n).  Along any branch of the recursion
+d -> floor(d/2), ceil(d/2) down to the base range, the bit lengths
+grow geometrically when read in reverse:  at level k they are
+approximately d_0 * 2^k.  So (log n_k)^{-1/4} ~ (d_0 * 2^k)^{-1/4},
+and sum_k 2 (log n_k)^{-1/4}  <=  C_0 sum_k 2^{-k/4}  <  infinity.
+Therefore the product of the factors (1 + 2 (log n_k)^{-1/4}) over
+k is uniformly bounded, and P(n) <= P for a fixed absolute P
+independent of n.  This proves (2.1) at this fixed P.
+
+
+7.3  From traces to total variation
+----------------------------------------------------------------
+
+We finish the second half of Theorem A:  for any integer v with
+2v >= P,
+
+    || mu_v - U_{S_n} ||_TV  <=  (1/2) n^{-5}.
+
+Recall mu_v = Q_n^v as a probability distribution (Q_n convolved with
+itself v times, i.e. v independent sweeps), and Pi = projection onto
+constants in the regular representation.  In the regular
+representation on l^2(S_n), Pi has constant matrix 1/n!.
+
+Step 1:  Schatten exponent.  For any square matrix A,
+|A^v|^2 = (A^v)^* A^v, and a cyclic trace gives
+
+    Tr |A^v|^2  =  Tr (A^*)^{v} A^{v}  =  Tr (A^* A)^{v}  =  Tr |A|^{2v}.
+
+Here the second equality uses cyclicity of trace repeatedly and the
+third is the definition of |A| = (A^* A)^{1/2}.  Applying with
+A = Q_n and restricting to the nonconstant part,
+
+    Tr_{reg, perp} |Q_n^v|^2  =  Tr_{reg, perp} |Q_n|^{2v}.  (7.12)
+
+Step 2:  Application of (2.1).  For integer v with 2v >= P,
+
+    Tr_{reg, perp} |Q_n|^{2v}
+        <=  Tr_{reg, perp} |Q_n|^P        (2v >= P and singular values <= 1)
+        <=  n^{-10}.                                        (7.13)
+
+Step 3:  Regular trace equals Hilbert-Schmidt on the nonconstant
+part.  Because Q_n^v(triv) = 1 and Pi(triv) = 1, the difference
+Q_n^v - Pi has zero constant part.  Hence
+
+    || Q_n^v - Pi ||_{HS}^2  =  Tr_{reg, perp} |Q_n^v|^2
+                             <=  n^{-10}.                   (7.14)
+
+Step 4:  Total variation.  Every row of the regular transition
+matrix Q_n^v is a translate of mu_v;  more precisely, Q_n^v as a
+matrix indexed by (g, h) in S_n x S_n has entry
+
+    Q_n^v(g, h)  =  mu_v(g^{-1} h),                          (7.15)
+
+and Pi(g, h) = 1/n!.  Therefore
+
+    || Q_n^v - Pi ||_{HS}^2
+        =  sum_{g, h} ( mu_v(g^{-1} h) - 1/n! )^2
+        =  n! * sum_{g} ( mu_v(g) - 1/n! )^2,                (7.16)
+
+because for each fixed g the substitution h -> g^{-1} h sweeps
+S_n once.
+
+By Cauchy-Schwarz,
+
+    || mu_v - U_{S_n} ||_TV
+        =  (1/2) sum_g |mu_v(g) - 1/n!|
+        <=  (1/2) sqrt( n! * sum_g (mu_v(g) - 1/n!)^2 )
+        =  (1/2) || Q_n^v - Pi ||_{HS}
+        <=  (1/2) n^{-5}.
+
+This is uniform over the initial deck:  relabeling g -> g x^{-1}
+translates mu_v to the version started from deck x, and the TV
+distance to uniform is unaffected by relabeling.  This completes
+the proof of Theorem A.  []
+
+
+8. The matching lower bound
+----------------------------------------------------------------
+
+Here we show that O(d) physical shuffles is optimal in order:
+mixing to total variation 1/4 needs at least 2d - O(1) physical
+shuffles.  By contrast, one full coordinate sweep is d physical
+shuffles, so the theorem gives mixing in O(d) physical shuffles.
+
+Proposition 8.1 (Support obstruction).  After t physical shuffles
+(that is, t/2 sweeps), the support of the resulting distribution
+mu_t is a subset of S_n of size at most
+
+    2^{tn/2}.                                                (8.1)
+
+Consequently, for any t,
+
+    || mu_t - U_{S_n} ||_TV  >=  1 - 2^{tn/2} / n!.          (8.2)
+
+Setting the bound (8.2) equal to 1/4 gives the stated requirement:
+
+    t  >=  ceil( (2/n) log_2(3 n! / 4) )  =  2d - O(1).      (8.3)
+
+Proof.  Count coin strings.  A physical shuffle uses n/2 independent
+fair bits (one per pair across a coordinate).  So t physical
+shuffles jointly use tn/2 bits, hence produce at most 2^{tn/2}
+distinct permutations.  [One might worry that some coin strings
+produce the same permutation;  that only shrinks the support.]
+So |supp mu_t| <= 2^{tn/2}.
+
+Lower-bound TV test against uniform.  Let A = supp mu_t.  Since
+mu_t(A) = 1 and U_{S_n}(A) = |A|/n!, the TV distance -- which is the
+supremum over subsets E of |mu_t(E) - U_{S_n}(E)| -- dominates
+
+    |mu_t(A) - U_{S_n}(A)|  =  1 - |A|/n!.
+
+So (8.2) holds.
+
+Solve for t.  For TV <= 1/4 (mixing), we require
+2^{tn/2} / n! >= 3/4, i.e.
+
+    tn/2 >= log_2(3 n! / 4),  i.e.  t >= (2/n) log_2(3 n! / 4).
+
+With Stirling's formula n! ~ (n/e)^n sqrt(2 pi n),
+
+    (2/n) log_2(3 n! / 4)
+        ~  (2/n) * (n log_2 n - n log_2 e + log_2(3 sqrt(2 pi n) / 4))
+        =  2 log_2 n - 2 log_2 e + O(log n / n)
+        =  2d - 2 log_2 e + o(1).
+
+So t >= 2d - O(1).  []
+
+>> In plain words.  A physical shuffle has too few coins to reach
+>> many permutations.  To even come close to uniformity on S_n (which
+>> has n! elements), you need enough physical shuffles that
+>> 2^{tn/2} is comparable to n!, which requires tn/2 ~ n d, i.e.
+>> t ~ 2d.  So the O(d) in the main theorem is the right order.
+
+
+9. References
+----------------------------------------------------------------
+
+[Thorp 1973]  E. O. Thorp, "Nonrandom shuffling with applications to
+    the game of Faro," J. Amer. Statist. Assoc. 68 (1973), 842-847.
+
+[Morris 2008]  B. Morris, "The mixing time of the Thorp shuffle,"
+    SIAM J. Comput. 38 (2008), 484-504.
+
+[Morris 2009]  B. Morris, "Improved mixing time bounds for the
+    Thorp shuffle and L-reversal chain," Ann. Probab. 37 (2009),
+    453-477.
+
+[Morris 2013]  B. Morris, "Improved mixing time bounds for the
+    Thorp shuffle," Combin. Probab. Comput. 22 (2013), 118-132.
+
+[Montenegro-Tetali 2006]  R. Montenegro and P. Tetali, "Mathematical
+    aspects of mixing times in Markov chains," Found. Trends Theor.
+    Comput. Sci. 1 (2006), 237-354.
+
+[Sagan 2001]  B. E. Sagan, "The Symmetric Group: Representations,
+    Combinatorial Algorithms, and Symmetric Functions," 2nd ed.,
+    Graduate Texts in Mathematics 203, Springer, 2001.
+
+[Stanley 1999]  R. P. Stanley, "Enumerative Combinatorics, Vol. 2,"
+    Cambridge University Press, 1999.
+
+[Vershik-Okounkov 2005]  A. M. Vershik and A. Yu. Okounkov, "A new
+    approach to the representation theory of the symmetric groups II,"
+    J. Math. Sci. 131 (2005), 5471-5494.
+
+[Araki 1990]  H. Araki, "On an inequality of Lieb and Thirring,"
+    Lett. Math. Phys. 19 (1990), 167-170.
+
+[Audenaert 2007]  K. M. R. Audenaert, "On the Araki-Lieb-Thirring
+    inequality," Int. J. Inf. Syst. Sci. 4 (2008), 78-83.
+
+[Perelomov 1972]  A. M. Perelomov, "Coherent states for arbitrary Lie
+    group," Comm. Math. Phys. 26 (1972), 222-236.
+
+[Berele-Regev 1987]  A. Berele and A. Regev, "Hook Young diagrams
+    with applications to combinatorics and to representations of Lie
+    superalgebras," Adv. Math. 64 (1987), 118-175.
+
+[Regev 2013]  A. Regev, "Lie superalgebras and some characters of S_n,"
+    Israel J. Math. 195 (2013), 31-35.
+
+[OpenAI 2026 Routing]  Routing densities and representation
+    contraction for Thorp sweeps, OpenAI Math Release preprint,
+    September 26, 2026.
