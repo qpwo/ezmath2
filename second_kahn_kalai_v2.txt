@@ -1,0 +1,1320 @@
+================================================================================
+THE SECOND KAHN-KALAI CONJECTURE
+An honest, complete, and friendly proof tour
+(improved v2: plainer English, all the hard steps kept, no hand-waving)
+================================================================================
+
+AUTHORS: OpenAI
+DATE:    2026-09-24
+THIS FILE: second_kahn_kalai_v2.txt
+ORIGINAL:  second_kahn_kalai_original.txt
+
+--------------------------------------------------------------------------------
+WHO IS THIS FOR?
+--------------------------------------------------------------------------------
+
+This paper has one clear idea and a lot of technical machinery around it.
+This version keeps every hard step of the proof, but says each step in
+plain English first, then does the algebra. A reader who knows:
+
+  * what a graph is (vertices, edges, subgraphs),
+  * what probability means (a coin flip, an expectation),
+  * basic binomial coefficients like C(n, k) = "n choose k",
+  * the fact that sum_{m>=1} e^{-7m} is tiny,
+
+can follow the whole thing. Nothing about random graphs, threshold theory,
+or the earlier Kahn-Kalai conjectures is assumed; we build it from scratch.
+
+If you are pressed for time on a first pass, you can read Parts 1, 2, 3,
+4, 9, and 10 and skip the proof of Parts 5, 6, 7, 8. But the whole point
+of this version is that the proof parts are readable, so come back.
+
+--------------------------------------------------------------------------------
+THE BIG IDEA IN ONE SENTENCE
+--------------------------------------------------------------------------------
+
+A graph H shows up in a random graph about as soon as every subgraph of H
+has a decent expected number of copies, up to a factor of one logarithm of
+the number of edges of H. That is the second Kahn-Kalai conjecture, and we
+prove it with an explicit constant.
+
+--------------------------------------------------------------------------------
+A HEALTHY EXAMPLE BEFORE ANY DEFINITIONS
+--------------------------------------------------------------------------------
+
+Take a coin, flip it for every possible edge on 100 labelled points, and
+keep only the edges where the coin says heads. Each edge independently
+survives with probability p. The result is the "random graph G(n, p)" with
+n = 100. If p is very small almost no edges survive; if p is very close to
+one almost every edge survives. At some middle probability a given shape
+(a triangle, a cycle, anything) starts appearing with probability half.
+
+Theorem (very informal, stated properly below): if at level p every
+subgraph of the target graph has at least a 50% chance in expectation of
+appearing, then H already appears with probability at least 1/2 at a value
+of p that is at most a constant times p times (1 plus log base 2 of the
+number of edges of H). That constant is 2048 e^50, absurdly large by
+design, but finite and explicit.
+
+The whole paper is a proof of that sentence.
+
+================================================================================
+PART 1.  RANDOM GRAPHS AND THE TWO THRESHOLDS
+================================================================================
+
+1.1. Random graphs.
+------------------------------------------------------------
+
+Fix a positive integer n >= 2. Think of the n points {1, 2, ..., n} as
+"vertices". Every unordered pair of distinct vertices is a possible
+"edge"; there are C(n, 2) = n(n-1)/2 such pairs. Choose a number p with
+0 <= p <= 1. Independently for each pair, keep the edge with probability p
+and throw it away with probability 1-p. The set of kept edges is called
+
+                 G(n, p), the Erdos-Renyi random graph.
+
+Every question about random graphs has the shape "what is the chance of
+event E as a function of n and p?". We will care about the event that H
+shows up.
+
+1.2. Copies of a target graph.
+------------------------------------------------------------
+
+Let H be a fixed finite graph without loops (it may be drawn with
+repeated edges in the original source, but here we forbid that; the paper
+only ever uses simple graphs anyway).
+
+For a host graph G and a finite simple graph F, write
+
+     N(G, F) = the number of subgraphs of G that are isomorphic to F.
+
+Two words need care.
+
+  * "subgraph" (the one used here) means: pick a set of vertices, pick a
+    set of edges, all from G, and look at the resulting small graph. Extra
+    edges between the chosen vertices are allowed to exist in G; they are
+    just not part of the chosen subgraph. Sometimes people write this as
+    "not necessarily induced", and the word "ordinary copy" means the same
+    thing. If instead you insist on all possible edges, it is "induced";
+    we never need that.
+
+  * "isomorphic" means "same shape up to relabelling vertices". For
+    instance a triangle and any other triangle of three points are the same
+    shape, so they count once each as a copy.
+
+A useful formula: for a fixed edge-free graph F with v vertices and e
+edges, the number of copies inside the complete graph K_n is
+
+    N(K_n, F) = (n)_v / |Aut(F)|,   where (n)_v = n(n-1)...(n-v+1),
+
+and |Aut(F)| is the number of vertex permutations that preserve F's
+adjacency. The reason (n)_v counts injective maps {vertices of F} -> {1..n},
+and the quotient collapses maps that only relabel an automorphism; the
+quotient is exact because F has no possible extra edges to worry about.
+When we multiply by p^e we get the expected number of copies in G(n, p):
+
+    E N(G(n, p), F) = N(K_n, F) * p^{e(F)}.
+
+1.3. The two "thresholds".
+------------------------------------------------------------
+
+Two numbers competes for the reader's attention.
+
+  p_c(n, H), the containment threshold:
+
+      p_c(n, H) = inf{ p in [0, 1] :
+                       P( N(G(n, p), H) > 0 ) >= 1/2 }.
+
+    This is the smallest p at which G(n, p) contains at least one copy of
+    H with probability at least 1/2. It is what a "when does H appear?"
+    question really asks.
+
+  p_E(n, H), the (graph) expectation threshold:
+
+      p_E(n, H) = inf{ p in [0, 1] :
+                       E N(G(n, p), F) >= 1/2  for every subgraph F of H }.
+
+    Here "subgraph F of H" means: an edge subset of H on a subset of
+    V(H). We require this for every such F, including H itself.
+
+Both infima are attained. For p_c: P(N(G(n,p),H) > 0) is a continuous
+function of p on [0,1], equals 0 at p = 0, equals 1 at p = 1. For p_E: only
+finitely many constraints matter and each is continuous. In both cases a
+linear-in-p^e form of the constraint means we can solve the threshold by
+hand, but we do not need the formula.
+
+The basic inequality is one line: p_E(n, H) <= p_c(n, H).
+
+  If P(N(G(n,p),H) > 0) >= 1/2, then with that same p every subgraph F of H
+  also appears with probability >= 1/2 (because F sits inside H). On the
+  event of appearing, the number of copies of F is at least 1, so
+
+                    E N(G(n,p), F) >= P(N(G(n,p), F) > 0) >= 1/2.
+
+  Hence p satisfies the constraint for p_E, and every p that works for p_c
+  is a legal candidate for p_E, so p_E <= p_c.
+
+That inequality is easy and trivially true. The opposite inequality (up to
+a factor) is the deep thing. This paper proves it.
+
+--------------------------------------------------------------------------------
+PART 1.5.  WHY THE CONVENTION "ONE HALF" DOES NOT MATTER
+--------------------------------------------------------------------------------
+
+Kahn and Kalai used expected count 1 instead of 1/2, giving a number
+q(n, H) instead of p_E(n, H). For every subgraph with r >= 1 edges the
+expected count scales as p^r, so changing the requirement from 1 to 1/2 is
+the same as replacing p by p * 2^{-1/r}, which is between 1/2 and 1 times
+the original p. Thus the two thresholds are within a factor of 2 of each
+other. Our proof would work with either, up to a small change of constant.
+We stick with 1/2 because the proof uses it cleanly.
+
+================================================================================
+PART 2.  THE MAIN THEOREM
+================================================================================
+
+2.1. Statement.
+------------------------------------------------------------
+
+THEOREM (Second Kahn-Kalai, main result of this paper).
+For every n >= 2 and every finite simple graph H with an edge count
+h = e(H) >= 1 and at most n vertices:
+
+     p_c(n, H)  <=  min{ 1,  2048 * e^50 * p_E(n, H) * (1 + log_2 h) }.
+
+Here e is the base of natural logarithms, log_2 is base-2 logarithm.
+
+In particular, using log_2 h <= log_2 C(n, 2) <= log_2 (n^2) <= 2 log_2 n
+and 1 <= log_2 n for n >= 2:
+
+     p_c(n, H)  <=  6144 * e^50 * p_E(n, H) * log_2 n.
+
+The constants 2048 e^50 and 6144 e^50 are absurdly large. They are
+explicit and universal. The "second Kahn-Kalai conjecture" is exactly the
+claim that such a bound holds with a logarithm in h alone (rather than, say,
+log^2 n or log^3 n). This theorem settles that.
+
+2.2. Two sanity checks.
+------------------------------------------------------------
+
+Check 1. The right-hand side is never above 1 because of the min{1, .}.
+
+Check 2. If H is connected, e(H) is at most C(v(H), 2) = v(H)(v(H)-1)/2,
+so the log is bounded by 2 log_2 v(H) <= 2 log_2 n. So the theorem says
+nothing strange: p_c and p_E really are within a logarithmic factor of
+each other even when H itself grows with n.
+
+2.3. Some small examples.
+------------------------------------------------------------
+
+Example (a single edge). Let H = K_2, one edge. Then any subgraph F of H
+is either empty (that constraint is trivially satisfied) or a single edge.
+
+      E N(G(n, p), K_2) = C(n, 2) * p.
+
+So p_E(n, K_2) = (1/2) / C(n, 2), give or take.
+
+Meanwhile a single edge appears with probability at least 1/2 when
+1 - (1-p)^{C(n,2)} >= 1/2, so 1 - e^{-p C(n,2)} >= 1/2, so
+p >= ln 2 / C(n, 2) roughly. Thus p_c(n, K_2) = Theta(1 / n^2)
+matching p_E(n, K_2) = Theta(1 / n^2) up to a universal constant. The
+log_factor is trivially 1 (since h = 1, 1 + log_2 h = 1).
+
+Example (a triangle). Let H = K_3, three vertices, three edges. Then the
+edge subgraphs of K_3 are: single edge, path of length 2 (2 edges), and
+K_3 (3 edges).
+
+      E N(G(n, p), K_3)        = C(n,3) * p^3,
+      E N(G(n, p), P_3)        = number of length 2 paths * p^2 = 3 C(n,3) p^2,
+      E N(G(n, p), K_2)        = C(n,2) p.
+
+The p_E threshold is the *largest* of the three, because the constraints
+must all be satisfied simultaneously:
+
+  * single edge:   p * C(n,2) >= 1/2    so p >= 1/(2 C(n,2)) = Theta(n^-2)
+  * path P_3:      p^2 * 3 C(n,3) >= 1/2  so p >= Theta(n^{-3/2})
+  * triangle K_3:  p^3 * C(n,3) >= 1/2    so p >= Theta(n^{-1})
+
+The largest lower bound is Theta(n^{-1}), forced by the triangle constraint
+itself. So p_E(n, K_3) = Theta(n^{-1}).
+
+What about p_c(n, K_3)? Classic Erdos-Renyi, via a union bound plus a
+second-moment calculation, gives p_c(n, K_3) = Theta(n^{-1}). So for the
+triangle p_c and p_E agree up to a constant. The factor
+1 + log_2 3 ~ 2.6 is tiny, as expected.
+
+More generally, for a target that is NOT "spanning" -- whose edges can be
+placed on n points without any need for every point to appear -- the
+relationship p_c ~ p_E up to a constant is very common. The logarithm is
+really needed for the SPANNING targets, which is what Part 2.5 is about.
+
+(Constants 2048 e^50 are enormous but universal; the example above is
+about orders of magnitude n^k, not about the exact constants.)
+
+================================================================================
+PART 2.5.  WHY A LOGARITHM REALLY IS NECESSARY
+================================================================================
+
+The factor (1 + log_2 h) is not a byproduct of laziness. Here is why even
+the very best exponent of the log cannot be a constant.
+
+Example (perfect matching). Let n be even, and let H be a perfect matching
+on n vertices (so n/2 disjoint edges). This H has e(H) = n/2 edges and v(H)
+= n vertices.
+
+What is p_E(n, H)?
+
+    E N(G(n, p), H) = (1 * 3 * 5 * ... * (n-1)) * p^{n/2},
+
+    because a perfect matching on labelled vertices can be built by choosing
+    the partner of vertex 1 (n-1 choices), then partner of the smallest
+    unmatched vertex (n-3 choices), and so on, giving (n-1)(n-3)...1.
+
+You need this >= 1/2, so
+
+    p_E(n, H) = Theta( n^{-1} * ( 1 / (1 * 3 * 5 * ... * (n-1)) )^{2/n} )
+              = Theta(1/n).
+
+Actually computing it cleanly: (n-1)!! is about sqrt(2) (n/e)^{n/2},
+so (n-1)!! p^{n/2} >= 1/2 forces p = Theta(1/n).
+
+What is p_c(n, H)?
+
+    For G(n, p) to contain a perfect matching, every vertex must have at
+    least one incident edge. This needs p >= (log n + omega(1)) / n: each
+    vertex is isolated with probability (1-p)^{n-1}, and by union bound
+    the number of isolated vertices is roughly n e^{-pn}; making this
+    zero requires pn = log n + omega(1). Conversely a matching exists when
+    the minimum degree is at least 1 (actually at least 2, by a two-line
+    argument that forbids a Hall violator); so p_c(n, H) = Theta(log n / n).
+
+So:
+
+      p_c(n, H) / p_E(n, H) = Theta( log n ).
+
+Here e(H) = n/2, so 1 + log_2 h = Theta(log n). The theorem's logarithm
+factor is at the right order of magnitude for this example. No constant
+factor could ever suffice.
+
+The same gap appears for Hamilton cycles, and more generally for "spanning
+targets" (targets whose vertex set can be forced to hit every host vertex).
+That "one missing vertex is enough to break the target" phenomenon is
+exactly what p_E cannot see and what the log pays for.
+
+================================================================================
+PART 3.  HOW WE GOT HERE: THE KAHN-KALAI HISTORY TOLD QUICKLY
+================================================================================
+
+We only need the history to explain what is new in this paper. Skip if you
+just want the theorem.
+
+3.1. Abstract setting: increasing families.
+------------------------------------------------------------
+
+Let X be a finite set (think of X as all possible edges of a large graph).
+A family F of subsets of X is "increasing" if S in F and S subset T implies
+T in F. Think: "contains at least one triangle of edges", "contains a
+perfect matching", and so on.
+
+An independent random p-subset of X, written X_p, picks each element of X
+with probability p independently. The containment probability is P(X_p in
+F).
+
+Define three kinds of threshold for an increasing family F.
+
+  * p_c(F)         = inf{ p : P(X_p in F) >= 1/2 }.
+                     The true threshold.
+
+  * q(F)           = sup{ p : there is a cover G of F by small subsets with
+                            cost sum_{S in G} p^{|S|} <= 1/2 }.
+                     The integral expectation threshold. "Cover" means
+                     every member of F contains some S in G. Cost = sum of
+                     p^{|S|}, i.e. the expected number of cover sets inside
+                     X_p. If the cost is <= 1/2, union bound says P(F) is
+                     at most 1/2, so p_c >= p.
+
+  * q_f(F)         = same as q but with a fractional cover: weights w_S >= 0
+                     with sum_{S subset A, S in support} w_S >= 1 for every
+                     A in F, and cost sum_S w_S p^{|S|} <= 1/2.
+                     Allowing fractional weight only enlarges the set of
+                     covers, so q_f(F) >= q(F).
+
+Then q(F) <= q_f(F) <= p_c(F). The question is: is this reversed, up to a
+logarithm of the size of the largest minimal member of F?
+
+Kahn and Kalai (2007) conjectured p_c(F) <= C q_f(F) * log(|X|). That is
+the FIRST Kahn-Kalai conjecture, the "fractional" version.
+
+Frankston-Kahn-Narayanan-Park (2021) proved a strong bound
+p_c(F) <= C q_f(F) * log(|largest minimal member of F|). Alweiss-Lovett-
+Wu-Zhang (2021), building on Lovett-Solomon-Zhang (2019), gave the
+fragment method that underlies it. Park-Pham (2024) resolved the integral
+version p_c(F) <= C q(F) * log(...) with a "minimum fragmentation" argument.
+
+OpenAI (2026) proved integral and fractional thresholds are within a
+universal factor of each other at the common one-half budget, and Dubroff-
+Kahn-Park (2025) re-examined the puzzle for the specific graph setting of
+this paper.
+
+But all these are ABSTRACT results. They only get p_c(F) <= C q(F) log,
+and q(F) <= q_f(F) <= p_c(F), so p_c(F) is squeezed between q(F) and
+C q(F) log. In the graph case, q(F_H) is not p_E(n, H): it has extra
+copy-count weights N(H, F) baked in, and relating q(F_H) to p_E(n, H) is a
+separate problem that we now explain.
+
+3.2. The graph-specific gap.
+------------------------------------------------------------
+
+Let F_H = { E subset of the edges of K_n : E contains a copy of H }.
+
+A "cover" of F_H by small subsets can be generated from copies of any one
+subgraph F of H: every graph containing H also contains every subgraph F,
+so the collection of copies of F covers F_H. Cost of that natural cover is
+roughly E N(G(n, p), F). Therefore
+
+     q(F_H) <= p_E(n, H),
+
+and since q_f(F_H) >= q(F_H), we know q_f(F_H) is somewhere in
+[p_E(n, H), p_c(n, H)] and the abstract theorem does not by itself say that
+q_f(F_H) <= C p_E(n, H) * log.
+
+Mossel-Niles-Weed-Sun-Zadik (2022) found that q_f(F_H) is actually
+***equal to*** the "modified" threshold
+
+     widetilde p_E(n, H) = min{ p : E N(G(n, p), F) >= N(H, F) / 2
+                                 for every F subset H }.
+
+The factor N(H, F) is the number of copies of F inside H itself: containing
+H "supplies" all those copies at once. Then they proved (via spread
+arguments, see below) that
+
+     p_c(n, H) <= C widetilde p_E(n, H) * log n  =  C q_f(F_H) * log n.
+
+That was the first proof of a single logarithm in the graph setting, but it
+was in terms of widetilde p_E rather than the honest p_E. Comparing the two
+is the extra work.
+
+Dubroff-Kahn-Park (2025) then proved q_f(F_H) = O(p_E(n, H) * log^2 n) and
+p_c = O(p_E * log^3 n), using a "rooted-extension" decomposition. They also
+proved the desired single-log bound p_c = O(p_E * log) when p_E is smaller
+than 1/(3n). Tran (2026) improved the comparison: q_f(F_H) = O(p_E *
+log(2 e(H))) and p_c = O(p_E * log^2(2 e(H))). He also removed one of the
+log factor for trees and for graphs whose average degree is at least the
+logarithm of the maximum degree. His ratio-maximizing-core construction is
+used below with explicit constants.
+
+3.3. What is new here: the single-log factor, uniformly.
+------------------------------------------------------------
+
+This paper removes the extra log. It proves
+
+     p_c(n, H) <= 2048 e^50 p_E(n, H) (1 + log_2 h)
+
+directly. The main new idea: do all the per-level work on a fixed tree of
+possibilities, with a single product-sample W, so that one "spread" of W
+handles every level at once. The price is a factor of 16 e^50 per level,
+which compounds to a factor of (16 e^50)^{log_2 h} = h^{log_2(16 e^50)} per
+level, but because the levels are exponentially growing in size, this
+geometric sum collapses to a single logarithm of h -- not of n -- and
+matches the perfect-matching gap.
+
+Fine print: we prove p_c <= 2048 e^50 p_E (1 + log_2 h). Since 1 + log_2 h
+<= 3 log_2 n for n >= 2 and h <= C(n,2) <= n^2, the constant 6144 e^50
+follows.
+
+================================================================================
+PART 4.  THE PLAN, IN ONE PARAGRAPH
+================================================================================
+
+We prove the theorem by proving three separate lemmas, each of which we can
+state, prove, and sanity check on its own.
+
+  Module A (Part 5, "resampling"). Suppose you have a family of small sets
+  A_b, each with a spread distribution nu. Plant a random source A_c inside
+  a product sample W of density rho, then resample a target A_b "close to
+  W" according to the posterior. On most draws the leftover T = A_b \ W
+  is at most half the size of the labels A_b, and the distribution of T is
+  still spread (with a slightly worse constant). Also, if you look only at
+  coordinates OUTSIDE a specific target A_b, then conditioning on T uses a
+  bounded fraction of the mass. This is the MNSZ posterior-resampling step,
+  with the "outside" bound made explicit because we will reuse it.
+
+  Module B (Part 6, "cover a tree"). Suppose you have a probability tree
+  whose edge labels are disjoint along every path, whose size grows by at
+  least a factor 16 every level, and whose every level is spread with
+  parameter sigma. Then a single independent random subset W of X of
+  density r = 16 e^50 sigma (1 + log_2 ell_k) contains ALL the labels of
+  some full path, with probability at least 2/3. The proof runs Module A
+  simultaneously at every node of the tree using the same W, with a
+  bookkeeping potential that controls the global effect.
+
+  Module C (Part 7, "graph hierarchy"). Suppose H has at most n vertices
+  and e(H) = h edges. Then there is a probability tree as in Module B, with
+  sigma = 128 p_E(n, H) and label sizes 1 <= ell_1, ell_{i+1} >= 16 ell_i,
+  ell_k <= h, whose paths' unions are exactly the copies of H on [n]. The
+  construction repeatedly picks, for each current edge set I, a maximizing
+  edge subset S subset I by maximizing sigma^{-|S|} P(S_0 subset I). The
+  first-moment constraints force S to be at most 1/17 of I. The maximality
+  itself then gives the spread parameter for the child distribution.
+
+In Part 8 we glue: apply Module B to the tree from Module C with
+sigma = 128 p_E to get a value p, then compare p to the theorem's stated
+r = min{1, 2048 e^50 p_E (1 + log_2 h)}, and note that a Bernoulli-p set
+with p >= r contains a copy of H with probability at least 2/3 >= 1/2.
+
+This architecture is what makes the proof complete. Each module is a
+self-contained lemma. All the numeric slack is in the statement of A and B,
+and there is a fair bit of it.
+
+================================================================================
+PART 5.  MODULE A: THE RESAMPLING LEMMA
+================================================================================
+
+5.0. A picture before the algebra.
+------------------------------------------------------------
+
+Imagine you have a family of small "labels" A_b. Each label A_b is a subset
+of X (think of X as all possible edges of a large complete graph). Some
+possible labels may be empty; some may repeat.
+
+You also have a probability distribution nu over the index set B, so
+sum_{b in B} nu_b = 1. When you say "sample b ~ nu" you mean "sample an
+index b with probability nu_b".
+
+Now measure "how big" a distribution is by how likely it is to cover
+specific coordinates.
+
+   DISTRIBUTION NU IS a-SPREAD IF, FOR EVERY NON-EMPTY J SUBSET X,
+
+           P_{b~nu}( J subset A_b )   <=   a^{|J|}.
+
+   In words: for any specific J of size j, the chance that a random label
+   already covers all of J is at most a^j. If a < 1, this says labels are
+   quite "spread out"; they rarely contain any given specific set. If a
+   near 1, labels are "dense"; a itself is basically the density.
+
+   We allow the distribution to be carried by an indexed family
+   (A_b)_{b in B}: different indices b may have identical labels A_b, and
+   labels may be empty. If a label is empty, that index contributes nothing
+   to any P(J subset A_b) with |J| >= 1, which is fine.
+
+Now here is the operation we want to perform repeatedly.
+
+   * Fix a density rho in (0, 1).
+   * Fix a random subset W of X of the form: each coordinate is in W
+     with probability rho independently. We write W ~ mu_rho.
+   * Plant a "source" label: sample a source index c ~ nu, and take the
+     union Y = W UNION A_c. So Y is a "random superset" of W.
+   * Resample a "target" label: given Y, choose a target index b ~ nu
+     conditioned on Y, weighted by rho^{-|A_b|} and supported only on
+     indices b with A_b SUBSET Y. That is,
+
+            P(target = b | Y) =
+            nu_b * rho^{-|A_b|} * 1_{A_b subset Y}  /  Z(Y),
+
+            Z(Y) = sum_{d in B} nu_d * rho^{-|A_d|} * 1_{A_d subset Y}.
+
+     The denominator Z(Y) > 0 because A_c is one of the labels, so the
+     sum contains at least the term nu_c * rho^{-|A_c|} > 0.
+
+   * Retain the "fragment": T = A_b \ W.
+
+   This is the Mossel-Niles-Weed-Sun-Zadik posterior-resampling step. If you
+   think of W as "the current set of coordinates we have already placed",
+   the source is one *potential* answer A_c, and the target is a *new*
+   answer A_b that is compatible with W plus A_c. Only the part of A_b that
+   is not already in W needs to be "placed".
+
+Two facts are immediate, for every transition with positive probability:
+
+   (i)   T subset A_c INTERSECTION A_b.
+         Reason: T = A_b \ W, and A_b subset Y = W UNION A_c, so every
+         element of A_b not in W must come from A_c. So T subset A_c.
+         And of course T subset A_b.
+
+   (ii)  A_b subset W UNION T.
+         Reason: T = A_b \ W, so A_b = (A_b INTERSECTION W) UNION T
+         subset W UNION T. This says "to reconstruct A_b, all you need
+         is W together with the fragment T".
+
+The first inclusion will preserve the spread: since T is a subset of the
+source label A_c, and A_c has law nu (spread), T is a sub-random-subset of
+a spread set, so it is still spread with no worse constant.
+
+The second inclusion lets the algorithm recover A_b from W and T. In the
+tree application (Part 6), that A_b will tell us which child of a node we
+are committing to.
+
+5.1. Why those posterior probabilities are posterior probabilities.
+------------------------------------------------------------
+
+Some readers will ask: why is that P(target = b | Y) formula the "right"
+thing? The lemma works regardless, but the reason for the formula is that
+it makes an alternative description of the joint law of (Y, target) come
+out nicely.
+
+Fix a source index c. If we sample W ~ mu_rho and put Y = W UNION A_c,
+then the distribution of Y is absolutely continuous with respect to mu_rho
+with Radon-Nikodym "density" rho^{-|A_c|} on the event A_c subset Y:
+
+    P(W UNION A_c = Y)   =  mu_rho(Y) * rho^{-|A_c|} * 1_{A_c subset Y}.
+
+Explanation: since Y = W UNION A_c, every element of A_c must be in W
+(contributing a factor rho^{|A_c|} to the mu_rho mass that we "un-divide"),
+and every element of Y \ A_c must be in W (contributing rho^{|Y \ A_c|}) and
+nothing outside Y is in W (contributing (1-rho)^{...}).  Multiplying both
+sides by mu_rho(Y) makes it a change of measure.
+
+Averaging over the source c (with probability nu_c), the density of Y
+relative to mu_rho becomes exactly Z(Y) as above. Bayes' rule turns this
+into our P(target = b | Y) formula. So the transition is a well-defined
+"posterior resampling": sample a source, plant it in a product set, then
+sample a target according to the residual posterior.
+
+At a *fixed* W, however, only the source is guaranteed to be distributed
+as nu. The target law can be different -- so all the guarantees below are
+weaker statements about the target. That is why the lemma says "with high
+labelled probability, non-failure" for BOTH quantities below (the failure
+event, and the distortion bound for f).
+
+5.2. What can go wrong?
+------------------------------------------------------------
+
+Almost everything is going to be fine. But there is one obvious failure
+mode: the denominator Z(Y) might be extremely small. That means the
+"posterior mass" is concentrated on a very unlikely label, and P(target = b)
+could be much larger than nu_b. If that happens, the "resampled" target is
+not behaving like a random draw from nu -- it is systematically larger.
+
+Similarly, the fragment T might be much larger than expected. If T is
+already, say, 3/4 of A_b, then reusing W (which supposedly replaced T) gave
+us very little savings.
+
+The lemma controls both.
+
+Despite the label "failure", a failure is not fatal. It is a measurable
+event whose probability is at most e^{-9m} for the given capacity m. In the
+tree application, we will simply skip the failed draws.
+
+5.3. The lemma, stated exactly.
+------------------------------------------------------------
+
+LEMMA A (Local resampling; the MNSZ lemma with an "outside" bound).
+
+Let X be a finite set. Let B be a finite index set. For each b in B let
+A_b subset X, and let nu be a probability distribution on B with weights
+nu_b > 0. Suppose:
+
+    * |A_b| <= m for all b, where m is a positive integer;
+    * nu is a-spread;
+    * 0 < rho < 1;
+    * a / rho <= e^{-50}.
+
+Let W ~ mu_rho be an independent sample, and perform the transition as in
+5.0. Call the transition a LOCAL FAILURE if
+
+    Z(Y) < e^{-10 m}    OR    |T| > m/2.
+
+Then the following two statements hold.
+
+    (i)   Probability of local failure:
+              P(local failure)  <=  e^{-9 m}.
+
+    (ii)  Distortion bound. For every fixed target b and every nonnegative
+          function f depending only on W INTERSECTION (X \ A_b):
+
+              E[ 1_{target = b} * 1_{Z(Y) >= e^{-10 m}} * f(W)  ]
+                  <=  e^{11 m} * nu_b * E f(W).
+
+          The expectation on the right is over W ~ mu_rho.
+
+Part (i) says: on most draws, the denominator is not tiny AND the fragment
+is at most half the capacity. Part (ii) says: if you only look at
+coordinates outside a fixed target label A_b, then "being a target" only
+costs you a factor of e^{11 m} in probability mass, relative to an
+independent W. That factor is going to be paid once per level of our tree
+in Part 6; the "cost of one level" is exactly e^{11 m}.
+
+5.4. What is the role of the a/rho <= e^{-50} hypothesis?
+------------------------------------------------------------
+
+Both the intersection size bound and the distortion bound involve a
+geometric factor (a/rho)^|J|, and we want the sum over J to collapse. The
+hypothesis a/rho <= e^{-50} makes each such factor smaller than e^{-50
+|J|}, which is tiny. The exponent 50 is arbitrary; any moderate constant
+would work, at the cost of a worse exponent in e^{11 m}.
+
+In the graph application (Part 7) we will set a = 128 p_E(n, H) and rho
+large enough that a/rho <= e^{-50}. Concretely, if sigma denotes the spread
+parameter of the tree in Part 6, we will run the tree with a = 4 sigma and
+rho = 4 sigma e^{50}. That gives a/rho = e^{-50}, the critical value.
+
+5.5. Proof of the lemma, part (i): small denominator.
+------------------------------------------------------------
+
+First, compute P(Z(Y) < e^{-10 m}).
+
+The key identity: for Y ~ mu_rho, E Z(Y) = 1. Here is why.
+
+    E_{W ~ mu_rho} [ sum_b nu_b rho^{-|A_b|} 1_{A_b subset W} ]
+    = sum_b nu_b rho^{-|A_b|} P_{W ~ mu_rho}(A_b subset W)
+    = sum_b nu_b rho^{-|A_b|} rho^{|A_b|}
+    = sum_b nu_b
+    = 1.
+
+So Z(Y) is a nonnegative random variable with mean 1.
+
+Now, the key change-of-measure identity. Recall: Y = W UNION A_c has
+density Z(Y) with respect to mu_rho. So for any nonnegative measurable
+g(Y):
+
+      E_{Y ~ mu_rho}[ Z(Y) g(Y) ]  =  E_{Y}[ g(Y) ],     (*)
+
+where the right-hand expectation is over the actual distribution of Y.
+
+Reason for (*): if mu_rho is a reference measure and a random variable Y
+has density Z with respect to mu_rho, then for any nonnegative g,
+
+      E_Y[ g(Y) ]
+      = integral g(Y) * Z(Y) d mu_rho (Y)
+      = E_{Y ~ mu_rho}[ Z(Y) g(Y) ].
+
+(Intuition: mu_rho-mass at Y gets "re-weighted" by Z(Y) to become the Y-law
+of Y. The two measures agree on event-probabilities once we correct this
+way.)
+
+Now, take g = 1_{Z < e^{-10 m}}. This is a function of Y, so it is legal:
+
+      P( Z(Y) < e^{-10 m} )
+      = E_Y[ 1_{Z(Y) < e^{-10 m}} ]                       (definition)
+      = E_{Y ~ mu_rho}[ Z(Y) * 1_{Z(Y) < e^{-10 m}} ]     (by (*))
+      <= e^{-10 m} * E_{Y ~ mu_rho}[ 1_{Z(Y) < e^{-10 m}} ]
+               (because on the indicator set, Z < e^{-10 m}; Z >= 0 always)
+      <= e^{-10 m}.                                       (inner E of an indicator is <= 1)
+
+That gives P( Z(Y) < e^{-10 m} ) <= e^{-10 m}. The small-denominator part
+of part (i) is done. The fragment-size part is 5.6.
+
+5.6. Proof of the lemma, part (i): size of the fragment.
+------------------------------------------------------------
+
+Now, the event {|T| > m/2} on the draw of (W, c, b). Since T subset A_c
+INTERSECTION A_b (by inclusion (i) above), the event |T| > m/2 implies
+|A_c INTERSECTION A_b| > m/2.
+
+Fix a pair (c, b). Bound P( {A_b subset W UNION A_c} ) as follows.
+
+    The condition A_b subset W UNION A_c is equivalent to
+    A_b \ A_c subset W. The set A_b \ A_c has size |A_b| - |A_c INTERSECTION
+    A_b|. By independence of W ~ mu_rho, the probability is
+
+         rho^{|A_b \ A_c|}  =  rho^{|A_b| - |A_c INTERSECTION A_b|}.
+
+    The complementary event A_b NOT subset W UNION A_c is fine (we are
+    just upper-bounding the "successful transition" probability).
+
+We want to sum these over c ~ nu and b ~ nu, weighted by the posterior
+1/Z(Y). On the event Z(Y) >= e^{-10 m}, we bound 1/Z(Y) <= e^{10 m}. Then:
+
+      P( Z(Y) >= e^{-10m}, |T| > m/2 )
+      <=  e^{10 m} * sum_{c, b} nu_c nu_b * rho^{-|A_b|}
+                             * P( A_b \ A_c subset W )
+                             * 1_{|A_c INTERSECTION A_b| > m/2}.
+
+But P({A_b \ A_c subset W}) = rho^{|A_b \ A_c|}. Combining with the
+rho^{-|A_b|} from the posterior:
+
+      rho^{-|A_b|} * rho^{|A_b \ A_c|}  =  rho^{-|A_c INTERSECTION A_b|}.
+
+So:
+
+      P( Z(Y) >= e^{-10m}, |T| > m/2 )
+      <=  e^{10 m} * sum_{c, b} nu_c nu_b * rho^{-|A_c INTERSECTION A_b|}
+                             * 1_{|A_c INTERSECTION A_b| > m/2}.
+
+Now use spread: for a fixed b, and R = |A_c INTERSECTION A_b|,
+
+      P_{c ~ nu}( R = r )  <=  sum_{J subset A_b, |J| = r}  P( J subset A_c )
+                            <=  C(m, r) * a^r.
+
+(This is the "intersection bound": {R >= r} corresponds to {some r-subset
+of A_b is contained in A_c}, and by union bound over C(m, r) r-subsets,
+each of which has probability <= a^r by spread.)
+
+So doing the c-sum first:
+
+      sum_c nu_c * rho^{-|A_c INTERSECTION A_b|} * 1_{|A_c INTERSECTION A_b| > m/2}
+      <=  sum_{r > m/2} C(m, r) a^r * rho^{-r}
+      =   sum_{r > m/2} C(m, r) (a/rho)^r
+      <=  sum_{r > m/2} C(m, r) (a/rho)^{m/2}
+      <=  2^m * (a/rho)^{m/2}.
+
+(The step to (a/rho)^{m/2} uses r > m/2 and a/rho < 1. The step to
+2^m * (a/rho)^{m/2} uses C(m, r) <= 2^m.)
+
+With a/rho <= e^{-50}:
+
+      (a/rho)^{m/2}  <=  e^{-25 m}.
+
+So:
+
+      P( Z(Y) >= e^{-10m}, |T| > m/2 )
+      <=  e^{10 m} * (sum_b nu_b) * 2^m * e^{-25 m}
+      =   e^{10 m} * 2^m * e^{-25 m}
+      =   e^{-15 m + m log 2}
+      <=  e^{-14 m}.
+
+Adding the small-denominator bound e^{-10 m}:
+
+      P(local failure)  <=  e^{-10 m} + e^{-14 m}  <=  e^{-9 m}.
+
+(Check for m >= 1: e^{-10 m} + e^{-14 m} = e^{-9 m} * (e^{-m} + e^{-5 m})
+<= e^{-9 m} * (e^{-1} + e^{-5}) ~ 0.373 * e^{-9 m}, well under the promised
+e^{-9 m}. Part (i) is done.)
+
+5.7. Proof of the lemma, part (ii): distortion bound.
+------------------------------------------------------------
+
+Now fix a target index b and a nonnegative function f(W) that depends only
+on W INTERSECTION (X \ A_b). We want
+
+      E[ 1_{target = b} * 1_{Z(Y) >= e^{-10 m}} * f(W) ]
+      <=  e^{11 m} * nu_b * E f(W).
+
+We proceed by the exact chain in the original. Bound 1/Z(Y) <= e^{10 m} on
+the event Z >= e^{-10 m}, and average over source c, target b:
+
+      E[ 1_{target=b, Z>=e^{-10m}} f(W) ]
+      <=  e^{10 m} * nu_b * sum_c nu_c * rho^{-|A_b|}
+                              * E[ 1_{A_b \ A_c subset W} f(W) ].
+
+Key claim: E[ 1_{A_b \ A_c subset W} f(W) ] = rho^{|A_b \ A_c|} * E f(W).
+
+Reason: the event {A_b \ A_c subset W} only involves coordinates in
+A_b \ A_c, which is a subset of A_b. The function f(W) only involves
+coordinates in X \ A_b, which is disjoint from A_b \ A_c. Since W's
+coordinates are independent, and A_b \ A_c and X \ A_b are disjoint:
+
+      E[ 1_{A_b \ A_c subset W} f(W) ]
+      = E[ 1_{A_b \ A_c subset W} ] * E f(W)
+      = rho^{|A_b \ A_c|} * E f(W).
+
+Combining the last two displayed equations:
+
+      E[ 1_{target=b, Z>=e^{-10m}} f(W) ]
+      <=  e^{10 m} * nu_b * E f(W) * sum_c nu_c * rho^{-|A_b|}
+                                              * rho^{|A_b \ A_c|}
+      =   e^{10 m} * nu_b * E f(W) * sum_c nu_c * rho^{-|A_c INTERSECTION A_b|}.
+
+Now bound the c-sum using the intersection bound with the full range
+r = 0, 1, ..., m (not just r > m/2 -- every r is possible here):
+
+      sum_c nu_c * rho^{-|A_c INTERSECTION A_b|}
+      <=  sum_{r=0}^m C(m, r) (a/rho)^r
+      =   (1 + a/rho)^m
+      <=  (1 + e^{-50})^m
+      <=  e^m.
+
+(Using a/rho <= e^{-50} and 1 + x <= e^x.)
+
+So:
+
+      E[ 1_{target=b, Z>=e^{-10m}} f(W) ]
+      <=  e^{10 m} * nu_b * E f(W) * e^m
+      =   e^{11 m} * nu_b * E f(W).
+
+That is exactly part (ii). Done.
+
+5.8. Sanity check of the constants.
+------------------------------------------------------------
+
+   * e^{-9 m}: what's the probability I skip a level? About 1 in 8000 for
+     m = 1; astronomically small for larger m. Since the tree has at most
+     log_2 h levels, the total failure probability from collecting all
+     such events is at most about log_2 h * 1.2 e-4. That is tiny.
+
+   * e^{11 m}: this is "the cost of one level of the tree". It is huge, but
+     it is paid in a very specific way: it inflates the "effective
+     spread parameter" of the fragment distribution. Because each tree
+     level's labels grow by a factor of 16, the sum of the resulting
+     e^{11 m_i} factors is dominated by the largest m_i, giving a
+     logarithm of h, not of n.
+
+   * 50: arbitrary but chosen so that log_2 50 is large enough. The
+     actual paper uses e^{50} to make the constants cleanly separate
+     from "e^2" or "e^5", giving final constant around e^{...}. Any
+     bigger number would work.
+
+The lemma has all the slack it needs, because everything is exponential
+and controlled. Now we use it many times simultaneously, using the SAME W
+at every tree node.
+
+5.9. What we will actually plug in for a, rho, m.
+------------------------------------------------------------
+
+In the tree application, the "labels" A_b of the local lemma are going to
+be the CHILD LABELS A_v(b) of a probability tree. At a node v whose outgoing
+level has capacity m_s (the integer ell_s), we set:
+
+      a          =  alpha_v (the spread parameter of that node's child
+                              distribution, which will be at most 4 sigma),
+      m          =  m_s (the incoming positive integer capacity),
+      rho        =  4 sigma e^50   (independent of v, s).
+
+Then a/rho = alpha_v / (4 sigma e^50) <= 4 sigma / (4 sigma e^50) = e^{-50}.
+The lemma applies to every node, with the SAME rho.
+
+That "same rho" is the crucial technical point. If we used a different rho
+at every node of the tree, we would not be able to run all the transitions
+on ONE shared random set W, and the whole argument collapses into a linear
+factor of log^2 h again.
+
+We will handle the re-spreading that the tree needs (each level becomes
+slightly less spread) via a product estimate on (1 - e^{-m}) factors. That
+is exactly where the "4 sigma" bound in Part 6's statement of Theorem B
+comes from. The 4 in "4 sigma" is what remains after accounting for the
+spread cost of compounding reductions.
+
+================================================================================
+PART 6.  MODULE B: COVERING A TREE
+================================================================================
+
+6.0. The idea in one picture.
+------------------------------------------------------------
+
+Imagine a family tree of "possible small sets". The root is an empty set.
+From the root, a small number of children represent possible "first labels"
+to commit to. From each of those, another small number of grandchildren
+represent possible "second labels to add", and so on down to a leaf depth k.
+Every root-to-leaf path has exactly k arcs (k "levels"). Along each arc v -> b
+the tree carries a label A_v(b) subset X.
+
+Take any one root-to-leaf path P. Its union U(P) is a subset of X. The
+unions of different paths are allowed to be identical; the tree does not
+"know" that they are identical, and we treat them as separate.
+
+We say the tree is DISJOINT if, along every path, the labels A_v(b) are
+pairwise disjoint. Then the union U(P) has size |A_v1(b1)| + ... +
+|A_vk(bk)|, no overlaps inside one path.
+
+We say a level has CAPACITY m if every label on every arc into that level
+has size <= m, and a level is a-SPREAD if the child distribution at
+every node immediately above that level is a-spread (in the sense of 5.0).
+
+Here is what we want to prove. Coverage: given a disjoint probability tree
+with exponentially growing capacities, find a single independent
+Bernoulli-p subset W of X of moderate p that, with high probability,
+CONTAINS the entire union U(P) for at least one root-to-leaf path P.
+
+This is only possible if p is at least as large as the maximum label
+size in the tree, roughly - if labels have size m_max, then picking out
+the whole label at density p requires p^{m_max} "probability mass", so p
+needs to be at least a bit above m_max / |X| on average. In our application
+m_max = ell_k and |X| = C(n, 2) is huge; the actual numerical bound on
+p is what the theorem gives.
+
+Suppose we didn't care about efficiency: we could just sample 2^d different
+random sets W at various densities, one for each path, and take union. But
+that's wasteful. The point of the theorem is to do it with ONE W of density
+r = 16 e^50 sigma (1 + log_2 ell_k). That is a single logarithm, not
+something worse.
+
+6.1. Definitions.
+------------------------------------------------------------
+
+PROBABILITY TREE ON X. A finite rooted tree with all leaves at the same
+depth k (so every path from root to leaf has k arcs), equipped with:
+
+   * for each non-leaf node v, a probability distribution nu_v on its
+     children Ch(v);
+
+   * for each arc v -> b (with b a child of v), a label A_v(b) subset X.
+
+Different nodes and arcs may have IDENTICAL labels. Nodes are never
+identified just because their labels agree.
+
+PATH. We always mean a full root-to-leaf path of k arcs unless we say
+otherwise. A path P is a sequence (v_0 -> b_1), (b_1 -> b_2), ...,
+(b_{k-1} -> b_k) where v_0 = root.
+
+UNION OF A PATH.
+
+        UU(P)  =  union over arcs (v -> b) of P of  A_v(b).
+
+DISJOINT. For every path P of the tree, the labels along P are pairwise
+disjoint subsets of X.
+
+CAPACITY OF A LEVEL. A positive integer m is the capacity of the s-th
+level if every label on every arc v -> b where b is at level s has
+|A_v(b)| <= m.
+
+SPREAD OF A LEVEL. A parameter sigma > 0: every level s of the tree is
+"sigma-spread" if, for every node v at level s-1, the child distribution
+nu_v is sigma-spread in the sense of 5.0.
+
+Note: we do NOT assume anything about the distribution of full paths.
+Only that each child distribution is a-spread at every node.
+
+6.2. The tree-covering theorem.
+------------------------------------------------------------
+
+THEOREM B (Tree covering).
+
+Let TT be a disjoint probability tree on a finite set X, with k >= 1
+levels and positive integer capacities ell_1, ..., ell_k satisfying
+
+        ell_{i+1} >= 16 * ell_i    (1 <= i < k).
+
+Suppose every level is sigma-spread, where sigma > 0. Set
+
+        r  =  min{ 1,  16 * e^50 * sigma * (1 + log_2 ell_k) }.
+
+Then, if W ~ mu_r is an independent sample (each point of X with probability
+r, independently), we have
+
+        P( UU(P) subset W for SOME path P of TT )  >=  2/3.
+
+Note the "some": it is enough that at least one path's whole union lands
+inside W. The path can be chosen by any rule after W is revealed.
+
+6.3. Sanity check of the constants.
+------------------------------------------------------------
+
+ - Factor 16 for the growth. The labels grow geometrically. The exponent
+   16 in "ell_{i+1} >= 16 ell_i" is not magic; any factor bigger than 1
+   would work, but bigger is better for us because it makes the geometric
+   sum collapse faster.
+
+ - Factor (1 + log_2 ell_k). The "cost of a level" is e^{11 m_i} from
+   the local resampling. In the geometric growth, the total is dominated by
+   the LARGEST level. Since ell_k >= 16 ell_{k-1} >= 256 ell_{k-2} ...,
+   the "spread cost" from all levels combined gives a log_2 ell_k factor
+   (a geometric sum of logs), not the sum of all ell_i.
+
+ - The 1 + log_2 ell_k instead of just log_2 ell_k is because even the
+   SMALLEST level wants 1 unit of "log". If ell_1 = 1 (e.g. the tree has a
+   single point in each label at level 1) then 1 + log_2 ell_k keeps the
+   bound at >= 1 in a friendly way.
+
+ - 16 e^50 from iterating. After each reduction, spread grows by at most
+   e per level of compression, and we retry until sizes go to zero.
+   The tightening over all iterations is bounded by 4 sigma; multiplied
+   by e^50 from the local resampling cost, and by 4 from Markov's
+   inequality in the iteration analysis. So 4 * 4 * e^50 = 16 e^50.
+
+   Sanity: no cleverness in the constants, we are happy to spend an
+   extra factor of 16 to keep the argument clean.
+
+6.4. The reduction lemma.
+------------------------------------------------------------
+
+Here is the one-shot engine. It takes a disjoint probability tree with
+sigma-spread levels, and an independent W ~ mu_rho with rho = e^50 a
+(for the a that upper-bounds the levels), and outputs a smaller tree with
+halved capacities. This is the engine we iterate.
+
+LEMMA B (Reduction).
+
+Let TT be a disjoint probability tree with k >= 1 levels and positive
+integer capacities m_1, ..., m_k satisfying m_{j+1} >= 16 m_j for every j.
+Suppose every level j is alpha_j-spread, where
+
+        0 < alpha_j <= a,     rho = e^50 a < 1.
+
+Given a single independent W ~ mu_rho, there is a deterministic procedure
+which succeeds with probability at least 3/4 and, on success, returns a
+disjoint probability tree TT' with the same k levels and:
+
+   (i)   level j of TT' has capacity floor(m_j / 2);
+         level j of TT' is  alpha_j / (1 - e^{-m_j})-spread.
+
+   (ii)  For every path Q of TT', there exists a path P of TT such that
+
+              UU(P)  subset  W  UNION  UU(Q).
+
+Points to note.
+
+   * (ii) is the "recovery guarantee": the smaller TT' does not lose
+     information. Any path Q in TT' points back to a path P in TT that is
+     covered by W plus Q's own labels.
+
+   * The factor 1/(1 - e^{-m_j}) in the spread is only very slightly worse
+     than alpha_j. For m_j >= 1, 1 - e^{-m_j} >= 1 - e^{-1} ~ 0.63, so this
+     is a bounded degradation (worse by a factor of ~1.6 at m=1, and
+     astronomically closer to 1 as m grows).
+
+   * "The same k levels" is important: we do not compress the depth in the
+     reduction lemma. Compression to zero happens later, during the
+     iteration.
+
+6.5. What the reduction procedure is, in words.
+------------------------------------------------------------
+
+Pre-fix W. We will build TT' as a pruned subtree of TT.
+
+For every node v of TT whose outgoing level is j, use the local transition
+of Part 5 with its child distribution nu_v, capacity m_j, and the FIXED
+set W. That is, for each child b:
+
+   - sample a source c ~ nu_v,
+   - plant Y = W UNION A_v(c),
+   - resample target b' ~ posterior given Y and rho,
+   - retain fragment T = A_v(b') \ W.
+
+At fixed W, we do not actually sample; we compute the probability of each
+outcome. Let d_v(W) be the total probability of local failure at v. Let
+t_{vb}(W) be the probability of local non-failure with target exactly b.
+Then (5.3(i) and the transition definition):
+
+        d_v(W)  +  sum_{b in Ch(v)}  t_{vb}(W)  =  1.
+
+This is at each node v, for the given fixed W.
+
+Pruning: define "good" nodes bottom-up. Leaves are good. A node v with
+outgoing level j is good if
+
+        sum over good children b of v of t_{vb}(W)  >=  1 - e^{-m_j}.
+
+That is, at least (1 - e^{-m_j}) of the transition mass at v is on
+children that are themselves good.
+
+Success: the attempt succeeds iff the root is good.
+
+Output tree TT' (on success): starting from the root, keep only the good
+children; replace each kept arc's label A_v(b) with the smaller label
+T_v(b) = A_v(b) \ W; reweight the kept child probabilities:
+
+        weight of kept child b  =  t_{vb}(W) / (sum of t_{vb} over kept b).
+
+This is a smaller tree. On success, TT' is a valid probability tree with
+the properties claimed.
+
+We have to prove: (a) success prob is >= 3/4; (b) the shrink and the
+spread bounds hold; (c) the recovery guarantee (ii).
+
+Property (a) is the main work (the "potential" argument in 6.6/6.7).
+Property (b) is a direct consequence of the local lemma. Property (c) is
+almost tautological (recall A_b subset W UNION T_b from Part 5).
+
+6.6. Proof of (a): a potential on the tree.
+------------------------------------------------------------
+
+Define, for every node v of the input TT, a potential D_v(W) as follows.
+At a leaf: D_v(W) = 0. At a node v whose outgoing level is j, recursively:
+
+        D_v(W)  =  [ d_v(W)  +  sum_{b in Ch(v)}  t_{vb}(W) * D_b(W) ]
+                   /  e^{-m_j} .
+
+This is exactly the "failure + worse-deeper" mixture, divided by the
+"tolerance" e^{-m_j} at v.
+
+Claim 1: If v is bad, then D_v(W) > 1.
+
+  Proof by backward induction from the leaves. A leaf is never bad (leaves
+  are declared good). Suppose v is a non-leaf with outgoing level j, and
+  suppose the claim is true for all its bad children (if any). Since v
+  is bad, the mass on good children is < 1 - e^{-m_j}. In other words:
+
+        sum_{b good}  t_{vb}(W)  <  1 - e^{-m_j}.
+
+  Then:
+
+        d_v  +  sum_{b bad}   t_{vb} * D_b
+        >  d_v  +  sum_{b bad}   t_{vb}
+        =  d_v  +  (1 - sum_{b good} t_{vb})
+        >  d_v  +  e^{-m_j}
+        >  e^{-m_j}.
+
+  Here the first strict inequality uses the induction hypothesis D_b > 1
+  on bad children, and the second uses the badness of v; d_v >= 0.
+  Dividing by e^{-m_j} gives D_v > 1. This is what we needed.
+
+So: P(root is bad) <= P(D_root > 1) <= E D_root (Markov, since D_root >= 0).
+We will show E D_root < 1/4, giving P(success) > 3/4.
+
+6.7. Proof of (a): bounding the expected potential.
+------------------------------------------------------------
+
+We need E_W ~ mu_rho [ D_root(W) ] < 1/4.
+
+Step 1: local bound at one node v. Recall from 6.6,
+
+        D_v  =  e^{m_j} * d_v  +  e^{m_j} * sum_b t_{vb} D_b.
+
+Take expectations over W ~ mu_rho. For the first term:
+
+        E[ e^{m_j} * d_v(W) ]
+        <=  e^{m_j} * E[ 1_{local failure at v} ]
+        <=  e^{m_j} * e^{-9 m_j}         (Part 5 Lemma A, part (i))
+        =   e^{-8 m_j}.
+
+For the second term: e^{m_j} * sum_b E[ t_{vb}(W) D_b(W) ].
+
+The key observation: D_b(W) depends only on W INTERSECTION (X \ A_v(b)).
+Why? Every label in the entire subtree below b is disjoint from A_v(b):
+each such label lies on a path of the disjoint tree through the arc v -> b,
+so it is disjoint from A_v(b) by the disjoint hypothesis on TT. And the
+transition at any node in that subtree only inspects W on the union of
+that node's child labels, which lies below b. So the outcome of the transition
+at each node below b depends only on W's restriction to (X \ A_v(b)).
+
+This is the crucial "spatial locality" that lets us use the distortion
+bound with f = D_b.
+
+The local transition probability t_{vb}(W) is bounded by:
+
+        t_{vb}(W)  <=  P( target = b, Z(Y) >= e^{-10 m_j} | W )
+
+(the rest of the transition mass is on local failures at v, which we've
+already accounted for). So:
+
+        E[ t_{vb}(W) D_b(W) ]
+        <=  E[ 1_{target = b, Z >= e^{-10 m_j}} D_b(W) ]
+        <=  e^{11 m_j} * nu_v(b) * E D_b(W)     (Part 5 Lemma A, part (ii))
+
+(Here we applied the distortion bound with f = D_b(W), which is nonnegative
+and depends only on W INTERSECTION (X \ A_v(b)) as we just argued.)
+
+Therefore:
+
+        E D_v(W)  <=  e^{-8 m_j}  +  e^{12 m_j} * sum_b nu_v(b) * E D_b(W).
+
+That is the master inequality. Everything else is bookkeeping.
+
+Step 2: unroll the master inequality along the tree.
+
+Let s be the outgoing level of v. Let m_s, m_{s+1}, ..., m_k be the
+capacities from level s down to the leaves. Claim:
+
+        E D_v(W)  <=  sum_{j = s}^{k}  exp( 12 * sum_{h = s}^{j-1} m_h
+                                                - 8 * m_j ).
+
+Proof by backward induction on j going up the tree.
+
+Base: leaves, s = k+1, D = 0, empty sum = 0. Consistent.
+
+Inductive: at a node with outgoing level s, use the master inequality:
+
+        E D_v  <=  e^{-8 m_s} + e^{12 m_s} * sum_b nu_v(b) * E D_b.
+
+Since {nu_v(b)} is a probability distribution and by induction each E D_b
+is at most the corresponding sum from s+1:
+
+        sum_b nu_v(b) * E D_b
+        <=  sum_{j = s+1}^k  exp( 12 * sum_{h = s+1}^{j-1} m_h - 8 m_j ).
+
+So:
+
+        E D_v  <=  e^{-8 m_s}  +  sum_{j = s+1}^k  exp( 12 m_s
+                                                       + 12 * sum_{h = s+1}^{j-1} m_h
+                                                       - 8 m_j )
+               =  e^{-8 m_s}  +  sum_{j = s+1}^k  exp( 12 * sum_{h = s}^{j-1} m_h
+                                                       - 8 m_j )
+               =  sum_{j = s}^k  exp( 12 * sum_{h = s}^{j-1} m_h
+                                       - 8 m_j ).
+
+(The j = s term is e^{-8 m_s}, since the empty sum is 0.)
+
+Step 3: plug in geometric growth.
+
+We need: for j > s, 12 * sum_{h = s}^{j-1} m_h - 8 m_j <= -7 m_j.
+
+By geometric growth m_{h} <= m_{j-1} / 16^{j-1-h}. So:
+
+        sum_{h = s}^{j-1} m_h
+        <=  m_{j-1} * (1 + 1/16 + 1/256 + ...)
+        <=  m_{j-1} * 16/15
+        <=  (m_j / 16) * 16/15
+        =   m_j / 15.
+
+So:
+
+        12 * sum_{h=s}^{j-1} m_h  -  8 m_j
+        <=  12 * (m_j / 15)  -  8 m_j
+        =  (4/5 - 8) * m_j
+        =  -36/5 * m_j
+        <  -7 * m_j.
+
+So each j > s term is at most e^{-7 m_j}. The j = s term is e^{-8 m_s}
+<= e^{-7 m_s}. Altogether:
+
+        E D_v(W)  <=  sum_{j = s}^k  e^{-7 m_j}
+                 <=  sum_{m = 1}^{infinity}  e^{-7 m}
+                 =  e^{-7} / (1 - e^{-7})
+                 ~  0.000913
+                 <  1/4.
+
+(The "sum over all positive integers" step uses that m_s, ..., m_k are
+distinct positive integers with 1 <= m_s < m_{s+1} < ... < m_k. The sum
+of e^{-7 m} over all such m is an upper bound for the sum over any subset
+of positive integers.)
+
+Hence P(success) = P(root good) = 1 - P(root bad) >= 1 - E D_root >=
+1 - 1/4 = 3/4.
+
+Great. Claim (a) proved.
+
+6.8. Proof of (b) and (c): shrink, spread, and recovery.
+------------------------------------------------------------
+
+Now we prove, on the success event, that the output tree TT' actually has
+the claimed properties.
+
+Property (c) (recovery) first. At each arc v -> b, the fragment T_v(b) =
+A_v(b) \ W satisfies A_v(b) subset W UNION T_v(b) (this is Part 5's
+inclusion (ii)). So for any path Q of TT', the union of the CORRESPONDING
+original labels equals the union of the ORIGINAL labels along the
+corresponding path P of TT, which is:
+
+        UU(P)  =  union of A_v(b) over arcs (v,b) in P.
+
+But since each A_v(b) subset W UNION T_v(b), and T_v(b) = A_v(b) \ W:
+
+        A_v(b)  subset  W  UNION  (A_v(b) \ W)  =  W UNION T_v(b).
+
+Union over arcs gives UU(P) subset W UNION UU(Q) where UU(Q) is the
+union of the t_v(b) over the same arcs. That is exactly claim (ii).
+
+Property (b): size of the new label. By Lemma A(i), on a non-failure
+transition at v, |T_v(b)| <= m_j / 2 for the capacity m_j. So the capacity
+at level j of TT' is floor(m_j / 2). Note: m_j is a positive integer, so
+we can also write |T| <= floor(m_j / 2). This is the shrink.
+
+Property (b): spread of the new child distribution. At fixed W, and on
+the success event, node v has mass >= 1 - e^{-m_j} on good children.
+Let E_v be the joint event "local non-failure at v AND target is good".
+Then:
+
+        P(E_v | W)  =  gamma_v(W)  >=  1 - e^{-m_j}.
+
+The new distribution on kept children is the conditional distribution
+of the target given E_v (and W). For any nonempty J subset X,
+
+        P( J subset T | E_v, W )
+        <=  P( J subset T, E_v | W ) / gamma_v(W)
+        <=  P( J subset A_v(c) | W ) / gamma_v(W)      (T subset A_v(c))
+        =   P( J subset A_v(c) ) / gamma_v(W)           (c indep of W)
+
+        <=  alpha_j^{|J|} / (1 - e^{-m_j})
+        <=  ( alpha_j / (1 - e^{-m_j}) )^{|J|}.
+
+The step "P(J subset T, E_v | W) <= P(J subset A_v(c) | W)" uses the
+fragment inclusion T subset A_v(c) from Part 5 (which holds for EVERY
+transition, success or failure). So the new child distribution is precisely
+alpha_j / (1 - e^{-m_j})-spread, as claimed.
+
+Property (b): depth preserved. Since gamma_v > 0 at every retained non-leaf
+node (success = good root, and good means the mass on good children is
+at least 1 - e^{-m_j} > 0), the retained subtree reaches the depth of TT.
+Same k levels. And the labels are subsets of the old labels, so TT' is
+disjoint.
+
+Property (b): recovery is via labels only; nothing else is needed. Done.
+
+6.9. Proof of Theorem B: iterating the reduction.
+------------------------------------------------------------
+
+We will use the reduction lemma as a "compressor". Each successful
+compression halves all capacities. After s successes, capacities are
+floor(ell_i / 2^s); when s > log_2 ell_k, all capacities are zero.
+# ^C interrupted by user!

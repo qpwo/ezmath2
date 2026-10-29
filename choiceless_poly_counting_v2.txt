@@ -1,0 +1,1934 @@
+CHOICELESS POLYNOMIAL TIME WITH COUNTING
+DOES NOT CAPTURE POLYNOMIAL TIME
+
+A self-contained exposition for a motivated high-school reader
+
+
+0. PREFACE
+
+This is a complete, from-scratch exposition of the result that gives the
+document its title. It proves one theorem. By the end you should be able
+to state the theorem precisely, explain why it matters, and follow every
+step of the proof.
+
+The result lives in a branch of computer science called DESCRIPTIVE
+COMPLEXITY. The question there is: "Which logical languages can describe
+exactly those questions that a computer can answer efficiently?" The
+theorem says one very strong candidate language - called CHOICELESS
+POLYNOMIAL TIME WITH COUNTING, or just CPT - falls short. It cannot
+describe every question that has a polynomial-time algorithm.
+
+Before we get technical, here is the whole proof compressed into a
+paragraph so you know where we are going.
+
+    * We build two very similar structures, meaning two databases or
+      graphs, both of size N. They look like a 3D grid with some extra
+      structural data attached to every edge.
+    * One structure has a certain total "charge" equal to 0; the other
+      has total charge equal to 1. Everything else about them is
+      symmetric and looks identical.
+    * A specific query Q, defined with linear algebra over the field with
+      three elements, gives the answer YES on the first structure and
+      NO on the second. Q is a genuine polynomial-time question (a plain
+      Gaussian elimination), so this pair of structures already witnesses
+      that Q is "an interesting question you can solve efficiently".
+    * We then prove that any fixed CPT program CANNOT tell the two
+      structures apart, for large enough N. The program will eventually
+      halt on both and produce the SAME output.
+    * If CPT could compute Q, then the CPT program for Q would have
+      to give different answers on the pair. That contradicts the
+      previous bullet. So CPT does not capture polynomial time.
+    * Done with the main theorem.
+
+The heavy lifting is entirely in the fourth bullet: showing a fixed CPT
+program cannot distinguish the two structures. The tool is SYMMETRY, and
+the tool for symmetry is group theory. The two structures have a large
+group of symmetries that preserves almost all the structure but acts
+freely enough on the "charge discrepancy" data that no fixed program can
+localize it.
+
+The paper's technical content is a careful, quantitative bookkeeping of
+that symmetry. If you can follow the main thread through Parts 3-11,
+everything else is detail. Part 12 is a small corollary about two other
+logics (solvability logic and rank logic).
+
+
+Notation used throughout:
+
+    n or N          number of atoms in the structure (universe size)
+    L               side length of the grid; N = Theta(L^3)
+    F3              the field with three elements {0, 1, 2}, with
+                    arithmetic mod 3
+    A, B, C, ...    structures (a universe plus relations)
+    |A|             the universe of the structure A (also its size)
+    tau             the vocabulary (list of relation names with arities)
+    Aut(A)          the group of automorphisms of A
+    O(.), o(.)      standard asymptotic notation
+    sum, prod       summation and product symbols written in longhand
+    "f = O(g)"      f grows no faster than a constant times g
+
+
+TABLE OF CONTENTS
+
+    Part 1.   The big question: which logic captures polynomial time?
+    Part 2.   What is choiceless polynomial time with counting?
+    Part 3.   Statement of the theorem and the shape of the proof
+    Part 4.   The query Q
+    Part 5.   The two grid structures
+    Part 6.   The symmetry group
+    Part 7.   Small orbits have short supports
+    Part 8.   Counting equivalence of the two base structures
+    Part 9.   Transferring counting from atoms to sets
+    Part 10.  Encoding a full CPT computation
+    Part 11.  Assembling the proof of the theorem
+    Part 12.  Bonus: solvability and rank logic
+    Appendix. Glossary
+
+
+PART 1. THE BIG QUESTION
+
+1.1 Structures.
+
+A STRUCTURE is a mathematical way to say "a labelled graph or database".
+Formally, a structure A consists of:
+
+    - a finite set, |A|, called the UNIVERSE. Its elements are called
+      ATOMS (or sometimes "vertices" or "elements").
+    - a fixed, finite list of RELATIONS on |A|. Each relation has a fixed
+      ARITY k >= 1, and it tells us, for every k-tuple (a_1, ..., a_k) of
+      atoms, whether or not that tuple is in the relation.
+
+The list of relation names and their arities is called the VOCABULARY
+(or SIGNATURE) of A. The standard symbol for a vocabulary is tau (or
+sigma). A structure whose vocabulary is tau is called a
+tau-STRUCTURE.
+
+The most familiar example is a plain undirected graph: the universe is
+the vertex set, the vocabulary is one binary relation symbol E, and
+E(a, b) means "there is an edge between a and b". A relational database
+is exactly the same notion: relation names are table names, arities are
+column counts, and the tuples are the rows.
+
+When we say "a fixed vocabulary tau", we mean the whole paper talks
+about structures over ONE vocabulary. In the main result, tau is not
+arbitrary: it is a specific binary vocabulary of eight relation names,
+defined in Part 4. Everything up to that point holds for any fixed
+finite vocabulary.
+
+A DIRECTED graph is a structure with one binary relation. A coloured
+graph is a structure with one binary relation for the edges and further
+unary relations for each colour. Everything we say about "structures"
+generalizes those.
+
+1.2 Isomorphisms and queries.
+
+An ISOMORPHISM f : A -> B between tau-structures is a bijection of the
+universes f : |A| -> |B| that preserves every relation in tau in both
+directions:
+
+    for every relation R of arity k and every tuple (a_1, ..., a_k),
+    R^A(a_1, ..., a_k) if and only if R^B(f(a_1), ..., f(a_k)).
+
+Two structures are ISOMORPHIC if some such f exists. This is the
+formal version of "the two structures are the same graph up to renaming
+of the vertices".
+
+A QUERY on tau is a rule that assigns to every tau-structure A the
+answer YES or NO. Equivalently, a query is just a collection of
+tau-structures: the ones that answer YES.
+
+A query is ISOMORPHISM-INVARIANT if it gives the same answer on any two
+isomorphic structures. In plain speech: the answer depends only on the
+"shape", not on the names we happen to give the elements.
+
+Almost all questions you would want to ask about a graph or a database
+are isomorphism-invariant. "Is this graph connected?" "Does this graph
+have a perfect matching?" "Does this database satisfy this constraint?"
+are all isomorphism-invariant. "Does the FIRST vertex have degree 3?"
+is not, because the question uses an ordering the input need not supply.
+An unordered structure has no canonical "first vertex", so such a
+question is not a query on that structure.
+
+1.3 Polynomial time.
+
+We want to talk about algorithms that read a structure and answer YES or
+NO. The structure is given to the algorithm as a listing: the set of
+atoms, plus, for every relation name R of arity k, the set of all
+k-tuples on which R is true.
+
+The SIZE of that listing is O(n^k) where n = |A| and k is the maximal
+arity in tau. Since k is fixed by the vocabulary, the size is polynomial
+in n. So "polynomial in the input size" and "polynomial in n" are the
+same for fixed tau, and we will freely substitute one for the other.
+
+A query Q is in POLYNOMIAL TIME, or just in PTIME, if there exists an
+algorithm (a computer program) which, on every input structure A of
+universe size n, halts in time O(n^c) for some fixed constant c that
+does not depend on n, and outputs Q(A).
+
+Examples:
+
+    - "Is the graph connected?" is in PTIME (breadth-first search).
+    - "Does the graph have a perfect matching?" is in PTIME (Blossom
+      algorithm; check Edmonds).
+    - "Does the graph have a Hamiltonian cycle?" is NOT known to be in
+      PTIME (this is the TSP decision problem, NP-complete).
+    - "Does the graph have a 3-colouring?" is NOT known to be in PTIME.
+
+An ISOMORPHISM-INVARIANT POLYNOMIAL-TIME QUERY is exactly a yes/no
+question that (a) makes sense on unordered input, and (b) can be answered
+by a computer within polynomial time. This is the class of questions
+where descriptive complexity lives.
+
+1.4 What "capturing polynomial time" means.
+
+In the 1970s and 1980s, logicians and computer scientists started asking
+a strange-looking question: is every polynomial-time query expressible
+in some natural FORMAL LANGUAGE - a language where you write down a
+formula, and the structure gets evaluated against the formula?
+
+Think of a logic as a language for writing specifications. It has
+variables, quantifiers ("for all x", "there exists x"), connectives
+("and", "or", "not"), and ways to talk about the structure's relations.
+
+      A logic L CAPTURES PTIME (on finite tau-structures) if for every
+      fixed tau, the set of isomorphism-invariant polynomial-time
+      queries on tau-structures is exactly the set of queries definable
+      by formulas of L in some fixed finite piece of syntax.
+
+If such an L exists, it is a "descriptive basis" for polynomial time:
+a language in which you write, without an algorithm, exactly the same
+things an algorithm can decide efficiently.
+
+Two things are being asked of L:
+
+    (1) SOUNDNESS. Every L-definable query is isomorphism-invariant and
+        in PTIME. This means the language is "safe" - it cannot express
+        things a computer cannot efficiently compute.
+    (2) COMPLETENESS. Every isomorphism-invariant polynomial-time query
+        is L-definable. This means the language is powerful enough.
+
+The interesting direction is completeness. Lots of logics are sound for
+PTIME. Very few are complete. Whether ANY one is complete, on unordered
+structures, is the question.
+
+1.5 The ordered case: solved by Immerman and Vardi (1982).
+
+Immerman and Vardi, independently in 1982, proved the following.
+
+    THEOREM (Immerman-Vardi 1982). Let tau be any fixed vocabulary
+    that includes a binary relation symbol "less" (<). On tau-structures
+    in which "<" is a linear order of the universe, FIRST-ORDER LOGIC
+    WITH LEAST FIXED-POINT (FO(LFP)) captures exactly the
+    isomorphism-invariant polynomial-time queries.
+
+So if the input comes with a built-in linear order on its elements, then
+there is a logic - FO(LFP), a natural extension of first-order logic -
+that expresses exactly the polynomial-time questions. On ordered inputs,
+we know exactly how to describe computation with logic.
+
+This was a landmark result. It launched the field of "finite model
+theory" and became the model example of how computation and syntax can
+coincide.
+
+1.6 The unordered case: the great open problem.
+
+What happens if the input comes WITHOUT an ordering? That is the normal
+situation for a graph or a database: the input has structure but no
+distinguished "first" element.
+
+Here, the situation is dramatically unclear. Nobody knows whether any
+natural logic captures PTIME on unordered structures. In fact,
+Gurevich (1988) conjectured:
+
+    CONJECTURE (Gurevich). No logic captures PTIME on unordered
+    finite structures.
+
+This is one of the central open problems of the field. It is still
+open.
+
+What this paper proves is not Gurevich's conjecture. It proves a strict
+lower bound inside that conjecture: it RULES OUT one particular logic,
+CPT, from being a capturing logic. There are other candidates, and those
+candidates are not addressed here. But CPT is one of the strongest and
+most natural candidates, and ruling it out is a substantial step.
+
+The next part introduces CPT.
+
+
+PART 2. WHAT IS CHOICELESS POLYNOMIAL TIME WITH COUNTING?
+
+2.1 Why "choiceless"?
+
+To get an intuition, imagine you have to design an algorithm to compute
+some isomorphism-invariant query. Every natural algorithm you would
+write, for a graph, would probably use vertex labels internally: "look
+at v_0. Mark v_0. Mark all its neighbours. Then...". On a plain graph
+with a fixed labeling, that works.
+
+But on an UNORDERED input there are no labels to use. The formalist way
+to say "the algorithm is not allowed to secretly know which vertex is
+which" is:
+
+    the algorithm must be ISOMORPHISM-HOMOMORPHIC - if you
+    rename the vertices of the input, the algorithm's internal trace
+    changes by exactly the same renaming.
+
+In other words, if f : A -> B is an isomorphism of inputs, and you
+run the algorithm, the trace of the run on B is the image under f of
+the trace of the run on A. Nothing in the algorithm's behaviour can
+distinguish isomorphic inputs, not even its internal state.
+
+Such an algorithm is called CHOICELESS. It is "choiceless" in the sense
+that it never makes a choice that could be different under renaming.
+Traditional algorithms with fixed vertex labels are the opposite: they
+choose a starting vertex, a first edge, etc.
+
+So choiceless polynomial time studies: what can you compute with
+algorithms that never break symmetry?
+
+2.2 Hereditarily finite sets.
+
+"Choiceless polynomial time" does not compute with integers. It
+computes with HEREDITARILY FINITE SETS. That is the right data
+structure for a choiceless algorithm, because sets carry no order.
+
+A set-builder notation {x, y, z} is unordered by nature, and there is
+no canonical way to say "the first element". This makes sets the
+natural choiceless data type.
+
+Formally, fix a universe U (the atoms, or elements, of the input
+structure). The HEREDITARILY FINITE SETS built from U, denoted HF(U),
+are defined recursively:
+
+    (i)  every atom a in U is an object of HF(U);
+    (ii) if s_1, ..., s_k are objects of HF(U), then the SET
+         {s_1, ..., s_k} is an object of HF(U);
+    (iii) nothing else is in HF(U).
+
+Atoms are "urelements": they are not sets, and they are never equal to
+any set. Ordering of the displayed elements in {s_1, ..., s_k} is
+irrelevant; repetitions are redundant.
+
+Examples:
+
+    - the atom a
+    - the empty set {} (the set with no members, sometimes called 0)
+    - the singleton {a}
+    - the set {{}, a} which is also the "unordered pair" of the empty set
+      and a
+    - the set {a, {a}, {{a}}} (three members, no linear order)
+    - {{a, b}, {c}} where a,b,c are atoms
+    - the standard von Neumann ordinal [3] = {{}, {{}}, {{}, {{}}}} which
+      is also written 3 in set theory, and is built purely from the empty
+      set with no atoms at all.
+
+The important structural facts:
+
+    (a) HF(U) is countably infinite, even when U is finite.
+    (b) Every element of HF(U) has a finite tree of members, and every
+        chain of "x is a member of y is a member of z" terminates. That
+        is the content of "hereditarily finite".
+    (c) An element of HF(U) can have arbitrarily large "rank" - the
+        depth of nesting. The empty set has rank 0; {x} has rank one
+        more than x's rank. This is the crucial source of difficulty in
+        the paper: control of the RANK of the objects a computation might
+        build.
+
+The empty set and the von Neumann ordinals are PURE hereditarily
+finite sets (built from no atoms); the atoms are the opposite extreme.
+Every where in between is possible.
+
+2.3 What a CPT program can do.
+
+An informal description of a program of CPT is this: a program
+operates on hereditarily finite sets built from the atoms of the input.
+It is a set of finite-register transitions, where the registers hold
+hereditarily finite sets, and the operations are:
+
+    - MEMBERSHIP: "is x in y?" for x, y currently in registers.
+    - COMPREHENSION: "for each tuple (y_1, ..., y_k) of currently held
+      sets satisfying a fixed first-order condition, form the set of
+      values." This is how you build new sets.
+    - UNION: "the union of two sets currently in registers".
+    - CARDINALITY: "the number of members of a set currently in a
+      register". This is the counting operation Card.
+    - The atoms themselves are provided as an initial register, plus one
+      register per input relation, allowing you to test and iterate over
+      the input structure.
+
+Formally, a program is a sequence of transitions:
+each transition takes the current contents of the registers, computes
+new contents using the operations just described, and stores them back.
+Plus an initial configuration and a halting test.
+
+The program has POLYNOMIAL BOUNDS:
+    - the number of transitions the program runs is bounded by a
+      polynomial in n = |A|, and
+    - every set that appears in any register at any time, together with
+      all its recursively-occurring members, is bounded in TOTAL COUNT
+      by a polynomial in n.
+
+These are the analog of "polynomial time" for choiceless programs. If
+the polynomial in question is a fixed p(n), we say the program runs in
+time p(n). Notice that "the number of transitions" and "the total
+number of recursively-occurring objects" are two different resources.
+Both are bounded by some fixed polynomial, called the TIME BOUND of the
+program.
+
+We will later use the INTERPRETATION CHARACTERIZATION (Grohe-Schweitzer-
+Wiebking, building on Gradel-Pakusa-Schalthoefer-Kaiser), which says
+that full CPT with counting can be equivalently presented as iterating
+FIRST-ORDER INTERPRETATIONS over a fixed base. That is the version we
+actually work with in Part 10, because it is easier to manipulate.
+
+2.4 Why "with counting"?
+
+The counting operation Card(x) returns the cardinality of x, as a
+specifically encoded von Neumann ordinal. Without it, some
+polynomial-time questions (those that need to know how many elements
+satisfy some condition) become inexpressible.
+
+Cai-Fuerer-Immerman (1992) famously showed that even WITH counting, a
+related formalism (fixed-point logic with counting) cannot express
+every polynomial-time question. So "counting" is not by itself enough
+to capture PTIME. The question this paper addresses is whether the
+FULL choiceless polynomial time, with counting, might be enough.
+
+The short answer, proved in this paper, is: NO.
+
+    THEOREM (main result of this paper). Choiceless polynomial time
+    with counting does not capture PTIME on unordered structures.
+
+This confirms a conjecture of Blass, Gurevich and Shelah from their
+original 1997 work.
+
+The rest of the paper proves this.
+
+
+PART 3. STATEMENT OF THE THEOREM AND THE SHAPE OF THE PROOF
+
+3.1 The formal statement.
+
+    THEOREM 3.1 (Main result). Let tau be the specific vocabulary of
+    eight binary relation symbols defined in Part 4, namely
+
+        tau = { Ed, Cf, EB, VB, I, Z_0, Z_1, Z_2 }.
+
+    Let Q be the specific isomorphism-invariant query on tau-structures
+    defined in Part 4. Then:
+
+        (a) Q IS ISOMORPHISM-INVARIANT AND IN DETERMINISTIC
+            POLYNOMIAL TIME. There is a deterministic algorithm which,
+            on any finite tau-structure A, halts in time polynomial in
+            |A| and outputs Q(A). (Proved as Proposition 4.1 below.)
+
+        (b) Q IS NOT DEFINABLE IN FULL CHOICELESS POLYNOMIAL TIME WITH
+            COUNTING. That is, no fixed CPT program computes Q on all
+            finite tau-structures. (Proved as Theorem 11.1 below.)
+
+The contrast between (a) and (b) is what makes this a real separation.
+Q is a genuine polynomial-time question, but CPT cannot express it.
+
+3.2 The Blass-Gurevich-Shelah conjecture.
+
+This result confirms a conjecture of Blass, Gurevich and Shelah, made in
+the paper introducing CPT (1999, based on a 1997 preprint). In that
+paper they explicitly conjectured that ADDING COUNTING TO CPT would
+still leave it strictly weaker than full PTIME. The technical question
+of separation was one of the reasons they developed CPT in the first
+place.
+
+The theorem does NOT prove Gurevich's conjecture (no logic captures
+PTIME). It rules out one very strong candidate logic. That's an honest
+lower bound, not a full solution to the open problem.
+
+3.3 The proof, top-down.
+
+The proof has four steps. Steps 3 and 4 take the bulk of the paper.
+
+STEP 1. Define the vocabulary and the query Q. [Part 4]
+    Q is a small linear-algebra question over F3, defined in terms of an
+    8-ary vocabulary.
+
+STEP 2. Build two structures A_{b^0} and A_{b^1}, on which Q gives
+opposite answers. [Part 5]
+
+    - A_{b^0} is a three-dimensional grid with edge states and vertex
+      configurations, with total charge equal to 0.
+    - A_{b^1} is the same but with one vertex boosted, so total charge
+      equals 1.
+    - Show Q(A_{b^0}) = YES and Q(A_{b^1}) = NO. Both structures have
+      size N = Theta(L^3) where L is the grid side length.
+
+STEP 3. Show that no fixed CPT program can distinguish A_{b^0} from
+A_{b^1} for large L. [Parts 6-10]
+
+    This is a chain of lemmas and it is where almost all the technical
+    content of the paper lives. In broad strokes:
+
+        (3a) SYMMETRY. A finite group H acts on the two structures by
+             automorphisms, with a central subgroup K consisting of
+             divergence-free scalar flows on edges. H includes "face
+             translations". [Part 6]
+
+        (3b) SUPPORT THEOREM. Every hereditarily finite object whose
+             H-orbit is not too large has a K-support of length
+             O_q( L (1 + log L)^2 ), where q bounds the log of the
+             orbit size. [Part 7]
+
+        (3c) COUNTING EQUIVALENCE. With M = floor(L^(7/4)), the two base
+             structures - after adding a syntactic preorder and some
+             difference relations, only for analysis - satisfy the same
+             first-order counting sentences using at most M variable
+             names. [Part 8]
+
+        (3d) HOMOGENEITY. Two tuples in the same expanded base that have
+             equal C^M types lie in the same K-orbit. [Part 8]
+
+        (3e) TRANSFER. If s, m are positive integers with 4s <= M and
+             (m+1)s <= M, and the two bases are counting-equivalent and
+             homogeneous, then the entire "supported HF-domains" D_0
+             and D_1 are counting-equivalent at m variable names.
+             [Part 9]
+
+        (3f) CODING. Every fixed CPT program's full trace (states,
+             halting, output) fits in a polynomial-size invariant
+             sub-family of supported HF-objects, and its halt and output
+             tests translate to exact counting formulas with a variable
+             bound depending only on the program, not on N. [Part 10]
+
+STEP 4. Assemble. [Part 11]
+    Fix a program P supposedly computing Q. Its trace is inside the
+    supported domain D_i for i = 0, 1. Transfer says D_0 and D_1 agree
+    on all C^m sentences. Coding says P's halt test and output test
+    each translate to a C^m sentence. All these are exact at the same
+    stage on both sides. So P halts at the same stage on both sides
+    and outputs the same value. But Q separates the two structures.
+    Contradiction.
+
+3.4 A diagram of the proof.
+
+    Here is the main logical flow, drawn vertically.
+
+                             Two grid structures
+                             A_{b^0}, A_{b^1}
+                             of equal size N
+                                    |
+                    -----------------+--------------------
+                    |                                    |
+                [Parts 4-5]                         [Parts 6-10]
+                    |                                    |
+          Q has opposite answers.         Any fixed CPT program P
+          (parity argument.)              has a bounded-support trace
+                    |                     and a bounded-variable halt
+                    |                     and output sentence.
+                    |                                    |
+                    |                          [Part 11: transfer]
+                    |                                    |
+                    |                          Both traces have the
+                    |                          SAME answers on both
+                    |                          structures.
+                    |                                    |
+                    +----------------+-------------------+
+                                     |
+                              CONTRADICTION
+                    (Q gives different answers on the pair;
+                     P gives the same answer.)
+
+    The left route is concrete polynomial-time algebra. The right route
+    is abstract symmetry. The proof shows: given a CPT program P, the
+    right route produces a contradiction with the left route.
+
+3.5 How to read the rest.
+
+Parts 4 and 5 are concrete definitions. Read them at the level of
+"what things are". The proofs are exercises in polynomial-time algebra
+and give a sense of the flavour.
+
+Parts 6-10 are where the beautiful abstract machinery lives. Some of it
+is unavoidably technical. I have tried to keep every lemma with a
+plain-language statement, a proof, and a short example when helpful.
+
+Part 11 is the payoff.
+
+Part 12 is a bonus: it shows two well-studied logics (solvability and
+rank logic) can express Q, so they too lie outside CPT.
+
+If you remember just one thing about the shape of the proof, let it
+be this:
+
+    A fixed CPT program cannot distinguish the two structures because
+    any trace of its run is supported on a SHORT tuple of atoms, and a
+    SHORT tuple of atoms is itself indistinguishable between the two
+    structures at counting width M.
+
+Part 5 builds the structures. Part 7 pins down "short tuple". Part 8
+pins down "indistinguishable at width M". Parts 9 and 10 wire those
+together.
+
+
+PART 4. THE QUERY Q
+
+4.1 The fixed vocabulary.
+
+The query lives on a fixed vocabulary tau of eight binary relation
+symbols:
+
+    tau = { Ed, Cf, EB, VB, I, Z_0, Z_1, Z_2 }.
+
+Each symbol is binary (takes two arguments). So a tau-structure A is a
+set |A| of atoms together with eight separate binary relations on it.
+All eight are independent: no two are required to coincide, and an atom
+may be in as many or as few of them as it likes.
+
+Read the symbols as:
+
+    Ed       "edge atom" predicate, used as a diagonal test.
+    Cf       "configuration atom" predicate, used as a diagonal test.
+    EB       "same edge block".
+    VB       "same vertex block".
+    I        "incidence": a configuration selects an edge atom on an
+             incident edge.
+    Z_delta  for delta in {0, 1, 2}: "the scalar difference from the
+             first argument to the second, on the same edge, equals
+             delta".
+
+In a general tau-structure there is NO requirement that Ed and Cf be
+disjoint, that EB or VB be equivalence relations, or that the whole
+bundle be coherent. Those extra properties are what makes the special
+structures of Part 5 special. But Q is defined on EVERY tau-structure.
+
+4.2 The two auxiliary sets and their partitions.
+
+For a tau-structure A define
+
+    Y   = { y in |A| : Ed(y, y) }.       "the edge atoms"
+    X   = { a in |A| : Cf(a, a) }.       "the configuration atoms"
+    X_t = { a in X : VB(t, a) }  for t in X.  "same block as t"
+
+Note: X and Y may overlap. An atom a with both Ed(a, a) and Cf(a, a)
+is in both. The definition is not embarrassed by this case.
+
+The family (X_t)_{t in X} is determined by the relation VB: it is the
+"VB-closed subset of X containing t". In the grid structures of Part 5,
+this family will be a partition (block by vertex), but the query just
+uses the definition given by VB.
+
+4.3 The coefficient C(y, a).
+
+For y in Y and a in X, define
+
+    C(y, a)  =  sum over x in Y with I(a, x) of
+                    ( sum over delta in F3 with Z_delta(y, x) of delta )
+
+in F3 (arithmetic mod 3).
+
+Read the INNER sum: for a given pair (y, x) of edge atoms, add up all
+delta in {0, 1, 2} such that the relation Z_delta holds. If, say, both
+Z_1(y, x) and Z_2(y, x) hold, the inner sum is 1 + 2 = 0 in F3. If no
+Z_delta holds, the inner sum is 0.
+
+Read the OUTER sum: add up the inner sums over all x that a selects via
+the relation I. In a "nice" structure where a selects exactly one x per
+incident edge, at most one or two x contribute.
+
+4.4 The linear system.
+
+Given A, introduce two separate families of unknowns over F3:
+
+    lambda_a    for a in X
+    mu_y        for y in Y
+
+IMPORTANT: lambda_a and mu_y are DIFFERENT unknowns, even when a = y
+as atoms. lambda_a and mu_y come from independent registers, they just
+happen to both take values in F3. So the whole linear system has
+|X| + |Y| unknowns, at most 2n where n = |A|.
+
+There are two kinds of equations.
+
+    NORMALIZATION EQUATIONS. For every t in X:
+
+        sum over a in X_t of lambda_a  =  1.        (Normalization_t)
+
+    CONSISTENCY EQUATIONS. For every pair (t, y) in X x Y such that
+
+        (there exists a in X_t and x in Y with I(a, x) and EB(y, x)),
+
+    add the equation
+
+        mu_y  =  sum over a in X_t of lambda_a * C(y, a).
+                                                   (Consistency_{t,y})
+
+    The displayed test is a purely combinatorial predicate on the input.
+    Call it Test(t, y). It says: "the edge atom y is an edge that some
+    configuration in the block X_t both selects and is EB-paired with".
+    In the grid structures, Test(t, y) will fire precisely when the edge
+    of y touches the vertex block containing t.
+
+    REPEATED EQUATIONS are allowed and harmless. If two different
+    (t, y) or two different t's give the same equation, we simply have
+    that equation twice. We do NOT add repeated equations together.
+
+    EDGE CASES. If X_t is empty, Normalization_t reads 0 = 1 and the
+    system is immediately inconsistent. If for a given t there are no
+    y satisfying Test(t, y), then t contributes only the normalization
+    equation. A system with no equations at all is consistent.
+
+    DEFINITION Q(A). Q(A) is YES if the above linear system over F3 has
+    at least one solution, and NO otherwise.
+
+That is the entire query. It has no explicit numbers, no explicit sums
+over the input, and no ordering; it is a single "is this sparse linear
+system consistent?" question.
+
+4.5 A small example.
+
+Take A such that:
+    - X = {a1, a2}, Y = {y1, y2}.
+    - X_{a1} = {a1}, X_{a2} = {a2}.
+    - Only (t, y) pairs satisfying Test: (a1, y1) and (a2, y2).
+    - C(y1, a1) = 1, C(y2, a2) = 2, all other C(...) = 0.
+
+Then the system is:
+
+    Normalization_{a1}:   lambda_{a1} = 1
+    Normalization_{a2}:   lambda_{a2} = 1
+    Consistency_{a1, y1}: mu_{y1} = 1 * 1 = 1
+    Consistency_{a2, y2}: mu_{y2} = 1 * 2 = 2
+
+Unique solution, Q(A) = YES.
+
+Change C(y2, a2) to 1 too, and add Test(a1, y2): then
+Consistency_{a1, y2}: mu_{y2} = 1 * C(y2, a1) = 1 * 0 = 0.
+But Consistency_{a2, y2} says mu_{y2} = 1 * 1 = 1. So mu_{y2} = 1 and
+mu_{y2} = 0, contradiction, Q(A) = NO.
+
+In this small example, Q(A) = NO comes from a simple inconsistency
+between two equations. In the grid structures, the same mechanism will
+produce a GLOBAL obstruction coming from the whole grid at once.
+
+4.6 Q is in PTIME.
+
+    PROPOSITION 4.1. The query Q on tau-structures is isomorphism-invariant
+    and decidable in deterministic polynomial time.
+
+    PROOF. We prove the two requirements separately.
+
+    PART 1: ISOMORPHISM INVARIANCE.
+
+    Let f : A -> B be an isomorphism of tau-structures. By definition f
+    preserves each relation in tau in both directions. Therefore:
+
+        (i)   f maps Y(A) bijectively to Y(B) and X(A) to X(B).
+        (ii)  f(X_t(A)) = X_{f(t)}(B) for each t in X.
+        (iii) C_B(f(y), f(a)) = C_A(y, a) for all y, a.
+        (iv)  Test_B(f(t), f(y)) <=> Test_A(t, y) for all t, y.
+
+    Given a solution (lambda, mu) on A, define (lambda', mu') on B by
+    lambda'_{f(a)} = lambda_a and mu'_{f(y)} = mu_y. By (i)-(iv), each
+    equation on B is the image under f of an equation on A, and vice
+    versa. Hence (lambda', mu') satisfies the B-system, and conversely.
+    So the systems on A and B have solutions together. Q(A) = Q(B).
+
+    PART 2: POLYNOMIAL TIME.
+
+    We describe an algorithm and bound its running time. Let n = |A|.
+
+    Count sizes. |X| <= n, |Y| <= n. The system has at most 2n unknowns.
+    Normalization: at most n equations. Consistency: one equation for
+    each (t, y) in X x Y with Test(t, y) true, so at most n^2 equations.
+    Total: at most n + n^2 equations.
+
+    Compute C(y, a). For each (y, a) in Y x X, evaluate the double sum.
+    Each evaluation costs O(n) field operations (loop over x in Y with
+    I(a, x), and inside, loop over delta in F3). There are at most n^2
+    (y, a) pairs. Total: O(n^3) field operations.
+
+    Compute Test(t, y). For each t in X, build the set
+        T_t = { y in Y : there exists a in X_t and x in Y
+                        with I(a, x) and EB(y, x) }.
+    Build the auxiliary set
+        U_t = { x in Y : exists a in X_t with I(a, x) },
+    which costs O(|X_t| * n) per t, so O(n^2) total. Then compute
+        T_t = { y in Y : exists x in U_t with EB(y, x) },
+    which costs O(|U_t| * n) = O(n^2) per t, so O(n^3) total. Take the
+    union over t: O(n^3) total cost.
+
+    Solve the system. Gaussian elimination on at most 2n unknowns and
+    at most n + n^2 equations takes O((n + n^2)^3) = O(n^6) field
+    operations over F3, each of which is O(1) time. So O(n^6).
+
+    Combine. The whole algorithm runs in O(n^6) field operations and
+    O(n^2) memory. That is polynomial in n.
+
+    The algorithm is allowed to use the INPUT LISTING ORDER to iterate
+    over elements. Whether the listing order is < or reversed or
+    permuted does not affect the ANSWER, by Part 1. So the answer is
+    well-defined on the isomorphism class of A. []
+
+4.7 Where Q comes from.
+
+The specific query just defined looks artificial. It is. It has been
+DESIGNED to be:
+
+    (a) simple enough to decide in polynomial time (just Gaussian
+        elimination), and
+    (b) complicated enough that choiceless CPT cannot express it, by
+        construction of a symmetry group that hides the answer.
+
+The ingredient list is where the real structure lies:
+
+    - a set Y of "edge atoms" and a set X of "config atoms",
+    - an incidence structure I between them,
+    - a "scalar difference" test Z_delta between pairs of edge atoms on
+      the same edge block,
+    - a "partition" of X into blocks X_t encoded by VB,
+    - a linear-consistency check that the resulting system is solvable.
+
+In the grid structures of Part 5, this data comes from a physical
+3-dimensional grid with "edge states" and "vertex configurations". The
+consistency check then becomes a DIVERGENCE equation, and its
+solvability becomes a parity condition that the whole grid can only
+satisfy if a global sum is zero. That divergence / parity phenomenon
+will be the engine of Part 5.
+
+
+PART 5. THE TWO GRID STRUCTURES
+
+5.1 The grid as a graph.
+
+Fix an integer L >= 2. The BOX GRID G is the graph with vertices
+
+    V = { 0, 1, ..., L-1 }^3,
+
+meaning all triples (i, j, k) of integers in [0, L-1]. Two vertices are
+joined by an edge when they differ in exactly one coordinate, by 1, all
+other coordinates equal. So each vertex v has degree d(v) <= 6, and the
+graph has
+
+    |V| = L^3,
+    |E| = 3 L^2 (L-1) (three directions, L-1 edges in each direction,
+                       L^2 of each of those).
+
+For example, if L = 2 the grid is a cube; if L = 3 it is a 3x3x3 lattice.
+
+Every edge is ORIENTED in the positive coordinate direction. That is,
+an edge in direction 1 goes from (i, j, k) to (i+1, j, k); direction 2
+from (i, j, k) to (i, j+1, k); direction 3 from (i, j, k) to (i, j, k+1).
+This orientation is not part of the query input; it is a syntactic
+convention that helps us compute.
+
+INCIDENCE SIGN. For a vertex v and an edge e incident at v, define
+
+    eps_{v,e} = +1   if v is the HEAD (the endpoint the edge points to),
+    eps_{v,e} = -1   if v is the TAIL (the endpoint the edge points away from),
+    eps_{v,e} =  0   otherwise.
+
+Each oriented edge has exactly one head (eps = +1) and one tail
+(eps = -1), and zero for all other vertices.
+
+DIVERGENCE. For a vector z in F3^E (an assignment of a field element to
+every edge) define the DIVERGENCE
+
+    (div z)_v  =  sum over e incident at v of eps_{v,e} z_e.
+
+This assigns to every vertex v a field element; if you imagine z_e as
+"flow on edge e", then (div z)_v is "net flow out of vertex v". A
+"divergence-free" flow is one with (div z)_v = 0 for every v.
+
+5.2 Unit faces and their oriented boundary.
+
+A UNIT FACE of the grid is a "cell" of the form
+
+    { i, i+1 } x { j, j+1 } x { k }    (parallel to directions 1 and 2),
+    { i, i+1 } x { j } x { k, k+1 }    (parallel to directions 1 and 3),
+    { i } x { j, j+1 } x { k, k+1 }    (parallel to directions 2 and 3),
+
+for appropriate ranges of i, j, k. Let F be the set of all unit faces.
+There are |F| = 3 L (L-1)^2.
+
+Each face f has four edges: the lines around the boundary of the unit
+square. Each of those four edges is either traversed "with" its own
+orientation or "against" it as we walk around the face in the direction
++i, then +j (or +k, etc.), then -i, then -j. Define the SIGNED FACE
+BOUNDARY as the vector c^f in F3^E given by
+
+    c^f_e = +1   if walking around the face we traverse edge e
+                 in its positive direction,
+    c^f_e = -1   if we traverse edge e in its negative direction,
+    c^f_e =  0   if edge e is not on the face.
+
+Take the specific example: f is the face at (i, j, k) parallel to
+directions 1 and 2. Then walking around f gives coefficients
+
+    edge  (i,j,k)   -> (i+1,j,k)   : c^f_e = +1
+    edge  (i+1,j,k) -> (i+1,j+1,k) : c^f_e = +1
+    edge  (i+1,j+1,k) -> (i,j+1,k) : c^f_e = -1
+    edge  (i,j+1,k) -> (i,j,k)     : c^f_e = -1
+    all other edges                : c^f_e = 0
+
+Two key facts:
+
+    (i)  Every face touches at most 4 edges, so |F(e)| <= 4 for any edge e.
+    (ii) At each vertex of the face, one edge enters and one edge leaves
+         the traversal (with the face-cycle orientation). Consequently
+         the sign sum around the vertex is zero:
+             (div c^f)_v = 0  for every vertex v and every face f.
+
+Fact (ii) says: c^f is divergence-free. That will be crucial shortly.
+
+For a vertex v, let F(v) be the set of faces incident at v (i.e., v is
+one of the four corners of f). Each vertex has |F(v)| = f(v) <= 12
+faces. Every face f in F(v) contains exactly two edges through v:
+in the diagram of f, the two edges that have v as an endpoint.
+
+5.3 The edge groups.
+
+We now attach a finite group to every edge e. The construction uses an
+ALTERNATING FORM on F3^2: define
+
+    omega( (a,b), (a',b') )  =  a b' - b a'   in F3,
+
+for (a,b), (a',b') in F3^2. The form is bilinear and alternating, i.e.,
+omega(u, u) = 0 for every u in F3^2.
+
+THE EDGE GROUP P_e. The underlying set is
+
+    P_e  =  (F3^2)^{F(e)}  x  F3.
+
+That is, an element is a pair (u, z) where u assigns to each face f in
+F(e) a vector u_f in F3^2, and z is a single element of F3. (So
+|P_e| = 3^{2 |F(e)| + 1}.)
+
+The group multiplication is:
+
+    (u, z) * (u', z') = ( u + u',
+                          z + z' + (1/2) sum_{f in F(e)} c^f_e * omega(u_f, u'_f) )
+
+where 1/2 = 2 in F3. This is the "Heisenberg group" over F3, indexed by
+the faces on e.
+
+Let me spell out why this is a group:
+
+    BILINEARITY. The correction term B_e(u, u') = (1/2) sum_f c^f_e omega(u_f, u'_f)
+    satisfies
+        B_e(u, u') + B_e(u+u', u'') = B_e(u', u'') + B_e(u, u'+u''),
+    because omega is bilinear. This is exactly associativity.
+
+    IDENTITY. (0, 0) is the identity, since B_e(0, u') = 0 and B_e(u, 0) = 0.
+
+    INVERSES. Since omega is alternating, B_e(u, u) = 0, so
+    (u, z)^{-1} = (-u, -z). Check:
+        (u, z) * (-u, -z) = (0, -z - z + ... ) = (0, 0).
+    Indeed: B_e(u, -u) = (-1/2) sum_f c^f_e omega(u_f, u_f) = 0.
+
+So P_e is a finite group of order 3^{2 |F(e)| + 1}.
+
+THE DIFFERENCE COORDINATING Z. Define, for x = (e, u, z) and x' = (e, u', z'),
+the DIFFERENCE
+
+    delta(x, x')  =  z' - z - (1/2) sum_{f in F(e)} c^f_e * omega(u_f, u'_f).
+
+This is exactly the last coordinate of x^{-1} * x' as a P_e-group element.
+So it satisfies
+
+    delta(x, x') + delta(x', x) = 0   (antisymmetry), and
+    delta(x, x') + delta(x', x'') = delta(x, x'')  (additivity, from
+                                                     the group law).
+
+In a "user-facing" sense, delta(x, x') measures "the physical z-difference
+from x to x', corrected by the face-coordinate twisting". It's the thing
+that the query C(y, a) will be computing.
+
+5.4 The atoms: edge states and vertex configurations.
+
+Fix a CHARGE VECTOR b in F3^V. This is an assignment of a field element
+b_v to every vertex v. For most of the paper we will consider two special
+choices, but the definition works for any b.
+
+The universe |A_b| of the structure A_b is the disjoint union of two
+kinds of atoms.
+
+KIND 1: EDGE STATES. For each edge e of the grid, and each element
+(u, z) in P_e, there is ONE ATOM, written (e, u, z). See it as "the edge
+e is adorned with the state (u, z)". Each edge has 3^{2|F(e)|+1} states.
+
+KIND 2: VERTEX CONFIGURATIONS. For each vertex v and each tuple
+
+    a = ( v, ((u_e, z_e))_{e incident at v} )
+
+of states (u_e, z_e) in P_e on the edges incident at v, satisfying
+
+    FACE COMPATIBILITY:    u_{e, f} = u_{e', f} for the two edges e, e'
+                           of each face f in F(v),
+
+    DIVERGENCE CONDITION:  sum over e incident at v of eps_{v,e} z_e = b_v,
+
+there is ONE ATOM. See it as "the vertex v is adorned with a consistent
+choice of edge states whose divergence is b_v".
+
+The face compatibility condition is important: at v, each face f
+constrains the two incident edges to have the SAME face-coordinate
+u_{e,f} = u_{e',f}. Otherwise the configuration would "twist" across
+the face, which we forbid (it's the divergence-freeness of the aggregate
+of the configuration). The divergence condition is the real constraint
+and it's why different b_v give different sets of configurations.
+
+Atoms of kind 1 and 2 are DISJOINT; the "atom coordinates" (edge e,
+state u, z, etc.) in the descriptions are LABELS of atoms, not members.
+As far as the structure A_b is concerned, the atoms are just elements
+of |A_b|.
+
+EVERY VERTEX HAS AT LEAST ONE CONFIGURATION. The all-zero vector is a
+configuration at v with charge 0 (face-compatible by triviality, and
+divergence 0 = b_v when b_v = 0). For general b_v, the divergence
+equation is a single linear equation in d(v) variables with a nonzero
+coefficient (each eps_{v,e} is +1 or -1, nonzero mod 3), so it has
+3^{d(v)-1} solutions for every b_v. Since d(v) >= 1 (every vertex of
+the box has at least one incident edge), 3^{d(v)-1} >= 1 and X(v) is
+nonempty.
+
+5.5 The relations.
+
+A tau-structure needs eight binary relations. We define them so that the
+tau-structure A_b "encodes" the grid with its edge states and configs.
+
+    Ed(x, x): true iff x is an edge atom. Ed(x, y): false whenever x != y.
+        (Ed is the diagonal predicate on the kind-1 atoms.)
+
+    Cf(a, a): true iff a is a configuration atom. Cf(a, b): false whenever
+        a != b. (Cf is the diagonal predicate on the kind-2 atoms.)
+
+    EB(x, y): true iff x, y are both edge atoms (x = (e, u, z), y = (e, u', z'))
+        on the SAME edge e. False otherwise. (EB is the "same edge block"
+        relation on edge atoms; on any pair that includes a config, it's
+        false.)
+
+    VB(a, b): true iff a, b are both config atoms at the SAME vertex v.
+        False otherwise. (VB is the "same vertex block" relation on
+        config atoms.)
+
+    I(a, x): true iff a is a config atom (v, ((u_e, z_e))_e) and x is the
+        specific EDGE ATOM selected by a on some incident edge. I.e., I
+        pairs a config with each of its OWN admissible edge states (one
+        per incident edge).
+
+    Z_delta(x, x'): true iff x, x' are edge atoms on the same edge e
+        (x = (e, u, z), x' = (e, u', z')) and delta(x, x') = delta.
+        False otherwise.
+
+All eight relations are binary. All are easy to compute from the input
+atoms (given the "coordinates"). We emphasize: the tau-structure A_b
+does NOT expose these coordinates. It exposes only the atoms as opaque
+elements, and the eight relations. A choiceless program is allowed to
+look at the two relations Ed, Cf, EB, VB, I, Z_0, Z_1, Z_2, but it cannot
+"see" that the atoms are labelled (e, u, z) or (v, (u_e, z_e)) - those
+are labels used only for CONSTRUCTING the structure and for PROVING
+facts about it.
+
+In this specific structure A_b, the sets X, Y, X_t, and the function
+C(y, a) of the query become:
+
+    Y  = all edge atoms.
+    X  = all config atoms.
+    X_t for t in X(v) is X(v) (the whole block of configurations at v).
+    Test(t, y) for t in X(v) and y in Y is TRUE iff e_y is incident at v.
+    C(y, a) for y = (e_y, u_y, z_y) and a = (v, (u_a, z_a)) is:
+        - 0 if e_y is not incident at v,
+        - else delta(a's state on edge e_y, y).
+
+The point is: the Q-system becomes a GLOBAL DIVERGENCE EQUATION. The
+next section makes this precise.
+
+5.6 The two structures and their size.
+
+Let b^0 in F3^V be the zero vector (b^0_v = 0 for all v).
+
+Fix a specific vertex v_* and let b^1 in F3^V be the vector
+b^1_v = 1 for v = v_*, and b^1_v = 0 for v != v_*. (Over F3, "1" is
+the element 1.)
+
+Both A_{b^0} and A_{b^1} share the same vertices, edges, faces, groups
+P_e, and relation definitions. They differ only in the divergence
+RIGHT SIDE inside the config atom definition. This means their
+"universes as sets" are not literally the same - one has more (or fewer)
+config atoms - but they are constructed identically except for a single
+number per vertex.
+
+    LEMMA 5.1 (Universe size). For every L >= 2 and every b, |A_b| equals
+
+        N_L  =  sum_{e in E} 3^{2 |F(e)| + 1}
+              + sum_{v in V} 3^{2 f(v) + d(v) - 1}.
+
+    In particular, |A_b| does not depend on b, and
+
+        L^3  <=  N_L  <=  (3^{10} + 3^{29}) * L^3,
+
+    so N_L = Theta(L^3).
+
+    PROOF. The first sum counts edge atoms. The second sum counts config
+    atoms: at a vertex v with d(v) incident edges, the face compatibility
+    equations identify, for each face f in F(v), the two face-coordinates
+    from the two incident edges of f. This is independent across faces,
+    so the "u" part has 3^{2 f(v)} choices. The divergence condition is a
+    single linear equation in d(v) unknowns (each eps_{v,e} is nonzero),
+    so it has 3^{d(v)-1} solutions for every right side b_v. This proves
+    the equality.
+
+    The bounds use |F(e)| <= 4, f(v) <= 12, d(v) <= 6. There are
+    |E| <= 3 L^3 edges and |V| = L^3 vertices. So
+
+        |A_b| <= 3 L^3 * 3^9 + L^3 * 3^{29} = (3^{10} + 3^{29}) L^3.
+
+    The lower bound L^3 <= N_L uses N_L >= sum_v 1 = |V| = L^3, since
+    every vertex contributes at least 3^{2 f(v) + d(v) - 1} >= 3^{0+1-1} = 1.
+
+    []
+
+So A_{b^0} and A_{b^1} have the SAME universe size N_L. Their universe
+elements are the same "kind" but not literally the same objects (some
+config atoms differ). This is the "same size but not isomorphic" pair
+we want.
+
+5.7 Q gives opposite answers.
+
+    PROPOSITION 5.2 (Opposite answers). For every L >= 2:
+
+        (i)   Q(A_{b^0})  is  YES.
+        (ii)  Q(A_{b^1})  is  NO.
+
+    More generally: for ANY charge vector b, Q(A_b) implies
+    sum over all v of b_v = 0 in F3.
+
+Two separate ideas: the "more generally" is a soundness statement
+(if Q(A_b) = YES then sum b = 0), and (i) is a witness statement
+(the b = 0 case actually has a solution). Together they separate
+b = 0 from b = indicator vector.
+
+    PROOF, PART A (the parity obstruction).
+
+    Suppose (lambda, mu) is a solution to the Q-system on A_b. We show
+    sum_v b_v = 0.
+
+    Step A1: choose the zero atoms on edges. For each edge e, let
+    y_e = (e, 0, 0) be the "all-zero" edge state on e.
+
+    Step A2: compute C(y_e, a) for edge states and configs.
+
+    Let a be a config atom at vertex v, and let e be an incident edge.
+    Let x_a = (e, u_a, z_a) be the specific edge state that a selects
+    on edge e (the unique x with I(a, x) and e_x = e).
+
+    Compute:
+
+        C(y_e, a)
+          = sum over x in Y with I(a,x) of ( sum over delta with Z_delta(y_e, x) of delta )
+          = delta(y_e, x_a)   (only x = x_a contributes, since Z_delta
+                               requires both args to be on the same edge
+                               as y_e; other x's give inner sum 0)
+          = z_a - 0 - (1/2) sum_{f in F(e)} c^f_e * omega(0_f, u_{a,f})
+          = z_a.
+
+    So C(y_e, a) = z_a, "the z-coordinate that a assigns to edge e".
+
+    Step A3: for t = a itself, use the consistency and normalization
+    equations.
+
+    For fixed t (a config atom on vertex v) and fixed e incident at v,
+    the incidence test Test(t, y_e) is TRUE (edge e touches vertex v).
+    So the Q-system on A_b contains
+
+        Consistency_{t, y_e}:  mu_{y_e} = sum_{a in X(v)} lambda_a * C(y_e, a)
+                                          = sum_{a in X(v)} lambda_a * z_a(e),
+
+    where z_a(e) is the specific z that config a assigns to edge e.
+
+    The Q-system also contains
+
+        Normalization_t:  sum_{a in X(v)} lambda_a = 1.
+
+    Step A4: multiply by incidence signs and sum over edges at v.
+
+    Multiply Consistency_{t, y_e} by eps_{v,e}, sum over edges e incident
+    at v:
+
+        sum_{e at v} eps_{v,e} mu_{y_e}
+          = sum_{e at v} eps_{v,e} sum_{a in X(v)} lambda_a z_a(e)
+          = sum_{a in X(v)} lambda_a ( sum_{e at v} eps_{v,e} z_a(e) )
+          = sum_{a in X(v)} lambda_a * b_v     (divergence condition for a)
+          = b_v * sum_{a in X(v)} lambda_a     (pull the b_v out)
+          = b_v * 1                            (normalization)
+          = b_v.
+
+    The third line used the divergence condition of a config a: the
+    specific choice of a's z-coordinates satisfies
+    sum_e eps_{v,e} z_a(e) = b_v.
+
+    Step A5: sum over v.
+
+    Sum the identity over all vertices v:
+
+        sum_v sum_{e at v} eps_{v,e} mu_{y_e}  =  sum_v b_v.
+
+    LHS: each edge e enters as head at one vertex (eps = +1) and tail at
+    one vertex (eps = -1). So summing over v and over e at v, each edge
+    e appears with coefficient (+1) + (-1) = 0. Hence LHS = 0.
+
+    Therefore sum_v b_v = 0 in F3.
+
+    PART A done. Note that no choice of the solution mattered; the
+    argument works for EVERY solution. So Q(A_b) forces sum b = 0.
+
+    In particular, since sum_v b^1_v = 1 != 0, Q(A_{b^1}) = NO.
+    This proves (ii).
+
+    PROOF, PART B (the b = 0 case is consistent).
+
+    Let b = b^0 = 0. We construct a specific solution (lambda, mu).
+
+    For each vertex v, let a_0^v be the all-zero configuration at v:
+    it assigns z_e = 0 to every incident edge and u_{e,f} = 0 for every
+    face coordinate. This is a valid config because face compatibility
+    is trivial and the divergence sum is 0 = b^0_v.
+
+    Set
+
+        lambda_{a_0^v} = 1     for each vertex v,
+        lambda_a       = 0     for every other config a,
+        mu_{(e, u, z)} = -z    for every edge atom y = (e, u, z).
+
+    Check normalization. For t in X(v), X_t = X(v), so
+        sum_{a in X(v)} lambda_a = 1 + 0 + 0 + ... = 1.
+    Good.
+
+    Check consistency. Let (t, y) be a pair with Test(t, y) true. Then
+    t is a config atom at some vertex v, and y = (e, u, z) with edge e
+    incident at v. We must verify
+
+        mu_y  =  sum_{a in X(v)} lambda_a C(y, a).
+
+    By construction, the RHS equals C(y, a_0^v). So we must show
+    C(y, a_0^v) = -z.
+
+    Compute C(y, a_0^v). The outer sum is over x in Y with I(a_0^v, x);
+    the inner delta-sum is Z_delta(y, x). The config a_0^v selects
+    (e, 0, 0) on edge e and (e', 0, 0) on any other incident edge e'.
+    For x on an edge e' != e, Z_delta(y, x) is identically false (the
+    Z_delta relation requires both arguments to be on the same edge).
+    So only x = (e, 0, 0) survives the outer sum:
+
+        C(y, a_0^v)
+          = sum over delta with Z_delta(y, (e, 0, 0)) of delta
+          = delta(y, (e, 0, 0))
+          = 0 - z - (1/2) sum_{f in F(e)} c^f_e omega(u_f, 0_f)
+          = -z.
+
+    The third line used the definition of delta(x, x')
+    = z' - z - (1/2) sum_f c^f_e omega(u_f, u'_f). For x = (e, u, z) and
+    x' = (e, 0, 0), that gives 0 - z - 0 = -z.
+
+    So C(y, a_0^v) = -z = mu_y. The consistency equation holds.
+
+    Since every normalization and every consistency equation is
+    satisfied, (lambda, mu) is a solution and Q(A_{b^0}) = YES. This
+    proves (i).
+
+    REMARK. We did NOT use the fact that lambda is "integral", in the
+    sense of being 0/1-valued. The solution just constructed happens to
+    be concentrated on one atom per vertex, but Part A works for EVERY
+    solution, integral or fractional. The parity obstruction is global
+    and independent of representation. []
+
+5.8 The picture in one line.
+
+In plain terms:
+
+    - A_{b^0} is a grid with hundreds of "edge states" and "vertex
+      configurations" that all look the same under symmetry. It has a
+      trivial charging: all divergence 0.
+    - A_{b^1} is the same grid, but ONE VERTEX is boosted to charge 1.
+      Almost everything looks identical, but now the total charge is 1.
+    - The query Q "asks: can I assign field weights to configurations
+      such that, summing over edges, everything balances?" If the answer
+      is YES, then in particular the total charge must be 0 (by Part A).
+      So Q(A_{b^0}) = YES (Part B gives a solution), and
+      Q(A_{b^1}) = NO (Part A refuses to let total charge be 1).
+
+    - The two structures have the same size, so no ordering-based
+      complexity-theoretic argument separates them. Only their global
+      charge differs.
+
+The rest of the paper proves that no choiceless program can see the
+global charge difference, because CPT programs are supported on short
+tuples of atoms and the two structures look the same to any short tuple
+up to counting.
+
+
+PART 6. THE SYMMETRY GROUP
+
+6.1 Edge flows and divergence (recap).
+
+Recall from 5.1:
+
+    F3^E  =  the space of "edge flows", i.e. all functions z: E -> F3.
+    F3^V  =  the space of "vertex charges", i.e. all functions b: V -> F3.
+
+The divergence map
+
+    div : F3^E -> F3^V,    (div z)_v  =  sum over e incident at v of eps_{v,e} z_e,
+
+takes an edge flow to a vertex charge. Intuitively, (div z)_v is "net flow
+out of v".
+
+The map div is linear. Its image is exactly the set of vertex charges
+whose total sum is zero:
+
+    im(div) = {b in F3^V : sum_v b_v = 0},
+
+so rank(div) = |V| - 1. This is because each edge has one +1 end and one
+-1 end, so (div z) automatically sums to zero over all vertices, and
+conversely you can build any zero-sum b by flowing along paths.
+
+6.2 The central subgroup K.
+
+Define
+
+    K  =  ker(div)  =  { z in F3^E : (div z)_v = 0  for every v in V }.
+
+So K is the space of DIVERGENCE-FREE EDGE FLOWS. It is a vector subspace
+of F3^E, and hence a subgroup of the additive group F3^E.
+
+Dimension: dim K = |E| - rank(div) = |E| - |V| + 1, which is about
+2 L^3 for the box grid. This is a large group (exponentially large in L^3).
+
+Recall the key fact 5.2.ii: for every face f, the face-boundary vector
+c^f lies in K, because (div c^f)_v = 0 around the face cycle.
+
+6.3 The cocycle B and the alternating form.
+
+Let C_F = (F3^2)^F = all functions a: F -> F3^2. Think of a as an
+"assignment of a pair of field elements to every face". This is also a
+vector space (over F3), of dimension 2 |F|.
+
+Define the map
+
+    B : C_F x C_F -> F3^E,
+
+    B(a, a')  =  (1/2) sum_{f in F} omega(a_f, a'_f) c^f.
+
+Here omega(u, u') = u_1 u'_2 - u_2 u'_1 is the alternating form on F3^2
+from 5.3.
+
+Key facts about B:
+
+    (a) B(a, a') lies in K, because
+            (div B(a,a'))_v  =  (1/2) sum_f omega(a_f, a'_f) (div c^f)_v
+                              =  (1/2) sum_f omega(a_f, a'_f) * 0
+                              =  0.
+
+    (b) B is BILINEAR: B(a + a', a'') = B(a,a'') + B(a',a''), and
+        B(a, a' + a'') = B(a,a') + B(a,a''). This follows immediately
+        from bilinearity of omega.
+
+    (c) B is ANTISYMMETRIC: B(a', a) = -B(a, a'). This follows from
+        omega(u', u) = -omega(u, u').
+
+    (d) B is ALTERNATING: B(a, a) = 0. This follows from omega(u, u) = 0.
+
+These are exactly the axioms of a "2-cocycle" that defines a "central
+extension" of C_F by K. But let's just say what the group is.
+
+6.4 The group H.
+
+As a set, define
+
+    H = C_F x K.
+
+On this set, define multiplication:
+
+    (a, k)(a', k')  =  ( a + a',  k + k' + B(a, a') ).
+
+Why is this a group? We check the three axioms.
+
+    IDENTITY. The element (0, 0) is the identity:
+        (a, k)(0, 0) = (a, k + 0 + B(a, 0)) = (a, k), and
+        (0, 0)(a, k) = (a, k).
+    (We used B(a, 0) = 0, which follows from bilinearity of omega.)
+
+    INVERSES. (a, k)^{-1} = (-a, -k). Verify:
+        (a, k)(-a, -k) = (0, k - k + B(a, -a)) = (0, B(a, -a)).
+    And B(a, -a) = (1/2) sum_f omega(a_f, -a_f) c^f = (1/2) sum_f (-omega(a_f, a_f)) c^f = 0
+    because omega is alternating. So (a, k)(-a, -k) = (0, 0) = identity.
+
+    ASSOCIATIVITY. This is the only non-obvious axiom. Compute:
+
+        ((a, k)(a', k')) (a'', k'')
+          = (a + a', k + k' + B(a, a')) (a'', k'')
+          = (a + a' + a'', k + k' + B(a, a') + k'' + B(a + a', a''))
+          = (a + a' + a'', k + k' + k'' + B(a, a') + B(a, a'') + B(a', a'')),
+
+        (a, k) ((a', k')(a'', k''))
+          = (a, k) (a' + a'', k' + k'' + B(a', a''))
+          = (a + a' + a'', k + (k' + k'' + B(a', a'')) + B(a, a' + a''))
+          = (a + a' + a'', k + k' + k'' + B(a', a'') + B(a, a') + B(a, a'')).
+
+    These are equal! The key is B(a, a' + a'') = B(a, a') + B(a, a''), bilinearity.
+
+So H is a group. |H| = |C_F| * |K| = 3^{2|F|} * 3^{|E| - |V| + 1}.
+
+6.5 H acts on atoms by automorphisms.
+
+For each edge e and each element h = (a, k) in H, form the "restricted
+edge element"
+
+    h_e  =  ( a|F(e), k_e )  in P_e,
+
+where a|F(e) is a restricted to the faces of edge e, and k_e is the
+e-th coordinate of k. This is an element of the edge group P_e.
+
+The map h -> h_e is a GROUP HOMOMORPHISM H -> P_e. Reason: B(a, a')_e =
+(1/2) sum_{f in F(e)} omega(a_f, a'_f) c^f_e is exactly the correction
+term of P_e's multiplication. So restricting to edge e respects the
+group laws.
+
+Now define the action of h on atoms:
+
+    EDGE ATOMS: (e, u, z)  ->  h_e * (u, z)   in P_e,
+                i.e. left-multiply the state by h_e.
+
+    CONFIG ATOMS: apply this to every incident edge state.
+
+Spelled out on an edge atom with h = (a, k):
+
+    (e, u, z)  ->  ( e, u + a|F(e), z + k_e
+                        + (1/2) sum_{f in F(e)} c^f_e omega(a_f, u_f) ).
+
+So the face-coordinates shift by a, and the z-coordinate shifts by k_e plus
+a correction from the alternating form, exactly as predicted by the
+group P_e.
+
+Spelled out on a config atom with states (u_e, z_e) on incident edges:
+
+    each (u_e, z_e)  ->  ( u_e + a|F(e), z_e + k_e + (1/2) sum_{f in F(e)} c^f_e omega(a_f, u_{e,f}) ).
+
+    LEMMA 6.1. The above defines an AUTOMORPHISM of A_b for every b and
+    every h in H.
+
+    PROOF. There are four things to check.
+
+    (1) Face compatibility is preserved. At a vertex v and face
+    f in F(v), the two incident edges e, e' have states (u_e, z_e),
+    (u_e', z_e') that, before the action, satisfy u_{e,f} = u_{e',f}.
+    After the action, both shift u_{·,f} by a_f, so they are still equal.
+    Good.
+
+    (2) Divergence is preserved. The new divergence at v is
+
+        sum_{e at v} eps_{v,e} * [ z_e + k_e + (1/2) sum_{f in F(e)} c^f_e omega(a_f, u_{e,f}) ]
+        = b_v + (div k)_v + (1/2) sum_{e at v} eps_{v,e} sum_{f in F(e)} c^f_e omega(a_f, u_{e,f}).
+
+    The middle term is zero because k in K.
+
+    The last term: sum over faces f at v. For each face f at v, we sum
+    over its two edges e_1, e_2: eps_{v,e_1} c^f_{e_1} + eps_{v,e_2} c^f_{e_2} = 0
+    by (div c^f)_v = 0. And u_{e_1, f} = u_{e_2, f} by face compatibility.
+    So each face's contribution is omega(a_f, u_{e_1,f}) * 0 = 0. So the
+    whole term is zero.
+
+    Therefore the new divergence equals b_v. Good.
+
+    (3) The action is a bijection. The inverse is the action of h^{-1},
+    which is in H. Since h^{-1} exists and computes the inverse map, the
+    action is a bijection.
+
+    (4) The relations Ed, Cf, EB, VB, I, Z_delta are preserved.
+
+        Ed, Cf: atom kinds are preserved (edge atoms go to edge atoms,
+            config atoms to config atoms), so the diagonal predicates
+            match.
+
+        EB: if x, x' are edge atoms on the same edge e, then h.x, h.x'
+            are also edge atoms on edge e. So EB preserved.
+
+        VB: if a, a' are config atoms at the same vertex v, then h.a,
+            h.a' are config atoms at v. So VB preserved.
+
+        I: if config a selects edge atom x on edge e, then after the
+            action, config h.a selects edge atom h.x on edge e. So I
+            preserved.
+
+        Z_delta: if x, x' are edge atoms on the same edge e with
+            delta(x, x') = delta, then h.x, h.x' are edge atoms on edge e,
+            and delta(h.x, h.x') = delta(x, x') = delta. The reason:
+            in the group P_e, delta is by definition the last coordinate of
+            x^{-1} x'. So delta(h_e.x, h_e.x') = last coord of
+            (h_e.x)^{-1}(h_e.x') = last coord of x^{-1} h_e^{-1} h_e x'
+            = last coord of x^{-1} x' = delta.
+
+    So h acts as an automorphism of A_b as a tau-structure. []
+
+6.6 The commutator lands in K, so K is central.
+
+Recall K = {(0, k) : k in K} as a subgroup of H = C_F x K. We compute
+the commutator of two arbitrary elements.
+
+    COMMUTATOR FORMULA. For h = (a, k), h' = (a', k') in H,
+
+        [h, h']  =  h h' h^{-1} (h')^{-1}  =  ( 0, sum_{f in F} omega(a_f, a'_f) c^f ).
+
+    PROOF. Step by step:
+        h h' = (a + a', k + k' + B(a, a')).
+        h^{-1} = (-a, -k), (h')^{-1} = (-a', -k').
+        (h h') h^{-1} = (a', k' + B(a, a') + B(a + a', -a))
+                      = (a', k' + B(a, a') - B(a', a))
+                      = (a', k' + 2 B(a, a')).
+        Then
+        ((h h') h^{-1}) (h')^{-1} = (a', k' + 2 B(a,a')) (-a', -k')
+                      = (0, k' + 2 B(a,a') - k' + B(a', -a'))
+                      = (0, 2 B(a,a'))
+                      = (0, sum_f omega(a_f, a'_f) c^f).   []
+
+Consequences:
+
+    CENTRALITY OF K. For h' = (0, k') in K,
+        h (0, k') h^{-1} (0, k')^{-1} = (0, sum_f omega(a_f, 0_f) c^f) = (0, 0).
+    So h (0, k') h^{-1} = (0, k'), meaning every element of K commutes
+    with every element of H. K is a CENTRAL subgroup of H.
+
+    K CONTAINS [H, H]. From the commutator formula, the commutator of any
+    two elements of H is in K. So [H, H] ⊆ K.
+
+Together: H is a "nilpotent group of class at most 2". The central
+subgroup K is the important part for us.
+
+6.7 What K does to atoms and to HF objects.
+
+The subgroup K acts on atoms by "adding a divergence-free edge flow".
+
+    ON EDGE ATOMS:   (0, k) . (e, u, z)  =  (e, u, z + k_e).
+    ON CONFIG ATOMS: (0, k) . ((u_e, z_e))_{e at v}  =  ((u_e, z_e + k_e))_{e at v}.
+
+So K leaves all face coordinates u alone, and shifts each z-coordinate by
+the value of k on the corresponding edge. The divergence-free condition
+on k guarantees the shifted config is still a valid config (5.4 shows
+this; the divergence stays b_v because (div k)_v = 0).
+
+Now let K act on HF-objects over |A_b| by the standard recursive rule:
+
+    k . a      =  the atom action above,               if a is an atom;
+    k . {y_1,...,y_m}  =  {k.y_1, ..., k.y_m},          if the object is a set.
+
+This is the action of a group on a set; it permutes atoms and extends
+naturally to sets.
+
+6.8 K-supports.
+
+    DEFINITION 6.2 (K-support). A K-SUPPORT of an HF-object x (over
+    |A_b|) is a TUPLE alpha = (alpha_1, ..., alpha_s) of ATOMS with the
+    following property:
+
+        every k in K that fixes alpha_i (as an individual atom) for all i
+        also fixes x (as an HF-object).
+
+    Equivalently: K_alpha ⊆ S_x, where
+        K_alpha = { k in K : k . alpha_i = alpha_i  for every i }  and
+        S_x     = { h in H : h . x = x }.
+
+Because K acts by adding edge scalars, an atom on edge e is fixed by k
+exactly when k_e = 0 (regardless of other coordinates). This gives the
+following crucial simplification, which is the "true" content of the
+support notion:
+
+    A K-support that consists only of EDGE ATOMS (e_i, u_i, z_i) is
+    equivalent to just the SET OF EDGES T = {e_1, ..., e_s}:
+
+        K_alpha = { k in K : k_e = 0 for every e in T }.
+
+    More generally, if alpha contains a config atom at vertex v, then
+    k fixes that atom iff k_e = 0 for every edge e incident at v; so the
+    config atom contributes the SET of edges at v to the "supported edge
+    set" of alpha.
+
+So a K-support, in practice, is just a small set of edges T with the
+property that any divergence-free flow k ∈ K vanishing on T fixes x.
+And we can always realize such a support by choosing one edge atom per
+edge of T (say the all-zero one).
+
+The whole point of introducing K is that the query Q cannot "see" the
+difference between x and k.x for any k in K. Why? Because:
+
+    - K acts by automorphisms of A_b (Lemma 6.1),
+    - so every k in K is an automorphism of A_b,
+    - and Q is isomorphism-invariant (Proposition 4.1),
+    - so Q(k.x) = Q(x) for every k in K.
+
+But isomorphism-invariance alone does not prevent a CPT PROGRAM from
+distinguishing x from k.x. A CPT program might build some HF-object y
+that happens to distinguish them. The SUPPORT THEOREM of the next part
+is what prevents this: it says that any HF-object y with a small H-orbit
+is determined, in the relevant sense, by a SHORT TUPLE of atoms, and in
+particular cannot distinguish two points that are connected by a
+K-flow that vanishes on a short enough edge set.
+
+That is the heart of the whole paper.
+
+
+PART 7. SMALL ORBITS HAVE SHORT SUPPORTS
+
+This is the technical heart of the paper. The statement is:
+
+    If an HF-object x has a small H-orbit, then x is fixed by any K-flow
+    that vanishes on a short enough edge set.
+
+The "short enough" is quantified: at most 2L(q log_3 N)^2 edges, where
+N = |A_b| = Theta(L^3) and N^q is the upper bound on the H-orbit size.
+
+The proof has two steps:
+
+    (1) An algebraic fact about edge cochains: a cochain with small "curl"
+        can be made small by subtracting a "gradient".
+    (2) A group-theoretic argument: the stabilizer of x forces the relevant
+        cochains to have small curl.
+
+We take them one at a time.
+
+7.1 Gradient, curl, and the setup.
+
+Recall F3^E = the space of edge flows; F3^V = the space of vertex charges.
+Two natural maps:
+
+    GRADIENT:  ∂^T : F3^V -> F3^E,
+               (∂^T φ)_e = φ(head(e)) - φ(tail(e))
+               for an edge e going from tail(e) to head(e).
+
+    CURL:      D : F3^E -> F3^F,
+               (Dℓ)(f) = sum_{e on f} c^f_e ℓ_e
+               for a face f with boundary vector c^f from 5.2.
+
+Interpretation: a cochain ℓ on edges is like a discrete 1-form. The
+gradient of a scalar function is a special kind of 1-form ("exact"). The
+curl measures how much a 1-form FAILS to be exact: if Dℓ = 0 everywhere,
+then ℓ is exact, i.e. ℓ = ∂^T φ for some φ (this holds on the box grid
+because it is simply connected).
+
+Facts we use:
+
+    (a) D ∘ ∂^T = 0. That is, the curl of any gradient is zero.
+        [Reason: the face-boundary vector c^f is a closed loop, so
+        the sum of differences of φ around the loop vanishes.]
+
+    (b) Adding a gradient doesn't change a linear functional on K.
+        That is, for every φ: V -> F3 and every k in K,
+            sum_{e in E} (∂^T φ)_e * k_e  =  0.
+        [Reason: sum_e (φ(head e) - φ(tail e)) k_e
+         = sum_v φ(v) (div k)_v = 0, since k ∈ K.]
+
+    (c) Suppose λ: K -> F3 is a linear functional on K. It can be extended
+        to a linear functional on F3^E, i.e. to a cochain ℓ with
+            λ(k) = sum_e ℓ_e k_e  for all k in K.
+        Different extensions differ by a gradient (an element of K^{perp},
+        the annihilator of K in the dual of F3^E), by (b) and standard
+        linear algebra.
+
+7.2 The sparse cochain lemma.
+
+    LEMMA 7.1 (Sparse cochains). Let ℓ in F3^E be any edge cochain.
+    Suppose that (Dℓ)(f) is nonzero on at most t faces. Then there is
+    a vertex function φ: V -> F3 such that r = ℓ - ∂^T φ is nonzero on
+    at most 2Lt edges.
+
+    Intuition: "A cochain with few nonzero curls can be replaced, up to
+    a gradient, by one with a small support."
+
+    PROOF. We build φ in three stages, using "prefix sums" in each of
+    the three coordinate directions of the box.
+
+    NOTATION. A direction-1 edge is (i,j,k) -> (i+1,j,k);
+    ℓ_1(i,j,k) denotes its ℓ value. Similarly direction-2 edges
+    (i,j,k) -> (i,j+1,k) have ℓ_2(i,j,k), and direction-3 edges have
+    ℓ_3(i,j,k). For the curls, write t_{ab} for the number of faces in
+    coordinate directions a < b whose curl is nonzero. So
+    t_{12} + t_{13} + t_{23} = t.
+
+    STAGE 1: kill direction-1 coordinates. Define
+
+        φ_1(i,j,k)  =  sum_{a=0}^{i-1} ℓ_1(a, j, k)
+
+    with the empty sum interpreted as zero. Set r^(1) = ℓ - ∂^T φ_1.
+    Then for every direction-1 edge from (i,j,k),
+
+        r^(1)_1(i,j,k)
+          = ℓ_1(i,j,k) - (φ_1(i+1,j,k) - φ_1(i,j,k))
+          = ℓ_1(i,j,k) - ℓ_1(i,j,k)  =  0.
+
+    So all direction-1 coordinates of r^(1) vanish. The curls of r^(1)
+    on 12- and 13-faces simplify, because only the direction-2 and
+    direction-3 coordinates remain:
+
+        (D r^(1))(12)(i,j,k)  =  r^(1)_2(i+1,j,k) - r^(1)_2(i,j,k),
+        (D r^(1))(13)(i,j,k)  =  r^(1)_3(i+1,j,k) - r^(1)_3(i,j,k).
+
+    By 7.1(a), the curl of a gradient is zero. So (D r^(1))(f) equals
+    (Dℓ)(f) for every face f.
+
+    STAGE 2: kill most direction-2 coordinates. The 23-curls of r^(1)
+    (equivalently of ℓ) number t_{23}. Partition the box into L
+    "slices" of constant i. The total number of 23-curls over all slices
+    is t_{23}, so some slice i = i_0 has at most t_{23} / L of them.
+    Call its count t_0. (Empty because t_0 could be 0.)
+
+    Define
+
+        φ_2(i,j,k)  =  sum_{b=0}^{j-1} r^(1)_2(i_0, b, k),
+
+    importantly INDEPENDENT OF i. Set r^(2) = r^(1) - ∂^T φ_2. Then:
+
+        - Direction-1 coordinates: ∂^T φ_2 vanishes on direction-1
+          edges (φ_2 is independent of i), so
+          r^(2)_1(i,j,k) = r^(1)_1(i,j,k) = 0.
+
+        - Direction-2 coordinates on slice i_0:
+          r^(2)_2(i_0, j, k)
+            = r^(1)_2(i_0,j,k) - (φ_2(i_0,j+1,k) - φ_2(i_0,j,k))
+            = r^(1)_2(i_0,j,k) - r^(1)_2(i_0,j,k)
+            = 0.
+
+    So r^(2) has all direction-1 coordinates zero, and all
+    direction-2 coordinates on slice i_0 zero.
+
+    STAGE 3: kill most direction-3 coordinates. Define
+
+        φ_3(i,j,k)  =  sum_{c=0}^{k-1} r^(2)_3(i_0, 0, c),
+
+    INDEPENDENT OF i AND j. Set r^(3) = r^(2) - ∂^T φ_3. Then:
+
+        - Direction-1: r^(3)_1 = 0 (φ_3 independent of i).
+        - Direction-2 on i_0: r^(3)_2(i_0,j,k) = 0 (φ_3 independent of j).
+        - Direction-3 on (i_0, 0): r^(3)_3(i_0, 0, k) = 0 (by prefix sum).
+
+    Set φ = φ_1 + φ_2 + φ_3 and r = r^(3) = ℓ - ∂^T φ. We now bound
+    the support of r.
+
+    BOUND ON r_3. On slice i_0, use the identity
+
+        (D r)(23)(i_0, j, k)  =  r_3(i_0, j+1, k) - r_3(i_0, j, k).
+
+    This is because r_2 = 0 on slice i_0 (all direction-2 coordinates
+    on that slice vanish), so only the two direction-3 edges contribute
+    to the 23-face curl. And by (D ∂^T φ) = 0, this identity equals
+    (Dℓ)(23)(i_0, j, k), the original curl.
+
+    Since r_3(i_0, 0, k) = 0 (stage 3), induction in j gives
+
+        r_3(i_0, j, k) = sum_{b=0}^{j-1} (Dℓ)(23)(i_0, b, k).
+
+    So r_3(i_0, j, k) is nonzero only after a nonzero curl in its
+    (j, k)-row. Each nonzero curl at position (i_0, b, k) can make
+    r_3(i_0, j, k) nonzero for at most L values of j (all j > b). Thus
+    the slice i_0 has at most L t_0 nonzero r_3 values.
+
+    "Extend these slice values constantly across all L slices" - that is,
+    for each (j, k) covered by a nonzero r_3(i_0, j, k), we count it
+    once per i. This gives L * (L t_0) = L^2 t_0 candidate positions.
+    Then r_3(i, j, k) can DIFFER from r_3(i_0, j, k) either because
+    r_3(i_0, j, k) = 0 but the accumulated 13-curl between i_0 and i
+    is nonzero. The 13-curl count is t_{13}, so at most L t_{13}
+    positions differ from the constant extension.
+
+    Total support of r_3 is at most L^2 t_0 + L t_{13}.
+
+    BOUND ON r_2. On slice i_0, r_2 = 0. For i != i_0, r_2(i, j, k) is a
+    signed sum of 12-curls between i_0 and i (from (D r)(12)(i', j, k) =
+    r_2(i'+1,j,k) - r_2(i',j,k)). Each nonzero 12-curl at some (i', j, k)
+    affects at most L values of i (all i such that (i'-i_0)(i-i') >= 0,
+    i.e. i on the same side of i'). There are t_{12} curls, so at
+    most L t_{12} nonzero positions of r_2.
+
+    BOUND ON r_1. r_1 = 0 (from stage 1).
+
+    TOTAL.
+
+        |support r|  <=  L^2 t_0 + L t_{13} + L t_{12} + 0.
+
+    Since i_0 was chosen with t_0 <= t_{23}/L, we have L^2 t_0 <= L t_{23}.
+    Therefore:
+
+        |support r|  <=  L t_{23} + L t_{13} + L t_{12}
+                    =  L (t_{23} + t_{13} + t_{12})
+                    =  L t.
+
+    So the support of r is at most L t ≤ 2Lt, giving the claimed bound. []
+
+    REMARK. The constant 2 in "2Lt" is only there for safety; the
+    proof gives exactly Lt.
+
+7.3 The support bound.
+
+Now the group-theoretic argument.
+
+    THEOREM 7.2 (Small orbits have short supports). Let q >= 0 and let
+    x be an HF-object over |A_b|. If the H-orbit of x has size at most
+    N^q (where N = |A_b| = Theta(L^3)), then x has a K-support of
+    length at most 2L (q log_3 N)^2. The support may be empty.
+
+    PROOF.
+
+    Step 1: extract the stabilizer. Let S = Stab_H(x) = { h in H : h.x = x }.
+    Let π: H -> C_F be the projection (a, k) -> a. Let U = π(S) ⊆ C_F
+    (the image of S in the face-cochain group). Let
+    K_0 = S ∩ K (the elements of S in the central subgroup). Then
+    |S| = |U| * |K_0|, and:
+
+        a + d  =  log_3 [H:S]
+              =  log_3 (|C_F|/|U|) + log_3 (|K|/|K_0|),
+
+    where
+
+        a  =  codim_{C_F}(U)  =  dim C_F - dim U,
+        d  =  codim_K(K_0)     =  dim K - dim K_0.
+
+    Since |orbit(x)| = [H:S] <= N^q, we have a + d <= q log_3 N. Define
+    h = q log_3 N. Then a + d <= h.
+
+    Step 2: use the annihilator of K_0. Let
+    W = { λ in Hom(K, F3) : λ|_{K_0} = 0 } = the annihilator of K_0 in K^.
+    Then dim W = d.
+
+    Take λ in W. Choose a cochain ℓ ∈ F3^E extending λ to F3^E.
+
+    For each u, u' in U, choose lifts h = (u, k), h' = (u', k') in S. The
+    commutator [h, h'] = (0, sum_f omega(u_f, u'_f) c^f) lies in [S,S] ⊆ S
+    and is in K (by the commutator formula 6.6), so it lies in S ∩ K = K_0.
+
+    Therefore λ([h, h']) = 0, i.e.
+
+        sum_{f in F} omega(u_f, u'_f) λ(c^f)  =  0.
+
+    Define Dλ(f) = λ(c^f) for each face f. Then the alternating form
+    on C_F,
+
+        Φ_λ(u, u')  =  sum_{f in F} Dλ(f) omega(u_f, u'_f),
+
+    vanishes on U x U. So U is TOTALLY ISOTROPIC for Φ_λ.
+
+    Step 3: rank vs isotropy. The form omega on F3^2 is a symplectic
+    form (nondegenerate alternating) of rank 2. Multiplying by a nonzero
+    scalar Dλ(f) in F3 keeps the same rank 2. So the block Dλ(f) * omega
+    on the f-coordinate copy of F3^2 in C_F has rank 2 if Dλ(f) != 0, and
+    rank 0 if Dλ(f) = 0. Summing over disjoint coordinates, Φ_λ has
+
+        rank(Φ_λ)  =  2 t_λ,    where t_λ = #{f : Dλ(f) != 0}.
+
+    A standard fact about alternating forms: if Φ has rank 2t on a space
+    of dimension n, then any totally isotropic subspace has dimension at
+    most n - t. Reason: quotient by the radical (dim n - 2t), the quotient
+    is a nondegenerate symplectic space of dim 2t, on which isotropic
+    subspaces have dim at most t. So the original isotropic subspace has
+    dim at most (n - 2t) + t = n - t.
+
+    Applying this: U is totally isotropic, dim C_F = 2|F|, so
+
+        dim U  <=  2|F| - t_λ,
+        dim C_F - dim U  >=  t_λ,
+        a  >=  t_λ.
+
+    So Dλ has at most a nonzero faces.
+
+    Step 4: sparse cochain. Apply Lemma 7.1 to ℓ. The nonzero curls of
+    ℓ (equivalently of λ's Dλ) number t_λ <= a. So there is φ with
+
+        support(r)  <=  2 L t_λ  <=  2 L a,
+
+    where r = ℓ - ∂^T φ. Since r and ℓ agree on K (adding a gradient
+    doesn't change the value on K, by 7.1(b)), r is also an extension of
+    λ. Pick ONE EDGE ATOM per edge of support(r); call the resulting set
+    T(λ), with |T(λ)| <= 2La.
+
+    Step 5: union over a basis of W. Choose a basis λ_1, ..., λ_d of W.
+    Put T = T(λ_1) ∪ ... ∪ T(λ_d), a set of edges with
+
+        |T|  <=  sum_{i=1}^d |T(λ_i)|  <=  2 L a d  <=  2 L (a + d) ^ 2 / 4...
+
+    wait, better: 2Lad <= 2L h^2 (using ad <= h^2/4 <= h^2). Concretely,
+
+        |T|  <=  2 L a d  <=  2 L h^2   =   2 L (q log_3 N)^2.
+
+    This matches the statement.
+
+    (We could also use the tighter bound 2Lad <= 2L * (h/2)^2 = L h^2/2,
+    but the stated bound is fine.)
+
+    Step 6: T is a K-support. Suppose k in K vanishes on every edge in T.
+    For each basis element λ_i, we have r_i(k) = 0 (since r_i is supported
+    inside T and k vanishes there). But r_i represents λ_i on K, so
+    λ_i(k) = 0. Hence λ(k) = 0 for every λ in W = K_0^∘. By finite-
+    dimensional duality, W^∘ = K_0, so k in K_0 = S ∩ K ⊆ S. By
+    definition of S, k . x = x.
+
+    So any k in K that vanishes on T fixes x, meaning T is a K-support.
+    Choosing one edge atom per edge of T (arbitrary, e.g. all-zero),
+    we get a K-support of length |T| <= 2Lh^2. []
+
+    REMARK. If d = 0, the basis of W is empty, T = ∅, and every k in K
+    fixes x (because K ⊆ S). So the support is empty.
+
+7.4 The transitive-support corollary.
+
+The support theorem applies to individual HF-objects. A CPT program builds
+families of objects (all states, all auxiliary sets, etc.), so we need a
+version that works uniformly on a family.
+
+    DEFINITION 7.3 (membership-transitive). A family X of HF-objects is
+    MEMBERSHIP-TRANSITIVE if for every x in X and every y in x, we have
+    y in X. That is, X is closed under membership.
+
+    COROLLARY 7.4 (Transitive support). Let X be an H-invariant,
+    membership-transitive finite family of HF-objects over |A_b|. Suppose
+    |X| <= N^q for some fixed q >= 0. Then every x in X (including every
+    recursive member of any member) has a K-support of length at most
+    2Lh^2 = 2L(q log_3 N)^2.
+
+    All these supports can be PADDED to a common positive length
+
+        s  =  ceil( 2 L (q log_3 N + 1)^2 ) + 1
+           =  O_q( L (1 + log L)^2 ).
+
+    PROOF. Because X is H-invariant, the H-orbit of every x in X is
+    contained in X, so it has size at most |X| <= N^q. Theorem 7.2 then
+    applies to each x, giving a K-support of length at most 2L(q log_3 N)^2.
+
+    Membership transitivity places all recursive constituents of any
+    member into the same family X, so the same bound applies to every
+    constituent.
+
+    Padding: adding atoms to a support can only SHRINK the pointwise
+    stabilizer K_alpha (more constraints), so the result is still a
+    support. To make the padded length a fixed integer s that works
+    uniformly for all x in X, we take
+
+        s  =  ceil( 2 L (q log_3 N + 1)^2 ) + 1.
+
+    The (+1) absorbs the case q = 0 and the small-L regime; the +1 on
+    the outside gives one more atom slot than the maximum possible
+    length, guaranteeing we can always pad by repeating atom coordinates.
+
+    Finally, N = Theta(L^3), so log_3 N = O(log L), and
+    s = O_q(L (1 + log L)^2).
+
+Note the striking feature of this bound: it does NOT depend on the RANK of
+x. Whether x is an atom, a set of atoms, a set of sets of sets..., the
+support bound is the SAME, governed only by the H-orbit size and the grid
+size L. This is essential to the paper, because a CPT program might build
+objects of very high rank.
+
+7.5 What this buys us (forward pointer).
+
+    Theorem 7.2 and Corollary 7.4 are the geometric engine of the paper.
+    They convert SMALL SYMMETRY-ORBIT into COMPRESSION by a short edge set.
+    In Part 10 we will apply the corollary to the "transitive family" of
+    all objects built during a CPT computation on A_b, which has size
+    polynomial in N and hence fits the hypothesis with some q.
+
+The rest of the argument (Parts 8-11) is about transferring counting
+information across this compressed support. We now turn to that.

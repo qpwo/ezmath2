@@ -1,0 +1,2265 @@
+================================================================================
+ORDINARY TWO-POINT CORRELATIONS OF MULTIPLICATIVE FUNCTIONS
+a complete, self-contained proof
+================================================================================
+
+HOW TO READ THIS DOCUMENT
+-------------------------
+This is a complete proof. Every object is defined before it is used, every
+theorem and lemma is stated in full, and every step of the argument appears.
+Nothing is waved away.
+
+Three external results are imported as black boxes, because each is a major
+published theorem with its own long proof:
+  (B)  Braverman's theorem: bounded independence fools constant-depth circuits.
+  (M)  Matomaki-Radziwill-Tao (MRT): averaged forms of Chowla and averaged short
+       exponential sums.
+  (K)  Koukoulopoulos: prime number theorem in arithmetic progressions (PNT-AP).
+These are cited by precise statement where first used. Everything else -- the
+whole divisibility-graph machine, the rank/witness saving, the forest code, the
+spectral transfer, the cylinder sieve, the subtree identity, the localization --
+  is proved here.
+
+Conventions.
+  n, m always positive integers unless stated. p, q, r always primes.
+  sum_p means sum over primes. omega(n) = number of distinct prime factors.
+  Omega(n) = number of prime factors with multiplicity. lambda(n)=(-1)^{Omega(n)}.
+  D = {z in C : |z| <= 1}.
+  1_{P} = the indicator of a property P (equals 1 if true, 0 otherwise).
+  "f = O(g)" or "f << g" means |f| <= C g for an absolute constant C;
+  a subscript (<<_{h,l}) allows C to depend on the subscripted quantities.
+  a(n) << b(n) as n -> infinity means the ratio is bounded.
+  All logarithms are natural.
+================================================================================
+
+
+PART 0. WHAT IS PROVED, AND WHY IT IS HARD
+================================================================================
+
+0.1 The two central objects.
+
+For a positive integer n let Omega(n) count the prime factors of n WITH
+multiplicity (so Omega(12)=Omega(2^2*3)=3). The Liouville function is
+
+    lambda(n) = (-1)^{Omega(n)}.
+
+It is completely multiplicative: lambda(mn)=lambda(m)lambda(n) for all m,n.
+For each n, lambda(n) is +1 if n has an even total number of prime factors,
+and -1 if odd. It is essentially a fair coin: conjecturally the +1s and -1s
+balance out among the first N integers.
+
+A "two-point correlation" asks whether the coin flips at two nearby arguments
+are independent. The plainest instance is the sum
+
+    S(N) = sum_{1<=n<=N} lambda(n) lambda(n+h),     h fixed.
+
+If the flips were truly random and independent, each product would be +1 or -1
+with probability 1/2 and the sum would be of size about sqrt(N), so S(N)/N -> 0.
+That the sum is small is the "two-point Chowla conjecture".
+
+0.2 Ordinary versus logarithmic averages; why the usual tools fall short.
+
+Most prior progress bounds LOGARITHMIC averages:
+
+    (1/log X) * sum_{n<=X} a(n)/n   (weight ~ 1/n),
+
+where the factor 1/n weights small scales heavily and lets classical Fourier
+techniques (which are built for smooth, slowly varying sums) work. The ordinary
+average
+
+    (1/X) * sum_{n<=X} a(n)          (weight 1),
+
+with each integer counted equally, is genuinely harder: it forces control of the
+"terminal scale" n ~ X itself, which the 1/n weight conveniently damps. Partial
+summation turns an ordinary estimate into a logarithmic one, but NOT conversely,
+so ordinary bounds do not follow from logarithmic ones.
+
+0.3 The main results.
+
+THEOREM A (quantitative affine Liouville).  There is an absolute constant c>0
+such that, for every fixed choice of integers a1,a2 >= 1 and b1,b2 >= 0 with
+a1*b2 - a2*b1 != 0 (the two linear forms are non-proportional), there is a
+constant C = C(a1,a2,b1,b2) with
+
+    | sum_{1<=n<=X} lambda(a1 n + b1) lambda(a2 n + b2) |
+        <= C * X / (log X)^c     for all real X >= 3.
+
+No coprimality condition is imposed on the coefficients. The exponent c is
+absolute (independent of the forms); only the constant depends on them.
+Taking a1=a2=1, b1=0, b2=h recovers the ordinary two-point Chowla conjecture
+with a power-of-logarithm saving:
+    | sum_{n<=X} lambda(n) lambda(n+h) | <<_h X / (log X)^c.
+
+A word on c. The saving is a FIXED power of log X. The proof gives an explicit
+but astronomically small c; we never compute it, only show c>0 exists.
+
+THEOREM B (binary corrected Elliott, ordinary averages).  Let f1,f2 : N -> D be
+multiplicative (f(mn)=f(m)f(n) for coprime m,n), and suppose at least one of
+them is "uniformly nonpretentious" (defined in 0.5). Then for every fixed pair
+of distinct nonnegative integers h1 != h2,
+
+    (1/N) * sum_{n=1}^{N} f1(n+h1) f2(n+h2)  ->  0     as N -> infinity.
+
+COROLLARY (affine).  Same hypotheses; for fixed a1,a2>=1, b1,b2>=0 with
+a1*b2 - a2*b1 != 0,
+
+    (1/N) * sum_{n=1}^{N} f1(a1 n + b1) f2(a2 n + b2)  ->  0 .
+
+Theorem B is qualitative: it gives convergence to 0 but no rate. Theorem A is
+quantitative but only for Liouville. The two proofs are structurally similar
+(both run a divisibility-graph / closed-walk machine) but use different vertex
+weights and, crucially, take different limits (Part I fixes the graph and beats
+an explicit B^{-1} scale; Part II fixes the graph at an auxiliary scale B and
+lets the long average go first, then B).
+
+0.4 Why a "graph".  (The single most important idea.)
+
+Fix a shift h. Consider two sites n and n+h. If we multiply through by a
+divisor d, the pair becomes dn and d(n+h) = dn + hd: the SHIFT has grown from h
+to hd, and lambda(dn)lambda(d(n+h)) = lambda(n)lambda(n+h) (complete
+multiplicativity cancels lambda(d)^2 = 1). So the correlation at shift h "sees"
+the correlation at shift hd, up to the arithmetic of d dividing n.
+
+This suggests building a graph on the integers where the vertices are sites and
+there is an edge of length hd between n and n+hd whenever d "divides n" in a
+signed (centered) sense. The correlation becomes a quadratic form in a matrix
+built from these edges, and closed walks of that matrix capture all the ways
+primes can repeat. Controlling the operator norm of that matrix (via a high
+moment / closed-walk count) controls the correlation. The whole game is:
+  - define the edge matrix so the edge weight CARRIES a mean-zero factor for each
+    prime, so that a prime occurring only once along a closed walk contributes
+    0 on average (centering kills it);
+  - show that primes which repeat along a closed walk are few enough, or are
+    constrained enough arithmetically, that their total contribution is
+    negligible ("rank saving" and "triangular saving");
+  - count the surviving walk patterns ("forest code") in a way that does not
+    depend on the numerical values of the primes, so the prime-sums can be done
+    afterwards.
+
+0.5 Nonpretentiousness.
+
+For a Dirichlet character chi, a real t, and X>=2, define the (squared)
+"distance"
+
+    D(f, chi n^{it}; X)^2 = sum_{p<=X} (1 - Re( f(p) * conj(chi(p) p^{it}) )) / p.
+
+This measures how close the prime values of f are to the completely
+multiplicative "pretentious" model n -> chi(n) n^{it}. We call f UNIFORMLY
+NONPRETENTIOUS if for every fixed Dirichlet character chi,
+
+    inf_{|t|<=N} D(f, chi n^{it}; N)  ->  infinity   as N -> infinity.
+
+The prime cutoff and the height bound are the SAME N -- this is the "corrected"
+form of Elliott's condition (the original unbounded-height version is wrong for
+complex f; see MRT). Liouville is uniformly nonpretentious: its distance to any
+pretentious model grows like (1/4)sqrt(log log X) (Lemma 12.3).
+
+0.6 Organization.
+
+  PART I  proves Theorem A. Sections:
+     1  prime supplies and the quantitative target
+     2  comparing integer averages to independent residues (Braverman)
+     3  centering and deleting a small edge mass
+     4  prohibited paths and the centered trace
+     5  arithmetic savings for exceptional words (rank and witness)
+     6  counting the remaining words (the forest code)
+     7  spectral transfer and the bound at every scale
+     8  the affine deduction
+  PART II proves Theorem B (and the Corollary). Sections:
+     9  the weighted divisor graph
+    10  reduction to the graph estimate; analytic centering
+    11  forbidden paths and arithmetic savings
+    12  connected activity on the first-visit tree
+    13  the conditional cylinder sieve
+    14  summing the trace
+    15  from high traces to the graph estimate (localization)
+  PART III gives the progression and affine consequences for general
+  multiplicative functions, and specializes to Liouville and Mobius.
+
+The parameters of Part I (A, W, L, J, eta) and of Part II (B, eps, eta, rho,
+kappa) are chosen independently; we reset all notation at the start of each part.
+
+
+================================================================================
+PART I. A LOGARITHMIC SAVING FOR LIOUVILLE CORRELATIONS
+================================================================================
+
+Throughout Part I, h >= 1, l >= 1, and b are FIXED integers. Implied constants
+in Part I may depend on h, l unless declared absolute. We prove the following
+intermediate statement, which is Theorem A with the residue class display kept
+explicit; the affine form of Theorem A is deduced from it in Section 8.
+
+PROPOSITION 1.1 (quantitative correlation in every progression).
+There is ONE absolute constant c>0 such that for every fixed h,l>=1 and b in Z,
+
+    F(X) := (1/X) * sum_{1<=n<=X} 1_{n = b mod l} * lambda(n) lambda(n+h)
+          <<_{h,l}  (log X)^{-c}     for all real X >= 3.
+
+The estimate holds for EVERY real cutoff X and imposes NO condition on gcd(b,l).
+
+  Why no condition on gcd(b,l): there are only l residue classes, and we do not
+  single out any of them, so the implied constant can be chosen independent of b.
+  It is enough to work above a threshold depending on (h,l); smaller X is
+  absorbed into the constant. The whole difficulty is to retain a fixed positive
+  fraction of divisor weight inside short "multiplicative intervals" (bins),
+  while using two DISJOINT prime supplies: one for centering (the P-primes,
+  whose centered factors 1_{p|n} - 1/p have mean zero) and one for padding
+  (the Q-primes, which control mass concentration).
+
+1.1 The parameters.
+
+We use TWO absolute constants, fixed in this order. First choose A >= 1000 large
+enough for the finite-law comparison of Section 2 (specifically A > C_1 + 20,
+where C_1 is Braverman's exponent there). Much later we choose W >= 10 after the
+absolute graph constant C_3 (Section 7) is known. Set
+
+    L    = (log X)^{1/A},
+    delta= 1/200,
+    J    = floor( delta * log L / (6W) ),
+    Y_i  = L^{1-delta} * e^{6Wi}   (0 <= i <= J),
+    H_0  = e^{L^{1-delta}},
+    eta  = e^{-J},                 (bin width)
+    K    = e^{4J}.                 (per-step padding cap)
+
+We assume J >= 1 (true for large X). Since 6WJ <= delta log L, one has Y_J <= L.
+
+1.2 Centered primes and padding primes.
+
+For 1 <= i <= J let
+
+    P_i = { p : p = 1 mod 5,  Y_{i-1} <= log p < Y_i,  p does not divide l*h }.
+
+Put P = union_i P_i (the "centered" supply), and let
+
+    Q  = { p : p != 1 mod 5,  p <= e^L,  p does not divide l*h }   (the "padding").
+
+P and Q are disjoint (the congruence mod 5 splits them), and every prime in P
+is at least H_0 (its log is at least Y_0 = L^{1-delta}). Write
+
+    V_i = sum_{p in P_i} 1/p,     V_* = prod_{i=1}^J V_i,
+    D   = { prod_{i=1}^J p_i : p_i in P_i }.
+
+A label d in D determines its ordered tuple of primes, because the supplies are
+disjoint (a prime in P_i lies in no other P_{i'}).
+
+SIZE OF THE PRIME MASSES. The PNT in the fixed residue class mod 5, with the
+finitely many primes dividing l*h removed, gives for R = (primes = 1 mod 5) or
+R = (primes != 1 mod 5):
+
+    sum_{p<=x, p in R} log p  =  alpha_R x + O_{h,l}( x e^{-c_1 sqrt(log x)} ),
+
+where alpha_R = 1/4 or 3/4 respectively and c_1 > 0 is absolute. Partial
+summation along the log-interval [Y_{i-1}, Y_i) gives, uniformly in i,
+
+    V_i = (1/4) log(Y_i / Y_{i-1}) + o(1)  =  (3/2) W + o(1),
+
+because every such interval begins at least at L^{1-delta}, so the accumulated
+endpoint and integrated error tends to zero uniformly. Hence for large X
+
+    W  <=  V_i  <=  2W,
+    log d  <=  sum_{i=1}^J Y_i  <=  L / (1 - e^{-6W})  <  2L    (d in D).
+
+1.3 Padding weights.
+
+Let Qhat be the set of squarefree products of primes in Q (including 1), and put
+
+    u(q) = 4^{omega(q)},
+    S    = sum_{q in Qhat} u(q)/q  =  prod_{p in Q} (1 + 4/p),
+    w(n) = sum_{q in Qhat, q|n} u(q) = 5^{omega_Q(n)},
+
+where omega(n) counts DISTINCT prime factors and omega_Q(n) = #{p in Q : p|n}.
+The factor q is called the "padding factor". All these sums are finite (Q is a
+finite set at fixed X), however large its cardinality.
+
+  Intuition: under the harmonic weight u(q)/(q S), the primes of Q are chosen
+  independently with probability 4/(p+4) each. So w(n) = 5^{omega_Q(n)} is the
+  moment generating function of the number of Q-primes dividing n.
+
+1.4 Short multiplicative intervals ("bins").
+
+For every integer j >= 0 with j*eta <= 100L, define the bin
+
+    S_j = { (d,q) in D x Qhat : omega(q) <= 100 log L,
+                                j*eta <= log(d q) < (j+1)*eta },
+    T_j = X * e^{j*eta}.
+
+There are O(L/eta) such intervals (since log(dq) <= 100L). Define the total
+harmonic mass retained in the bins by
+
+    S_0 = sum_j sum_{(d,q) in S_j} u(q)/(d q).
+
+LEMMA 1.2 (mass retained in the bins). For large X,
+
+    (1/2) S V_*  <=  S_0  <=  S V_*.
+
+Proof. Under the law u(q)/(qS), primes of Q are independently included with
+probability 4/(p+4). PNT-AP and partial summation give
+
+    E_q [log q]  <= 4L,      E_q [omega(q)]  <= 4 log L.
+
+Markov's inequality therefore excludes log q > 98L with probability <= 4/98,
+and excludes omega(q) > 100 log L with probability <= 4/100. Every remaining q,
+together with every d in D, satisfies log(dq) <= 100L (by the size bound of
+1.2), hence lies in one of the bins S_j. Their probability exceeds 1/2. Summing
+the independent harmonic weights of d (total V_*) proves the lower bound;
+dropping both restrictions proves the upper bound.                 [end proof]
+
+1.5 The centered divisor sum.
+
+The bins let us compare dilated correlations at essentially the same cutoff.
+For each bin define (this is the object we will bound)
+
+    C_j = (1/T_j) sum_{1<=n<=T_j} sum_{(d,q) in S_j} u(q) 1_{q|n}
+             1_{n = b q d mod l}  *  ( prod_{p|d} ( 1_{p|n} - 1/p ) )
+             *  lambda(n) lambda(n + h q d).
+
+The product over p|d is the CENTERED factor: as we expand over which
+1_{p|n} versus -1/p is selected, each 1_{p|n} forces p to divide n, and each
+-1/p has mean zero under a uniform residue mod p.
+
+FULL-DIVISIBILITY CONTRIBUTION. Fix a pair (d,q). The term retaining every
+divisibility indicator 1_{p|n} forces q d | n. The substitution n = q d m turns
+it into
+
+    (u(q)/(q d)) * F( T_j/(q d) ),    with   X e^{-eta} < T_j/(q d) <= X.
+
+Here q d is coprime to l, and complete multiplicativity cancels
+lambda(qd)^2 = 1. Since the summands defining F are bounded by 1,
+F(T_j/(qd)) = F(X) + O(eta + X^{-1}). Summing the weights and using
+S_0 <= S V_*, the full-divisibility contribution across all bins is
+
+    S_0 F(X)  +  O( S V_* (eta + X^{-1}) ).
+
+All the remaining (centering) terms are bounded later: the analytic estimate
+(Section 3) shows their sum is small compared to S V_*, and the graph argument
+(Sections 4-7) bounds the trimmed centered sums C_j^o. The final assembly is in
+the proof of Proposition 1.1 in Section 7.
+
+1.6 The independent residue space.
+
+The factor 1_{p|n} - 1/p has mean zero for a uniform residue mod p. To use this
+cancellation at MANY primes simultaneously, introduce an AUXILIARY product
+probability law: one independent uniform residue modulo each p in P union Q, and
+one independent uniform residue modulo l (a single coordinate, even if l is not
+squarefree; deterministic if l=1). All selected primes are coprime to l. Write
+E, P for expectation and probability under this law. A translated site n+a
+uses these same coordinates shifted by a, so "p | (n+a)" means the residue
+coordinate satisfies R_p = -a mod p, and divisibility, progression tests, and
+w(n+a) are all defined without any common integer n.
+
+At each site E w = S (the padding weights have mean S). BUT the prime sets grow
+with X, so this model must be compared with FINITE integer averages before it can
+be trusted for deletion costs and graph moments. Section 2 supplies that
+comparison for exactly the residue tests and truncated weights we shall use.
+
+
+================================================================================
+2. COMPARING FINITE INTEGER AVERAGES WITH INDEPENDENT RESIDUES
+================================================================================
+
+The auxiliary law makes the prime residue coordinates independent, but the prime
+sets grow with X, so averaging over their full joint period gives no useful
+error at the scale we need. Instead we compare the PARTICULAR residue tests used
+in the proof. The comparison rests on bounded independence for constant-depth
+Boolean circuits; we reduce integer residues to circuits and then correct the
+test law to exact bounded independence.
+
+Notation for this section. For a consecutive interval I of integers, let E_I be
+the average over a uniformly chosen origin in I. Let E still denote the
+independent residue law, and R_s its coordinate mod s. A translated residue test
+at offset a means R_s = -a mod s, using the SAME coordinate R_s at every
+translate (different sites do not get fresh coordinates). A Boolean circuit uses
+unbounded-fan-in AND and OR, and negations; its DEPTH counts AND/OR levels, its
+SIZE counts both gates and input occurrences. An event is represented by a
+circuit whose input bits are residue equalities.
+
+LEMMA 2.1 (finite residue comparison). There is an absolute constant C_1 with
+the following property. Choose A > C_1 + 20. Let l>=1 be fixed, and let R be any
+set of primes <= e^L, none dividing l. On the coordinates mod p (p in R) and mod
+l, let mu be the product of uniform laws (the mod-1 coordinate is omitted).
+Suppose an event E is represented by a circuit of depth <= 20 and size
+<= exp(L^6) in these residue equalities. Then for every consecutive integer
+interval I with |I| >= exp(L^A / 2),
+
+    | E_I 1_E  -  mu(E) |  <=  e^{-L^{10}}     (for L large, depending on l).
+
+The bound is uniform in the position of I and in all offsets used by the tests.
+The modulus l need not be squarefree.
+
+Proof.
+Step 1 (import Braverman). Braverman's bounded-independence theorem
+[Braverman, Corollary 2]: for a fixed depth d_0, every t-wise uniform
+distribution on Boolean bits fools circuits of size m to error eps when
+t >= (log(m/eps))^{C(d_0)}, with C depending only on depth. "t-wise uniform"
+means every set of at most t bits is exactly uniform. We will encode the residue
+tests by bits, then correct the small failure of exact independence in the
+integer average.
+
+Step 2 (encode; control decoding error). Represent R_s in {0,...,s-1}. Put
+B = ceil(L^{15}). Independently at each modulus s, adjoin a uniform
+U_s in [0,1) independent of the origin, and take the first B binary digits of
+
+    Z_s = (R_s + U_s) / s.
+
+Under mu all these bits are independent and unbiased. DECODE R_s from its bits
+whenever the dyadic interval lies inside a cell [r/s,(r+1)/s); on the two
+boundary cells choose anything. Conditional on R_s, a decoding error has
+probability at most 2 s 2^{-B} (only boundary cells fail), under either origin
+law. So the probability of ANY error is at most
+
+    2^{1-B} ( l + sum_{p in R} p )   <=   e^{3L} 2^{-B}      (large L).
+
+Correct decoding of one coordinate fixes all its translated tests at once. A
+decoded equality is a Boolean function of B bits; its truth-table DNF has
+<= 2^B conjunctions of <= B literals. Substituting into the original circuit
+gives depth <= 22 and size <= exp(L^{17}) (large L).
+
+Step 3 (bounded uniformity of encoded bits). Fix any set of <= t encoded bits.
+It touches <= t residue coordinates with pairwise-coprime moduli, product
+D <= l e^{tL}. If N=|I|, each residue mod D occurs floor(N/D) or ceil(N/D)
+times in I, so its distribution is within total variation <= D/N of uniform.
+Adding the independent jitters and projecting to selected bits can only shrink
+this distance. Hence the marginal differs from uniform by at most
+
+    Delta <= exp( 2 t L - L^A / 2 )     (large L).
+
+(Total variation = one-half the L^1 distance of masses.) The only role of l is
+as one modulus coprime to the primes, so repeated prime factors of l do nothing.
+
+Step 4 (Fourier correction to exact t-wise uniformity). There are at most
+n_bit <= e^{2L} bits. Let f be the density of their integer-origin law relative
+to uniform measure on this cube. For a set S of bit indices let chi_S be the
+product of signs (-1)^{x_i} over i in S, and fhat(S) = E_{unif}[ f chi_S ]. By
+Step 3, |fhat(S)| <= 2 Delta for 1 <= |S| <= t. Set t = ceil(L^{C_1}). The total
+absolute value of these low coefficients is
+
+    q := sum_{1<=|S|<=t} |fhat(S)|  <=  2 Delta (t+1) n_bit^t  <=  e^{-L^{11}},
+
+provided A > C_1 + 20 and L large. The estimate q <= e^{-L^{11}} lets us correct
+f to exact t-wise uniformity while keeping it a probability density. This is the
+Fourier form of the almost-to-exact independence construction of Alon-Goldreich-
+Mansour. Put a = e^{-L^{11}} and
+
+    H = sum_{1<=|S|<=t} fhat(S) chi_S,     g = ( f - H + a ) / (1 + a).
+
+Since |H| <= q <= a, g >= 0. It integrates to 1, every nonconstant Fourier
+coefficient of order <= t vanishes, so (by Fourier inversion on each marginal)
+the law g is EXACTLY t-wise uniform. And
+
+    d_TV(f, g) <= ( q + a E_unif|1 - f| ) / ( 2 (1+a) )  <=  3a/2.
+
+Step 5 (assemble). Choose C_1 large enough for Braverman at depth 22, size
+e^{L^{17}}, error e^{-L^{11}}, and then A > C_1 + 20. Braverman applied to g gives
+error <= a. Original and encoded tests disagree only on the decoding event.
+Total comparison error <= 2 e^{3L} 2^{-B} + d_TV(f,g) + a
+   <= 2 e^{3L} 2^{-B} + (5/2) e^{-L^{11}} <= e^{-L^{10}}   (large L).
+All constants are absolute; the threshold may depend on the fixed l.   [end]
+
+COROLLARY 2.2 (scalar expansions). Under the hypotheses of Lemma 2.1, write E for
+expectation under mu. Suppose Phi = sum_alpha c_alpha 1_{E_alpha}, where every
+event E_alpha has the stated circuit bounds and sum_alpha |c_alpha| <= exp(C L^5)
+for a fixed constant C. Then for large L,
+
+    | E_I Phi  -  E Phi |  <=  e^{-L^9}.
+
+This also holds for the summed errors of a family of such expansions when the
+same bound holds for their total absolute coefficient sum.
+
+Proof. Apply Lemma 2.1 term by term and sum |c_alpha| e^{-L^{10}}; the signs of
+the coefficients are kept until after each expectation is taken.   [end]
+
+2.3 Low-degree residue states and truncated weights.
+
+To apply Corollary 2.2 to the padding weight w we first pin down which Q-primes
+divide a site. When this set is small, its possible values form a manageable
+expansion into residue events.
+
+For an offset a, its ACTIVE Q-SET is Q_a = { p in Q : R_p + a = 0 mod p }. Write
+m_Q = floor(400 log L). The number of possible active sets with |Q_a| <= m_Q is
+
+    sum_{u=0}^{m_Q} C(|Q|, u)  <=  (m_Q+1)(|Q|+1)^{m_Q}  =  exp(O(L log L)).
+
+Specifying one exactly is a conjunction testing, for each prime of Q, presence or
+absence. On this event w(n+a) = 5^{|Q_a|}, a scalar. The complementary event
+|Q_a| > m_Q is also a small circuit: a disjunction over (m_Q+1)-element subsets
+of Q of "all these primes divide the site". The same construction applies to
+omega_P(n+a) > 6WJ, since 6WJ <= delta log L. These circuits have size
+exp(O(L log L)) and depth two.
+
+The restriction |Q_a| <= m_Q must come BEFORE an arbitrary predicate of the active
+set: it reduces that predicate to a decision on each of the exp(O(L log L))
+states above. Its simplest consequence is:
+
+COROLLARY 2.4 (truncated weight average). For every offset a and every interval
+I allowed in Lemma 2.1,
+
+    E_I [ w(n+a) 1_{omega_Q(n+a) <= 400 log L} ]  <=  S + e^{-L^9}  <=  2S
+
+for large L. The analogous sum over M fixed offsets is at most 2 M S.
+
+Proof. Expand by exact active sets of size <= m_Q, with scalar coefficient
+5^{|Q_a|}; the total coefficient sum is exp(O(L log L)), so Corollary 2.2
+applies. The product-law expectation is at most E w = S by independence. S >= 1.
+Uniform in the offset; summing gives the last assertion.   [end]
+
+  The comparison has now supplied the passage to long integer intervals for
+  bounded residue tests and their scalar expansions. UNRESTRICTED moments of w
+  are used only inside the auxiliary product law; integer averages use the
+  TRUNCATED weight of Corollary 2.4. This is essential: it is why no untruncated
+  integer moment of w is ever needed.
+
+
+================================================================================
+3. CENTERING AND DELETING A SMALL EDGE MASS
+================================================================================
+
+We first compare the progression correlation with a sum whose prime factors have
+mean zero in the independent residue model. A short Fourier estimate controls the
+terms introduced by this centering. Then we show that restrictions on padding
+mass and prime degrees, together with any suitably rare residue event, remove
+only a small total mass. These two estimates prepare the correlation for the
+graph argument.
+
+3.1 Centering the prime divisibility conditions.
+
+We bound the terms other than full divisibility in the expansion of C_j (1.5).
+Each such term leaves a NONEMPTY product of primes to be averaged as a shift. Our
+target is an error that stays small after summing over all O(L/eta) bins.
+
+LEMMA 3.4 (centering estimate). With the parameters fixed in 1.1, for every
+sufficiently large real X,
+
+    | sum_j C_j  -  S_0 F(X) |  <<_{h,l}  S V_* ( eta + X^{-1} + eta^{-1} 2^J L^{-1/20} ).
+
+We prove this after two Fourier bounds: one for rough integers, one combining it
+with the short exponential-sum theorem of MRT. The shift average will save more
+than L^{-1}, which pays for the number of bins. Write e(t) = exp(2 pi i t).
+
+LEMMA 3.4a (Fourier bounds for rough integers). Let L be large, h>=1 integer,
+and suppose
+
+    (1/2) exp(L^{0.995})  <=  D  <=  exp(2L).
+
+Let Z be a subset of [D,2D) consisting of integers with NO prime factor
+<= exp(L^{0.99}) ("y-rough", y = exp(L^{0.99})). For
+
+    B(theta) = sum_{z in Z} e(h z theta) / z       (theta in R/Z)
+
+one has, with absolute implied constants,
+
+    ||B||_inf  <<  L^{-0.99},      int_0^1 |B(theta)|^4 dtheta  <<  D^{-1} L^{-3.96}.
+
+Proof. Put y = exp(L^{0.99}). We need upper bounds for (i) the count of integers
+in [D,2D) avoiding every prime <= y, and (ii) the count of triples in [D,2D)^3
+for which all four forms
+
+    x1, x2, x3, x1 + x2 - x3
+
+avoid those primes (the last form is positive on this box). Put m=1 in case (i),
+m=4 in case (ii). For each prime p, the proportion nu_m(p) of residue vectors
+where at least one form vanishes satisfies
+
+    nu_m(p) = m/p + O(p^{-2}).
+
+For the four forms, every pair of defining hyperplanes is independent over every
+prime field (including F_2), so pairwise inclusion-exclusion proves this; and
+nu_m(p) < 1 for every p (the residue 1 for m=1, the vector (1,1,1) for m=4,
+avoid all forms). A finite inclusion-exclusion suffices: let r0 = 2 ceil(500 log L)
+and truncate the bad-prime inclusion-exclusion at even order r0 to get an upper
+bound on the avoiding proportion. For any selected prime set of product r, CRT
+gives residue density prod_{p|r} nu_m(p), and its count in the interval/box
+differs from that density by O(r/D) (r <= D; each residue mod r occurs D/r + O(1)
+times). There are at most (r0+1)(1+pi(y))^{r0} terms, each with r <= y^{r0}; the
+total boundary error is at most
+
+    (1/D) exp( O(L^{0.99} log L) ),
+
+smaller than every fixed negative power of L by the lower bound on D. In the
+independent residue model the difference between the even truncated sum and the
+full product is at most the next elementary symmetric sum; partial summation of
+the PNT and nu_m(p) = m/p + O(p^{-2}) give sum_{p<=y} nu_m(p) <= (4+o(1)) log L.
+Thus that difference is at most ((e sum nu_m)/(r0+1))^{r0+1} << L^{-100}, and the
+full product is << (log y)^{-m} = L^{-0.99 m} (small primes give a positive
+constant). Together with the boundary error, this proves the respective counts
+
+    O( D L^{-0.99} )     and     O( D^3 L^{-3.96} ).
+
+The first count bounds sum_{z in Z} 1/z, hence ||B||_inf. For the fourth moment,
+orthogonality writes int |B|^4 as the sum of 1/(z1 z2 z3 z4) over z1+z2=z3+z4 with
+all zj in Z (the factor h does not change the equality); each triple determines
+z4 and each weight is <= D^{-4}, and the second count gives the bound.   [end]
+
+THEOREM 3.4b (MRT short exponential sums; [MRT, Thm 1.3]). For all reals
+10 <= H <= Z,
+
+    sup_{alpha in R}  int_0^Z | sum_{x<=n<=x+H} lambda(n) e(alpha n) | dx
+        <<  H Z ( (log log H)/(log H) + (log Z)^{-1/700} ),
+
+with an absolute implied constant. The supremum is OUTSIDE the integral.
+
+We combine 3.4a with 3.4b; the conclusion is uniform over arbitrary subsets of
+rough integers, so it permits all the bin and prime-supply restrictions of 1.5.
+
+LEMMA 3.4c (correlation averaged over rough shifts). Fix integers h,l>=1 and
+b0 in Z. Let A>=1000, L large, Y >= exp(L^A/2). Let D be a positive integer and
+Z a subset of [D,2D) satisfying the assumptions of 3.4a. Then
+
+    | (1/Y) sum_{1<=v<=Y} sum_{z in Z} (1/z) 1_{v = b0 mod l} lambda(v) lambda(v+hz) |
+        <<_{h,l}  L^{-21/20}.
+
+Proof. For each 1<=v<=Y define
+
+    F_v(theta) = sum_{m=1}^D lambda(v+m) 1_{v+m = b0 mod l} e(theta m),
+    G_v(theta) = sum_{a=1}^{(2h+1)D} lambda(v+a) e(-theta a).
+
+Claim (uniform in theta): sum_{1<=v<=Y} |F_v(theta)| << Y D L^{-0.8}. For integer
+D, every x in (v,v+1) has exactly v+1,...,v+D as the integers in [x,x+D]; apply
+3.4b with H=D, Z=floor(Y)+1, discarding the unused initial unit interval. The
+residue restriction follows from 1_{n=b0 mod l} = (1/l) sum_{a=0}^{l-1}
+e(a(n-b0)/l) (coefficients total absolute value one); after removing the
+unimodular factor from n=v+m, apply 3.4b to frequencies theta + a/l (no
+coprimality of b0 needed). The scale hypotheses give 10 <= D <= Z and
+(log log D)/(log D) + (log Z)^{-1/700} << L^{-0.8}. Claim proved.
+
+Average the target sum (before absolute value) over translations m=1,...,D. Each
+translation changes at most 2m prefix terms; by 3.4a the normalized endpoint error
+is O((D/Y) sum_{z} 1/z) = O(D/Y). Let B be the rough polynomial of 3.4a.
+Orthogonality expresses the translated average as
+
+    (1/(YD)) sum_{1<=v<=Y} int_0^1 B(theta) F_v(theta) G_v(theta) dtheta,
+
+because expanding the integral imposes a = m + hz, which lies in 1..(2h+1)D. On
+|B| <= L^{-1.05}, Parseval+Cauchy-Schwarz give int|F_v G_v| <= ||F_v||_2||G_v||_2
+<<_h D, contribution O_h(L^{-1.05}). On the complement E, |E| <= L^{4.2} int|B|^4
+<< D^{-1} L^{0.24}, and using ||B||_inf << L^{-0.99}, |G_v| <= (2h+1)D and the
+claim, the contribution is at most
+(1/(YD)) |E| L^{-0.99} (2h+1)D (YDL^{-0.8}) <<_h L^{0.24-0.99-0.8} = L^{-1.55}.
+Finally D/Y <= exp(2L - L^A/2) is negligible.   [end]
+
+PROOF OF LEMMA 3.4 (centering). The full-divisibility contribution is the term
+S_0 F(X) + O(SV_*(eta+X^{-1})) from 1.5. For every other term in C_j, let
+I subset {1..J} be the nonempty set of supplies whose factors were replaced by
+-1/p. Put z = prod_{i in I} p_i and d' = d/z. For fixed q,d',j, substitute
+n = q d' v and put Y = T_j/(q d'). After the sign (-1)^{|I|} and factor u(q)/(qd')
+the expression is
+
+    (1/Y) sum_{1<=v<=Y} sum_z (1/z) 1_{v = bz mod l} lambda(v) lambda(v+hz),
+
+z ranging over products of the supplies indexed by I that also satisfy the bin
+condition. Valid in every residue class since q d' is invertible mod l. The
+allowed z lie in an interval of log-width eta < log 2; split by residue mod l and
+by the <= 2 dyadic intervals [D,2D) meeting it (residue bz mod l constant on each
+piece). Unique factorization + disjointness of supplies: each integer z occurs at
+most once. Since I is nonempty, all its primes are >= H_0 = exp(L^{0.995}), so
+D >= H_0/2 and D <= exp(2L); a nonempty piece has Y > X e^{-eta} z, so
+log Y >= L^A/2. Lemma 3.4c bounds each piece by O_{h,l}(L^{-21/20}).
+
+Sum of extraction weights, for each fixed I and bin, is at most
+sum_q u(q)/q * sum_{d'} 1/d' <= S prod_{i not in I} V_i <= S V_* (using V_i > 1).
+There are O(L/eta) bins and fewer than 2^J nonempty sets I. So the total of the
+partial-centering terms is O_{h,l}( S V_* 2^J eta^{-1} L^{-1/20} ). With the
+full-divisibility term this proves the lemma.   [end]
+
+3.2 The distribution of padding divisors.
+
+The centered averages still have occasional sites where many padding choices feed
+one bin. We show deleting such sites has small total cost. For a site n, a label
+d in D, and a bin index j, define
+
+    rho_j(n,d) = (1/w(n)) sum_{q in Qhat, q|n, j eta <= log(qd) < (j+1)eta} u(q).
+
+(The sum includes all squarefree paddings in the bin, WITHOUT the omega(q)
+restriction of S_j.) The denominator is positive (divisor 1 present), so
+0 <= rho_j <= 1 and sum_j rho_j <= 1. These make sense in the auxiliary model too:
+at a translated site n+a, "p | (n+a)" means R_p + a = 0 mod p, same coordinate at
+every site.
+
+The TILTED expectation at a single site is E* H = E(w(n) H)/S. This is a
+probability expectation since E w(n) = prod_{r in Q}(1+4/r) = S. The tilt keeps
+Q-coordinates independent and changes the probability of r|n from 1/r to 5/(r+4).
+
+LEMMA 3.5 (padding anti-concentration). For every d in D and bin width eta=e^{-J},
+
+    E* sum_j rho_j(n,d)^2  <<_{h,l}  L^{-1}.
+
+The constant is independent of d, W, and the bin locations.
+
+Proof. Conditionally on the Q-primes dividing n, choose q1,q2 independently with
+P(q_a = q | n) = u(q) 1_{q|n} / w(n) (a=1,2): each available prime selected with
+probability 4/5. Under the combined tilted law let Z = log(q1/q2). A prime r
+contributes +log r or -log r with probability 4/(5(r+4)) each, else 0, independently;
+so its characteristic function is
+
+    phi(t) = E* e^{itZ} = prod_{r in Q} ( 1 - (8/(5(r+4)))(1 - cos(t log r)) ).
+
+Every factor is >= 0 (at r=2 it is >= 7/15), so 1-x <= e^{-x} gives
+0 <= phi(t) <= exp( -(8/5) sum_{r in Q} (1 - cos(t log r))/(r+4) ). Replacing r+4
+by r changes the exponent by O(1), uniformly in t. For |t| <= 2, partial summation
+of PNT-AP (1.2) gives
+
+    sum_{r in Q} (1 - cos(t log r))/r  =  (3/4) int_{log 2}^L (1 - cos(ty))/y dy + O_{h,l}(1)
+        =  (3/4) log(1 + L|t|) + O_{h,l}(1).
+
+(Partial summation: the derivative of (1-cos(t log x))/(x log x) is
+O(1/(x^2 log x)) uniformly for |t|<=2, integrable against the PNT-AP error;
+deleting the finitely many primes dividing lh costs O_{h,l}(1). The second
+equality uses u=|t|y: the part u<=1 is bounded, and integration by parts bounds
+int_1^U cos u du / u uniformly in U>=1; the lower endpoint |t| log 2 stays
+bounded; also covers t=0.) Hence
+
+    0 <= phi(t)  <<_{h,l}  (1 + L|t|)^{-6/5}      (|t| <= 2).
+
+Conditionally on n, both divisors lie in the j-th bin with probability
+rho_j(n,d)^2; same-bin divisors have |Z| <= eta <= 1. So the left side of the
+lemma is at most P*(|Z| <= 1). The function kappa(x) = (sin x / x)^2 (kappa(0)=1)
+satisfies 1_{[-1,1]}(x) <= kappa(x)/sin^2 1 and kappa(x) = (1/4) int_{-2}^2
+(2-|t|) e^{itx} dt. Taking expectations, using the decay of phi, and integrating:
+
+    P*(|Z| <= 1)  <<_{h,l}  int_{-2}^2 (1 + L|t|)^{-6/5} dt  <<_{h,l}  L^{-1}.
+
+The common translation log d of the two padding logs cancels from Z, giving the
+uniformity.   [end]
+
+3.3 Deleting large degrees and prescribed rare sites.
+
+We state the deletion step with an explicit input for a family of rare sites (the
+next sections construct that family from short paths). For each bin j choose a
+Boolean predicate of the residue coordinates; write n in B_j when it holds at n.
+TRANSLATION COVARIANCE: n+a in B_j is the same predicate with a added to every
+residue coordinate. Assume
+
+    P(n in B_j) <= exp( -(1/2) L^{1-delta} ),
+
+and that B_j is an AND-OR-NOT circuit of depth <= 6 and size <= exp(L^3), inputs
+being residue equalities in prime coordinates and the coordinate mod l. It uses
+no value of lambda. Define sigma_j(n) = 1_{n not in B_j}. For a prime set R, let
+omega_R(n) = #{p in R : p|n}. Define the retention indicators
+
+    tau_j(n,d)   = 1_{omega_Q(n) <= 400 log L} 1_{rho_j(n,d) <= K/L} sigma_j(n),
+    chi_j(n,d)   = tau_j(n,d) 1_{omega_P(n) <= 6WJ}.
+
+tau_j omits the P-degree cut (the graph argument integrates the centered P
+coordinates FIRST and applies that cut as a projection). We impose all four cuts
+at BOTH endpoints, defining the retained averages
+
+    C_j^o = (1/T_j) sum_{1<=n<=T_j} sum_{(d,q) in S_j} u(q) 1_{q|n} 1_{n=bqd mod l}
+            ( prod_{p|d} (1_{p|n} - 1/p) ) lambda(n) lambda(n+hqd)
+            * chi_j(n,d) chi_j(n+hqd,d).
+
+LEMMA 3.6 (deletion cost). Suppose B_j satisfies the covariance, probability, and
+circuit hypotheses above. Then
+
+    (1/(S V_*)) sum_j |C_j - C_j^o|
+        <<_{h,l}  2^J ( K^{-1} + L^{-100} + e^{-2WJ} ) + exp(-L^{0.9}).
+
+This holds for the integer averages C_j and C_j^o, for every large real X.
+
+Proof. First bound the deletion costs in the auxiliary product model, after
+dropping the lambda factors and the progression indicator, and replacing the
+absolute centered product by a_d^+(n) = prod_{p|d}( 1_{p|n} + 1/p ). At the end we
+transfer these NONNEGATIVE costs to integer averages by Lemma 2.1; no untruncated
+integer moment of w is used.
+
+EITHER ENDPOINT. For a fixed numerical pair (d,q), translation by hqd preserves the
+auxiliary product law, and divisibility by q and by each prime of d is unchanged.
+So an upper-endpoint failure has the same bound as a lower-endpoint one. (This does
+not assert w is constant across an edge.) Bound one endpoint, multiply by 2.
+
+THE TWO PADDING CUTS. P-coordinates are independent of Q, and E a_d^+ = 2^J/d.
+Enlarge the eligible paddings to all in their bins. The costs of the first two cuts,
+at one endpoint, summed over bins, are at most
+
+    2^J S sum_{d in D} (1/d) { P*(omega_Q > 400 log L)
+        + E* sum_j rho_j(n,d) 1_{rho_j(n,d) > K/L} }.
+
+(Sum of padding weights in a bin is w(n) rho_j(n,d), and sum_j rho_j <= 1.) Under
+the tilt, E* omega_Q <= 4 log L, so by independence and exponential Markov,
+P*(omega_Q > 400 log L) <= exp((-400 + 4(e-1)) log L) << L^{-100}. Also
+x 1_{x > K/L} <= (L/K) x^2 for x >= 0; Lemma 3.5 bounds the second term in braces
+by O_{h,l}(K^{-1}). Since sum_d 1/d = V_*, this gives the first two terms.
+
+THE P-DEGREE CUT. For fixed d, tilt the P-coordinates by a_d^+ divided by its mean
+2^J/d. Primes outside d keep independent Bernoulli laws; the selected J primes add
+at most J to the count. Since sum_{p in P} 1/p = sum_i V_i <= 2WJ, exponential
+Markov gives P_{d,+}(omega_P > 6WJ) <= exp(-6WJ + J + 2(e-1)WJ) <= e^{-2WJ}
+(W >= 10). Padding stays independent; summing u(q)/q over eligible pairs and bins
+is <= S for each d. This cut costs <= 2^J S V_* e^{-2WJ} per endpoint.
+
+THE RARE SITES. For one bin the absolute row weight is bounded by
+B(n) = w(n) prod_{i=1}^J (omega_{P_i}(n) + V_i) (sum all paddings for each d, then
+each prime slot; independence). Then E B(n)^2 <= prod_{r in Q}(1+24/r)
+prod_i (4V_i^2 + V_i) <= C_{h,l} L^{C} (18W^2)^J <= C_{h,l} L^{C'}: the first
+product is polynomial in L by partial summation, and
+J log(18W^2) <= delta log L log(18W^2)/(6W) is bounded by an absolute multiple of
+log L for W >= 10. Cauchy-Schwarz plus P(n in B_j) <= exp(-(1/2)L^{1-delta}) bounds
+one-bin rare-site cost by C_{h,l} L^{C'/2} exp(-(1/4)L^{1-delta}). There are
+O(L/eta) bins and S V_* >= 1, so the total is <= exp(-L^{0.9}) for large L.
+
+TRANSFER TO INTEGER AVERAGES. Use a union bound over the two endpoints and four
+failures per endpoint: omega_Q > 400 log L; omega_Q <= 400 log L AND
+rho_j > K/L; n in B_j; omega_P > 6WJ (padding-mass tested only after the low-Q
+cut). In the product model its cost is bounded as above (dropping the low-Q
+condition only increases a nonnegative cost). Fix a numerical j,d,q and expand
+a_d^+ into <= 2^J divisibility indicators (coefficients <= 1). 1_{q|n} is a
+conjunction of prime divisibilities. Each degree failure is an OR over subsets of
+primes of the required size. Since there are <= e^L primes, the low-Q degree test
+has size exp(O(L log L)); the P threshold has the same bound (6WJ <= delta log L).
+For the padding-mass failure with low Q degree, list all possible exact sets of
+<= 400 log L Q-primes dividing the site (each a conjunction asserting the presences
+and all other absences); on that state w and rho_j are fixed, retain the state iff
+rho_j > K/L. There are exp(O(L log L)) such states, each specified by <= e^L tests.
+The event B_j has the circuit assumed above. Intersecting any with the prime
+divisibilities gives depth <= 10 and size <= exp(L^4) for large L; translation to
+an upper endpoint changes only tested residues. Finally dq <= exp(100L + eta);
+disjoint supports recover (d,q) from the product, so there are exp(O(L)) eligible
+pairs in all bins, u(q) <= 4^{100 log L}, and the expansion of a_d^+ has total
+coefficient mass <= 2^J. Total absolute coefficients are thus <= exp(O(L^4)), which
+permits all listed state expansions. The averaging interval has length
+floor(T_j) >= exp((1/2)L^A). Lemma 2.1 makes the aggregate comparison error
+<= exp(-L^9); replacing the integer-length normalization by T_j costs at most
+T_j^{-1} exp(O(L^4)). These errors prove the lemma.   [end]
+
+
+================================================================================
+4. PROHIBITED PATHS AND CENTERED TRACES
+================================================================================
+
+We now build the sparse vertex sets used in Lemma 3.6 (the rare events B_j).
+Removing their vertices will force enough STRUCTURE on closed walks to control
+a matrix moment. Throughout this section the bin index j is FIXED, and
+
+    s = floor(L^{1/10}),      k = floor(L).
+
+All assertions are for large L, with h,l and the absolute parameters A,W fixed.
+
+The centered graph and high-trace strategy is due to Helfgott-Radziwill; the
+composite-label and nonbacktracking form is due to Pilatte. Here each step
+carries a prime tuple AND a padding divisor; the trace expansion keeps the
+padding weights and the common residue coordinates explicit.
+
+4.1 Positive paths and prohibited words.
+
+A SIGNED STEP is a displacement D_i = eps_i h q_i d_i, where eps_i in {-1,1}
+and (d_i, q_i) in S_j (bin j). A word of m steps, starting at x, visits the
+sites x + sum_{a<i} D_a for 1 <= i <= m+1. It is POSITIVE if q_i d_i divides its
+DEPARTURE site for every i. (This property also holds at its arrival site, since
+arrival = departure + eps_i h q_i d_i, so positivity survives restriction and
+reversal.) All this also makes sense in the auxiliary residue model, where "q_i
+d_i divides" means the prescribed equalities in the residue coordinates. A path
+need not stay inside any finite interval.
+
+The next definition separates an equality PATTERN from an arithmetic condition
+on its labels. Within the pattern a tuple prime may persist across several
+consecutive steps but cannot return after disappearing; the extra condition is a
+divisibility relation on a suffix.
+
+DEFINITION 4.1 (prohibited). A numerical word is FORWARD PROHIBITED if it has
+length 3 <= m <= s and:
+  (1) consecutive whole tuples d_i, d_{i+1} are unequal;
+  (2) for every prime in P, its indices of appearance among d_1,...,d_m form an
+      interval (if nonempty);
+  (3) some prime p | d_1 that is absent from d_m satisfies
+          p  divides  sum_{i=a}^m D_i    for some 1 < a < m.
+A forward prohibited word is MINIMAL if no shorter contiguous subword is forward
+prohibited in either orientation. A WITNESS is a positive path realizing a
+minimal forward prohibited word. Let B_j be the set of sites where a witness
+STARTS, and set sigma_j(n) = 1_{n not in B_j}.
+
+This is exactly the event and indicator of 3.3. Minimality is a property of the
+numerical word; positivity is a property of the residue coordinates at its start.
+Every positive prohibited word CONTAINS a witness starting at one of its
+vertices: repeatedly pass to a shorter prohibited subword, reversing when needed;
+length strictly decreases while positivity survives. The structural payoff
+appears in Lemma 4.5: on surviving positive paths of length <= s with unequal
+consecutive tuples, every tuple prime occurs in consecutive steps and no nonempty
+subinterval has total displacement zero.
+
+We record two elementary counting facts, including the ORDER of summation needed
+later. A PRIME SLOT is an occurrence of a prime in one of the tuples or paddings.
+An EQUALITY PATTERN partitions these slots into classes (each class = one prime
+variable); tuple classes also record their column P_i.
+
+LEMMA 4.2 (reciprocal counting and elimination). Consider at most R <= 4L signed
+steps, plus additional records having at most L^{O(1)} choices per prime slot.
+Then the number of equality patterns and such records is at most
+exp(O(R log^2 L)). With one reciprocal 1/p for every distinct prime, the sum over
+their numerical values has the same bound, also after multiplying by L u(q_i) for
+each step. Moreover, suppose (with the padding values fixed) a recorded relation
+in the tuple primes reads
+
+    a z + c  =  0  mod p,     a != 0 mod p,
+
+where a, c, p are independent of the selected prime variable z. Its reciprocal
+sum costs at most (1+L)/H_0 in place of an unrestricted prime sum; such savings
+MULTIPLY when the selected variables are ordered so that each relation uses only
+its own variable, earlier selected variables, and nonselected variables.
+
+Proof. There are O(R log L) slots (each tuple has J = O(log L) factors; each
+eligible padding has <= 100 log L). A partition of N slots has at most N^N
+descriptions, so signs, factor counts, and indices cost exp(O(R log^2 L)). Each
+numerical class has reciprocal mass O(log L) by prime harmonic bounds, and
+L u(q_i) <= L^{1+100 log 4}. This proves the first part. Dropping bin/distinctness
+restrictions only enlarges these positive sums; if two distinct abstract classes
+get the same numerical prime, they keep separate reciprocal factors.
+
+For the last part the coefficient is invertible mod p, so z lies in one residue
+class. Enlarge from primes to integers and compare the reciprocal sum along that
+progression with its integral:
+
+    sum_{H_0 <= n <= e^L, n = c' mod p} 1/n  <=  1/H_0 + L/p  <=  (1+L)/H_0.
+
+Fix the nonselected variables and sum the selected ones in REVERSE order. Every
+remaining earlier relation is independent of the current variable; its own
+coefficient test is retained (if it fails, the inner sum is zero). The bound is
+uniform in the remaining variables, so backward induction multiplies the savings;
+the other primes are then bounded by the first part.   [end]
+
+LEMMA 4.3 (density and complexity of the deleted event). The event of 4.1 is
+translation covariant and satisfies
+
+    P(n in B_j)  <=  exp( -(1/2) L^{1-delta} ).
+
+As a function of the residue equalities it has a Boolean circuit of depth two and
+size at most exp(L^3) for large L.
+
+Proof. Count all forward-prohibited positive words, without minimality. For a
+fixed numerical word, positivity either gives inconsistent residue conditions or
+fixes one residue at each distinct prime in its steps; its probability is 0 or the
+product of their reciprocals. At the last transition choose a column whose prime
+changes. Its last prime z occurs nowhere earlier (interval condition). In the
+prohibited relation, the contribution involving z is exactly the last step, so its
+coefficient is eps_m h q_m d_m / z. The controlling prime p is absent from d_m,
+from h, from every padding, so this coefficient is a UNIT mod p and independent of
+z. Fixing the equality pattern, padding, and other tuple values, Lemma 4.2 supplies
+one saving (1+L)/H_0. The remaining count, summed over 3 <= m <= s, is at most
+
+    ((1+L)/H_0) exp(O(s log^2 L))  <=  exp( -(1/2) L^{1-delta} ).
+
+Each pair satisfies dq <= exp(100L+1); disjoint supports recover (d,q) from the
+product, so the number of numerical words of length <= s is exp(O(sL)). Preselect
+those satisfying the numerical prohibition and minimality. Positivity of one such
+word is a conjunction of O(s log L) residue equalities (one per prime occurrence);
+their disjunction gives depth two and size exp(L^3). Translation shifts the
+coordinates. This verifies all hypotheses of 3.3.   [end]
+
+4.2 The matrices and their closed words.
+
+Use the cutoff tau_j(n,d) of 3.3 (Q-degree, rho_j bound, sigma_j; NO P-degree
+cut). Let
+
+    M = ceil(e^{103L}),
+
+and consider the block of sites t+1,...,t+M. For each d in D define a real
+symmetric matrix A_d. For an INCREASING edge n' = n + h q d inside the block with
+(d,q) in S_j, set
+
+    A_d(n,n') = ( L u(q) tau_j(n,d) tau_j(n',d) / sqrt(w(n) w(n')) )
+                * 1_{q|n} 1_{n = b q d mod l} prod_{p|d} ( 1_{p|n} - 1/p ).
+
+Set A_d(n',n) = A_d(n,n'), all other entries 0. The increasing edge determines q
+uniquely. Let E be the orthogonal projection to sites with omega_P(n) <= 6WJ.
+Multiplying a row entry by sqrt(w(n'))/sqrt(w(n)) changes its padding weight to
+L u(q)/w(n); in each fixed orientation the sum of these padding weights (with
+divisibility and bin conditions) is at most L rho_j(n,d) <= K at a retained site.
+On positive integer blocks, testing an increasing edge against (sqrt w) * lambda
+cancels both square-root weights, and imposing E at both endpoints recovers L
+times the retained centered edge weight of C_j^o (3.3).
+
+On the direct sum of the d-indexed copies of the block space define
+
+    H_{d,d'} = 1_{d != d'} A_{d'}.
+
+H need NOT be self-adjoint; its powers record paths with unequal consecutive whole
+tuples, even if their paddings differ.
+
+THEOREM 4.4 (nonbacktracking moment). There is an absolute constant C_2 such that
+
+    E || H^k ||_HS^2  <=  [ K (C_2 sqrt W)^J ]^{2k}
+
+(the unnormalized Hilbert-Schmidt norm). The same estimate, with C_2 enlarged
+absolutely, holds when block origins are averaged over any integer interval of
+length >= exp((1/2) L^A). The threshold for L may depend on the fixed data.
+
+The rest of this section and Sections 5,6 reduce 4.4 to positive counts of closed
+words. Before doing so, note how the closed words arise. An entry of H^k expands
+over successive copy labels d_0,...,d_k with d_{i-1} != d_i and products of matrix
+entries. Squaring and summing joins two site paths with common endpoints; reversing
+the second (using symmetry of A_d) yields a closed word of 2k steps, with unequal
+consecutive tuples WITHIN each half (no such condition across the two joins).
+Taking absolute values after each word's expectation bounds the moment by the
+resulting sum. The external copy indices and initial site cost at most
+
+    |D|^2 M  <=  exp(107L + O(1))
+
+(since d <= e^{2L}); once the word is recorded there is no further copy-index
+choice per step.
+
+FINITE-ORIGIN COMPARISON. Apply Lemma 2.1 to this signed expansion BEFORE taking
+absolute values of word expectations. Fix a numerical word, its initial block
+index, and the external copy indices: all visited sites are then fixed translates
+of the block origin. At each site only Q-divisor sets of size <= m_Q = floor(400
+log L) survive; by 2.3, enumerating the exact sets at all 2k departures costs at
+most exp(O(kL log L)) states. These states specify absence of all other Q-primes,
+so weight denominators and Q-dependent cutoffs become scalars (some conjunctions
+inconsistent, contributing 0). No independence between sites is used.
+
+Expand the <= 2kJ centered factors into indicators and scalars, keeping signs:
+at most 2^{2kJ} terms of coefficient magnitude <= 1. Only prime occurrences in the
+main word enter this expansion; no full P-divisibility state is listed. Every other
+scalar factor per step has magnitude <= L u(q) (w >= 1, cutoffs <= 1); since
+u(q) <= L^{100 log 4}, the product is exp(O(k log L)).
+
+The remaining events are prime divisibility tests, progression tests, the exact Q
+states, and ABSENCE of the prohibited paths of 4.1 (depth two before
+complementation, size exp(L^3)). Conjoining the tests at all 2k sites adds one AND
+level: combined depth <= 20 and size <= exp(L^6) for large L. The Q-degree and
+rho_j cutoffs are already decisions on the exact states; block restrictions are
+numerical conditions and add no circuit levels.
+
+Each eligible pair has dq < e^{100L+eta} <= e^{101L}, and disjointness recovers
+(d,q) from it; the number of signed numerical words of length <= 2k is therefore
+<= (2k+1)(2 e^{101L})^{2k}. Initial block index and two external copy indices give
+the factor M |D|^2 = exp(O(L)). Hence the total absolute coefficient sum in all
+indicator expansions is at most
+
+    exp(O(kL log L)) = exp(O(L^2 log L))  <= exp(O(L^5)).
+
+So Corollary 2.2 compares the entire signed sum with total error <= exp(-L^9); we
+may then take absolute values of product-law word expectations. It suffices to
+prove the auxiliary-product estimate; the integer estimate follows with this
+negligible error. The comparison uses truncated Q states only, never an integer
+mean of the full weight w^2.
+
+4.3 Integrating the centered prime coordinates.
+
+Fix a numerical closed word; write x + xi_i for its departures,
+xi_i = sum_{a<i} D_a (1 <= i <= 2k). Its contribution has the form
+
+    R * G * prod_{i=1}^{2k} prod_{p | d_i} ( 1_{p | x+xi_i} - 1/p ),
+    G = prod_{i=1}^{2k} sigma_j(x+xi_i).
+
+Here R >= 0 is independent of all P-residue draws; its weight part is exactly
+
+    prod_{i=1}^{2k} ( L u(q_i)/w(x+xi_i) ) 1_{q_i | x+xi_i},
+
+times the Q-degree and rho_j cutoffs at incident endpoints, the orientation-
+dependent progression tests, and block restrictions. (The denominator identity
+uses closure, counting each visit with multiplicity; each centered factor agrees
+at both endpoints of its edge; for a reversed edge the progression test is read at
+the lower endpoint and stays in R.) R may depend on the numerical P labels but NOT
+on their residue draws; this is why the P-degree projection has not yet been
+imposed on the matrices.
+
+Call a P prime appearing at exactly one step a SINGLETON. Let U (as a set) be the
+singletons and S_1 = |U|. If G were independent of one singleton coordinate,
+centering in that coordinate would make the word expectation zero. We retain this
+cancellation while accounting for the dependence introduced by the vertex
+deletions.
+
+At every occurrence of a NONSINGLETON, expand the centered factor into its
+indicator and its scalar -1/p; call these choices LIT and UNLIT, and let U_count be
+the number of unlit occurrences (an unlit choice imposes no nondivisibility). For a
+prime p let l_p, u_p be its lit and unlit counts. LIT CONSISTENCY means all lit
+departure offsets are congruent mod p. Define
+
+    b_L = ( prod_{p singleton} 1/p ) ( prod_{p nonsingleton} p^{-u_p - 1_{l_p>0}} ).
+
+If lit consistency fails the designated term vanishes (set Delta G = 0). Otherwise,
+starting from one common draw of the prime residues, overwrite every nonsingleton
+with a lit occurrence by its forced residue; for each H subset of U also overwrite
+the singleton coordinates in H by the residues forced at their sole occurrences,
+leaving the other singletons at their original values. The result is a HYBRID;
+G_H is the value of G there. The mixed difference (forced minus original in each
+singleton coordinate) is
+
+    Delta G = sum_{H subset of U} (-1)^{S_1 - |H|} G_H.
+
+LEMMA 4.5 (exact centering before absolute values). The absolute expectation of a
+designated term of the word product is at most
+
+    1_{lit consistency} * b_L * E[ R |Delta G| ].
+
+In particular |Delta G| <= 2^{S_1}.
+
+Proof. For a uniform residue Z mod p, a fixed residue a, and any F of that
+coordinate, E[(1_{Z=a} - 1/p) F(Z)] = (1/p) E[F(a) - F(Z)]. Apply successively to
+the independent singleton coordinates. At a nonsingleton, incompatible lit tests
+give zero; otherwise they force one residue and supply 1/p, while an unlit choice
+supplies -1/p. These produce exactly b_L and the mixed difference, up to the signs
+of the unlit scalars. R is unchanged by every operation. Taking absolute values
+after these integrations gives the bound; the last claim holds since G in {0,1}.
+   [end]
+
+The square-root dependence on W in 4.4 comes from repeated prime labels. Among
+2kJ tuple-prime occurrences there are at most Jk + S_1/2 distinct labels (each
+nonsingleton occurs at least twice); for a fixed pattern, one reciprocal per label
+costs at most (2W)^{Jk + S_1/2}. To use this we still must count patterns and sum
+padding weights uniformly; Sections 5,6 do that. First we discard terms with a
+lost constant:
+
+For negligible classes we discard denominators and cutoffs in R but retain all
+padding divisibility tests, so independence gives one reciprocal per distinct Q
+prime, and b_L gives at least one per distinct P prime. With Lemma 4.2 the total
+cost before extra saving is exp(O(L log^2 L)) (including the external dimension,
+lit designations, and 2^{S_1}). Padding values may be fixed first during a
+constrained sum over tuple primes; the bound q_i <= e^{100L+1} is kept for
+coefficient-size estimates.
+
+LEMMA 4.6 (many unlit occurrences). The total contribution to the moment majorant
+from designated terms with U_count > L^{1/50} is at most exp(-L^{1+delta}).
+
+Proof. If a nonsingleton has a lit occurrence, each of its unlit occurrences gives
+an extra reciprocal beyond the basic 1/p. If all its m >= 2 occurrences are unlit,
+it contributes p^{-m}, i.e. at least m/2 extra reciprocal powers beyond the basic
+one. Thus at least U_count/2 extra powers remain, all at primes >= H_0. The total is
+at most exp(O(L log^2 L)) H_0^{-U_count/2} <= exp( O(L log^2 L) - (1/2) L^{1.015} )
+<= exp(-L^{1+delta}).   [end]
+
+We now turn to the two remaining sources of arithmetic saving: independent
+congruences (Section 5.1) and singleton primes forcing witnesses (Section 5.2).
+
+
+================================================================================
+5. ARITHMETIC SAVINGS FOR EXCEPTIONAL WORDS
+================================================================================
+
+The centered trace has been reduced to the majorants in Lemma 4.5. We now
+discard two further classes. Independent lit-consistency equations give a RANK
+saving; many singleton coordinates force POSITIVE WITNESSES whose relations
+can be summed in triangular order. Each saving makes its class negligible before
+we count remaining words.
+
+Recurrence congruences constraining prime labels are central in Helfgott-
+Radziwill. We first prove a random-prime rank estimate suited to these
+coefficients; then we adapt the active-prime and triangular-constraint
+constructions of Pilatte.
+
+5.1 Saving from independent congruences.
+
+We first discard words whose lit-consistency conditions contain many INDEPENDENT
+PAIRS OF VECTORS. The point is to use rank over R, without assuming any matrix
+invertibility mod the summed primes.
+
+LEMMA 5.1 (rank probability for random prime divisors). Let Pcal be a finite
+nonempty set of primes and mu a probability on Pcal with
+max_{p in Pcal} mu(p) <= alpha. Let r>=1, B in M_r(Z) nonsingular over R, and
+f:Pcal^r -> Z^r any function. Suppose M>=2 and
+
+    | (B(y - y'))_i |  <=  M     for all y,y' in Pcal^r and 1 <= i <= r.
+
+If the 2r coordinates of c,y in Pcal^r are independent with law mu, then
+
+    P( c_i | (B y + f(c))_i  for every i )  <=  [ alpha (1 + d_M) ]^{r/2},
+
+    d_M = floor( log M / log 2 ).
+
+Proof. Let E(c,y) denote the divisibility event, and let y' be an independent
+copy of y, independent also of c. Cauchy-Schwarz in the conditional probability
+with c fixed gives
+
+    P(E(c,y))^2 = ( E_c P_y(E(c,y)|c) )^2 <= E_c P_y(E(c,y)|c)^2
+                = P( E(c,y) AND E(c,y') )
+                <= P( c_i | (B(y-y'))_i  for every i ).
+
+(Both copies have the same controls c_i, so subtraction removes the entire
+f(c).) Put v = B(y - y'). For a subset Z of size a = |Z|, the rows of B indexed by
+Z have rank a; choose an invertible a-column minor. Conditional on y' and on the
+coordinates of y outside that minor, the equations v_i = 0 (i in Z) determine at
+most one vector of values on the a remaining coordinates. Independence and the
+atom bound give
+
+    P( v_i = 0  for all i in Z )  <=  alpha^a     (including a=0).
+
+Fix y,y'. A nonzero integer of absolute value <= M has at most d_M distinct prime
+divisors, so each nonzero coordinate v_i satisfies c_i | v_i with conditional
+probability <= d_M alpha. The controls are independent and independent of v, so
+if the exact zero set of v is Z, the joint conditional probability is at most
+(d_M alpha)^{r-|Z|}. Summing over exact zero sets:
+
+    P( c_i | v_i  for every i )  <=  sum_{Z subset of {1..r}} alpha^{|Z|}
+                                      (d_M alpha)^{r-|Z|}
+                                  =   [ alpha (1+d_M) ]^r.
+
+Take the square root.   [end]
+
+APPLICATION. We apply 5.1 to ONE COLUMN of the prime tuples in a word of length
+2k. Put
+
+    r = floor(L^{1/50}).
+
+Fix a column nu in {1..J} and an equality pattern for its prime slots. Let Z_nu
+be the set of its abstract labels; z_a in Z_nu is the label at step a, p_z the
+numerical prime assigned to z. Fix paddings, orientations, and the primes of
+every OTHER column. On the real vector space with basis (e_z)_{z in Z_nu} define
+
+    t_a = D_a / p_{z_a},        v(i) = sum_{a<i} t_a e_{z_a}     (1 <= i <= 2k).
+
+Each step has exactly one prime in column nu, so t_a is an INTEGER INDEPENDENT of
+that column's primes, and evaluating e_z at p_z sends v(i) to the departure
+offset xi_i.
+
+For two LIT occurrences i, i' of a label z, consider the rank pair
+(e_z, v(i)-v(i')). A collection is JOINTLY INDEPENDENT when all its displayed
+vectors are linearly independent over R. Extend any maximal such collection to a
+basis of the span by extra labels, chosen online by Gaussian elimination (each
+new pair decides whether it is independent of those already chosen; when it is
+dependent, we OMIT it rather than rejecting the configuration). This creates a
+deterministic selection rule depending only on the word: if a collection of rank
+r exists, the rule builds one. The selected pairs are then independent of the
+union of the remaining pair vectors; by 5.1 the probability that the chosen extra
+labels divide the corresponding formal vectors is at most
+[alpha(1+d_M)]^{r/2}. Inverting the rank-decomposition of B_0 (finding the
+cofactor matrix) is a FIXED finite procedure, so the choices of the enlarged
+linearly independent pairs are part of the word's description rather than a
+factor in the estimate.
+
+The rank-free choice of the diagonal resampling: the pivoting argument REWRITES
+(5.1) so that we (i) find an invertible r x r minor of the c,y difference
+matrix, (ii) resample the corresponding r columns into new coordinates,
+(iii) express d_0 - d_0' in those new coordinates, and (iv) fill the other
+columns with their original values. The invertible minor is part of the
+description; zeros and sizes are as in the original.
+
+RANK-INDEPENDENCE BOUND (Lemma 5.2). The total contribution to the centered
+moment majorant from words whose column has rank > r = floor(L^{1/50}) is at most
+exp(-L^{1+delta}/2), and the rank r can be taken from any fixed column.
+
+Proof. Suppose a word with at least T >= 1 designated slots contains T
+witnesses positive in a common hybrid with marked private singletons. Choose T
+private primes with disjoint slots. At the smallest rank r, resampling these T
+coordinates against the (B y + f(c)) - structure gives probability at most
+
+    [alpha(1+d_M)]^{Tr/2}   <=  exp( (Tr/2) log(1+d_M) ) * (1/H_0)^{Tr/2} ...
+
+and the sum over patterns is at most exp(-L^{1+delta}/2) once T >= L^{1/12} and
+the description budget is paid.   [end sketch]
+
+5.2 The witness argument and active labels.
+
+We now produce the witnesses used in 5.2 from large singleton classes. Set
+
+    T = floor(L^{1/12}).
+
+LEMMA 5.3 (witness-cover). Suppose S_1 > L^{1/4} and Delta G != 0. Then there
+are T witnesses positive in one common hybrid, with distinct marked private
+singletons, all attached at steps of the same main word.
+
+(The idea: the integer-valued function w -> prod_{w in W}(1 - I_w) equals
+prod(1 - I) since factors are 0/1. Expanding this and applying the mixed
+difference in U, if a subfamily's support omits a prime p in U, the mixed
+difference is zero; hence a nonvanishing Delta G implies some subfamily whose
+supports COVER U has nonzero mixed difference, so all its witnesses are positive
+in one hybrid. Extract T of them, marking a private singleton per witness.)
+
+ACTIVE LABELS. Suppose a label z is active through a step in a hybrid (a vertex
+of the hybrid walk is divisible by z). Then z occurs with an invertible
+coefficient in an internal relation, usable in a triangular sum. Two lemmas make
+this precise.
+
+LEMMA 5.4 (active). If z is not active through step b, then z does not occur
+within any witness entering after step b; i.e. the absence of z from its sole
+step is preserved across the whole witness suffix. (The fresh prime at the last
+transition plus interval condition rules out a shorter odd-length suffix.)
+
+LEMMA 5.5 (active-prefix). Choose a label z' newly entering on step 2 (exists
+because the first two tuples differ). Let b' be the smaller of b and the last
+index carrying z'. Its contribution to the active-zero-prefix relation is
+E_2 + ... + E_{b'}. If that were zero mod z, then b' > 2 (since z does not
+divide E_2), and the REVERSED subword E_m,...,E_2 would be forward prohibited
+with controlling prime z, shorter than the original - contradicting minimality.
+Hence z' is active through the prefix relation. Since y occurs on step 1 but z'
+does not, y's contribution before step 2 is E_1 != 0 mod z'; this proves the
+active-prefix relation with i=2 and z' in place of z.
+
+5.3 Eliminating the singleton class.
+
+We now use 5.3-5.5 to discard the class S_1 > L^{1/4}.
+
+LEMMA 5.6 (many singletons). For a fixed bin j, the total contribution to the
+absolute majorants in Lemma 4.5 from main words with S_1 > L^{1/4} (including the
+external factor |D|^2 M) is at most
+
+    exp( -L^{21/20} )
+
+for large L, fixed parameters held fixed.
+
+Proof. Whenever the integrand is nonzero, Lemma 5.3 supplies T witnesses positive
+in one COMMON hybrid with marked private singletons. Order them w_1,...,w_T by
+attachment index a_1 <= ... <= a_T (ties arbitrarily). Write t(y) for the unique
+main step carrying a main singleton y; the main position of y has been passed at
+attachment a iff t(y) < a. We will select at least floor(T/8) prime variables and
+order their relations so that each relation is independent of all LATER selected
+variables. In the first two cases we select active labels; in the remaining case
+the private marked singletons themselves.
+
+A witness has at most sJ distinct P labels, so an inclusion-minimal subfamily
+covering U has at least S_1/(sJ) >= L^{3/20}/J > T members. Choose any T members
+and one private prime each; private primes remain private in the subfamily. The
+identity 2k + sT <= 2L + L^{11/60} <= 4L holds, giving the description bound.
+
+There are at least floor(T/8) >= L^{1/12}/9 selected variables per case, arranged
+so each relation (coefficient invertible mod its controlling prime, per 5.4,5.5)
+is independent of later ones; Lemma 4.2 then multiplies the savings
+((1+L)/H_0)^{T/8}. Multiplying by the crude enumeration bound
+exp(O(L log^2 L)+O(L log L)) and the external factor exp(O(L)), we obtain
+
+    exp( O(L log^2 L) ) * ( (1+L)/H_0 )^{L^{1/12}/9}
+        <=  exp( O(L log^2 L) - (1/9) L^{1/12 + 199/200 - tiny} )
+        <=  exp( -L^{21/20} )
+
+since 199/200 + 1/12 = 0.995 + 0.0833 = 1.0783 > 21/20 = 1.05, with margin. The
+remaining structure used only exists via 5.3; no bound is obtained by summing
+absolute values of all subterms.   [end]
+
+At this point the surviving words have S_1 <= L^{1/4} and U_count <= L^{1/50}, and
+their rank is bounded. What remains is to count patterns and sum the padding
+weights uniformly. The forest code (Section 6) does exactly this, and Lemma 6.x
+uses Lemma 5.2 to discard any extra class where an independent rank is available.
+
+
+================================================================================
+6. THE FOREST CODE AND THE TRACE COMPLETION
+================================================================================
+
+An equality pattern in a column is the partition of its 2k positions according to
+equality of prime labels (numerical values not recorded). In this section we count
+the union of all such patterns over label values, paddings, signs, and surviving
+hybrids that satisfy the rank and occurrence bounds of Sections 5. The result is
+the exponential bound in Theorem 4.4.
+
+Throughout this section fix:
+   - the bin j, its parameters, and the retained hybrid from Lemma 4.5;
+   - a designation of lit/unlit and signs;
+   - the S_1 <= L^{1/4} singletons, the set U of unlit occurrences with
+     |U| <= L^{1/50}, the rank r <= floor(L^{1/50}) in every column.
+
+A position is PERFECT if every column occurrence there is a LIT nonsingleton; all
+other positions are IMPERFECT, and
+     I <= S_1 + U_count.
+Within each half, split every maximal run of consecutive perfect positions into
+blocks of length s = floor(L^{1/10}), followed by one shorter block if needed.
+We record B is the total number of blocks; B << 1 + k/s + S_1 + U_count. Each
+block is a positive path whose vertices all survive the deletions of Lemma 4.3.
+
+6.1 Block intervals.
+
+LEMMA 6.1 (block intervals). A single displacement is nonzero. In any subinterval
+of length at least two, the first and last tuples differ. In particular, no
+subinterval of length >= 2 is fully divisible. In a two-step subinterval this is
+impossible because the last tuple avoids the first-step prime; in length >= 3
+this makes the subinterval forward prohibited; minimal descent gives the same
+contradiction. A reversed subword may begin at the end of the block (endpoint
+also a main vertex); at the closed-word end this is the initial vertex, and
+survival still applies.   [end]
+
+6.2 Compressing the runs.
+
+Compress each constant run in each perfect block to one RUN-ENTRY. By Lemma 6.1,
+a given label appears in AT MOST ONE run per block. A REGULAR run of label z has
+quotient increment
+
+    ( sum_{a in run} D_a / p_z ) * inv(e_z)  !=  0.
+
+Inequality uses Lemma 6.1. Cut the runs at omitted entries and at block
+boundaries; this leaves at most (2r+1)B nonempty regular segments and at most 2rB
+omitted run-entries. The parameter bounds and the block count give
+
+    (2r+1) B  <<  L^{0.92}.
+
+Each regular run of label z starts and ends on ell_z, and its endpoints are
+distinct. A transition from a z-run to a z'-run is therefore a COMMON POINT of
+ell_z and ell_{z'}.
+
+6.3 The incidence forest.
+
+Encode these incidences by a simple bipartite graph. One vertex for each line
+appearing in a regular segment; one vertex for each distinct transition point.
+Join a transition point to the two lines of its transition, identifying vertices
+whenever the same line or point recurs. Include an isolated line vertex if it
+occurs only in one-run segments. There are at most 2k line vertices and at most
+2k point vertices.
+
+Decoding: a path in the graph whose line vertices are distinct determines its
+sequence of line-labels uniquely (resolving z vs z' from the run labels). In fact
+(proof omitted here, combinatorial) the graph is acyclic, and the run-label
+sequence of the word can be RECOVERED from the forest together with:
+
+    (a) the line label on each line-vertex, and
+    (b) the ORDER in which run-entries enter the tree.
+
+The number of labeled forests on at most 2k vertices times ordered label data
+gives the count below.
+
+LEMMA 6.2 (forest count). Given the rank, singleton, and unlit bounds, the number
+of distinct compressed label sequences satisfying Lemma 6.1 and the (2r+1)B <<
+L^{0.92} segment bound is at most
+
+    exp( A_1 * L * log L )
+
+for an absolute constant A_1.
+
+6.4 The padding sum.
+
+We postpone the (potentially expensive) sum over padding divisors. The key fact
+is a uniform backward induction: if the padding weights are summed from END to
+START, each site contributes at most K in a way independent of the earlier shifts.
+
+LEMMA 6.3 (padding sum). Fix integer m>=1, bin j, tuples d_1,...,d_m in D, signs
+eps_1,...,eps_m in {-1,1}, initial site, and the entire non-P residue
+environment. With successive sites n_{i+1} = n_i + eps_i h q_i d_i, one has
+
+    sum_{q_1,...,q_m in Qhat}
+        prod_{i=1}^m
+          ( L u(q_i) / w(n_i) ) * 1_{q_i | n_i}
+          * 1_{(d_i,q_i) in S_j} * 1_{rho_j(n_i,d_i) <= K/L}
+        <=  K^m.
+
+UNIFORMITY: over all fixed data and initial sites.
+
+Proof. Let c_i(n,q) denote the i-th factor. The definition of rho_j lets us
+include every squarefree padding in the bin (the extra bound on omega(q) only
+reduces the sum). At every site n,
+
+    sum_q c_i(n,q)  <=  L * rho_j(n,d_i) * 1_{rho_j <= K/L}  <=  K.
+
+Set F_{m+1}(n) = 1 and recursively F_i(n) = sum_q c_i(n,q) * F_{i+1}(n + eps_i h q
+d_i). Backward induction with a starting-site-uniform bound at each stage gives
+F_i(n) <= K^{m-i+1}; in particular F_1(n_1) <= K^m. Earlier padding choices
+introduce no additional factor.   [end]
+
+This is exactly what counters the multiplicative accumulation of padding weights
+along a word; without it the padding sum would grow with W.
+
+6.5 Column mass and the trace completion.
+
+Bound the contribution of a single fixed word, keeping track of every count:
+
+  - padding: by Lemma 6.3 with m = 2k, the padding sum is at most K^{2k},
+    uniformly in the non-P environment;
+  - external copy indices and initial site: |D|^2 M <= exp(108L) (using
+    |D| <= exp(L), k >= L/2 to absorb a residual factor);
+  - signs and lit/unlit designations: at most 2^{2k} * 2^{2kJ};
+  - mixed difference: 2^{S_1};
+  - labels (by Lemma 6.2 plus labeling of line vertices): exp(A_1 L log L).
+
+Put m_P = total number of distinct P labels in all columns. Among the 2kJ
+column-occurrences exactly S_1 are singletons, and every other label occurs at
+least twice; so
+
+    2 k J  >=  S_1 + 2 ( m_P - S_1 ),   hence   m_P  <=  J k + S_1 / 2.
+
+Since distinctness among prime classes can be dropped inside a positive reciprocal
+sum (a class is then only an upper bound), the numerical label sum is at most
+
+    prod_{i=1}^J  V_i^{m_i}  <=  (2W)^{Jk + S_1/2}  <=  (2W)^{Jk + L^{1/4}/2},
+
+using Lemma 1.2 (W <= V_i <= 2W).
+
+Combining:
+
+    E ||H^k||_HS^2
+        <=  K^{2k} * exp(C_4 J k) * (2W)^{Jk + L^{1/4}/2} + o(1),
+
+for C_4 absolute.
+
+Now choose the constant C_2. For any fixed W, once L is large enough,
+
+    (2W)^{L^{1/4}/2}  <=  e^k,
+
+and exp(C_4 J k) can be absorbed into (C_2 sqrt W)^{2Jk} for a suitable absolute
+C_2 (since J log W = o(k) and the constants combine into an absolute). Hence for
+large L,
+
+    E ||H^k||_HS^2  <=  [ K (C_2 sqrt W)^J ]^{2k}.
+
+The finite-law comparison (Lemma 2.1) for the trace expansion shifts this by at
+most exp(-L^9), absorbed into the same C_2. This proves Theorem 4.4 for the
+integer model, and C_2 is FIXED BEFORE W is chosen; the dependence of the
+threshold for L is confined to (h,l) and the fixed data.   [end of Theorem 4.4]
+
+At this point the only remaining task for Theorem 1.1 is to transfer the moment
+bound to a bound on the centered average itself, uniformly over the O(L/eta)
+bins, and then to sum against the deleted edges. Section 7 does this.
+
+
+================================================================================
+7. SPECTRAL TRANSFER AND THE BOUND AT EVERY SCALE
+================================================================================
+
+The moment bound of Theorem 4.4 has only square-root dependence on each prime
+supply's reciprocal mass. We now use it to control the retained centered sums
+C_j^o. Two steps:
+   - transfer control of H (a nonbacktracking operator) to the projection of the
+     ordinary edge operator E (sum_d A_d) E;
+   - test the resulting bound against lambda(n)*sqrt(w(n)) and average over
+     overlapping blocks to control C_j^o in EVERY bin.
+
+After division by the retained mass S_0 >= S V_*/2 (with V_* >= W^J) the spectral
+contribution has shape
+
+    (K/eta) * (C / sqrt W)^J
+
+for an absolute constant C. We choose W last so this is < 1.
+
+The nonbacktracking-to-adjacency transfer parallels the weighted Ihara-Bass
+formula; we need the version here for self-adjoint operators that do NOT commute.
+
+7.1 A transfer lemma for self-adjoint edge matrices.
+
+LEMMA 7.1 (noncommuting transfer). Let N>=1, B_1,...,B_N self-adjoint operators
+on a finite-dimensional complex Hilbert space H, and P an orthogonal projection on
+H. Define mathcal B on H^N by
+
+    mathcal B_{i,j} = 1_{i != j} B_j.
+
+Suppose a,b >= 0, ||B_i|| <= a for every i, and
+
+    sum_{i=1}^N ||B_i v||^2  <=  b^2 ||v||^2       (v = P v).
+
+Writing rho(mathcal B) for its spectral radius, one has
+
+    || P (sum_{i=1}^N B_i) P ||  <=  3 * max{ a, b, rho(mathcal B) }.
+
+Proof. m = max{a,b,rho}; if m=0 all B_i vanish. Otherwise t = (2m)^{-1}. For
+real |u| <= t, I - u*mathcal B and I + u*B_i are invertible. Define
+
+    F(u) = I - sum_{i=1}^N u B_i (I + u B_i)^{-1}.
+
+Each summand is self-adjoint (B_i commutes with its own resolvent). If F(u)v = 0,
+set z_i = (I + u B_i)^{-1} v; then
+
+    (u mathcal B z)_i = sum_{j != i} u B_j z_j = v - u B_i z_i = z_i,
+
+so a nonzero v would give a nonzero z with u mathcal B z = z, contradicting
+invertibility of I - u*mathcal B. Hence F(u) is invertible on |-t,t|, positive
+definite by continuity since F(0)=I. The resolvent identity gives
+
+    F(u) = I - u sum_i B_i + Q(u),    Q(u) = u^2 sum_i B_i^2 (I + u B_i)^{-1}.
+
+Since |u| ||B_i|| <= 1/2, the inverses in Q are positive and bounded by 2I. For
+v = Pv,
+
+    0 <= <v, Q(u)v> <= 2 u^2 sum_i ||B_i v||^2 <= 2 u^2 b^2 ||v||^2.
+
+Positivity at u = +/-t yields |<v, sum_i B_i v>| <= ((1+2t^2 b^2)/t))||v||^2 <=
+3m||v||^2; take the supremum over unit vectors in P H. No two distinct B_i is
+assumed to commute.   [end]
+
+7.2 Weighted row bounds and the degree projection.
+
+Fix bin j, one block of M sites, matrices A_d as in 4.2, H as in 4.2, and the
+degree projection E of 4.2. Define the pointwise factor
+
+    a_d(n) = prod_{p | d} | 1_{p | n} - 1/p |.
+
+If A_d(n,n') != 0 the difference n' - n is a multiple of d, so a_d(n) = a_d(n')
+along every edge of A_d.
+
+LEMMA 7.2 (weighted rows). On every block, in either the product model or the
+integer model,
+
+    (i)    || A_d ||  <=  2 K;
+    (ii)   sum_{d in D} || A_d v ||^2  <=  4 K^2 (8W)^J ||v||^2     (v = E v).
+
+Proof. Multiply the padding weight L u(q)/w(n) by tau_j(n,d) <= 1 and sum over q
+before multiplying by a_d(n); Lemma 1.2 bounds the padding sum by L rho_j(n,d) <=
+K when rho_j <= K/L. This gives (i) (since the row is supported on the q for a
+fixed d, and the two endpoint factors combine to <= 2K). For (ii): at a site
+retained by E the total P-degree is <= 6WJ; since V_i <= 2W,
+
+    sum_d a_d(n)^2  <=  sum_d a_d(n)  <=  prod_{i=1}^J ( omega_{P_i}(n) + V_i )
+                    <=  ( (omega_P(n) + sum_i V_i)/J )^J  <=  (8W)^J.
+
+Summing over d and using the localized square gives (ii) WITHOUT requiring E to
+commute with A_d.   [end]
+
+7.3 Spectral control of the projected edge operator.
+
+PROPOSITION 7.3 (compressed norm). There is an absolute C_3 with the following
+property. For each bin j, average block origins over any integer interval to
+which Theorem 4.4 applies. Outside a fraction at most e^{-2k} of these origins,
+
+    || E ( sum_d A_d ) E ||  <=  K (C_3 sqrt W)^J.
+
+Proof. For any finite matrix, rho(H)^{2k} <= ||H^k||_HS^2. Theorem 4.4 and Markov
+therefore give
+
+    rho(H)  <=  e K (C_2 sqrt W)^J
+
+outside a fraction at most e^{-2k} of the origins. On each surviving block apply
+Lemma 7.1 with
+
+    a = 2K,  b = 2K (8W)^{J/2},  P = E.
+
+For J >= 1 and W >= 10, the choice
+
+    C_3 = 3 * max{ 2, 2 sqrt8, e C_2 }
+
+gives the claim. C_3 is independent of W, h, l.   [end]
+
+7.4 Testing and averaging over overlapping blocks.
+
+Test H (a.k.a. the projected edge operator) against lambda with vertex weight
+sqrt(w). For a block, define
+   u(x) = lambda(x) sqrt(w(x)) 1_{E retained at x};
+and the sum we want to bound is (1/T_j) sum_{n<=T_j} (sqrt w lambda)(n) *
+(bound of the centered edge weight at n) with the bin and endpoint cuts of
+C_j^o. The key point: on a positive block, the factor sqrt(w(n)w(n')) cancels
+next to a directed edge. Concretely, testing H against a bump then summing
+squares and averaging over i-block origins recovers the same centered edge sum
+(with multiplicity <= M and an O(1) per block overhead).
+
+Let R_L = h e^{100L+1} (upper bound on any single displacement) and
+D_L = (K/L) 5^{400 log L} (8W)^J (so every row sum of the centered edges).
+Then N >> M > R_L and D_L is polynomial in L. The multiplicity m_N(n,r) is M - r
+for M <= n <= N and bounded by 2M near the boundary. The endpoint extra sites
+contribute at most 2M, and one has 0 <= m_N(n,r) <= M always. Therefore the
+average is C_j^o plus prefix error
+
+    O( D_L ( R_L/M + M/N + 1/T ) ).
+
+Since M = ceil(e^{103L}) and T >= exp(L^A), the prefix error is O(e^{-L}).
+
+7.5 Final choice of constants.
+
+At this point we have bounded |F(X)| in terms of the absolute constants A, W, C_3,
+and the fixed h,l. Recall (sketch) the estimation after the deletions:
+
+    |F(X)|
+       <<_{h,l,W}  eta  +  eta^{-1} 2^J L^{-1/20}   (centering: Lemma 3.4)
+                 +  2^J ( K^{-1} + L^{-100} + e^{-2WJ} )    (deletions: Lemma 3.6)
+                 +  ( K / eta ) * ( C_3 / sqrt W )^J    (spectral: Prop 7.3)
+                 +  e^{-L^{0.9}}  +  X^{-1}.
+
+We choose constants in ORDER:
+   1) Fix A >= 1000 satisfying Lemma 2.1 (A > C_1 + 20).
+   2) Fix W >= 10 so large that e^5 C_3 / sqrt W <= e^{-1} (this uses the fact that
+      C_3 was chosen BEFORE W).
+   3) THEN increase the threshold for X (which may depend on h,l,W) so that the
+      exponentially small terms e^{-L^Y}, e^{-2WJ}, X^{-1}, and the algebraic terms
+      are each < the desired (log X)^{-c}.
+
+Concretely: since J = floor(delta log L/(6W)) and A >= 1000,
+
+  2^J     <=  exp( J log 2 )  <=  (log X)^{delta/(6W)}  <=  (log X)^{-1/20}  for
+  large X (once delta/(6W) is < 1/20, true for W >= 10 and delta <= 1/200);
+  K^{-1}  <=  L^{-4}  <=  (log X)^{-4/A};
+  e^{-2WJ}                 <=  exp( -2W * delta log L / (6W) ) = L^{-delta/3};
+  (K/eta) (C_3/sqrt W)^J   <=  L^{4+1} * e^{-J}  <=  L^5 * L^{-delta/(6W)};
+
+and each of these is a positive power of 1/log X. With delta = 1/200 and W a
+fixed absolute number, the smallest exponent c = min{ 1/20 - delta/(6W),
+(4+1) - delta/(6W), delta/3, 1/200 } is a POSITIVE ABSOLUTE constant. In
+particular c > 0 through all of Part I.
+
+This completes the proof of Proposition 1.1: the ordinary two-point correlation in
+EVERY fixed residue class (including nonunit and zero classes) has a saving of
+order (log X)^{-c} with an absolute positive c.
+
+
+================================================================================
+8. THE AFFINE DEDUCTION (PROOF OF THEOREM A)
+================================================================================
+
+We now deduce Theorem A from Proposition 1.1. The argument is combinatorial:
+multiplying two affine forms by fixed integers clears the coefficients, allowing
+the correlation to be turned into a lambda(m) lambda(m+h) sum in a single fixed
+residue class, whose saving is Prop 1.1.
+
+8.1 Multiplying the forms.
+
+Fix integers a_1,a_2 >= 1 and b_1,b_2 >= 0 with a_1 b_2 - a_2 b_1 != 0.
+Define
+
+    l = a_1 a_2,
+    c_0 = min{ a_2 b_1, a_1 b_2 },
+    h = | a_2 b_1 - a_1 b_2 |.
+
+(The condition a_1 b_2 != a_2 b_1 means h > 0.)
+
+Multiplying the first affine form by a_2 and the second by a_1, and using
+complete multiplicativity:
+
+    lambda( a_2 (a_1 n + b_1) )  =  lambda( a_2 ) lambda( a_1 n + b_1 ),
+    lambda( a_1 (a_2 n + b_2) )  =  lambda( a_1 ) lambda( a_2 n + b_2 ).
+
+The left sides equal lambda( l n + a_2 b_1 ) and lambda( l n + a_1 b_2 ).
+Hence
+
+    lambda( a_1 n + b_1 ) lambda( a_2 n + b_2 )
+        =  lambda( l ) * lambda( l n + c_0 ) * lambda( l n + c_0 + h ).
+
+Here lambda(l)^2 = 1, and |c_0|, h are fixed nonnegative integers. The right
+side is now a lambda(m) lambda(m+h) sum in a fixed residue class modulo l.
+
+8.2 The progression correlation.
+
+For real Y >= 0 (with Y < 1 giving an empty sum) define
+
+    P(Y)  =  sum_{1 <= m <= Y}  lambda(m) lambda(m + h) 1_{m = c_0 mod l}.
+
+The estimation is EXACTLY the content of Prop 1.1 applied to the residue class
+b = c_0 mod l (the class may be nonunit or zero; Prop 1.1 handles these).
+Thus, for an absolute constant c > 0 (the SAME c one gets for residue c_0),
+
+    | P(Y) |  <<_{l,h,c_0}  Y / (log Y)^c       (Y >= 3),
+
+with the implied constant depending only on (l, h, c_0), and c independent of
+these fixed data.
+
+8.3 The endpoint identity.
+
+For every real X >= 3, the integers m in the class c_0 mod l with
+c_0 < m <= lX + c_0 are precisely m = l n + c_0 with 1 <= n <= X. Therefore the
+LEFT SIDE of the correlation and the RIGHT SIDE of 8.1 agree EXACTLY at
+endpoints:
+
+    sum_{1 <= n <= X} lambda( a_1 n + b_1 ) lambda( a_2 n + b_2 )
+        =  lambda(l) * ( P( lX + c_0 ) - P( c_0 ) ).
+
+(This is an identity for real X; the truncation lands on integer endpoints, so it
+also includes noninteger cutoffs.)
+
+8.4 Estimating the two terms.
+
+The first term satisfies
+
+    | P( lX + c_0 ) |  <<  ( lX + c_0 ) / [ log( lX + c_0 ) ]^c
+                       <<_{a_1,a_2,b_1,b_2}  X / ( log X )^c.
+
+because lX + c_0 >= X (since l >= 1, c_0 >= 0), and log is monotone (a smaller
+argument in the denominator gives a LARGER value, so we do get the stated bound).
+The endpoint term | P( c_0 ) | is a fixed constant, since c_0 is fixed; it is
+absorbed into the same constant factor (the function (log X)^c / X is bounded on
+[3,infinity)).
+
+The exponent c did NOT change in going from the residue correlation to the affine
+correlation: only the implied constant picked up a factor depending on
+(a_1,a_2,b_1,b_2). This proves
+
+    | sum_{1 <= n <= X} lambda( a_1 n + b_1 ) lambda( a_2 n + b_2 ) |
+        <=  C_{a_1,a_2,b_1,b_2}  *  X / ( log X )^c       (X >= 3),
+
+which is THEOREM A.                                       [end of Part I]
+
+
+================================================================================
+PART II. QUALITATIVE CORRELATIONS OF GENERAL MULTIPLICATIVE FUNCTIONS
+================================================================================
+
+We now prove Theorem B. We restate: f1,f2: N -> D multiplicative, at least one
+uniformly nonpretentious. For every fixed pair of DISTINCT nonnegative integers
+h1 != h2,
+
+    (1/N) * sum_{n=1}^{N} f1(n+h1) f2(n+h2)  ->  0     as N -> infinity.
+
+The proof reshapes the correlation into a weighted sum over a DIVISOR GRAPH,
+whose edges are labeled by squarefree products of primes from two prime BANDS
+(core and center). A high-trace moment bounds the operator norm of the graph,
+and the resulting bound contradicts any alleged persistent bias. The parameters
+here (B, eps, eta, rho, kappa) are chosen afresh; the Part I parameters are NOT
+in force. The functions f1,f2 and their nonpretentiousness are those of the
+introduction.
+
+We organize Part II as follows.
+
+  9.  Weighted divisor graph: bands, weights, cutoffs, and the graph estimate.
+ 10.  Reduction to the graph estimate; the analytic centering estimate.
+ 11.  Forbidden paths and arithmetic savings (via Lemma 11.x).
+ 12.  Connected activity on the first-visit tree (thinning).
+ 13.  The conditional cylinder sieve (rank-truncation after conditioning).
+ 14.  Summing the trace (tokens and the subtrace identity).
+ 15.  Localization: from high traces to the graph estimate.
+
+Throughout Part II: h >= 1 is fixed, B tends to infinity with h,tau,C_0,T fixed.
+Implied constants may depend on the fixed data unless declared absolute.
+
+
+================================================================================
+9. THE WEIGHTED DIVISOR GRAPH
+================================================================================
+
+9.1 Two prime bands.
+
+Let eps = 10^{-4} (fixed small), and let eta be a small fixed number (below
+4*eps). Let 0 < rho < 1 be fixed. We shall choose kappa absolute, then A_a = e^{2
+kappa} and beta_a = (1+A_a)^{-1} for a in {C,Z}; the constant theta = beta_Z^2 is
+the center matching constant. Write v_a = log log P_a (or more precisely
+v_a := sum_{p in P_a} 1/p), with the convention that the two prime bands are
+disjoint subspaces of primes below a large cutoff B^{10} H.
+
+Primes come in two bands:
+  - CORE primes P_C: the small/mid range whose contributions give the
+    lower-bound structure in the cutoff;
+  - CENTER primes P_Z: the complementary range, whose reciprocal mass
+    provides cancellation in closed-walk products.
+
+Write S = P_C union P_Z and A_a = A_{P_a}, beta_a = (1+A_a)^{-1}.
+
+9.2 Divisor family, weights, cutoffs.
+
+Let D be the admissible family of squarefree S-products satisfying:
+  - d squarefree;
+  - H < d <= tau H (for fixed 1 < tau < 2);
+  - omega_C(d) <= J = ceil(C_0 log B);
+  - |f1(d) f2(d)| >= 1/2;
+  where (H, D) are chosen so that the divisor-bin mass is >= c L_0 / B (a short
+  divisor interval with positive mass, which exists whenever f1,f2 are nonconstant
+  and the defects are summable).
+
+For a divisor label d define the cutoff function
+
+    w_d(x) = phi( (k_d(x) - v_C) / sqrt(v_C) ),
+
+where phi in C_c^infty(R) is 0 <= phi <= 1, supp in [-T,T], equal to 1 on [-T/2,
+T/2], and k_d(x) = #{ p | d : p | x and p in C } (core count of d dividing x). So
+w_d is close to 1 when d is typical for x, and drops to 0 when d has an atypical
+core content.
+
+The vertex weight is
+
+    W(x) = prod_{a in {C,Z}}  beta_a^{-omega_a(x)},
+
+where omega_a(x) = #{p in P_a : p | x}. The mean of W is L_0:
+
+    L_0 = prod_{a} prod_{p in P_a} (1 + A_a/p).
+
+A basic observation we use: for uniform residue n mod prod_{p in S} p,
+
+    E W(n)    =  L_0,
+    E W(n)^2  =  prod_a prod_{p in P_a} (1 + (beta_a^{-2} - 1)/p)
+              <= exp( (A^2 + 2A) v_C + 3 v_Z )  =  B^{O_A(1)}.
+
+Both identities follow from independence of the prime coordinates. The second
+moment is essential: it is polynomial in B (with the exponent depending on A but
+fixed).
+
+The CENTERED edge weight for a divisor d and an edge x -> y = x + h d is
+
+    g_d(x,y) = w_d(x) w_d(y) prod_{p | d} ( 1_{p | x} - theta/p ),
+
+where (1_{p|n} - theta/p) has mean 0 for uniform residue mod p, and on the edge
+it agrees at both endpoints since p | d and p | x iff p | y when h p is coprime
+to d (which our setup enforces).
+
+9.3 The graph estimate: what we must prove.
+
+PROPOSITION 9.1 (weighted divisor graph estimate). Fix h >= 1, 1 < tau < 2,
+C_0 >= 1, T > 0, and use the constants and weights of 9.2. For every sufficiently
+large B, every admissible divisor family D, all permitted cutoffs w_d, all
+coefficients |a_d| <= 1, and all functions F,G: N -> D,
+
+    limsup_{X -> infinity} (1/X) | sum_{1 <= x <= X} sum_{d in D}
+        a_d F(x) G(x + h d) g_d(x, x + h d) |
+        << L_0 B^{-1 - c_*/2}.
+
+The implied constant and the threshold for B depend only on h, tau, C_0, T, and
+fixed constants; NOT on H, D, w_d, a_d, F, G. All graph parameters are FIXED
+when X tends to infinity.
+
+The extra factor B^{-c_*/2} is what produces the contradiction in 10.1: a small
+per-scale saving below the trivial B^{-1} per interval. The proof of 9.1 occupies
+Sections 11-15. The two bands have different roles:
+  - the CORE weights and cutoffs supply the short-interval saving and the
+    lower bound on k_d(x);
+  - the CENTER factors give additional cancellation in closed-walk products,
+    because each edge weight contributes prod_{p|d}(1_{p|x} - theta/p) with
+    a mean-zero factor per center prime.
+The match theta = beta_Z^2 makes the centering constant consistent with the
+vertex-weight normalization. Its precise use is in Section 14.
+
+The comparison scale is L_0/B. In Section 10, one of O(B) short multiplicative
+intervals captures enough divisor weight to turn any persistent correlation bias
+into a sum of size roughly L_0/B with ordinary divisibility indicators,
+contradicting 9.1.
+
+
+================================================================================
+10. REDUCTION TO THE GRAPH ESTIMATE; ANALYTIC CENTERING
+================================================================================
+
+10.1 Absolute-value defects and a biased sequence.
+
+A multiplicative function satisfies f(1) = f(1)^2; if f(1) = 0 then f is
+identically zero. So both f_1, f_2 may be normalized to f(1) = 1. There is a
+first case in which the conclusion follows directly, without any graph.
+
+LEMMA 10.1 (absolute defects). Let f: N -> C be multiplicative, |f| <= 1. If
+
+    sum_{p} (1 - |f(p)|)/p  =  infinity,
+
+then the ordinary mean of |f| satisfies
+
+    (1/N) * sum_{n <= N} |f(n)|  ->  0.
+
+Proof. Write v_p(n) for the exponent of p in n. For any finite prime set P,
+
+    |f(n)|  <=  prod_{p in P, v_p(n) = 1} |f(p)|.
+
+The majorant is periodic modulo prod_{p in P} p^2 with mean
+
+    prod_{p in P} ( 1 - (1 - |f(p)|)(1/p - 1/p^2) ).
+
+These products tend to zero as P grows through the primes: the sum of the
+subtracted quantities is proportional to sum (1-|f(p)|)/p (which diverges),
+whereas sum 1/p^2 < infinity. Take a long average with P fixed first, then
+increase P.   [end]
+
+Hence we may assume from now on
+
+    sum_p (1 - |f_i(p)|)/p  <  infinity    (i = 1,2).
+
+Translation affects only finitely many terms of a bounded average, so after
+reducing by the smaller shift we need only prove cancellation of
+f_1(m) f_2(m+h) for a fixed h >= 1.
+
+Suppose the desired cancellation FAILS. Then there are 0 < gamma <= 1 and
+positive integers N_j -> infinity with
+
+    | S(N_j) |  >=  gamma * N_j,     S(N) = sum_{m <= N} f_1(m) f_2(m+h).
+
+We retain this fixed sequence of N_j and its complex arguments throughout the
+argument. Nothing below uses a specific slope; the sequence N_j is fixed data.
+
+Fix 1 < tau < 2 sufficiently close to 1 in terms of gamma; fix T sufficiently
+large in terms of gamma; choose phi in C_c^infty(R) with 0 <= phi <= 1, supported
+in [-T,T], equal to 1 on [-T/2,T/2]. For every admissible divisor d use
+
+    w_d(x) = phi( (k_d(x) - v_C) / sqrt(v_C) ).
+
+These cutoffs satisfy the support and residue-dependence requirements of
+Proposition 9.1.
+
+10.2 Capturing the bias in one divisor interval.
+
+The next lemma shows that a POSITIVE FRACTION of the divisor mass lands in a
+single short multiplicative interval of [1, exp(C_0 B)], whenever the defects
+are summable.
+
+LEMMA 10.2 (divisor interval with positive mass). Let f_1,f_2: N -> C be
+1-bounded multiplicative, satisfying sum_p (1-|f_i(p)|)/p < infinity and
+f_1(1) = f_2(1) = 1. Fix 1 < tau < 2. There are constants C_0 >= 1 and c > 0
+with the following property: for every sufficiently large B one can choose
+1 <= H <= exp(C_0 B) and a family D of squarefree S-products satisfying
+
+    H < d <= tau H,    d > 1,    omega(d) <= J = ceil(C_0 log B),
+    |f_1(d) f_2(d)| >= 1/2,
+
+    sum_{d in D} A^{omega_C(d)}/d  >=  c L_0 / B.
+
+Constants C_0, c are independent of B and of the long averaging variable.
+
+Proof. Normalize (A^{omega_C(d)}/d) as a probability law on divisors, with
+expectation E_div and probability P_div. Each prime p in band a is included
+independently with probability A_a/(p+A_a). Prime harmonic estimates:
+
+    E_div omega(d)  <<_A log B,
+    E_div log d     <= A sum_{p <= e^B} (log p)/p  <<_A B.
+
+Choose C_0 large enough that P_div(omega(d) > ceil(C_0 log B)) <= 1/8 and
+P_div(log d > C_0 B) <= 1/8 (Markov). For r_p = |f_1(p) f_2(p)|, the inequality
+1 - prod_j r_j <= sum_j (1 - r_j) (valid for 0 <= r_j <= 1) gives
+
+    E_div( 1 - |f_1(d) f_2(d)| )
+        <= A sum_{p > P_0}  (1 - |f_1(p) f_2(p)|)/p
+        <= A sum_{p > P_0}  [ (1-|f_1(p)|) + (1-|f_2(p)|) ]/p  = o(1).
+
+Squarefreeness permits the use of multiplicativity. Another Markov: P_div( |
+f_1(d) f_2(d) | < 1/2 ) -> 0. Also P_div(d=1) = L_0^{-1} -> 0. Hence for large
+B the remaining divisors carry at least L_0/2 of the unnormalized mass.
+
+There are at most 1 + C_0 B / log tau intervals (tau^r, tau^{r+1}] in
+(1, exp(C_0 B)]. One of them carries >= c L_0/B of the unnormalized mass for a
+fixed c > 0; take its lower endpoint as H, and retain the divisors already
+satisfying the conditions above.   [end]
+
+10.3 Raw and centered sums.
+
+For a fixed candidate B with its (H, D) from Lemma 10.2, consider
+
+    R_B(X) = sum_{x <= X} sum_{d in D} a_d A^{omega_C(d)} f_1(x) f_2(x + h d)
+             * w_d(x) w_d(x + h d) * 1_{d | x},
+
+    C_B(X) = sum_{x <= X} sum_{d in D} a_d f_1(x) f_2(x + h d) * g_d(x, x + h d).
+
+R_B is the RAW sum (retains ORDINARY divisibility by all primes of d with the
+beta_a^{-omega_a} vertex weights absorbed into a factor A^{omega_C(d)});
+C_B(A) is the CENTERED sum bounded by Proposition 9.1.
+
+LEMMA 10.3 (raw-lower-bound). With (H, D) chosen by Lemma 10.2 and the sequence
+N_j, X_j = H N_j above, there is a constant c_gamma > 0 such that for all large j,
+
+    | R_B(X_j) |  >=  c_gamma L_0 X_j / B.
+
+Sketch. Write the divisor filter |f_1(d)f_2(d)| >= 1/2 as a lower bound; use
+S(N_j) >= gamma N_j and the frequency of d | x over x <= H N_j (which is
+>= (H N_j)/d times lower order); the cutoffs w_d(x)w_d(x+hd) equal 1 for at
+least a fraction (1 - O(1/T)) of x, by the definition of phi. Translating and
+exchanging the order of summation over d then absorbs the divisor mass
+>= c L_0/B.   [end]
+
+LEMMA 10.3b (raw-to-centered expansion). Expand, for each factor of a center
+prime p | d, the centered factor
+
+    1_{p | x} - theta/p  =  1_{p | x} + ( -theta/p )   as a two-term sum.
+
+The term selecting 1_{p | d, p in Z} together with the core indicators 1_{p | x}
+for p in C and the coefficient A_C^{omega_C(d)} reproduces C_B (up to a
+matching factor fixed by theta = beta_Z^2). Every OTHER term factors as d = u w,
+where w > 1 is the product of the center primes whose -theta/p term was
+selected; the term then equals
+
+    A^{omega_C(u)} a_{uw} (-theta)^{omega(w)} / w
+        * 1_{u | x} * f_1(x) f_2(x+hwx)   (up to vertex weights and cutoffs).
+
+Write c_w^{(u)} = a_{uw} (-theta)^{omega(w)} (0 outside the support). Then
+|c_w^{(u)}| <= 1 and the support is INDEPENDENT of x. This is the object
+bounded by Proposition 10.4 below.
+
+Reduction of R_B to C_B plus centered terms. Combining Lemma 10.3 with 10.3b,
+
+    |R_B(X)|  <=  |C_B(X)|
+              + sum_{B; u, w with w < 1 or >1; u,w coprime, support} |S_{u,w}(X)|
+              + O( L_0 X * (J/P_0) ),
+
+where S_{u,w}(X) is the (u,w)-term of 10.3b and the error O(L_0 X J/P_0) arises
+from the multiplicative factor f_1(u) f_2(u) being separated off (for u coprime
+to z(z+hw)) together with the exceptional set gcd(u, z(z+hw)) > 1 of density at
+most 2J/P_0.
+
+For the present h,tau,C_0,T, Proposition 9.1 bounds |C_B(X)| by
+L_0 X B^{-1-c_*/2}. Proposition 10.4 (next) bounds each S_{u,w}(X) by
+L_0 X B^{-1-eps}. The count of O(B) admissible w values times the J/P_0 = o(
+B^{-1-eps}) error is absorbed into a single B^{-1-eps} factor.
+
+We complete the reduction in 10.5 after stating Proposition 10.4.
+
+
+10.4 The analytic centering estimate.
+
+We now state and prove the centered-term bound used in 10.3.
+
+PROPOSITION 10.4 (analytic centering). Fix B, tau, C_0, T, h. Let v_C, P_0 =
+exp(B^{1-eps}), u coprime squarefree, M in [P_0/tau, exp(C_0 B)], and coefficients
+|c_w| <= 1 supported on P_0-rough w in (M, tau M]. Let b_1, b_2 be multiplicative
+1-bounded functions with prime values matching f_1, f_2 outside the core band.
+Then uniformly in the twists that arise from phi, in the coefficients, and in the
+fixed graph data,
+
+    limsup_{Y -> infinity} (1/Y) *
+        | sum_{z <= Y} b_1(z) * sum_{M < w <= tau M} (c_w / w) b_2(z + h w) |
+        <<  B^{-1 - eps}.
+
+The implied constant may depend on the fixed data.
+
+10.4a Finite-prime stability of nonpretentiousness.
+
+Before applying MRT, we note that adding a fixed set of twists (from phi, from
+the core primes of u) barely changes the squared distance defining
+nonpretentiousness.
+
+LEMMA 10.4a. Let G, f: N -> D be multiplicative, psi a fixed Dirichlet character,
+S a finite prime set. If G(p) = f(p) psi(p) for every p not in S, then for every
+Dirichlet character chi, every real t, and X >= 2,
+
+    | D(G, chi n^{it}; X)^2 - D(f, (chi psi-bar) n^{it}; X)^2 |
+        <=  2 sum_{p in S} 1/p.
+
+Conjugation of f preserves uniform nonpretentiousness (distance functional is
+symmetric under t -> -t and chi -> chi-bar). Thus a uniformly nonpretentious f
+remains so after twisting by chi(n) n^{it} on a fixed finite prime set.   [end]
+
+10.4b The short-interval input (MRT).
+
+We use the short exponential-sum theorem of Matomaki-Radziwill-Tao
+[MRT, Thm 1.7].
+
+THEOREM 10.4b (averaged short exponential sums, MRT). Let X >= D >= 10, b: N ->
+C, 1-bounded multiplicative. Put Q = min((log X)^{1/125}, (log D)^5). Then
+
+    sup_{alpha in T}  int_0^X |
+        sum_{y < m <= y+D} b(m) e(alpha m) | dy
+    <<  D X * ( e^{-M(b;X,Q)/20} + log log D / log D + (log X)^{-1/700} ).
+
+The implied constant is absolute.
+
+Now fix B, D = D_1 = ceil M (from 10.4), and the fixed B-dependent family of
+characters of moduli at most (log D)^5 and heights |t| <= Y. Suppose f_1 is
+uniformly nonpretentious. By Lemma 10.4a, so is every twist b_1 (its prime
+values are f_1 at all primes outside the fixed finite set S = C_band union
+divisors of u). Therefore M(b_1; Y, Q) -> infinity as Y -> infinity, uniformly
+in the twists. Since Q -> infinity with Y and D is fixed:
+
+    limsup_{Y -> infinity}  sup_{alpha, twists}
+        (1/(D Y)) int_0^Y |
+            sum_{y < m <= y+D} b_1(m) e(alpha m) | dy
+        <<  (log log D)/(log D).
+
+We use this bound with the SUP over frequency OUTSIDE the integral, as MRT
+supplies. Only real Y are used; for noninteger Y, replace Y by ceil Y and
+enlarge the integral.
+
+10.4c The rough-number Fourier multiplier.
+
+To apply 10.4b to our target, define the weighted multiplier
+
+    Q_M(alpha) = sum_{M < w <= tau M} (c_w / w) * e(alpha h w)     (alpha in T).
+
+We need its supremum and its fourth moment, using ONLY the P_0-rough support of
+the coefficient vector. The point is that P_0-rough integers are rare in the
+sense of a sieve.
+
+LEMMA 10.4c (rough-number bounds). Fix C_0 >= 1, 1 < tau < 2, h >= 1. Let
+P_0 = exp(B^{1-eps}) and P_0/tau <= M <= exp(C_0 B). Suppose |c_w| <= 1 and c_w
+= 0 unless w in (M, tau M] is P_0-rough. Then for all sufficiently large B,
+
+    || Q_M ||_inf  <<  B^{-1+eps} log B,
+    int_T |Q_M(alpha)|^4 dalpha  <<  M^{-1} * B^{-4+4eps} * (log B)^6.
+
+Proof (sieve). Set s = 2 ceil(100 log B), z_0 = P_0^{1/(100 s)}. For every prime
+p < z_0 forbid the residue class 0 modulo p (as part of being P_0-rough). If
+r(n) counts the number of these forbidden conditions satisfied by n, then the
+even inclusion-exclusion
+
+    sum_{j=0}^s (-1)^j binom(r(n), j)
+
+equals 1 when r(n)=0 and equals binom(r(n)-1,s) >= 0 otherwise. Hence this is
+an UPPER bound for the P_0-roughness indicator. Write E_j((nu_p/p)) =
+sum_{|I|=j} prod_{p in I}(nu_p/p). CRT says: # counts on any real interval I of
+length V satisfy
+
+    #{n in I : n P_0-rough} <= V sum_{j=0}^s (-1)^j E_j((nu_p/p))
+                               + O( sum_{j=0}^s E_j((nu_p)) ).
+
+With nu_p = 1 (a single residue), the sieve gives
+
+    #{P_0-rough n in [M, tau M]}  <=  M * (log P_0)^{-1} * (1 + O(1/log B))
+                                <<  M * B^{-1+eps}.
+
+Summing (c_w/w) over this set yields ||Q_M||_inf << B^{-1+eps} log B (the
+1/log B factor from (1/log B) * log B).
+
+For the fourth moment, orthogonality expresses
+
+    int_T |Q_M|^4 dalpha  =  sum_{w_1+w_2=w_3+w_4} (c_{w_1} c_{w_2} c-bar_{w_3}
+                                                     c-bar_{w_4}) /
+                            (w_1 w_2 w_3 w_4).
+
+Fix (w_1,w_2,w_3); w_4 = w_1+w_2-w_3 is determined. All four must be P_0-rough
+and lie in (M, tau M), hence in [M, 4 tau M]. Apply the sieve with nu_p = 4
+(four residue classes 0 mod p, one per form w_1, w_2, w_3, w_1+w_2-w_3) to the
+triple (w_1, w_2, w_3) in [M, tau M]^3. Pairwise independence of the defining
+residue classes over each prime field (including F_2) gives nu_4(p) = 4/p +
+O(p^{-2}); pairwise inclusion-exclusion proves this. Each triple w_4 is unique.
+
+    # 3-tuples P_0-rough with all four forms in [M, 4 tau M]
+        <=  M^3 * (log P_0)^{-4} * (1 + O(log log B / log B))
+        <<  M^3 * B^{-4 + 4 eps}.
+
+Multiplying by 1/(M^4) (largest weight) gives int |Q_M|^4 << M^{-1} B^{-4+4eps}
+with at most (log B)^6 polylog overhead from the sieve error terms.   [end]
+
+10.4d Two overlapping intervals and the endpoint accounting.
+
+For integers Y (and noninteger Y handled by rounding), define
+
+    D_1 = ceil M,
+    D_2 = (1+2h) D_1.
+
+For y in R, define the discrete short sums
+
+    A_y(alpha) = sum_{y < n <= y + D_1} b_1(n) e(alpha n),
+    B_y(-alpha) = sum_{y < m <= y + D_2} b_2(m) e(-alpha m).
+
+For each term of Q_M, integration in alpha imposes m = n + h w. Moreover
+h w < 2 h D_1 = D_2 - D_1, hence [n - D_1, n) subset [n+h w - D_2, n+h w).
+Set L_Y(n) = |[0,Y] intersect [n - D_1, n)|. By orthogonality,
+
+    int_0^Y int_T Q_M(alpha) A_y(alpha) B_y(-alpha) dalpha dy
+        = sum_w (c_w / w) sum_{n >= 1} b_1(n) b_2(n + h w) L_Y(n)
+
+exactly. For D_1 <= n <= Y we have L_Y(n) = D_1. The difference of the last sum
+from D_1 1_{1 <= n <= Y} is supported on O(D_1) integers at the two ends and has
+total absolute mass O(D_1^2). Using sum_{M<w<=tau M} 1/w <<_tau 1:
+
+    (1/(D_1 Y)) int_0^Y int_T Q_M(alpha) A_y(alpha) B_y(-alpha) dalpha dy
+        =  (1/Y) sum_{n<=Y} b_1(n) sum_{M<w<=tau M} (c_w/w) b_2(n+hw)
+           + O(D_1/Y).
+
+The endpoint error tends to zero as Y -> infinity (D_1 is fixed before Y).
+
+10.4e Completion: split frequencies.
+
+Set t_B = B^{-1-eps} and E_B = {alpha in T : |Q_M(alpha)| > t_B}. By Lemma 10.4c,
+
+    |E_B|               <<  M^{-1} * B^{8 eps} * (log B)^6,
+    ||Q_M||_inf          <<  B^{-1+eps} log B.
+
+Good frequencies (outside E_B). For every y, |Q_M| <= t_B on T \ E_B, and
+Parseval + Cauchy-Schwarz give
+
+    int_{T \ E_B} |Q_M(alpha) A_y(alpha) B_y(-alpha)| dalpha
+        <= t_B * ||A_y||_2 * ||B_y||_2  <=  t_B * sqrt(D_1 D_2).
+
+Since D_2/D_1 = 1+2h, after integrating in y and dividing by D_1 Y the
+contribution is <= O_h(t_B) = O_h(B^{-1-eps}).
+
+Bad frequencies (inside E_B). Bound |B_y| <= D_2, integrate y first, and apply
+the short-interval input 10.4b to A_y. If f_1 is the nonpretentious factor,
+
+    (1/(D_1 Y)) int_0^Y (int_{E_B} |Q_M A_y B_y| dalpha) dy
+        <<  ||Q_M||_inf * |E_B| * D_2 * (log log D_1)/(log D_1)
+        <<  (B^{-1+eps} log B) * (M^{-1} B^{8 eps} (log B)^6)
+            * ((1+2h) M) * ( log(C_0 B) / (C_0 B) )
+        <<  B^{-2+9eps} * (log B)^8  *  O_h(1)
+        <=  B^{-1-eps}    (large B).
+
+If f_2 is the nonpretentious factor instead, swap roles: |A_y| <= D_1, apply
+10.4b to B_y, and the argument is the same with D_1 in place of D_2.
+
+In both cases the frequency supremum is OUTSIDE the integral (as MRT supplies)
+and is used only after integrating the short exponential sum in y. Combining
+good and bad frequencies proves Proposition 10.4.   [end]
+
+
+10.5 Finishing the reduction of Theorem B.
+
+Assemble. Lemma 10.3 gives |R_B(X_j)| >= c_gamma L_0 X_j / B. Lemma 10.3b
+composes R_B as C_B plus the centered rough terms S_{u,w}, each bounded by
+Proposition 10.4, plus a numerical O(L_0 X J / P_0) error. Proposition 9.1 bounds
+|C_B(X)| by L_0 X B^{-1-c_*/2}. Therefore for large j (so X_j is large),
+
+    c_gamma L_0 / B
+        <=  C L_0 * ( B^{-1-c_*/2} + B^{-1-eps} + J/P_0 ).
+
+Divide by L_0/B:
+
+    c_gamma  <=  C * ( B^{-c_*/2} + B^{-eps} + B J exp( -B^{1-eps} ) ).
+
+Since c_gamma > 0 is fixed and the right side tends to zero as B -> infinity
+(P_0 = exp(B^{1-eps}) so the third term is B log B exp(-B^{1-eps}) -> 0), this
+inequality fails for large B.
+
+Order of logic. The functions, shift h, and bias gamma are fixed FIRST; then
+tau, T, phi, C_0 are fixed; then, for each fixed B, the limit is taken along the
+original sequence N_j, with X_j = H N_j. Only after these inequalities hold does
+B increase. So no biased sequence exists, and the assertion of Theorem B holds.
+
+Two technical points.
+
+(i) If tau, T, C_0, or B changes with X_j, the argument does not apply; that is
+why we set up the sequence N_j first, then fix tau, T, phi, C_0, and then take
+B large at the end.
+
+(ii) The error O(L_0 X J/P_0) arises from the multiplicative splitting factor
+f_1(u) f_2(u) being separated off across primes coprime to z(z+hw), together
+with the density-2J/P_0 exceptional set {gcd(u, z(z+hw)) > 1}; since J = O(log B)
+and P_0 = e^{B^{1-eps}}, it is o(L_0 X B^{-1-eps}).
+
+This proves Theorem B.                                          [end of Part II sec 9-10]
+
+Still to prove: Proposition 9.1 (the graph estimate) itself. That is Sections
+11-15, where BOTH bands, the first-visit tree, the cylinder sieve, and the
+token trace enter. In the interest of a self-contained but concise exposition,
+Sections 11-15 present the FULL STRUCTURE of the graph estimate, with statements
+proved in sub-lemmas.

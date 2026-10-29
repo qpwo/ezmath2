@@ -1,0 +1,2582 @@
+==========================================================================
+             INTEGER MULTIPLICATION BELOW n log n
+
+  A plain-text rewrite of the September 2026 OpenAI paper,
+  written so that a curious high school student can read
+  the whole argument from start to finish.
+
+  This is NOT the LaTeX source.  It is a rewrite in ordinary
+  prose with all mathematical notation spelled out in ASCII.
+  Same theorem, same proofs, more words, more examples.
+
+  Target reader: any high schooler comfortable with algebra
+  and willing to sit with an unfamiliar idea for a while.
+==========================================================================
+
+
+--------------------------------------------------------------------------
+0.  READ THIS FIRST
+--------------------------------------------------------------------------
+
+This document has one theorem in it, and everything else exists to
+explain, prove, and apply that theorem.
+
+THEOREM (main result).  There is a single deterministic computer
+program -- a Turing machine with a fixed finite alphabet and a
+fixed finite number of one-dimensional work tapes -- that, for
+every n >= 1, takes as input the 2n-bit string "x # y" (two n-bit
+binary numbers separated by a marker) and outputs the exact
+binary expansion of x times y in
+
+        T(n)  =  O( n * (lg n)^(1 - kappa) )   steps
+
+where
+
+        kappa = 2^(-182)   (about 10^-55)
+
+and "lg n" means "the smallest integer that is at least log base 2
+of n, and at least 1."
+
+For fifty years, the best algorithms sat at n times log n, and a
+famous conjecture (Schonhage and Strassen, 1971) said that
+n log n was the true floor.  This paper disproves that conjecture
+by exhibiting one machine that beats n log n by a factor of
+(log n)^kappa.  The factor is tiny but it grows without bound as
+n grows.
+
+How small is kappa?  10^-55 is roughly one over the number of
+atoms in a mountain.  The saving is real but far too small to
+matter for any actual computer.  Every constant in the paper is
+grotesquely oversized on purpose: the authors traded every
+practical concern for mathematical certainty.  The point of the
+paper is that the barrier is broken at all.
+
+
+--------------------------------------------------------------------------
+0.1  How to read this document
+--------------------------------------------------------------------------
+
+There are three "layers" of reading:
+
+  LAYER A  --  you, if you want the story.  Chapters 1, 2, 3,
+               4, and the last few pages.  History, central
+               idea, applications.  One sitting.
+
+  LAYER B  --  you, if you are taking a math competition.
+               Layer A plus the "big-picture" sections of
+               Chapters 5-8.  You see why each subroutine
+               works without every line of algebra.  Skim the
+               technical lemmas but read the "WHY THIS
+               MATTERS" notes.
+
+  LAYER C  --  you, if you are willing to grind.  Everything.
+               Expect a few weeks.  This is a research paper,
+               not a textbook.
+
+None of these three layers is "the real one."  All three are real.
+The math is the same in all three; only the level of detail differs.
+
+
+--------------------------------------------------------------------------
+0.2  Plan of the document
+--------------------------------------------------------------------------
+
+  PART I   -- THE PUZZLE
+  Chapter 1:  Multiplying numbers, and why speed matters
+  Chapter 2:  What "n log n" means and why it looked like a wall
+
+  PART II  -- THE TOOLKIT
+  Chapter 3:  A small language for Turing machines
+  Chapter 4:  Elementary tape moves (our basic teeth)
+  Chapter 5:  Two little networks with a rank saving (the key idea)
+  Chapter 6:  Using the network to swap address chunks fast
+  Chapter 7:  Using the network to run a butterfly layer fast
+
+  PART III -- THE ASSEMBLY
+  Chapter 8:  Synthetic Fourier transforms
+  Chapter 9:  Gaussian resampling
+  Chapter 10: Assembly: the exact integer product
+  Chapter 11: The full time accounting
+
+  PART IV  -- EXTENSIONS
+  Chapter 12: Exact division and integer square root
+  Chapter 13: Transposition of matrices
+  Chapter 14: Grouped rectangles (technical appendix)
+
+  APPENDIX
+  A. Glossary of notation
+  B. Table of all constants
+  C. A reading list
+
+
+==========================================================================
+PART I  -- THE PUZZLE
+==========================================================================
+
+
+--------------------------------------------------------------------------
+CHAPTER 1.  MULTIPLYING NUMBERS, AND WHY SPEED MATTERS
+--------------------------------------------------------------------------
+
+Imagine you are a computer.  Someone hands you two binary numbers,
+each n bits long.  Your job: spit out their product.  Also -- for
+real programs this matters -- you must finish in every case within
+some bounded number of steps.
+
+1.1  School multiplication
+
+Write the two numbers in binary, least significant bit on the right:
+
+   x  =  x_(n-1) x_(n-2) ... x_1 x_0
+   y  =  y_(n-1) y_(n-2) ... y_1 y_0
+
+Each x_i and y_i is 0 or 1.  To multiply, do n shifts and n
+additions:
+
+  - For each i in {0, ..., n-1}, if x_i is 1, add y shifted by
+    i bit positions to an accumulator.  If x_i is 0, skip.
+  - Then process carries from least significant bit to most.
+
+The accumulator has up to 2n bits.  Each addition costs n steps,
+and there are n additions, so:
+
+        SCHOOL MULTIPLICATION COST:   O(n^2) steps.
+
+For n = 1000 (a 1000-bit RSA modulus), n^2 is a million steps --
+nothing.  For n = 10^9 (a billion-bit computation, e.g. some
+massive simulation), n^2 is 10^18 steps, which is a billion
+times more than a modern computer can do in a second.
+
+1.2  Can we do better?
+
+Yes.  The improvements form a long, slow history:
+
+  year       cost                     algorithm
+  ----       ------------------       ------------------------
+  pre-1900   O(n^2)                   school multiplication
+  1960       O(n^1.585)               Karatsuba and Ofman
+  1963       O(n^(1+e)) for any e     Toom
+  1971       O(n log n log log n)     Schonhage and Strassen
+  2007       O(n log n 2^O(log* n))   Furer
+  2014       O(n log n 4^O(log* n))   Harvey, van der Hoeven,
+                                        Lecerf
+  2021       O(n log n)               Harvey and van der Hoeven
+  2026       O(n (log n)^(1-kappa))   This paper (kappa=2^-182)
+
+Each row is a strict improvement over the one above it.  Some
+improvements are enormous jumps (Karatsuba, the FFT-based
+Schonhage-Strassen algorithm, the 2021 Harvey-van der Hoeven
+result).  Others are smaller refinements of the same machinery.
+
+The 2026 result shaves the exponent 1 down by a tiny epsilon:
+
+    O( n * (log n)^1 )             the 2021 best
+    O( n * (log n)^(1-kappa) )     the 2026 best
+
+That is a strict improvement, and by more than any fixed constant,
+because (log n)^kappa grows without bound.
+
+1.3  Why "worst case" matters
+
+Notice the theorem says worst-case time.  For every pair of n-bit
+input numbers, the same bound applies.  That is much stronger than
+"on average."  A malicious input cannot slow the algorithm down.
+For a theoretical paper this is the only honest form of a running
+time statement.  If you want to know how a signature-verification
+server could be made arbitrarily slow, "average case" is a lie
+to your users.
+
+1.4  Why this is hard
+
+The information-theoretic story is simple:
+
+  - Basic lower bound.  You MUST read every one of the 2n input
+    bits, and you MUST write the 2n output bits.  Any algorithm
+    needs at least O(n) steps.
+
+  - The gap.  The best algorithms were around n log n -- a factor
+    of log n above the trivial bound.  Nobody could close that
+    gap.  For fifty years "n log n" was the state of the art,
+    and a lot of people assumed it was optimal.
+
+The 2026 paper shows that "everyone assumed" is wrong.  It builds
+a machine that finishes in
+
+        n * (log n)^(1 - kappa)   steps.
+
+The trick is not to invent a dramatically better multiplication
+algorithm.  It is to take the standard n log n algorithm and make
+every level of its recursion cost a hair less than a full linear
+scan.  Two little subroutines get faster.  That is the whole
+story -- but the details are enormous.
+
+
+--------------------------------------------------------------------------
+CHAPTER 2.  WHAT "n log n" MEANS AND WHY IT LOOKED LIKE A WALL
+--------------------------------------------------------------------------
+
+2.1  What "log n" means
+
+If you have not seen logarithms yet, here is the only fact you
+need:
+
+   log_2(n) is how many times you can cut n in half before you
+   get down to 1 (or below).
+
+Examples:
+
+     log_2(1)    = 0
+     log_2(2)    = 1
+     log_2(8)    = 3
+     log_2(1024) = 10
+     log_2(10^9) is about 30
+
+In algorithms, "log" always means log base 2, because computers
+work in binary.  The base only changes the answer by a constant
+factor, and big-O notation throws constants away, so most papers
+write "log n" and mean "log base 2."
+
+Big-O notation, for reference:
+
+     "T(n) = O(f(n))"
+
+means: "there is a fixed constant C such that T(n) is at most
+C * f(n) for all sufficiently large n."
+
+So O(n log n) and O(7 n log n) and O(n log(n)/4) all describe
+the same family of functions.  When we say "the best algorithm
+runs in O(n log n)," we mean "there is some constant C such that
+every n-bit multiplication takes at most C * n * log n steps."
+
+2.2  Why n log n appears naturally
+
+Almost every fast multiplication algorithm uses a divide-and-
+conquer structure.  The oldest one is due to Karatsuba.
+
+Split x into two halves:
+
+   x  =  x_high * 2^(n/2) + x_low      (each half has n/2 bits)
+   y  =  y_high * 2^(n/2) + y_low
+
+Naively,
+
+   x * y  =  x_high*y_high * 2^n
+           + (x_high*y_low + x_low*y_high) * 2^(n/2)
+           + x_low*y_low
+
+which needs 4 multiplications of size n/2.  Recurrence:
+T(n) = 4 T(n/2) + O(n)  =>  T(n) = O(n^2).  No improvement.
+
+Karatsuba's trick: compute
+
+   p  =  x_high * y_high
+   q  =  x_low  * y_low
+   r  =  (x_high + x_low) * (y_high + y_low) - p - q
+
+Then
+
+   x * y  =  p * 2^n  +  r * 2^(n/2)  +  q
+
+Only 3 multiplications of size n/2 instead of 4.  Recurrence:
+T(n) = 3 T(n/2) + O(n), which by the master theorem gives
+T(n) = O(n^1.585).  A huge improvement over n^2.
+
+The FFT approach is even more dramatic.  The idea is:
+
+   1. Turn x into a polynomial.  Just read x's bits as
+      polynomial coefficients: x = sum_i x_i t^i (where t is
+      a formal variable).
+   2. Do the same for y.
+   3. Multiply the polynomials by evaluation: pick n points
+      P_0, ..., P_(n-1), evaluate x and y at each P_j,
+      multiply pointwise, then interpolate back.
+   4. Evaluation and interpolation are "Fourier transforms,"
+      computable in O(n log n) steps by the FFT.
+
+Total: two forward FFTs, one pointwise product, one inverse
+FFT, all O(n log n).  In fact, this gives the recursive
+structure that every fast multiplication algorithm uses.
+
+2.3  Why n log n felt like a wall
+
+Here is the crucial structural feature of every FFT-based
+algorithm:
+
+   The FFT does log n ROUNDS.  In each round, it touches all
+   n bits once (at least).  So the total cost is at least
+   n * log n, not just as an observed bound but as a STRUCTURAL
+   LOWER BOUND for this style of algorithm.
+
+To beat n log n you have to save work at each individual round.
+But every round is a "touch all n bits" operation.  So where can
+the saving come from?
+
+The 1971 Schonhage-Strassen paper's mood was: "nowhere."  Each
+of the log n levels must cost Theta(n), so the total must be
+Theta(n log n).  Their conjecture stated this belief as a
+theorem they expected to be proven.
+
+The Harvey-van der Hoeven 2021 paper broke this by managing to
+make one particular level (the "middle" of a recursive structure)
+cost strictly less than n steps.  That saved a constant factor,
+enough to collapse log(log n) down to 1, giving n log n exactly
+without the extra log log n factor.
+
+The 2026 paper goes further.  It saves a tiny factor at every
+level, not just one.  Not a constant, but a factor of m^tau for
+some fixed m > 1 and 0 < tau < 1.  The m^tau is strictly less
+than m (it is m^tau for tau < 1).
+
+The saving then COMPOUNDS multiplicatively across all log_m(n)
+levels.  Even a tiny per-level saving becomes an unbounded
+overall saving once you multiply it out.  That is how 1 becomes
+1 - kappa.
+
+2.4  The general recipe
+
+Every fast multiplication algorithm on a Turing machine has the
+same shape:
+
+   MULTIPLY(x, y):
+     step 1: convert x, y to a convenient representation.
+     step 2: do a fast CONVOLUTION in that representation.
+     step 3: convert the result back.
+
+Step 1 and step 3 are linear-time in n (just a scan).
+
+Step 2 is the bottleneck.  So the paper's real job reduces to:
+
+   THE CENTRAL PROBLEM.
+   Can you compute a convolution of length n on a Turing machine
+   in o(n log n) bit operations, on a fixed finite number of
+   one-dimensional tapes?
+
+Answer: yes.  The paper gives an algorithm that does it in
+O(n (log n)^(1 - kappa)) steps.
+
+2.5  What the paper actually does differently
+
+Three ideas do all the work:
+
+  (a) A FINITE LINEAR NETWORK with a "rank saving."  This is
+      the combinatorial heart.  A tiny fixed-size network of
+      wires, with a rank deficit of exactly 100/539 (about
+      18.5%), can realize an address interchange with less
+      than the full cost of explicitly moving the data.
+      (Chapter 5.)
+
+  (b) A COMPLEX ANALOGUE of the same network, doing the same
+      for a simultaneous butterfly H_0 = ((u+v)/2, (u-v)/2).
+      Saves a similar 18.6% factor at every recursive layer.
+      (Chapters 5 and 7.)
+
+  (c) A CLEVER COMBINATION of resampling and chirps so that
+      the Fourier transforms needed for convolution can be
+      computed using these two optimized subroutines as
+      hardware.  (Chapters 8-10.)
+
+Ideas (a) and (b) are what make kappa positive at all.
+Idea (c) turns them into the actual multiplication bound.
+
+The rest of the paper is bookkeeping: making sure all the
+formats are compatible, all the rounding errors fit inside
+the tolerance, and all the constants add up.  That bookkeeping
+is where the tiny kappa = 2^-182 comes from.  Very careful
+estimates multiplied together and then pushed through a
+geometric sum, ending at a very small positive number.
+
+
+--------------------------------------------------------------------------
+CHAPTER 3.  A SMALL LANGUAGE FOR TURING MACHINES
+--------------------------------------------------------------------------
+
+3.1  What is a Turing machine
+
+A Turing machine is the simplest imaginable model of a computer.
+Picture:
+
+  - A TAPE, an infinite strip of cells.  Each cell holds one
+    symbol.  The symbols come from a FIXED FINITE ALPHABET
+    (say, {0, 1, blank}, though our paper uses a larger but
+    still fixed finite alphabet).
+
+  - A HEAD, a cursor that points at one cell.  The head can
+    read the symbol under it, write a (possibly different)
+    symbol, and move one cell left or right.
+
+  - A finite INSTRUCTION TABLE that says what to do based on
+    (current state, symbol under head).
+
+A "step" of the machine is: read one cell, write one cell, move
+one cell, switch state.  All four actions are atomic.  The
+machine halts when it reaches the HALT state.
+
+That is the whole model.  A real computer has registers, cache,
+files, threads, a graphics card -- a Turing machine has one
+tape and a fixed rulebook.
+
+Our particular machine has a FIXED FINITE NUMBER k of tapes,
+not just one.  Each tape has its own head and its own position.
+A single step of the machine reads and writes at most one cell
+on each tape and moves each head at most one cell.  So one step
+of a k-tape machine costs at most k cell-operations.  Choosing
+k = 1000 gives a fixed constant factor of slowdown compared to
+1 tape.
+
+3.2  Why this model is the "worst case"
+
+The reason a Turing machine is useful for lower bounds is that
+it is as WEAK as possible.  A real computer has:
+
+  - Random access to memory (jump to any address in one step).
+  - Multiple CPUs working in parallel.
+  - Cache memory.
+  - Special instructions for multiplication, division, etc.
+
+A Turing machine has NONE of those.  It must walk the tape one
+cell at a time, whether the target is 5 cells away or 5 billion.
+
+An algorithm that runs in O(f(n)) on a Turing machine therefore
+runs in O(f(n)) on EVERY reasonable model of computation, with
+at most a constant factor of overhead per elementary step.  In
+particular, an O(n^{1.99}) bound for a Turing machine implies an
+O(n^{1.99}) bound for any standard RAM computer -- constants
+change, exponent does not.
+
+For this paper, the model is even more restrictive than usual:
+a FIXED FINITE number of ONE-DIMENSIONAL tapes, not "poly(n)
+tapes."  The construction uses a k that is greater than 1 but
+still literally a single integer.
+
+3.3  Streams and how we store data
+
+The input string is 2n+1 bits: "x # y," where x and y are the
+two n-bit operands (most significant bit first) and # is a
+separator.
+
+An ARRAY in our language is a sequence of bits (or fixed-width
+records) laid out contiguously on a tape.  If the array has
+address set
+
+        [a_1] x [a_2] x ... x [a_t]
+
+where [a_i] = {0, 1, ..., a_i - 1}, then we store it in
+LEXICOGRAPHIC order: the first coordinate varies most slowly,
+the last varies fastest.  The ADDRESS of each entry is implicit
+in its position.  We do NOT store the address next to every
+data bit.
+
+This is the same convention a C compiler uses: element (i, j)
+of a 3-by-5 matrix is at linear offset 5*i + j.  Reading (i, j)
+never requires storing i and j explicitly.
+
+3.4  One step, one cost
+
+Cost is counted in steps:
+
+  - Reading one cell is part of a step.
+  - Writing one cell is part of a step.
+  - Moving one cell is part of a step.
+
+A scan of an array of length L costs L steps because the head
+must visit every cell.
+
+Adding two n-bit numbers takes O(n) steps on a Turing machine:
+scan the two inputs from right to left, propagating carries.
+Multiplying them naively takes O(n^2) steps: for each of the n
+shift operations, do a scan of length n.
+
+3.5  Why this makes the paper long
+
+Since the head walks the tape, our intuitions must be built
+entirely from SEQUENCES OF LINEAR SCANS.  A subroutine that
+costs "O(V)" means "a bounded number of scans over V cells."
+A subroutine that costs "O(V * u^tau)" means "a bounded number
+of scans, unless you have to do something harder whose cost
+depends on u."
+
+The two genuinely hard things in this paper are:
+
+  1. Permuting address FIELDS.  If you have a tape laid out
+     with two address chunks of u digits each, and you want to
+     SWAP them (so the entry at (h, g, d, z) moves to
+     (d, g, h, z)), the obvious way costs u passes, each pass
+     visiting all V cells: total O(V*u).  We want to beat that.
+
+  2. Applying a simultaneous butterfly.  The transform
+     H_0 = ((u+v)/2, (u-v)/2) on d selected address bits is
+     linear work IF the selected bits are easy to address.
+     But in the layout used by our Fourier transforms, the
+     selected bits are physical address chunks that are far
+     apart, and interleaving them costs more than a linear
+     scan.
+
+Both problems are ABOUT ADDRESS PERMUTATIONS.  And both are
+solved by the paper's two finite networks.  That is why the
+networks are the center of the paper.
+
+3.6  What we must prove about each subroutine
+
+For every subroutine, we must state:
+
+  - WHAT  it takes (input tape layout, sizes)
+  - WHAT  it produces (output tape layout)
+  - HOW MANY STEPS the Turing machine takes, in the worst case
+  - WHAT TAPES it uses (a fixed number, independent of input)
+  - THAT it never fails (well-defined for every valid input)
+
+Then we must check that each subroutine COMPOSES with the
+previous one: same formats in, same formats out, same fixed
+number of tapes, same fixed alphabet.
+
+The paper is 5700 lines long because it does all five for
+every subroutine and then wires them together.  This is not
+because the authors like long papers.  It is because the
+statement "there exists one finite machine that does X for
+every n" is very strong, and to prove it you must actually
+provide that one finite machine, cell by cell, subroutine by
+subroutine.
+
+3.7  Big-O for a whole family
+
+One last piece of vocabulary.  When the theorem says "there is
+ONE machine A such that for EVERY n >= 1, the output is correct
+AND T_A(n) = O(n (lg n)^(1-kappa))," the "O" means:
+
+  there is a fixed constant C > 0 such that
+
+      T_A(n)  <=  C * n * (lg n)^(1 - kappa)
+
+  for every n >= 1
+
+Note that C is independent of n.  It is also independent of the
+input bits (worst-case).  It is also independent of tiny tweaks
+to the algorithm (each subroutine has its own fixed C).
+
+The "one machine" part means the same finite instruction table
+works for all n.  You cannot have a different machine for each
+n.  This is the uniform version of the bound, and it is much
+stronger than "for each n there is some machine."
+
+OK, that closes Chapter 3.
+
+
+--------------------------------------------------------------------------
+CHAPTER 4.  ELEMENTARY TAPE MOVES
+--------------------------------------------------------------------------
+
+Everything the paper does is built from a small kit of elementary
+operations on the tape.  Every operation in every later chapter
+either IS one of these, or is a bounded number of them.
+
+4.1  Splits and merges
+
+Fix a radix q >= 2.  For bit work q = 2; for record work q can
+be larger (a "digit" of size q is one fixed-width record).
+
+LEMMA (Elementary stream operations).
+On an array of volume V, each of the following takes O(V) steps
+on a fixed number of one-dimensional tapes:
+
+  (1) Any fixed permutation of the PAIR of digit values at two
+      specified radix-q positions -- whether or not the two
+      positions are adjacent.
+
+  (2) Moving one specified radix-q digit to another position,
+      preserving the order of the intervening positions.
+
+  (3) Splitting on a specified radix-q digit, applying a fixed
+      pointwise map to aligned streams, and merging them back.
+
+  (4) For positive integers P, R, B: within each prefix of an
+      array on [P] x [R] x [B], splitting whole ROWS cyclically
+      into W streams; and, when W divides R, merging those
+      streams back in any fixed order.
+
+How each works:
+
+(1) Split the array into q^2 streams by the two specified digits.
+    Since those digits are FIXED, the order of the remaining
+    digits is the same in each stream.  Now merge the streams in
+    the order requested by the permutation.  Linear work.
+
+(2) Same idea, but split into q (not q^2) streams, then merge
+    them back with the moved digit placed at its new position.
+
+(3) Same split on one digit; apply the fixed map to each aligned
+    entry; merge according to the output digit.
+
+(4) Write r = Wg + w with 0 <= w < W, and send the r-th row to
+    stream w.  Each stream has the same remaining shape
+    [P] x [R/W] x [B].  Merge them back in the requested order.
+
+4.2  Counting counters correctly
+
+The subtle part of the lemma is what happens when you actually
+account for the binary counters that direct the scans.
+
+A binary counter of width w, incremented through L consecutive
+values, costs O(L + w) steps: the least significant bit flips
+on every increment (L flips); the next bit every second
+increment (L/2 flips); and so on, for a total of O(L).  The
+setup cost O(w) is absorbed as long as L >= 2^w or L is
+proportional to the range.
+
+For nested scans with a fixed number of ranges, reset each
+range's counter to the length of that range's scan; the total
+is linear by induction.  Empty pieces of a split can be charged
+to the adjacent nonempty combined range.
+
+Descriptor work also costs.  Computing shape lengths and
+starting values by schoolbook binary arithmetic on
+O(log V)-bit integers is O((log V)^C) for a fixed exponent C.
+That is O(V) uniformly in V after increasing the fixed constant.
+So we can charge descriptor setup to the full scan.
+
+4.3  Controlled shifts
+
+A slightly stronger tool: field updates where the offset depends
+on preceding "control" fields.
+
+LEMMA (Controlled shifts and fixed rational scalings).
+Fix a prime q, a fixed number of control fields, and finitely
+many rational coefficients whose denominators are prime to q.
+Put Q = q^b for some b >= 1.  Suppose the input's tape order
+puts a target field y in [Q] AFTER the control fields, and each
+control is used in an offset having O(b) digits.  Then the
+update
+
+      y  <-  y + a(controls)  (mod Q)
+
+costs O(V) steps, provided the offset can be computed in
+b^{O(1)} time from the control values.  In particular, this
+covers any fixed rational linear combination of the controls.
+
+Multiplication of y by any of the specified rational units, and
+its inverse, also costs O(V).  Arbitrarily long intervening
+spectator fields and suffix records are permitted.
+
+Proof idea.  Fix all fields before y, and let B = suffix length
+in bits.  Each "fiber" (fixed prefix) is Q blocks of length B.
+For an offset a, split these Q blocks at position Q - a: push
+the two pieces onto two tapes, then merge them the other way
+around.  Work per fiber is O(QB); summing over all fibers gives
+O(V).  The offset itself takes b^{O(1)} time to compute, which
+is absorbed by the QB >= Q bits of the fiber.
+
+For multiplication by a fixed integer c: the map y -> c*y mod Q
+has c increasing pieces, classified by floor(c*y / Q).  Prepare
+their endpoints once; then for each output y', the stream is
+the unique j in [c] with y' + jQ = 0 mod c.  Uniqueness follows
+from gcd(Q, c) = 1.  Reversing the split and merge gives the
+inverse multiplication by c^{-1} mod Q.  Negation reverses the
+blocks.
+
+4.4  Fixed-point arithmetic
+
+For the complex (Gaussian) side of the paper, we use exact
+signed fixed-point binary:
+
+  A value in 2^{-p} Z[i] is stored as TWO signed p-bit
+  fractions, one for the real part and one for the imaginary
+  part (frequently padded with extra integers and guard bits).
+
+  Signed fixed-point addition, subtraction, sign change, and
+  multiplication or division by a fixed power of two are all
+  linear in the number of bits per component.
+
+If the input record on the tape is most-significant-bit first
+(as it naturally is; numbers are written that way), reverse it
+onto an arithmetic work tape, do arithmetic with
+least-significant-bit first, and reverse the result back.  Each
+reversal is a linear pass and is fully charged.
+
+This convention is important because the ORDER of bits inside
+a record must be distinguished from the LEXICOGRAPHIC order of
+records on the tape.  Two different things.  Don't confuse them.
+
+4.5  The self-delimiting integer encoding
+
+To describe parameters (like p, T, r, d) between subroutines,
+we use a self-delimiting binary code.  For integer v >= 1:
+
+      b_v     =  floor(log_2 v) + 1
+      Gamma(v) = 0^{b_v - 1}  bin(v)
+      |Gamma(v)| = 2 b_v - 1
+
+The initial run of zeros specifies how many bits follow the
+first 1, so a concatenated sequence Gamma(u_1) Gamma(u_2) ...
+Gamma(u_k) can be read back in order, one at a time.
+
+Examples:
+
+      Gamma(1) = 1                length 1
+      Gamma(2) = 010              length 3
+      Gamma(3) = 011              length 3
+      Gamma(4) = 00100            length 5
+      Gamma(5) = 00101            length 5
+      Gamma(6) = 00110            length 5
+      Gamma(7) = 00111            length 5
+      Gamma(8) = 0001000          length 7
+
+Gamma(v) uses exactly 2b_v - 1 = O(log v) bits per parameter.
+A header of d parameters uses O(d log V) bits, always absorbed
+by the volume V as long as d is not too large (d = O(p) is
+fine when p >> log V).
+
+That closes Chapter 4.  Every later chapter uses these
+operations, and every cost bound in the paper ultimately
+decomposes into O(V) scans plus a small number of recursively
+faster subcalls.
+
+
+==========================================================================
+PART II  -- THE TOOLKIT
+==========================================================================
+
+
+--------------------------------------------------------------------------
+CHAPTER 5.  TWO FINITE NETWORKS WITH A RANK SAVING
+--------------------------------------------------------------------------
+
+This is the technical heart of the paper.  Almost all the saving
+comes from one fixed combinatorial structure.  A tiny fixed
+network of scalar gates, with a rank deficit of about 18.5%,
+suffices to realize a certain address permutation at
+sublinear-in-m cost.
+
+5.1  The combinatorial setup
+
+Choose fixed integers:
+
+      h  =  100
+      v  =  C(h, 3)  =  C(100, 3)  =  100 * 99 * 98 / 6
+                     =  161700
+      N  =  v^3     =  4,227,952,113,000,000    (~4.23 * 10^15)
+      m  =  h^3     =  100^3  =  1,000,000
+
+Let T be the set of all 3-element subsets of the "ground set"
+{1, 2, ..., 100}.  Then T has exactly v = 161700 members.
+
+Let a = (a_1, a_2, a_3) range over T^3, i.e. three (not necessarily
+distinct) triples.  There are exactly |T|^3 = v^3 = N such
+triples a.  Everything in the construction is indexed by such a.
+
+Two banks of scalar data:
+
+      X_a,  Y_a            for each a in T^3
+
+Each bank entry holds ONE SCALAR:  a bit in the binary ("bit
+construction"), or a Gaussian rational in 2^{-p} Z[i] in the
+complex ("complex construction").  Total data wires: 2N.
+
+Two members S, T of T are NEIGHBORS if:
+
+      Bit case:      |S  intersect  T|  =  1.
+      Complex case:  S  !=  T  and  |S intersect T|  is even,
+                     i.e. |S intersect T| in {0, 2}.
+
+Count the neighbors of a fixed S:
+
+  Bit case.  Choose ONE element of S (3 ways) and TWO from the
+  97-element complement (C(97, 2) = 4656 ways).  Total:
+
+      z_b  =  3 * 4656  =  13968.
+
+  Complex case.  Intersection 0: choose all 3 from the complement,
+  C(97, 3) = 147440.  Intersection 2: choose 2 from S (3 ways)
+  and 1 from the complement (97 ways) = 291.  Total:
+
+      z_c  =  147440 + 291  =  147731.
+
+Both are fixed numbers, independent of any eventual input length.
+
+5.2  Three stages, and the invocations
+
+The network operates in three stages, one per coordinate.
+
+  In stage j (j = 1, 2, 3): fix the OTHER two coordinates of a,
+  vary coordinate j.  So we get v values in X (one per T in the
+  varying coordinate) and v values in Y.  Process them together
+  as one "invocation."
+
+  Two triples S, T are "neighbors in the invocation" iff they
+  differ only in coordinate j and S, T are neighbors in T.
+
+  Number of invocations per stage: v^2 = 161700^2 = 26,146,890,000.
+  Total:
+
+      I  =  3 v^2  =  78,440,670,000.
+
+Each invocation has its own PRIVATE auxiliary wires:
+
+  - One SIDE wire A_ST for each ordered pair (S, T) that are
+    neighbors WITHIN THE INVOCATION.  One private scratch wire
+    per pair.
+  - One HUNDRED CENTRAL wires C_1, ..., C_100 (one per element
+    of the ground set [100]).
+  - In the complex case only, ONE EXTRA central wire C_*.
+
+Number of side wires per invocation:
+
+    Bit case:      v * z_b  =  161700 * 13968  =  2,258,625,600.
+    Complex case:  v * z_c  =  161700 * 147731 = 23,888,092,700.
+
+Total wire count:
+
+    W_b  =  2N  +  I * (v z_b + c_b)
+         =  177,176,569,091,445,000,000.
+
+    W_c  =  2N  +  I * (v z_c + c_c)
+         =  1,873,807,244,643,542,670,000.
+
+Here c_b = 100 and c_c = 101 are the per-invocation central-wire
+counts.  All of W_b, W_c, m, N are fixed finite constants
+(they do not depend on any eventual input size n).
+
+5.3  The scalar schedule
+
+For one invocation, the network applies eight linear gates in
+sequence.  Here is the notation:
+
+    x_T    = the value in X at the source triple T
+    y_S    = the value in Y at the target triple S
+    A_ST   = auxiliary side wire for ordered pair (S, T)
+    C_i    = the central wire for i in [100]
+    C_*    = the extra central wire, complex case only
+
+The schedule (eight rows, indexed 0-7):
+
+  row | operation                  | gate grouping
+  ----+----------------------------+---------------------------
+   0  | subtract side injection    | one gate per target S
+   1  | subtract scatter           | one gate on Y + centers
+   2  | copy                       | one gate per source T
+   3  | gather                     | one gate on X + centers
+   4  | scatter                    | one gate on Y + centers
+   5  | side injection             | one gate per target S
+   6  | undo gather                | one gate on X + centers
+   7  | undo copy                  | one gate per source T
+
+Each row is a LINEAR map on the wires.  Untouched wires keep
+their values.  The coefficients are in {0, +1, -1, +1/2, -1/2}
+(fixed rationals).
+
+What each named gate does (per invocation):
+
+    COPY        For each neighbor pair (S, T):
+                  A_ST  +=  x_T.
+    GATHER      For each i in [100]:
+                  C_i   +=  sum over T that contain i of x_T.
+                Complex case only:
+                  C_*   +=  sum over all T of x_T.
+    SCATTER     For each target S:
+                  Bit case:      y_S += sum_{i in S} C_i
+                  Complex case:  y_S += (sum_{i in S} C_i - C_*) / 2
+    SIDE-INJ    For each target S:
+                  Bit case:
+                    y_S += sum_{T neighbor S} A_ST
+                  Complex case:
+                    y_S += sum_{T neighbor S} -( |S intersect T| - 1 )/2 * A_ST
+
+Rows 0 and 1 are SIDE-INJECT with a minus sign, and SCATTER
+with a minus sign: they subtract.  Rows 6 and 7 undo rows 3 and
+2 exactly, using subtraction instead of addition.
+
+5.4  The restoration lemma (net effect)
+
+LEMMA (Scalar motifs).
+For arbitrary initial values on the auxiliary wires, ONE
+forward invocation changes y_S to y_S + x_S and leaves every
+other scalar value unchanged.
+
+Performing a forward invocation from X to Y at stage 1, an
+INVERSE forward invocation from Y to X at stage 2, and a
+forward invocation from X to Y at stage 3 sends
+
+      ( X_a,  Y_a )  ->  ( -Y_a,  X_a )
+
+and restores every auxiliary value.  In the BIT construction
+this is the transposition that EXCHANGES X_a and Y_a.
+
+Proof idea:
+
+Let "a" and "c" be the initial values on the side and central
+auxiliary wires (arbitrary).  Rows 0 and 1 subtract the
+contribution of (a, c) from y_S.  So the y-side contribution
+from the initial (a, c) is ZERO.
+
+Rows 2 and 3 modify (a, c) by adding copy / gather terms built
+from the x-values.  Now the auxiliarys reflect the x-data.  Rows
+4 and 5 add the NEW (a, c) contribution to y_S.  Rows 6 and 7
+undo rows 2 and 3, restoring (a, c) to their initial values.
+
+Net effect on y_S, ignoring the auxiliarys (which are back where
+they started):
+
+    y_S  +=  (side-injection + scatter)(copy + gather applied to x)
+
+We must show that this composite is exactly y_S += x_S.  There
+are two cases:
+
+  Bit case.  The composite coefficient from x_T to y_S is
+  (|S intersect T|) mod 2.
+
+    - If |S intersect T| = 0: coefficient is 0.  Side also
+      contributes 0 (S, T not neighbors).  Total: 0.
+    - If |S intersect T| = 1: coefficient is 1; S, T ARE
+      neighbors, so side contributes -1 to cancel.  Total: 0.
+    - If |S intersect T| = 2: coefficient is 2 mod 2 = 0.
+      Side contributes 0 (not neighbors).  Total: 0.
+    - If S = T: coefficient is 3 mod 2 = 1.  Side contributes
+      0.  Total: 1.
+
+  So y_S += x_S, no other contribution.  Good.
+
+  Complex case.  Composite coefficient from x_T to y_S is
+  (|S intersect T| - 1) / 2.
+
+    - If |S intersect T| = 0: coefficient is -1/2.  S, T ARE
+      neighbors in the complex case, so side injection cancels
+      with +1/2.  Total: 0.
+    - If |S intersect T| = 1: coefficient is 0.  Not a
+      neighbor; side contributes 0.  Total: 0.
+    - If |S intersect T| = 2: coefficient is 1/2.  Neighbors,
+      side cancels.  Total: 0.
+    - If S = T: coefficient is 1.  Side contributes 0.  Total: 1.
+
+  So y_S += x_S.  Good.
+
+Three stages: start with (x, y).
+
+  Stage 1 (forward):    (x,  y + x).
+  Stage 2 (inverse):    (x - (y + x),  y + x)   =  (-y,  y + x).
+  Stage 3 (forward):    (-y,  y + x + (-y))     =  (-y,  x).
+
+Final: (x, y) -> (-y, x).  In the bit case -y = y (mod 2) so
+this is the bank exchange.
+
+5.5  From scalars to arrays: the frame invariance
+
+The network above operates on SCALARS.  Our actual problem
+involves ARRAYS: each wire w might hold an array indexed by some
+common address set Omega.  We need to lift the scalar network
+to a network on arrays WITHOUT changing the linear cost bound.
+
+The trick is the following.
+
+At every SOURCE, GATE, and SINK vertex v of the network, choose
+an invertible linear operator D_v on the space of arrays.  Call
+D_v the FRAME at v.  All incoming and outgoing incidences of
+one gate share a common frame.
+
+Store the array on each wire in frame D_v at vertex v: the
+stored array equals D_v applied to the "logical" array at v.
+
+Along an edge from u to v, apply D_v D_u^{-1} to the wire's
+array to change representation from D_u to D_v.
+
+The KEY PROPERTY.  At a linear gate G, all inputs use the same
+frame D_v, so:
+
+      G( D_v f_1, ..., D_v f_t )  =  D_v G( f_1, ..., f_t ).
+
+So the frame COMMUTES with pointwise linear gates.  Frames
+cancel along every edge, they cancel at every gate, they never
+change the logical computation.
+
+Consequently, if the scalar network is a signed role
+permutation that sends input role w to output role rho(w) with
+scalar sign epsilon_w, then
+
+  THE WHOLE ARRAY NETWORK IMPLEMENTS:
+
+      D_out  S_Omega  D_in^{-1}
+
+  where:
+
+      S_Omega = the scalar network with each scalar gate
+                replaced by "apply the scalar gate pointwise
+                to each array entry"
+
+      D_in    = direct sum over input roles w of D_source(w)
+      D_out   = direct sum over output roles w of D_sink(w)
+
+  In particular, a route from input role w to output role
+  rho(w) applies the operator
+
+      epsilon_w  D_sink(rho(w))  D_source(w)^{-1}
+
+  to that input array.
+
+The crucial point: WE GET TO CHOOSE the intermediate frames
+D_v.  Choosing them cleverly makes each edge transition
+D_v D_u^{-1} cheap to implement on tape.  The whole paper's
+savings come from choosing intermediate frames so that D_v
+D_u^{-1} is a LOW-RANK RATIONAL (or binary) matrix.  Low-rank
+transitions cost less than the full array size, so the total
+work per network invocation is strictly below a full scan of
+Omega.
+
+Next chapter: HOW to choose the frames.  The answer involves an
+orthogonal decomposition of a finite-dimensional vector space,
+and it produces exactly the L_b / N = 100 / 539 deficit.
+
+
+--------------------------------------------------------------------------
+CHAPTER 5, continued.  Subspace labels, and where the saving comes from
+--------------------------------------------------------------------------
+
+5.6  The subspace labels
+
+The D_v frames of Section 5.5 will be chosen as orthogonal
+projections onto certain subspaces U_v of a fixed finite-
+dimensional "label space."  Fix:
+
+   Bit case:  F = Q^h  with the rational bilinear form
+              <x, y>  =  x^T (I - J/9) y,
+              where I is the identity and J is the all-ones
+              matrix.  This form is nondegenerate; its smallest
+              eigenvalue is 1 - h/9 = -91/9 > -infinity.
+
+   Complex case:  F = (F_2)^h with the ordinary binary dot
+                  product.
+
+For each 3-subset T of [100], let t_T be its INDICATOR VECTOR
+in F (three 1s, ninety-seven 0s).  Then:
+
+   Bit case:      <t_S, t_T>  =  |S intersect T| - 1
+                  <t_T, t_T>  =  2
+
+   Complex case:  <t_S, t_T>  =  |S intersect T| mod 2
+                  <t_T, t_T>  =  1
+
+So NEIGHBORING triples have ORTHOGONAL indicators, in both
+cases:
+
+   Bit:      |S intersect T| = 1  gives  <t_S, t_T> = 0.
+   Complex:  even intersection    gives  <t_S, t_T> = 0.
+
+The label space is the tensor product
+
+   F_big  =  F tensor F tensor F,     dim = m = h^3 = 1,000,000.
+
+For a triple a = (a_1, a_2, a_3) in T^3:
+
+   u_a  =  t_{a_1} tensor t_{a_2} tensor t_{a_3}   in F_big.
+   U_a  =  one-dimensional subspace spanned by u_a.
+
+Terminal labels:
+
+   role     | source label | sink label
+   ---------+--------------+-------------------
+   X_a      | U_a          | F_big
+   Y_a      | 0            | (U_a)^perp
+   scratch  | 0            | F_big
+
+Sum of source dimensions:  N * 1 + N * 0 + (W - 2N) * 0  =  N.
+Sum of sink dimensions:    N * m + N * (m-1) + (W - 2N) * m
+                          =  Wm - N.
+
+Signed dimension INCREASE across the network: (Wm - N) - N
+= Wm - 2N.
+
+If L is the total dimension LOST on DECREASING edges, the sum
+of ABSOLUTE changes is:
+
+   Wm - 2N + 2L.
+
+Intermediate labels.  At stage j (j = 1, 2, 3), put
+
+   A = F^(j-1)                                    (dim = h^(j-1))
+   P = span(t_{a_1} tensor ... tensor t_{a_{j-1}})  (dim 1)
+   B = P^perp inside A                             (dim = h^(j-1) - 1)
+   Q = F^(3-j)                                     (dim = h^(3-j))
+
+Note A = B perpendicular P.  Then for each DATA wire:
+
+   wire     incoming label                     outgoing label
+   -------  --------------------------------  ---------------------------------
+   X        A tensor <t> tensor Q             (A tensor F) tensor Q
+   Y        B tensor <t> tensor Q             ((B tensor F) perp (P tensor t^perp)) tensor Q
+
+Consecutive stages fit: the OUTGOING label at stage j is the
+INCOMING label at stage j+1.  Stage 1 starts at the source
+labels; stage 3 ends at the sink labels.
+
+The gate labels (one per time in the scalar schedule):
+
+  time | physical wires          | common gate label
+  -----+-------------------------+----------------------------------
+   0   | Y, its side wires       | B tensor <t>
+   1   | Y, all center wires     | B tensor F
+   2   | X, its side wires       | (B tensor F) perp (P tensor <t>)
+   3   | X, all center wires     | A tensor F
+   4   | Y, all center wires     | B tensor F   <-- DECREASING
+   5   | Y, its side wires       | (B tensor F) perp (P tensor t^perp)
+   6   | X, all center wires     | A tensor F
+   7   | X, its side wires       | A tensor F
+
+Every label is tensored by Q (except at the last line).
+
+LEMMA (Motif residuals).
+Every edge joins comparable nondegenerate labels.  The ONLY
+decreasing edges are the central-wire edges from time 3 to
+time 4; their dimension loss is exactly h.  Consequently, if c
+is the number of central wires per invocation and W is the
+total wire count,
+
+   L  =  I c h,
+   sum_e | dim U_head(e) - dim U_tail(e) |  =  Wm - 2N + 2L.
+
+The proof is a direct dimension count per edge.  Every residual
+is a tensor product of one of a few standard pieces:
+B tensor t^perp (dim (dim A - 1)(h - 1)), P tensor t^perp (dim
+h - 1), P tensor <t_X, t_Y>^perp (dim h - 2), and so on.  Sum
+over all edges telescopes to the formula above.
+
+Numerically:
+
+   L_b / N  =  I * 100 * h / N  =  100 / 539   (exactly)
+   L_c / N  =  I * 101 * h / N  =  101 / 539   (exactly)
+
+Both strictly less than 1/2.  This is the whole combinatorial
+saving.
+
+5.7  The rational-matrix interface (bit network)
+
+We turn the subspaces of Section 5.6 into actual rational
+matrices.  For nondegenerate U in F_big, let P_U be the
+projection onto U ALONG U^perp (well-defined because both U
+and U^perp are nondegenerate).
+
+Assign the matrix M_v = P_U at each gate or sink with label U.
+Assign M_source = -P_{U_a} at X_a and 0 at every other source.
+
+The FRAMES.  In the tape application, two address chunks are
+written as vectors H = (H_1, ..., H_m) and D = (D_1, ..., D_m)
+of m fields each, over Z/(q^b) for a fixed prime q.  For a
+rational matrix M, define the frame Phi_M on arrays by
+
+   (Phi_M array)[H, D]  =  array[H + MD, D]      (mod q^b).
+
+Phi_M is an invertible F_2-linear PERMUTATION of array
+entries.  Also Phi_{M'} Phi_M = Phi_{M' + M}.  So the
+Phi_M form a group of permutations of the array.
+
+Now use D_v = Phi_{M_v} in the frame invariance.  The endpoint
+difference on each routed role is:
+
+   M_sink(rho(w)) - M_source(w)  =  I_m.
+
+(Verify:
+ * X_a: rho(X_a) = Y_a.  M_sink = P_{U_a^perp}, M_source = -P_{U_a}.
+   Difference = P_{U_a^perp} + P_{U_a} = I.
+ * Y_a: rho(Y_a) = X_a.  M_sink = P_{F_big} = I, M_source = 0.
+   Difference = I.
+ * scratch: rho = id.  Difference = I - 0 = I.)
+
+So EVERY input role ends up with the SAME endpoint difference
+I_m.  The whole network implements the same shear
+
+   (H, D)  ->  (H + D, D)
+
+on every role.
+
+The rank of each edge difference M_head - M_tail is bounded by
+the dimension of the corresponding residual subspace.  The sum
+of all these rational ranks is:
+
+   s_b  =  W_b m - N + 2 L_b
+        =  177,176,569,088,785,861,287,000,000
+
+which is STRICTLY less than W_b m.  Deficit:
+
+   W_b m - s_b  =  N - 2 L_b  >  0   (since L_b/N = 100/539 < 1/2).
+
+5.8  The binary-phase interface (complex network)
+
+For the complex network the frames are PHASE operators.  For a
+label U, let
+
+   C_U  =  H^tensor_m  diag_x( i^{q_U(x)} )  H^tensor_m
+
+where H = (1/sqrt 2) [[1, 1], [1, -1]] and q_U(x) is the
+Hamming WEIGHT of P_U(x) mod 4 (with P_U the F_2 projection
+onto U).
+
+An edge from label U to label V has frame C_V C_U^{-1}.  Using
+an ORTHONORMAL basis of the residual subspace E (where
+V = U perp E), this factors as a product of translation
+kernels:
+
+   C_V C_U^{-1}  =  prod_{v in B} ( a I + b X_v )^{eps_v}
+
+where a = (1 + i)/2, b = (1 - i)/2, (X_v f)(x) = f(x + v), and
+each v in F_2^m is a residual basis vector with sign eps_v =
++1 (increasing) or -1 (decreasing).
+
+The total number of such kernels over all edges is:
+
+   s_c  =  W_c m - 2N + 2 L_c
+        =  1,873,807,244,636,671,267,308,000,000
+
+Deficit  W_c m - s_c  =  2N - 2 L_c  >  0   (since L_c/N =
+101/539 < 1/2).
+
+Undoing source and sink corrections (which involve the operator
+Z = diag(1, -1) on 27 selected coordinates of supp(u_a)) and
+undoing the sign of the bank exchange leaves the endpoint on
+EVERY role as C^tensor_m: the full Hadamard-diagonal-Hadamard
+transform.
+
+5.9  The fixed rational exponents
+
+The two relative deficits are:
+
+   eta_b  =  (W_b m - s_b) / (W_b m)
+          =  339 / 22,587,335,000,000         (about 1.5 * 10^-11)
+   eta_c  =  (W_c m - s_c) / (W_c m)
+          =   73 / 19,906,842,167,500         (about 3.7 * 10^-12)
+
+Both are much bigger than 20 * 2^-50 (about 1.8 * 10^-14).
+Since m < 2^20 (m = 10^6), we have log m < 20, so:
+
+   m^(1 - 2^-50)  =  m * exp(-2^-50 log m)
+                  >  m * (1 - 20 * 2^-50)
+                  >  m * (1 - eta)
+
+for eta = eta_b or eta = eta_c.  Therefore, taking
+
+   tau  =  sigma  =  1 - 2^-50,
+
+we get:
+
+   s_b / W_b  <  m^tau
+   s_c / W_c  <  m^sigma
+
+This is the per-level saving.  In the recursion, a level of
+parameter m uses s subcalls, each on 1/W of the volume, so the
+total recursive contribution is (s/W) times the previous level.
+And (s/W) < m^tau < m gives the strict saving.
+
+Next chapter: using this saving to swap two address chunks of
+width u in time O(V u^tau), which is the fundamental tape
+operation behind everything else.
+
+
+--------------------------------------------------------------------------
+CHAPTER 6.  FAST INTERCHANGE OF ADDRESS CHUNKS
+--------------------------------------------------------------------------
+
+We now use the bit network (Chapter 5) to SWAP two address
+chunks on tape.  An edge matrix of rational rank a will cost
+a SMALLER interchanges; because the total rank s_b is below
+W_b m, we gain a power of the chunk width back.  That saving
+is the fundamental tape operation behind everything else.
+
+6.1  Lower-triangular factorization of a rational matrix
+
+LEMMA (Lower-triangular factorization).
+Every rational m-by-m matrix A of rank a has a factorization
+
+      A  =  E_1  Pi  E_2
+
+where E_1 and E_2 are INVERTIBLE LOWER-TRIANGULAR rational
+matrices, and Pi has exactly a entries equal to one, at most
+one in each row and column, and all other entries zero.
+
+Proof.  If A = 0: E_1 = E_2 = I, Pi = 0.
+
+Otherwise scan from the top.  Find the TOPMOST NONZERO ROW
+(say row i), and within it the RIGHTMOST NONZERO COLUMN (say
+column j).  So pivot element A[i, j] is at the top-right
+corner of the active submatrix.
+
+Clear the entries to the LEFT of the pivot in row i by RIGHT
+multiplication by lower-triangular elementary matrices (which
+is safe, because they only touch columns i, i+1, ..., j - 1,
+which are all still allowed to change).  Clear the entries
+BELOW the pivot in column j by LEFT multiplication by lower-
+triangular elementary matrices.  Scale the pivot to one.
+
+Delete row i and column j from the active index set.  All
+rows ABOVE the pivot row are already zero in the remaining
+active columns.  Repeat.
+
+Each step isolates one rank-one block.  After r steps, the
+remaining submatrix has rank a - r.  Because we chose the
+pivot row topmost and its pivot column rightmost, no earlier
+pivot row or column has been disturbed.
+
+Final partial permutation Pi has exactly a ones.  Set E_1 =
+L^{-1} and E_2 = R^{-1} where L A R = Pi.
+
+6.2  Cost of a rational matrix shear
+
+Let A be a FIXED FINITE collection of rational m-by-m matrices.
+Choose a fixed odd prime q that avoids every denominator
+appearing in A or in any factorization, and also every
+numerator of a nonzero diagonal entry of an invertible factor.
+
+LEMMA (Matrix shear).
+Let H = (H_1, ..., H_m) and D = (D_1, ..., D_m) be two
+ordered groups of fields over Z/q^b, with every H_i physically
+BEFORE every D_j on the tape.  For any A in the fixed
+collection, of rational rank a, the address permutation
+
+      (H, D)  ->  (H + A D, D)   (mod q^b)
+
+can be performed in O(V) steps plus exactly a INTERCHANGES of
+pairs of b-digit fields.  Every interchange is between an H
+field and a D field.
+
+Proof.  Precompute a factorization A = E_1 Pi E_2 for each A
+in the collection.  Include the inverses E_1^{-1}, E_2^{-1} in
+a fixed rational table.  All these rational identities then
+specialize to Z/q^b, and the triangular factors remain
+invertible there (because q avoids their denominators).
+
+A lower-triangular transformation of H or D costs O(V), by
+processing coordinates in DESCENDING physical order so that
+earlier coordinates still hold their original values
+(Lemma 4.3, controlled shifts).
+
+For A = E_1 Pi E_2, apply the sequence:
+   1. Transform D by E_2 and H by E_1^{-1}.  Lower-triangular
+      transforms, O(V) each.
+   2. Add Pi D to H.  Each "1" at Pi[i, j] gives a single
+      update H_i <- H_i + D_j, performed as:
+           D_j           <-  D_j + H_i
+           (H_i, D_j)    <-  (D_j, H_i)      swap
+           D_j           <-  H_i - D_j
+      which is three O(V) updates plus ONE field interchange.
+   3. Transform H by E_1 and D by E_2^{-1}.
+
+There are exactly a such updates.  Total: a interchanges plus
+O(V) additional work.  To swap H_i away, at least one
+interchange is unavoidable per rank-one pivot, so a is also
+the minimum count.
+
+6.3  Power-width interchange
+
+We now transfer a finite circuit to a tape procedure on
+address permutations.
+
+PROPOSITION (Power-width interchange).
+Assume the finite circuit data satisfy
+
+      M_sink(rho(w)) - M_source(w)  =  I_m
+      s  :=  sum over edges e of rank_Q(A_e)  <  Wm
+
+(after Chapter 5, W_b and s_b work).  Let q be a prime as in
+Lemma 6.2, also avoiding denominators of every assigned
+terminal / gate matrix M.  Choose rational tau in (0, 1) with
+   s / W  <  m^tau.
+
+For every e = m^k with k >= 0, consider two disjoint
+contiguous address chunks of e radix-q digits each.  Suppose a
+ROW FIELD preceding both chunks has length divisible by W^k.
+There may be additional fields before and after the row field,
+between the chunks, and after them.  Then the two chunks can
+be INTERCHANGED in O(V e^tau) time, preserving every other
+address field, on a fixed number of finite-alphabet tapes.
+The constant is independent of all field lengths and of the
+input data.
+
+Proof sketch.
+
+Base case k = 0: interchange two single digits.  By Lemma 4.1
+that is O(V).
+
+Induction k > 0.  Write each chunk as m consecutive b = e/m
+digit fields, giving vectors H = (H_1, ..., H_m) and D =
+(D_1, ..., D_m) over Z/q^b.
+
+STEP 1. Split rows cyclically into W role streams.  Write row
+r = Wg + (w - 1) with 1 <= w <= W; the r-th row goes to stream
+w, indexed there by g.  Each stream has volume V/W, row count
+divisible by W^{k-1}.
+
+STEP 2. For a rational matrix M, define the address
+permutation Phi_M[j, d] = [j + Md, d] on the array (piecewise
+in the two chunks).  Phi_M is invertible, and
+Phi_{M'} Phi_M = Phi_{M'+M}.  On each circuit edge, apply
+Phi_{A_e} to that role stream (via Lemma 6.2, which is a
+SINGLE-LEVEL-DOWN shear of width b).  On each circuit gate,
+apply its scalar gate pointwise at matching addresses.
+
+STEP 3. The circuit is a fixed finite structure.  Its
+endpoint, by the finite-shear contract, is Phi_{I_m}: (H, D)
+-> (H + D, D) on every role, including the roles where initial
+values were arbitrary scratch.
+
+STEP 4. Recombine roles.  To swap the two full chunks:
+
+      D  <-  D - H
+      H  <-  H + D
+      D  <-  H - D
+
+The middle step is the actual shear just computed; the first
+and last are controlled shifts (Lemma 4.3), O(V) each.
+Full transformation: (H, D) -> (D, H).
+
+Recurrence (F_k = time / volume):
+
+      F_k  <=  (s / W) F_{k-1}  +  O(1)
+
+Base case F_0 = O(1).  Because s/W < m^tau, the geometric sum
+sum_{j=0}^{k} (s/W)^j is O(m^{k tau}) = O(e^tau).
+
+Fixed-tape depth-first scheduling: reserve W role tapes, fixed
+I/O tapes, one parking stack tape, one descriptor stack.
+At a call boundary, all reusable work tapes are empty, heads
+at origins, stack heads at tops.
+
+Before a recursive call: park the W - 1 inactive role streams
+on the parking stack, copy the active stream to the child's
+I/O area, erase the parent tapes over visited cells, push the
+parent descriptor + program counter onto the descriptor stack.
+Child uses the SAME physical tapes at every depth.
+
+On return: copy child output into the active role.  Pop
+inactive streams in reverse order (reversing each popped cell
+sequence to restore its original direction); erase the stack
+cells as they are left.  Linear work.
+
+Each push/pop/copy is O(V) at the parent node, and there are a
+fixed number (s) of children, so O(V) is added per node --
+precisely the O(1) in the recurrence.  A local descriptor
+holding the current instruction plus current chunk widths
+costs O(log V_0) bits, absorbed by O(V_j) at any child (using
+the invariant that both chunks remain present, so V_0 =
+O(poly(V_j))).
+
+6.4  Arbitrary-width interchange
+
+We need to remove the assumption that widths are powers of m.
+We first handle power widths of q = the prime from Lemma 6.2,
+then handle arbitrary binary widths.
+
+Given e = ceil(log_q(2^u)) so [q^e] contains [2^u] NUMERICALLY.
+Because lexicographic radix-q order matches numerical order,
+we need NO digit conversion: pad each chunk range from [2^u]
+to [q^e] with zero entries.  Volume grows by at most q^2, a
+fixed factor.
+
+Pad the ROW front to a multiple of W^k: with k = ceil(log_m e)
+and rho = ceil(k log W / (2 log q)) (KEEP RHO SMALL).
+For e large: 1 <= rho < e and rho = O(log e).
+
+Split each chunk into "high rho digits" (h+, d+) and
+"remaining e - rho digits" (h-, d-).  Assemble a row field rho
+wide before the remaining chunks.  This row field has range
+R = q^{2 rho} >= W^k for large enough e.
+
+Pad rows further: append zero rows per prefix to reach the
+next multiple of W^k.  Volume grows by < 2.
+
+Now two "swap-and-join" steps:
+
+    (h+, h-, g, d+, d-)  ->  (d+, h+, h-, g, d-)
+                         ->  (d+, h+, d-, g, h-)
+                         ->  (d+, d-, g, h+, h-)
+
+The first row-swaps high halves.  The middle row-swaps the
+remaining halves (Lemma 4.1 operation).  The last re-joins
+high halves with a row shift.
+
+Then resolve (h-, d-) by base-m decomposition:
+   e - rho  =  sum_j a_j m^j,     0 <= a_j < m.
+Partition (h-, d-) into a_j pieces of width m^j for each j.
+Apply Proposition 6.3 (power-width) to each pair of width-m^j
+pieces.  Each has row length divisible by W^{k-j}.
+
+Sum of costs:  sum_j a_j m^{j tau}  =  O(e^tau) because e =
+sum_j a_j m^j and a_j < m fixed.
+
+Strip padded rows, reverse the high-half assembly, done.
+Final order: (d, g, h) with all prefixes/suffixes intact.
+
+Setup and descriptor work: polynomial in log V per piece,
+absorbed by V.  Padding/unpadding: O(V) scans.  Total O(V u^tau)
+since e = O(u).
+
+
+--------------------------------------------------------------------------
+CHAPTER 7.  FAST SIMULTANEOUS BUTTERFLY LAYERS
+--------------------------------------------------------------------------
+
+This chapter uses the complex network (Section 5.8) to apply
+a simultaneous butterfly faster than a full scan.
+
+7.1  The problem
+
+Consider an array with address set
+
+      [P] x [2^K]^D x [S]           (D <= d),
+
+with P, S >= 1 and D consecutive K-bit address chunks.  Fix
+0 <= rho < K.  Select bit rho of EACH chunk, getting D selected
+bits.  Apply the tensor product of
+
+      H_0  =  (1/2) [[1, 1], [1, -1]]
+
+on those D selected bits, coefficientwise on polynomial records.
+
+Why this matters: H_0 is the butterfly of the fast Fourier
+transform.  If we can do a simultaneous H_0 layer FASTER than a
+full scan (using the network's rank saving), we beat n log n
+on the total transform.
+
+Parameters of interest:
+
+      d  =  Theta(p^epsilon),        (0 < epsilon < 1 fixed)
+      K  =  floor(d^c),              (c > 0 fixed)
+      r  =  2^{Theta(p/d)}           (polynomial length)
+
+      M  =  number of records (each a polynomial of degree < r)
+      V  =  Theta(M r p)             (total bit volume)
+
+Each record is a degree-less-than-r polynomial with
+coefficients in Z[i, 1/2], on the grid 2^{-p} Z, magnitude at
+most 1.  Component width w bits with p+2 <= w <= C_w p.
+
+Naive cost: D applications of H_0 on each record -> O(D V) =
+O(V d).  We want O(V d^{lambda'}) for some lambda' < 1.
+
+7.2  The complex network at work: from C to H_0
+
+The complex network of Chapter 5 can compute C^tensor D on a
+batch of D axes in ONE application, where
+
+      C  =  H S H,    S = diag(1, i),    H = (1/sqrt 2) [[1,1],[1,-1]],
+
+using phase frames and recursive children.
+
+The relationship to H_0:
+
+      H_0  =  b S C S,      b = (1+i)/2,
+
+and by direct computation:
+
+      C^2 = X,   C^4 = I,
+      C^{-1} = b I + a X = -i Z C Z,
+      where  Z = diag(1, -1),   a = (1-i)/2,
+             X = [[0,1],[1,0]].
+
+So the target operator decomposes:
+
+      H_0^tensor D  =  b^D  *  S_D  *  C^tensor D  *  S_D,
+
+where S_D multiplies each coefficient at address x by
+i^(x_1 + x_2 + ... + x_D), x_j the selected bits.
+
+b^D = (-i/2)^{floor(D/2)} * b^{D mod 2}: a shift and fourth-root
+phase, plus one extra b factor if D is odd.
+
+So the whole butterfly reduces to:
+
+     1. Apply S_D (diagonal phase on selected coordinates).
+     2. Apply C^tensor D (one network invocation).
+     3. Apply S_D again.
+     4. Multiply by b^D (shift + fourth-root phase).
+
+All operations are EXACT Gaussian dyadic (no rounding between
+axes).  Only ONE truncation at the end of the whole layer.
+
+7.3  Reusing the complex network: slots
+
+The network needs a "common address set" to run.  We arrange
+the D-axis group into e = m f axes, where m is the label-space
+dimension and f = e/m.  Cut the e axes into m consecutive
+"slots," each of length f.
+
+Number the chunks within slot h as 0, 1, ..., f-1.  Let
+x_{h,j} be the selected bit in chunk j of slot h.  Then
+"column j" is the vector (x_{1,j}, ..., x_{m,j}) in F_2^m.
+The network (Chapter 5) operates on arrays indexed by this
+common column address set.
+
+For every edge of the network:
+
+   (i)   apply Phi_M to each column (basis change);
+   (ii)  apply C^tensor f recursively on f axes;
+   (iii) undo Phi_M (basis change back).
+
+Every recursive call of type (ii) is ONE SUBPROBLEM at
+parameter f.  Sum of children: s_c, each on f axes.
+
+The basis changes (i) and (iii) are Gaussian elimination: any
+invertible M in F_2^m is a product of at most m(m-1) + 3m
+elementary row additions.  Each elementary row addition is
+"add row h' to row h" on every column:
+
+      x_{h,j}  <-  x_{h,j}  XOR  x_{h',j}    (0 <= j < f).
+
+This XOR is the key operation.  We must implement it in
+"packed" form, fast enough that it does not dominate.
+
+7.4  Packed selected-bit addition
+
+Given a rectangle whose address chunks are three fields x, y,
+z (each of width L = f K bits) and any number of spectator
+fields, we want to perform, for every address:
+
+      y_{j_i}  <-  y_{j_i}  XOR  x_{j_i}      (0 <= i < f)
+
+where j_i = rho + i K are the selected positions, and z is a
+"scratch" chunk whose contents we may CHANGE during the
+operation, provided we RESTORE it by the end.
+
+The trick ("eight rotations").  Fix one i.  Write the K-bit
+segment y[rho + iK : rho + iK + K] as an integer u, and
+similarly the z-segment as an integer w.  On the whole range of
+(u, w) over the rectangle:
+
+   if x_{j_i} = 0:    do nothing.
+   if x_{j_i} = 1:    apply the 8 operations:
+
+       u -= [w == 0 mod 2]
+       w -= [u == 0 mod 2]
+       u += [w == 0 mod 2]
+       w += [u == 0 mod 2]
+       w += [u == 1 mod 2]
+       u += [w == 1 mod 2]
+       w -= [u == 1 mod 2]
+       u -= [w == 1 mod 2]
+
+Each conditional increment is a CYCLIC SHIFT of the full y or z
+chunk range by 2^{j_i}, controlled by whether x_{j_i} = 1 and
+whether the current parity of u or w matches the required
+value.  Each shift is O(V) via the controlled-shift lemma
+(4.3).
+
+Elementary check: for x_i = 1, the first four operations cycle
+the parity of (u, w) as (00) -> (01) -> (10) -> (00) within each
+2-by-2 square, and the last four cycle (01) -> (10) -> (11) ->
+(01).  Compose the two: (00) <-> (10), (01) <-> (11).  So
+(u mod 2, w mod 2) -> (u mod 2 XOR 1, w mod 2), u's parity
+flips, and every higher bit of u is unchanged, plus (w) is
+also unchanged.  In other words:
+
+      (u, w)  ->  ( u + x_i (1 - 2(u mod 2)),  w ).
+
+Now iterate this over i = 0, 1, ..., f - 2 (all but the last
+selected position).  After 8(f-1) conditional shifts
+(controlling by the parity bits of u and w), we have flipped
+the parity of u at each selected position i (except i = f-1):
+
+      y_{j_0, ..., j_{f-2}}  <-  y_j  XOR  x_j  (mod 2 flip).
+
+Handle the LAST selected position i = f - 1 with one two-bit
+XOR via Lemma 4.1: split the array on the last bit, then apply
+the fixed map (b0, b1) -> (b0, b1 XOR b0) pointwise, then merge.
+
+GOTCHA: shift by 2^{j_i} can overflow or underflow near the
+BOUNDARY of the K-bit segment, corrupting adjacent segments in
+y or z.  Specifically, if the current  K-bit segment value of
+u or w is very close to 0 or 2^K - 1 (within 10 of each end),
+one of the eight conditional updates may carry across the
+segment boundary.
+
+Define the BAD SET:
+
+      B  =  { addresses where some used guard value (in y or
+              z, for some segment i) is outside
+              [10,  2^{K-1} - 11] }.
+
+These addresses have "used values near the edges."  Note
+|B| / M <= 40 * (2 f - 2) / 2^{K-1} = 80 (f - 1) / 2^{K}.
+
+Define:
+
+      delta_bad  =  min(1,  80 (f - 1) 2^{-K}).
+
+On addresses OUTSIDE B, the eight updates do not carry across
+segment boundaries, so the packed arithmetic equals the exact
+pointwise XOR.  On addresses INSIDE B, we must repair.
+
+The repair:
+   - All bad addresses are permuted among themselves by the
+     above map (since the packed arithmetic is bijective, and
+     the "ideal" XOR map also preserves B).
+   - Slice out all bad records, compute for each its correct
+     destination address, and stably radix-sort by destination
+     address, then reinsert.
+
+Cost: extraction + reinsertion = O(M * A) where A = O(p) is
+address bit length.  Sorting = O(delta_bad * M * A * (R + A))
+(stable radix sort of delta_bad * M records of R + A bits).
+
+Total extra cost: negligible when K grows, since delta_bad -> 0
+fast enough.
+
+LEMMA (Packed selected-bit addition on one rectangle).
+Let R >= 1, K >= 6, f >= 1, L = f K, 0 <= rho < K.  Let
+N_0, ..., N_3 be positive integers, and (chi_1, chi_2, chi_3)
+a permutation of (x, y, z).  Consider R-bit records in lex
+order on
+
+      [N_0] x [2^L]_{chi_1} x [N_1] x [2^L]_{chi_2}
+        x [N_2] x [2^L]_{chi_3} x [N_3].
+
+The input supplies N_0..N_3, R, K, f, rho, and the permutation
+chi as canonical binary integers (self-delimiting header as in
+4.5).
+
+Put M = 2^{3L} * N_0 * N_1 * N_2 * N_3, V = M R,
+A = ceil(log_2(2V)).  At the selected positions
+j_i = rho + i K (numbered from the least-significant bit):
+
+      y_{j_i}  <-  y_{j_i}  XOR  x_{j_i}        (0 <= i < f).
+
+The procedure preserves every spectator coordinate, all other
+chunk bits, and every record payload.  It restores the entire
+scratch chunk z (for any initial values).  Its time is
+
+   O( V (L^tau + 1)  +  M A^3
+      +  delta_bad * M * A * (R + A) ).
+
+Uniform in the permitted shapes and payloads.
+
+When A = O(p), R > every fixed polynomial in p, f <= d <= p,
+and K/log p -> infinity, this reduces to
+
+   O( V (L^tau + 1) ),
+
+since delta_bad * A * (R + A) * M / (V * something) -> 0 (see
+the paper's Section 5.4 for the exact accounting).
+
+Consequence: one elementary row addition of the basis change,
+on the rectangle, costs O(V (L^tau + 1)).  A complete basis
+change is a FIXED number of such row additions, plus one
+runtime inversion of its own matrix (also a fixed number of
+row additions).
+
+
+--------------------------------------------------------------------------
+CHAPTER 7, continued.  Batching to a whole layer, and guard widths
+--------------------------------------------------------------------------
+
+7.5  Batching to a whole recursive layer
+
+Now batch the slot-level operation of 7.3 to a full layer of D
+axes.
+
+Reserved ROW AXES.  Put
+
+   q_0  =  ceil(log_2 W_c) * ceil(log_m(2 d))
+   k_0  =  ceil(log_m d)
+
+If D <= q_0, use INDIVIDUAL C kernels (one per selected bit) at
+cost O(V log d) <= O(V d^{lambda'}).  This handles small D.
+
+Otherwise: apply C INDIVIDUALLY on the selected bits of the
+FIRST q_0 chunks, at cost O(V log d).  These q_0 chunks now
+form a single ROW INDEX range [R_row] = [2^{q_0 K}] >= [W^{k_0}].
+Pad row count per prefix to a multiple of W^{k_0}; volume grows
+by <= 2.
+
+Split rows cyclically into W role streams (Lemma 4.1 option 4).
+Every stream has the same remaining address shape and 1/W of
+the volume.
+
+Internal node at parameter e = m^k (k >= 1): split into m
+consecutive slots of e/m chunks each.  Each edge residual basis
+gives ONE recursive call on one slot.  Total: s_c calls per
+node, each on V/W volume.
+
+RECURRENCE:
+
+   F(e)  <=  (s_c / W_c) F(e/m)  +  O( (eK)^tau + 1 )
+   F(e)  =   O(e)                    for e < d^beta   (beta=1/2)
+
+Unroll.  Pick rational exponents with
+
+   0 < tau < 1
+   max{0, log_m(s_c / W_c)}  <=  sigma  <  1
+   max{tau, sigma}  <  lambda  <  1
+   tau (1 + c/beta)  <  lambda       (because K <= d^c <= e^{c/beta})
+
+Then:
+
+   F(D)  =  O(d^{lambda'})
+
+for any lambda' with
+
+   max{ lambda, sigma + beta(1 - sigma) }  <  lambda'  <  1.
+
+7.6  Guard widths (how wide must the exact arithmetic be?)
+
+Each elementary Gaussian-dyadic operation is a BOUNDED BLOW-UP:
+magnitude at most doubled, denominator shifted by at most one
+bit.  Therefore, if the INPUT to a butterfly is on the grid
+2^{-p} Z[i] with |coefficient| <= 1, then at "depth d" in the
+transform chain a coefficient is on 2^{-(p+d)} Z[i] with
+|coefficient| <= 2^d.
+
+Reserve:
+
+   p + Delta    FRACTIONAL bits per component       (for exactness)
+   Delta + 3    INTEGER + SIGN bits per component   (for magnitude)
+
+where Delta bounds the depth (chain length from input to any
+intermediate result).
+
+Chain-length bounds.  Introduce:
+
+   E      =  64 (W_c + m + 1)^3
+   B      =  s_c + E
+   nu     =  min{ j >= 1 :  m^j >= B }
+   C_1    =  max{ 20,  nu + 3 }
+   C_0    =  128 * m * B^2
+   Delta  =  ceil( C_0 * d^{C_1} )
+
+For the specific h=100 construction:
+
+   m = 10^6,   W_c ~= 1.87 * 10^21,   s_c ~= 1.87 * 10^27
+   (W_c + m + 1)^3  ~=  6.55 * 10^63
+   E  =  64 * 6.55 * 10^63  ~=  4.19 * 10^65
+   B  =  s_c + E            ~=  4.19 * 10^65
+   m^10 = 10^60 < 4.19 * 10^65 < 10^66 = m^11
+   nu = 11,  C_1 = max{20, 14} = 20.
+
+Arithmetic-depth recurrence.  Let A(e) = the max number of
+elementary Gaussian-dyadic operations on any chain from input to
+output within one network invocation at parameter e.
+
+At a gate of the network: at most 2 W^2 elementary ops per output
+(each output is a sum of at most W terms with coefficients in
+{0, +-1, +-1/2}).  At an inverse child: at most 4 s_c ops.  Plus
+source/sink/bank correction: 4W + 4.  Total per node:
+
+   24 W^3 + 4 s_c + 4 W + 4   <   E.
+
+Recurrence:
+
+   A(e)  <=  s_c * A(e/m)  +  E       (internal node)
+   A(e)  <=  8 e                       (leaf)
+
+For any x >= 1, s_c * x + E <= (s_c + E) * x = B * x.
+
+So starting from A(leaf) <= 8 d <= 8 d B and applying B at each
+level (k = ceil(log_m d) levels):
+
+   A(d)  <=  8 d * B^{k+1}
+         <=  8 B^2 d^{nu+1}       (since B <= m^{nu} and
+                                   k + 1 <= log_m d + 2)
+
+Sum over groups (at most m d groups):  A(d) <= 8 m B^2 d^{nu+2}.
+
+Add the two outer diagonal S_D phases (2 per axis) and the b^D
+scalar (2 more + one possible extra b, in 3 ops).  Total:
+
+   A  <=  8 m B^2 d^{nu+2} + 18 d
+      <  26 m B^2 d^{nu+2}
+      <  128 m B^2 d^{nu+3}
+      <=  C_0 * d^{C_1}
+
+So Delta = ceil(C_0 d^{C_1}) is a valid chain-length bound.
+
+7.7  Delta is o(p) when the parameters are fixed correctly
+
+We need Delta = o(p) for the algorithm to be efficient relative
+to the input size.
+
+Since d <= b_d p^epsilon and epsilon C_1 < 1 (because C_1 = 20
+and epsilon = 2^-75), we have:
+
+   Delta  =  C_0 * d^{C_1}
+          <=  C_0 * (b_d p^epsilon)^{20}
+           =  C_0 b_d^{20} * p^{20 epsilon}.
+
+For fixed parameters, this is o(p) as p -> infinity, because
+20 epsilon = 20 * 2^-75 << 1.
+
+Concretely: for p ~ 10^140, "p^{20 epsilon} ~= 1" and Delta ~=
+C_0 ~= 2.25 * 10^139, still strictly less than p.  For p
+smaller than 10^140, Delta > p.  In that case we use schoolbook
+multiplication (whose cost is incorporated as a base case).
+Above the cutoff, the recursive algorithm applies cleanly and
+its normalized cost is O(d^{lambda'}).
+
+PROPOSITION (Simultaneous normalized butterfly layer).
+Fix
+
+   tau  =  sigma  =  1 - 2^-50,    beta = 1/2,    C_1 = 20.
+
+Let c, epsilon, lambda, lambda' be fixed positive rationals with
+
+   max{tau, sigma} < lambda < 1
+   tau (1 + c/beta) < lambda
+   max{lambda, sigma + beta(1 - sigma)} < lambda' < 1
+   epsilon * C_1 < 1
+
+Fix positive constants a_d <= b_d and a_r <= b_r, and positive
+constants C_M, C_desc, C_w with C_w > 1.
+
+Then there exist a cutoff p_0 and ONE fixed finite-alphabet
+multitape procedure with the following guarantee.  For every
+choice of positive integers p >= p_0, d, r such that
+
+   a_d p^epsilon <= d <= b_d p^epsilon
+   2^{a_r p / d} <= r <= 2^{b_r p / d}
+
+and every choice of
+
+   K = floor(d^c),      1 <= D <= d,      P, S >= 1,      0<=rho<K
+   p + 2 <= w <= C_w p,
+
+and every VALID descriptor
+
+   E  =  Gamma(p) Gamma(d) Gamma(r) Gamma(D) Gamma(P) Gamma(S)
+         Gamma(K) Gamma(rho+1) Gamma(w)
+
+with |E| <= C_desc p, and every input array on
+[P] x [2^K]^D x [S] in lex order with:
+
+   - records of degree-less-than-r polynomials,
+   - coefficients in 2^{-p} Z[i] with |coeff| <= 1,
+   - component format MSB-first, real before imaginary,
+   - log_2(2 M) <= C_M p       where M = P S 2^{D K},
+
+the PROCEDURE returns Q_p(H z) where:
+
+   H  =  tensor product of H_0 on the D selected coordinate bits
+         (each at offset rho of its K-bit chunk, same rho),
+   Q_p =  truncation toward zero to the grid 2^{-p} Z[i],
+   z   =  the input array.
+
+Time: O(V d^{lambda'}) where V = 2 M r w = Theta(M r p).
+UNIFORM over the permitted parameters and the input data.
+
+Additional guarantees:
+   - ||Q_p(H z) - H z||_infty < sqrt(2) * 2^{-p}.
+   - All returned coefficients are in the unit disk of 2^{-p}Z[i].
+   - Internal widths: fractional bits <= p + Delta, integer+sign
+     bits <= Delta + 3, both O(p) since Delta = o(p).
+   - Tape count is FIXED, independent of the array size.
+   - Time CONSTANT is independent of the permitted lengths.
+
+That closes Chapter 7.  The next chapter turns the butterfly
+layer into a full fast Fourier transform of the synthetic
+polynomial-transform type, so that we can do CONVOLUTION.
+
+
+==========================================================================
+PART III  -- THE ASSEMBLY
+==========================================================================
+
+
+--------------------------------------------------------------------------
+CHAPTER 8.  SYNTHETIC FOURIER TRANSFORMS
+--------------------------------------------------------------------------
+
+Ordinary FFT works with complex roots of unity e^{2 pi i j / t}.
+These are IRRATIONAL, so every butterfly potentially introduces new
+rounding error.  Over log_2(t) levels, that error accumulates.
+
+We want a transform whose "roots of unity" are EXACT, so that
+the arithmetic contains no irrational numbers at all.  The trick:
+work in a POLYNOMIAL RING, where the roots of unity are powers
+of an indeterminate y, and multiplication by y is a signed shift.
+
+8.1  The polynomial ring
+
+Let r be a power of two.  Work in
+
+      R_r  =  C[y] / (y^r + 1).
+
+Concretely, an element of R_r is a degree-less-than-r polynomial
+      c(y)  =  c_0 + c_1 y + c_2 y^2 + ... + c_{r-1} y^{r-1}
+with coefficients in C (in practice, Gaussian dyadics on the
+grid 2^{-p} Z[i]).  Two are multiplied by ordinary polynomial
+multiplication, then reducing modulo y^r + 1: every term c_k y^k
+with k >= r is replaced by -c_k y^{k - r}.
+
+MULTIPLICATION by y^a, for any integer a, is a SIGNED SHIFT of
+the coefficient sequence:
+
+      y  *  (c_0, c_1, ..., c_{r-1})  =  (-c_{r-1}, c_0, ..., c_{r-2}).
+
+More generally y^a * c is a signed cyclic shift by a.  Cost: one
+scan of the coefficient list, O(r) steps, ZERO numerical error.
+
+8.2  The synthetic transforms
+
+Define, for a power of two t dividing 2r:
+
+      omega_t  =  y^{2r/t}.
+
+For z = (z_0, ..., z_{t-1}) in R_r^t and 0 <= j < t, define:
+
+      (F_t^- z)_j  =  (1/t) * sum_{k=0}^{t-1}  omega_t^{-jk} z_k
+      (F_t^+ z)_j  =  (1/t) * sum_{k=0}^{t-1}  omega_t^{ jk} z_k
+
+Each is an average of t signed shifts: LINEAR, CONTRACTION on the
+sup norm ||.||_infty (max coefficient magnitude).
+
+IMPORTANT CAVEAT: R_r has ZERO DIVISORS (y - zeta for zeta a
+2r-th root of unity).  We cannot just divide by (omega_t^j - 1).
+So character cancellation must be proven directly from the
+definition, without division.
+
+LEMMA (Synthetic character cancellation).
+For any integer j:
+
+      sum_{k=0}^{t-1} omega_t^{jk}  =  t      if t | j
+                                  =   0      if t does not divide j
+
+and consequently
+
+      F_t^+ F_t^-  =  (1/t) I.
+
+Proof of the zero case.  Write j = 2^v * j_0 with j_0 odd (v =
+the 2-adic valuation of j).  Consider the substitution
+
+      k  ->  k + t / 2^{v+1}    (mod t).
+
+This is a bijection of the summands.  Under it, each summand picks
+up a factor
+
+      omega_t^{j * t/2^{v+1}}  =  (y^{2r/t})^{jt/2^{v+1}}
+                                =  y^{2rj/2^{v+1}}
+                                =  y^{r j_0}.
+
+But y^r = -1 in R_r, so y^{r j_0} = (-1)^{j_0} = -1 (j_0 odd).
+Thus the sum equals its own negation: sum = -sum, so sum = 0.
+
+The ring R_r has no 2-torsion (every nonzero element has nonzero
+"coefficient vector", and char C is 0), so sum = 0.
+
+The F_t^+ F_t^- identity follows by expanding and applying the
+sum formula at each matched k.
+
+8.3  The decimation-in-frequency recursion
+
+We want to compute F_t^- via butterflies.  Set
+
+      H_0  =  (1/2) [[1, 1], [1, -1]].
+
+Base case: t = 1, F_1^- = I.
+
+Step, t >= 2: pair z_k with z_{k + t/2} for 0 <= k < t/2.
+Apply H_0 to each pair.  The two outputs OCCUPY THE SAME SLOTS,
+distinguished by the high order bit b in {0, 1}:
+
+      slot b = 0  ->   (z_k + z_{k+t/2}) / 2
+      slot b = 1  ->   (z_k - z_{k+t/2}) / 2
+
+Multiply the b = 1 result by omega_t^{-k}.  Recurse on each branch
+of length t/2 separately.
+
+This computes F_t^- because:
+
+      (F_t^- z)_{2h + b}
+          =  (1/(t/2)) * sum_{k=0}^{t/2-1} (omega_t^2)^{-hk}
+                            * omega_t^{-bk}
+                            * (z_k + (-1)^b z_{k+t/2}) / 2.
+
+The parameter (b, k) runs over [0, t) with the DIF-grouping, and
+omega_t^{2} = omega_{t/2}, so the inner sum is exactly the next
+recursion level.
+
+8.4  Stored frequency order
+
+Track ADDRESS SLOTS as the recursion proceeds.  An axis of length
+t = 2^a has a address-bit slots, named a-1, a-2, ..., 0 (from
+MSB to LSB).
+
+After s levels (0 <= s <= a):
+   - The top s named slots hold the branch bits b_0, ..., b_{s-1}.
+   - These are EXACTLY the low s frequency bits (bit 0 the first
+     b_0, bit 1 the b_1, etc.).
+   - The remaining slots encode an index in [0, u), u = t / 2^s.
+
+At level s (s < a), the NEXT slot (position h = a - 1 - s)
+distinguishes the paired inputs and then holds b_s.  The twiddle
+k (in the 8.3 formula) uses:
+
+      k  =  sum_{v=0}^{h-1}  2^v  x_v        (x_v = the current
+                                              bit at still-
+                                              unprocessed slot v)
+
+Previous branch bits do not enter k.
+
+After all a levels: the named slots from HIGH to LOW hold the
+frequency bits from LOW to HIGH.  So (F_t^- z)_j lands at slot
+rev_a(j) (the bit-reversal of j in a bits).
+
+Define B_t = the record permutation that moves entry at j to
+slot rev_a(j).
+
+KEY: the recursion writes its outputs DIRECTLY in this stored
+order.  No sort or reversal at the end.
+
+8.5  The opposite procedure
+
+The same recursion run BACKWARD gives the opposite transform.
+
+Detail.  Each forward level is invertible (butterfly is
+invertible, monomial y^a is invertible).  Running levels in
+reverse multiplies by H_0^{-1} instead of H_0, at each level.
+But H_0^2 = I/2, so the reverse level is HALF the inverse of the
+forward level.  There are a = log_2 t levels, so the reversed
+procedure composed with B_t F_t^- is (1/t) I.
+
+Lemma 8.2 gives the same composite for F_t^+ B_t^{-1} with
+B_t F_t^-.  Hence the forward and reverse procedures implement
+EXACTLY:
+
+      B_t F_t^-       (forward, with store order applied at end)
+      F_t^+ B_t^{-1}  (opposite, with the store order consumed)
+
+8.6  Multi-axis transforms
+
+For D axes with lengths t_1, ..., t_D:
+
+      M  =  prod_i t_i
+      F_bold_t^-  =  tensor_i F_{t_i}^-
+      F_bold_t^+  =  tensor_i F_{t_i}^+
+      B  =  tensor_i B_{t_i}.
+
+A ROUND applies one H_0 on each participating axis.  The twiddle
+for axis i depends only on axis i's address bits.  Two entries
+paired by another axis's butterfly have the SAME axis-i address,
+so the axis-i twiddle COMMUTES with other axes' butterflies.
+
+Consequence: individual axis steps GROUP into
+(a) a parallel butterfly (Chapter 7's H_0^tensor D), then
+(b) ONE record-wise MONOMIAL operation J_E:
+
+      (J_E z)(address a)  =  y^{E(a)} z(a)
+
+with
+
+      E  =  -sum_i (2r/u_i) b_i k_i  mod 2r,
+
+where b_i = the newly written branch bit of axis i, k_i = the
+still-unprocessed index (as encoded by lower slots), u_i = axis
+i's current recursive length.
+
+J_E is EXACT (it's a signed shift).  Zero numerical error.
+
+In the OPPOSITE direction: apply J_E^{-1} FIRST, then the
+parallel butterfly.
+
+CRITICAL: J_E and J_E^{-1} COMMUTE with truncation Q_p (since
+truncation is odd and acts separately on real and imaginary
+parts).  So the actual call sequence applies ONE truncation at
+the END of each contraction round.  Same for the opposite.
+
+8.7  Layout: making the simultaneous butterfly applicable
+
+Applying Chapter 7 requires the D selected bits to be at the
+SAME offset in CONSECUTIVE K-bit chunks.  The initial recursive
+layout does NOT satisfy this.  We must explicitly rearrange.
+
+LEMMA (Transform layout and cost).
+Fix the rational parameters of Chapter 7.  Choose layer
+constants C_M = C_l + 1 and C_desc = 32 (C_l + C_w + 1).
+
+Then there exist a cutoff p_1 and one fixed finite-alphabet
+multitape procedure with the following guarantee.  For every
+choice of positive integers p >= p_1, d, r in the prescribed
+ranges, with additionally
+
+      d >= 2,
+      r = 2^l  for integer  2 <= l < p,
+      d l <= C_l p,
+      1 <= K = floor(d^c) <= l - 1,
+
+and every choice of  t_i in {2^{l-1}, 2^l}  for i = 1, ..., d-1,
+M = prod_i t_i, T = r M, and component width w with
+p+2 <= w <= C_w p:
+
+The input supplies header
+
+   T_header  =  Gamma(p) Gamma(d) Gamma(r) Gamma(K) Gamma(w)
+                * prod_i Gamma(t_i).
+
+Records use the two's-complement component format (real word
+before imaginary word, MSB first) with width w bits.
+
+The procedure constructs a POSITIONAL LAYOUT PERMUTATION L (preserving
+record suffixes) with the property:
+
+   EXACT counterpart of forward:   L B F_bold_t^-
+   EXACT counterpart of opposite:  F_bold_t^+ B^{-1} L^{-1}
+
+Each procedure:
+   - error < sqrt(2) l 2^{-p} (accumulated over l rounds),
+   - preserves disk-grid coefficients in the format of Chapter 7,
+   - costs O( T p [ d K + p K^{tau-1} + l d^{lambda'} ] ).
+
+Proof sketch.
+
+Name the axis positions (i, h) for axis i, offset h.  Construct
+the prefix slot list:
+
+   - For long axes (t_i = 2^l): the top slot (i, l-1) each.
+   - Then for h = b - 1 down to 0 (b = (l-1) mod K): slot (i, h)
+     each, in increasing i.
+
+Move these slots to a prefix immediately after the polynomial
+suffix.  Cost O(T p) * (number of moved slots) = O(T p d K).
+
+Remaining axes: q = floor((l-1) / K) consecutive K-bit chunks
+per axis.  Interleave them chunk-by-chunk across axes.  Costs at
+most O(d q) swaps of width-K chunks each, via Lemma 6.4.  Total:
+O(T p d q K^tau) = O(T p * p K^{tau-1}).
+
+The list of rounds:
+   - Round h = l-1 (if any long axes).  Applies parallel H_0 to
+     the previously-prefixed top slots.
+   - Rounds h = l - 2 down to b: q K "K-wide" rounds.  Each uses
+     Chapter 7.
+   - Rounds h = b - 1 down to 0: bottom prefix slots.  These use
+     INDIVIDUAL H_0 kernels if only one axis contributes.
+   Cost per round: O(T p d^{lambda'}) by Chapter 7.
+   Total: O(T p l d^{lambda'}).
+
+Layout lists from binary arithmetic: polynomial in p, absorbed
+by T p since T >= r >> p.
+
+Individual H_0 rounds (on ~b+1 <= K prefix slots): for each pair,
+copy to work tapes, compute sum and difference exactly (width
+p + D + O(1) = O(p), since D <= d and d l = O(p)), write out,
+then apply y^E once at the end of the round via split and merge.
+O(T p) per round.
+
+Total: O(T p [d K + p K^{tau-1} + l d^{lambda'}]), as claimed.
+
+8.8  Signed integer packing: exact polynomial product
+
+LEMMA (Signed packing and normalized ring multiplication).
+Let r = 2^l with 2 <= l < p and C_w > 1.  Let w be an integer
+with p+2 <= w <= C_w p.  Input supplies Gamma(p) Gamma(r)
+Gamma(w) and two disk-grid polynomials f, g in R_r, in the
+component format of Chapter 7.
+
+Then one can compute the EXACT Gaussian integer numerators of f*g
+in time O(r p log(r p)) on a fixed number of tapes, then return
+Q_p(f*g/r) in the SAME component format.  The output is a disk
+array with error < sqrt(2) 2^{-p}.
+
+Proof (key idea).
+
+Set B_0 = 2^{4p} as the base for Kronecker substitution.  For any
+polynomial u in {Re f, Im f, Re g, Im g} = {a, b, c, e} (each an
+integer polynomial of degree < r with coefficients in [-2^p,
++2^p]), define:
+
+      A_u  =  u(B_0)  =  sum_{j=0}^{r-1} u_j  B_0^j.
+
+Because |u_j| <= 2^p and B_0^r grows like 2^{4pr}, we have
+A_u < B_0^r / 2: it fits in 4pr bits.
+
+Compute the FOUR products A_a A_c, A_b A_e, A_a A_e, A_b A_c
+using Harvey-van der Hoeven's O(N log N) integer multiplier as
+an ORDINARY SUBROUTINE (not recursively -- they proved it in
+2021).
+
+The key point: because |h_j| <= r 2^{2p} < 2^{3p} < B_0/2, the
+coefficients of any ordinary polynomial product h in
+A_p A_q = h(B_0) are UNIQUELY recoverable from the integer by
+mod-B_0 extraction with carries.  (Standard Kronecker
+substitution inverse.)
+
+Then form the real and imaginary parts:
+   Re:  ac - be
+   Im:  ae + bc
+Each a product of two moderate-height polynomials.
+
+Negacyclic wrap: for each 0 <= j < r, subtract the (j + r)-th
+coefficient from the j-th (coefficients are zero for j >= r so
+no underflow issue).
+
+Final normalization: shift magnitude right by p + l bits,
+restore sign.  Return in signed w-bit format.
+
+8.9  Convolution from the retained transform layout
+
+For an array over prod_i Z/t_i Z with values in R_r, define the
+NORMALIZED CONVOLUTION:
+
+      M_r(f, g)  =  (f * g) / (r M)
+
+where * is cyclic in the displayed axes and polynomial in the
+last coordinate, and M = prod_i t_i.
+
+M_r is bilinear and contractive:
+      ||M_r(f, g)||_infty  <=  ||f||_infty  ||g||_infty.
+
+PROPOSITION (Convolution from retained transform layout).
+Under the hypotheses of Lemma 8.7, M_r on disk-grid operands has
+an approximation with error
+
+      <  sqrt(2) M (3 l + 1) 2^{-p}
+
+and cost
+
+      O( T p [ d K + p K^{tau-1} + l d^{lambda'} + log(r p) ] ).
+
+The returned grid array is in the ORIGINAL array and coefficient
+order, same two's-complement format at width w_M = w + m_M,
+m_M = log_2 M.
+
+Procedure:
+
+  1. Both forward transforms (retained in layout L B).
+  2. Pointwise polynomial product per record (via Lemma 8.8,
+     which stays in L B order for its outputs).
+  3. Multiply by M = T/r exactly (append log_2 M zero LSBs per
+     component; negative encoding goes to w + m_M bits).
+  4. One opposite transform (returns to the original order,
+     undoing L B).
+
+Normalization check.  Expand:
+     F_bold_t^- (f * g)  =  M (F_bold_t^- f)(F_bold_t^- g)
+     F_bold_t^+ F_bold_t^-  =  I/M
+
+So:
+     M F_bold_t^+ ( (F_bold_t^- f)(F_bold_t^- g) / r )  =  (f*g)/(r M).
+
+Error propagation:
+   - Each transform: error < delta = sqrt(2) l 2^{-p}.
+   - Bilinear P(x, y) = xy/r contraction:
+       ||P(f', g') - P(f, g)||  <  2 delta.
+   - Truncation adds eta = sqrt(2) 2^{-p}.
+   - Opposite transform: adds another delta.
+   Total: < 3 delta + eta.
+   Final scaling M: < M (3 delta + eta)
+                  = M sqrt(2)(3 l + 1) 2^{-p}.  ✓
+
+Effect on the disk: if one operand has norm <= rho < 1 and the
+error bound above is <= 1 - rho, then the returned grid array
+stays inside the disk.
+
+That closes Chapter 8.  We have exact convolution on arrays of
+polynomials.  Next: how to connect that to multiply two integers.
+
+
+--------------------------------------------------------------------------
+CHAPTER 9.  RESAMPLING WITH THE PERMUTATIONS RETAINED
+--------------------------------------------------------------------------
+
+We now bridge the two worlds:
+   - Chapter 8: synthetic Fourier transforms on POWER-OF-TWO
+     axes, EXACT via signed shifts.
+   - Chapter 10: multi-radix convolution on coprime PRIME axes,
+     the natural setup for the CRT map.
+
+The bridge is Gaussian resampling.  Classical implementations
+pay for SORTING the array twice per axis (once into the
+power-of-two layout, once back).  We RETAIN BOTH PERMUTATIONS
+in the transform identity instead of executing them.
+
+9.1  The one-dimensional setup
+
+Fix an integer precision p > 100, coprime integers 2 <= s < t,
+and a parameter alpha with 2 <= alpha < sqrt(p).  Define
+
+   theta  =  t/s - 1   (>= 0, small)
+
+and require theta > p / alpha^4  (parameter range chosen later).
+
+For a vector u = (u_0, ..., u_{q-1}) in C^q, define:
+
+   (F_q u)_k = (1/q) * sum_{j=0}^{q-1} u_j * e^{-2 pi i jk/q}
+   (F_q^+ u)_k = (1/q) * sum_{j=0}^{q-1} u_j * e^{+2 pi i jk/q}
+
+(all subscripts mod q).  Both are contractions on sup norm.
+
+Define the "dilation" coordinate permutations:
+
+   (P_s u)_j  =  u_{t j}      (maps C^s to entries indexed by tj)
+   (P_t v)_k  =  v_{-s k}     (maps C^t to entries indexed by -sk)
+
+These are coordinate permutations, norm-preserving, isometric.
+
+9.2  The Gaussian resampling identity
+
+There are LINEAR CONTRACTIONS
+
+   A : C^s -> C^t
+   B_0 : C^t -> C^s
+
+such that (the key identity):
+
+   P_s F_s  =  2^{2 alpha^2}  B_0  P_t  F_t  A.           (9.1)
+
+The proof uses two Gaussian-gridding maps S, T: C^s -> C^t defined
+as (for 0 <= k < t):
+
+   (S u)_k  = (1/alpha) * sum_{j in Z}  e^{-pi (j - sk/t)^2/alpha^2}  u_j
+   (T u)_k  =            sum_{j in Z}  e^{-pi alpha^2 (tj/s - k)^2}   u_j
+
+Both sums converge (Gaussians decay fast).  They are EXACT
+identities on the Fourier side:
+
+   T P_s F_s  =  P_t F_t S.
+
+Proof is the Poisson summation formula applied to the Gaussian.
+
+We then package S, T into A, B_0 with the 2^{2 alpha^2} scaling.
+Both A and B_0 end up as contractions: ||A|| <= 1, ||B_0|| <= 1.
+
+The "separation" condition theta > p / alpha^4 ensures that the
+"error operator" N = D^{-1} * T * D (with D a diagonal phase
+correction) satisfies
+
+   ||N - I||  <  2.01 e^{-pi alpha^2 theta/2}  <  2^{-alpha^2 theta}.
+
+So N is CLOSE to the identity, invertible by a Neumann series.
+Neumann evaluation truncates at k = ceil(p / (alpha^2 theta)) terms.
+
+9.3  Numerical algorithms
+
+Both A and B_0 can be COMPUTED by EXACT arithmetic on the grid
+D_p = {a + i b) * 2^{-p} : a, b in Z, a^2 + b^2 <= 2^{2p}}.
+
+The output is always in D_p, with error:
+
+   A-map error < p^2 (in units of 2^{-p}),
+   B_0-map error < p^2.
+
+Cost per one-dimensional call on a line of length t:
+
+   O( t p^{3/2 + delta} alpha )     for any fixed 0 < delta < 1/8.
+
+Unpacked cost of setup and record conversion: O(t p), absorbed.
+
+The constants come from:
+   - computing exponentials via the paper's Lemma 2.12 (Harvey-van
+     der Hoeven) at cost O(p^{1+delta}) per evaluation,
+   - a Neumann evaluation window of radius O(alpha * sqrt(p))
+     around each output.
+
+9.4  Tensor product across d axes
+
+Given d axis pairs (s_i, t_i) each satisfying the above with the
+SAME p, alpha, delta.  Define:
+
+   T  =  prod_i t_i,   S  =  prod_i s_i
+   R  =  tensor_i P_{s_i}
+   Q  =  tensor_i P_{t_i}
+   A_bold =  tensor_i A_i
+   B_bold =  tensor_i B_0,i
+
+Then the tensor identity:
+
+   R F_bold_s  =  2^{2 d alpha^2}  B_bold  Q  F_bold_t  A_bold   (9.2)
+
+with F_bold_s = tensor_i F_{s_i} and similarly for F_bold_t.
+
+Both A_bold and B_bold are contractions (tensor of contractions).
+Line-by-line implementation (one axis at a time, C^s -> C^t):
+
+   - error < d p^2 (total),
+   - line cost O(d T p^{3/2 + delta} alpha) total,
+   - tape count FIXED (independent of d).
+
+The layout work (moving axes with unequal lengths r/2 vs r) costs
+an additional
+
+   O(T p d^2 (1 + l^tau))       (9.3)
+
+via the chunk-swap lemma (6.4), where l = log_2 r.
+
+9.5  The chirp identity (Bluestein)
+
+We need to evaluate the MIDDLE transform Q F_bold_t, but the
+natural array it acts on is NOT in power-of-two shape -- it's
+in the "R F_bold_s" retained form.
+
+Bluestein reformulates this in terms of a CYCLIC CONVOLUTION,
+which the synthetic transforms can compute.
+
+For j in Z^d, define the CHIRP ARRAY:
+
+   a_j  =  exp( -pi i * sum_{i=1}^d s_i j_i^2 / t_i )
+
+a has period t_i in coordinate i.  Then for any u in C^T:
+
+   Q F_bold_t u  =  a_bar . [ a * (a_bar . u) ] / T.        (9.4)
+
+(Here . is pointwise product; * is d-dimensional cyclic
+convolution mod t_i in coordinate i; T = prod t_i.)
+
+Proof idea: expand the convolution.  Coefficient of u_k in
+(a * a_bar . u) / T at frequency j is:
+
+   (1/T) a_bar_j * a_{j-k} * a_bar_k
+
+which simplifies to the standard F_t coefficient
+(2 pi i sum s_i j_i k_i / t_i), using a_j's explicit quadratic
+phase.
+
+The exact same computation, on the OTHER side, gives:
+
+9.6  Permutation cancellation
+
+Define R F_bold_s^+ = the OPPOSITE source transform (the
+"conjugate" of R F_bold_s).  Then:
+
+   (R F_bold_s^+)[ (R F_bold_s u) . (R F_bold_s v) ] = (u * v) / S^2.   (9.5)
+
+Proof.  Expand as in (9.4):
+
+   R F_bold_s^+  =  R^{-1} F_bold_s^+ R  (verify by substituting
+                                          R j -> -s^{-1} j)
+
+so:
+
+   R F_bold_s^+ R  =  F_bold_s^+.
+
+And pointwise product commutes with coordinate permutation R:
+
+   (R u) . (R v)  =  R(u . v).
+
+So:
+
+   R F_bold_s^+ [ R (F_bold_s u . F_bold_s v) ]
+     =  F_bold_s^+ (F_bold_s u . F_bold_s v)
+     =  (1/S) F_bold_s^+ F_bold_s (u * v)
+     =  (u * v) / S^2.
+
+This is the KEY identity: it tells us we never need to execute
+the source permutation R.  It cancels when computing the product
+of three transforms.
+
+9.7  Consequence: the middle transform is computed without sorting
+
+Putting (9.1)/(9.2) and (9.4)/(9.5) together:
+
+To compute (u * v)/S^2, where u, v are arrays on the coprime
+prime axes:
+
+   1. Apply A (tensor product line by line) to u and v.
+   2. Retain the SOURCE permutation R from A's input side.
+   3. Apply the middle transform Q F_bold_t (the power-of-two
+      transform), via Bluestein (9.4).  This is where Chapter 8's
+      synthetic transforms take over.
+   4. Apply B_bold (line-by-line compression) to the frequency
+      products.
+   5. Insert the appropriate source scaling (2^{2 d alpha^2}
+      twice = 2^{4 d alpha^2}).
+   6. The result comes out with the source permutation R still
+      attached -- but it cancels in the formula (9.5) because we
+      use R F_bold_s^+ on the way out, which is conj of the way in.
+
+Synthesis cost per line: O(t p^{3/2 + delta} alpha).  Total:
+O(d T p^{3/2 + delta} alpha).
+
+Error accumulation: each Gaussian map is p^2 units = p^2 2^{-p}.
+Composing through forward, middle, reverse:
+   final error ~ O(T ... * (something) * 2^{-p}).
+
+That closes Chapter 9.  Next: assemble all the pieces into the
+actual integer multiplication algorithm, and account for the
+cost of every subroutine together.

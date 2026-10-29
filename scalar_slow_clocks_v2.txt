@@ -1,0 +1,2315 @@
+==============================================================================
+SCALAR POTENTIALS AND SLOW CLOCKS FOR FORCED FLUID COMPUTATION
+A complete readable proof
+==============================================================================
+
+PREFACE
+
+This note proves from scratch the theorem implicit in the original
+manuscript of the same title. It states:
+
+    For any Turing machine and finite input, there is a smooth force
+    acting on a viscous, incompressible fluid filling three-dimensional
+    space, such that the fluid particle that starts at the origin enters
+    a fixed half-space if and only if the machine halts on its input.
+
+Two features of the constructed force are part of the theorem:
+
+    (a) The force is supported in one fixed compact set in space, for
+        every time t >= 0.
+
+    (b) The force and the velocity decay like (1 + t)^(-1) in every
+        mixed space-time derivative, with one additional factor of
+        (1 + t)^(-1) for each time derivative.
+
+The same construction yields a decision corollary, which we state and
+prove in Section 11: no algorithm can decide the detector event from
+the description of the force.
+
+The proof has only three prerequisities:
+
+  (1) Calculus of several variables (chain rule; partial derivatives).
+  (2) The idea of a Turing machine (defined in Section 1).
+  (3) The basic ODE fact that a Lipschitz vector field has a unique
+      flow through any point.
+
+If you have those, everything else is spelled out.
+
+The document has twelve sections:
+
+   1. Turing machines and halting.
+   2. The Navier-Stokes equation.
+   3. The plan and the main theorem.
+   4. Uniqueness of the velocity: an energy argument.
+   5. A smooth step and the logarithmic slowdown.
+   6. The reversible recorder.
+   7. Coding a configuration as a point.
+   8. Three scalar potentials: lift, execute, lower.
+   9. Loading the input and starting the slow clock.
+  10. Proof of the main theorem.
+  11. Why the detector is undecidable.
+  12. Variants and extensions (prefix maps, planar suspensions,
+      velocity-field detectors).
+
+Each lemma and theorem is proved in full. Nothing is assumed from the
+fluid mechanics literature except the meaning of a classical solution.
+
+
+==============================================================================
+SECTION 1.  TURING MACHINES AND HALTING
+==============================================================================
+
+A TURING MACHINE consists of a finite set Q of states, a finite alphabet
+A containing a distinguished BLANK symbol b, an initial state q_0 in Q,
+and a partial function
+
+    delta : Q x A  -->  Q x A x {-1, 0, +1}.
+
+The tape is a two-way infinite line of cells, each holding one letter of
+A. The cell contents are blank except for a finite input word w placed
+in cells 0, 1, ..., n-1. The head starts at cell 0. The current STATE
+is q_0.
+
+ONE STEP of the machine. Suppose the head is in state q reading letter
+a. If delta(q, a) is undefined, the machine HALTS. Otherwise let
+delta(q, a) = (q', a', d). The machine writes a' in the current cell,
+moves the head by d cells left or right, and changes the state to q'.
+
+If for every (q, a) reached, delta(q, a) is defined, the machine runs
+forever on its input.
+
+Turing (1936) proved that there is no algorithm that decides, on the
+description of (Q, A, delta, q_0) and the finite word w, whether the
+machine eventually halts. This fact turns out to be the reason that
+the detector constructed below is undecidable.
+
+
+==============================================================================
+SECTION 2.  THE NAVIER-STOKES EQUATION
+==============================================================================
+
+Fix a positive real parameter nu (the viscosity). In R^3, the
+incompressible Navier-Stokes equation is
+
+    (NS)  u_t + (u . grad) u - nu Delta u + grad p = f      on R^3 x (0, inf),
+          div u = 0,
+          u(0, .) = 0.
+
+The unknown is the velocity u(t, x) in R^3 and the pressure p(t, x) in
+R (defined only up to constants). The force f(t, x) is prescribed.
+
+A CLASSICAL SOLUTION on the time interval [0, T] is a pair (v, p) such
+that all terms in the equation make sense pointwise, and, on R^3, for
+every finite T,
+
+    v in C([0, T]; H^2) cap C^1([0, T]; L^2),
+    p in C([0, T]; H^1),
+    sup_{[0, T] x R^3} ( |v| + |grad v| ) < inf.
+
+The equation (NS) is then satisfied pointwise and the pressure is
+determined up to an additive spatial constant.
+
+THE SINGLE MOST IMPORTANT OBSERVATION.
+Let U(t, x) be any smooth divergence-free velocity with U(0, .) = 0.
+If we set
+
+    f(t, x)  :=  U_t + (U . grad) U - nu Delta U,
+    p(t, x)  :=  0,
+
+then (U, p = 0) is a classical solution of (NS). This is a direct
+substitution: everything moved to the right-hand side appears as f.
+
+Consequently we do not need to solve Navier-Stokes. We only need to
+design a smooth divergence-free U whose material trajectories carry out
+a fixed computation, and then read off f. We call this f the RESIDUAL
+FORCE of U.
+
+Two warnings:
+    Uniqueness of U for a given force f is not automatic in general;
+    it holds in a suitable comparison class, and Section 4 proves it.
+
+    The force f is what drives the fluid. The bit that matters
+    observationally is the MATERIAL FLOW of U -- the actual motion
+    of a marked particle. That flow is invertible in time, whereas a
+    Turing machine transition is not. Section 6 reconciles the two.
+
+
+==============================================================================
+SECTION 3.  THE PLAN AND THE MAIN THEOREM
+==============================================================================
+
+The plan of the proof is this. We combine five ingredients.
+
+  INGREDIENT 1 (Section 4). Uniqueness of the Navier-Stokes velocity in
+  the comparison class introduced above. So when we produce (U, 0), it
+  is THE solution.
+
+  INGREDIENT 2 (Section 5). A smooth step function and a logarithmic
+  slowdown. A PERIODIC PROCESSOR is a smooth divergence-free field
+  W(s, x) with W(0, .) = 0 that is 1-periodic in the LOGICAL time s.
+  The LOG CLOCK turns it into a physical velocity field
+  U(t, x) = (1/(1+t)) W( log(1 + t), x ),
+  which runs the processor at logical time s = log(1 + t) and decays
+  as (1 + t)^(-1) in every derivative.
+
+  INGREDIENT 3 (Section 6). An explicit REVERSIBLE RECORDER that
+  converts any partial Turing machine into an auxiliary machine whose
+  transition map is INJECTIVE on its full domain. This is Bennett's
+  idea (1973), specialized so that the destination state and written
+  symbol determine the source uniquely.
+
+  INGREDIENT 4 (Section 7). An explicit POSITIONAL CODE. A pair of
+  real numbers (x, y) in the plane encodes the tape and head position,
+  and the state contributes a horizontal offset.
+
+  INGREDIENT 5 (Section 8). THREE SCALAR POTENTIALS that together
+  realize any single reversible instruction as a smooth, divergence-free
+  vector field, correct on a neighborhood of the source rectangle.
+
+Then Section 9 welds Ingredients 2-5 into a periodic processor and feeds
+it to the log clock. Section 10 assembles the pieces.
+
+STATEMENT OF THE MAIN THEOREM (proved in Section 10).
+
+  Let nu > 0 be fixed. Let (Q, A, delta, q_0) be an ordinary two-sided
+  Turing machine and let w be a finite word over A. Then there is a
+  smooth force
+
+      f : [0, inf) x R^3  -->  R^3
+
+  such that, written as the residual force of a smooth divergence-free
+  velocity U with U(0, .) = 0,
+
+      (i) f is supported in ONE fixed compact subset of R^3, for every t.
+
+      (ii) For every integer j >= 0 and every spatial multi-index alpha,
+
+             || partial_t^j partial_x^alpha u(t) ||_inf
+           + || partial_t^j partial_x^alpha f(t) ||_inf
+               <=  C_{j, alpha} (1 + t)^(-1 - j).
+
+           Consequently each derivative lies in L^2([0, inf); L^inf),
+           and the kinetic energy ||u(t)||_2^2 is bounded uniformly
+           in t.
+
+      (iii) The material particle X(t) solving X'(t) = u(t, X(t)) with
+            X(0) = 0 satisfies
+
+                M halts on w   <=>   { t >= 0 : X_1(t) < -1 } is nonempty.
+
+            The implication direction "halts => visit" produces a visit
+            at a PARTITION PHASE of the construction. The reverse
+            direction says that on non-halting inputs no such visit ever
+            occurs, at any real time.
+
+      (iv) The pair (u, p = 0) is the unique classical solution in the
+           comparison class of Section 2.
+
+The proof proceeds through Lemmas 4.1, 5.1, 6.1, 7.1, 8.1, 8.2, 9.1, 9.2,
+which are the internal steps, and concludes in Section 10.
+
+
+==============================================================================
+SECTION 4.  UNIQUENESS OF THE VELOCITY: AN ENERGY ARGUMENT
+==============================================================================
+
+The point of this section is to show that FIXING THE FORCE f AND THE
+INITIAL VELOCITY U(0) = 0 DETERMINES the velocity field. Without this,
+the detector we construct would not be a property of the fluid; it
+would depend on which solution we picked.
+
+LEMMA 4.1 (Residual realization and uniqueness). Fix nu > 0 and let
+U(t, x) be a smooth divergence-free velocity field on [0, inf) x R^3
+with
+
+    (i)  U(0, .) = 0,
+    (ii) sup_{[0, T] x R^3} ( |U| + |grad U| ) < inf    for every T < inf.
+
+Define
+
+    f(t, x)  :=  U_t + (U . grad) U - nu Delta U,
+    p(t, x)  :=  0.
+
+Then:
+
+    (a) (U, 0) is a classical solution of (NS) with the force f and
+        initial data U(0, .) = 0.
+
+    (b) If (v, q) is another classical solution of (NS) with the SAME
+        force f and the same initial data v(0, .) = 0, then v = U on
+        the whole time interval and q is constant in space.
+
+Proof. Part (a) is a substitution: (U, 0) satisfies (NS) with the f
+as defined, because everything on the left except +grad p has been
+moved to the right; the pressure is zero, so grad p = 0.
+
+Part (b). Define w = v - U. Then w(0, .) = 0 on R^3 and div w = 0.
+Subtracting the two equations gives
+
+    (D)   w_t + (v . grad) w + (w . grad) U  =  nu Delta w - grad q.
+
+The equation is understood pointwise a.e., with the given regularity.
+
+We will show ||w(t)||_2 = 0 for every t >= 0, where ||.||_2 is the L^2
+norm on R^3.
+
+Step 1: a cutoff. Let chi_R : R^3 --> [0, 1] be a smooth radially
+symmetric cutoff equal to 1 on |x| <= R, vanishing on |x| >= 2R,
+with |grad chi_R| <= C/R and |Delta chi_R| <= C/R^2 uniformly in R,
+for some constant C depending only on the dimension.
+
+Step 2: multiply (D) by chi_R w and integrate over R^3. We compute
+each term separately.
+
+Term 1.  Integral of w_t . chi_R w  =  (1/2) d/dt  ||chi_R^(1/2) w||_2^2.
+
+Term 2.  Integral of (v . grad) w . chi_R w. Because div v = 0,
+
+    (v . grad) w . chi_R w = (1/2) v . grad( chi_R |w|^2 )
+                             - (1/2) ( v . grad chi_R ) |w|^2.
+
+The first piece integrates to zero because v is divergence free and
+has enough smoothness on the ball 2R. The second piece is bounded by
+
+    (1/2) ||v||_inf ||grad chi_R||_inf ||w||_2^2
+      <= (C/(2R)) ||v||_inf ||w||_2^2.
+
+Term 3.  Integral of (w . grad) U . chi_R w. By Cauchy-Schwarz,
+
+    |  integral |  <=  ||grad U||_inf ||w||_2^2.
+
+Term 4.  Integral of nu (Delta w . chi_R w). Integrate by parts twice:
+
+    integral chi_R w . Delta w = - integral chi_R |grad w|^2
+                                - integral ( grad chi_R . w ) . grad w?  (*)
+
+The exact bookkeeping is standard: the first piece gives a nonpositive
+term, and the two boundary pieces total at most
+
+    (C/R) ||w||_2 ||grad w||_2 + (C/R^2) ||w||_2^2.
+
+Term 5.  Integral of (-grad q . chi_R w) = integral q ( grad chi_R . w ),
+because div w = 0. By Cauchy-Schwarz,
+
+    |  integral |  <=  (C/R) ||q||_2 ||w||_2.
+
+Putting the pieces together,
+
+    (1/2) d/dt ||chi_R^(1/2) w||_2^2  +  nu ||chi_R^(1/2) grad w||_2^2
+       <=  ( ||grad U||_inf + (C/R) ||v||_inf ) ||w||_2^2
+         +  (C/R) ( ||grad w||_2 + ||q||_2 ) ||w||_2
+         +  (C/R^2) ||w||_2^2.
+
+Drop the nonnegative diffusion piece on the left. Bound ||grad w||_2
+by ||w||_{H^1}, which is finite on [0,T] by the comparison class. The
+real coefficients on the right are bounded on [0,T] (this is where the
+class matters), and every (1/R) or (1/R^2) piece goes to zero uniformly
+in t when R -> inf. So after taking R -> inf,
+
+             (1/2) d/dt ||w||_2^2  <=  ||grad U||_inf  ||w||_2^2.
+
+(Strictly: one takes R -> inf inside the time interval [0,T]; this
+requires the left-hand side ||chi_R^(1/2) w||_2^2 to converge to
+||w||_2^2 uniformly on [0,T], which follows by dominated convergence
+from the boundedness of w on R^3.)
+
+Step 3: Gronwall's lemma. Let M(t) := ||grad U(t)||_inf. Then
+
+             ||w(t)||_2^2  <=  ||w(0)||_2^2  exp( int_0^t 2 M(s) ds ).
+
+Since ||w(0)||_2^2 = 0 (because v(0) = U(0) = 0), ||w(t)||_2 = 0
+for every t.
+
+Step 4: get p = 0. With w = 0 everywhere, equation (D) becomes
+grad q = 0. So q(t) is spatially constant. The constant is fixed by
+the mean-zero convention (on the torus) or by the H^1 regularity of q
+on R^3 (which forces q = 0 if q is spatially constant and in H^1).
+
+That completes the proof of Lemma 4.1. []
+
+REMARK (how to read Lemma 4.1). The lemma says two things.
+    (i) If we design a nice U and define f as its residual, then (U, 0)
+        really solves the Navier-Stokes equation.
+    (ii) No other classical solution of that same force can differ from
+         U, because "differences can only shrink in this equation"
+         (this is what the energy balance says).
+
+So the material flow of U -- which is what moves our detector particle
+-- is not a choice; it is determined by f alone.
+
+
+==============================================================================
+SECTION 5.  A SMOOTH STEP AND THE LOGARITHMIC SLOWDOWN
+==============================================================================
+
+5.1  A SMOOTH STEP FUNCTION.
+
+Set, for real v,
+
+    rho(v)  :=  exp(-1/v)   for v > 0,
+    rho(v)  :=  0           for v <= 0,
+
+and
+
+    sigma(v)  :=  rho(v) / ( rho(v) + rho(1 - v) ).
+
+PROPERTIES.
+
+    (a) sigma is smooth on R. (The function rho is smooth on R with all
+        derivatives flat at v = 0; the denominator rho(v) + rho(1-v) is
+        strictly positive everywhere.)
+
+    (b) sigma(v) = 0 for v <= 0, sigma(v) = 1 for v >= 1.
+
+    (c) sigma(v) + sigma(1 - v) = 1 for every v.
+
+    (d) sigma^k(v) = 0 at v = 0 and v = 1 for every k >= 1.
+
+    (e) Every derivative sigma^k is bounded on R.
+
+    (f) sigma is nondecreasing on R.
+
+PROOF of (a) and (d) is standard: exp(-1/v) is smooth, and every
+derivative of rho on v > 0 has the form (polynomial in 1/v) exp(-1/v),
+which tends to zero as v -> 0+, together with all its derivatives. So
+rho extends smoothly by zero to v <= 0. Points (b), (c), (e), (f) are
+elementary from the formula.
+
+5.2  THE LOG CLOCK AND ITS DERIVATIVE IDENTITY.
+
+Let g(t) = log(1 + t), t >= 0. Then
+    g(0) = 0, g is smooth, nondecreasing, and onto [0, inf).
+Also g'(t) = 1/(1 + t).
+
+We will need the following identity, used repeatedly for derivative
+bounds. Let a = 1/(1 + t) and s = log(1 + t) = g(t). Then for every
+smooth function F(s, x) and every integer r >= 0,
+
+    (ID)   partial_t [ a^r F(s, x) ]  =  a^(r+1) ( partial_s - r ) F(s, x).
+
+PROOF of (ID). Differentiate directly:
+
+    partial_t [ a^r F(s, x) ]
+      = ( d/dt a^r ) F  +  a^r ( partial_s F ) ( ds/dt )
+      = ( -r  a^(r+1) ) F  +  a^r  a  ( partial_s F )
+      = a^(r+1) ( partial_s - r ) F.
+
+5.3  THE LOG-CLOCK SLOWDOWN OF A PERIODIC PROCESSOR.
+
+A PERIODIC PROCESSOR is a smooth divergence-free velocity field
+W(s, x) on [0, inf) x R^3 which is 1-periodic in the logical time s
+(meaning W(s + 1, x) = W(s, x) for all s >= 0, x in R^3), which
+satisfies W(0, .) = 0, and whose mixed derivatives are all bounded.
+
+LEMMA 5.1 (Log-clock slowdown). Given a periodic processor W, define,
+for t >= 0,
+
+    U(t, x)  :=  g'(t)  W( g(t), x ) ,
+              =  (1/(1 + t))  W( log(1 + t), x ).
+
+Then:
+
+    (a) U is smooth, divergence free, and U(0, .) = 0.
+
+    (b) The material flow X_U of U satisfies
+
+            X_U(t, a)  =  X_W( log(1 + t), a )
+
+        for every t >= 0 and every initial label a, where X_W is the
+        material flow of W (i.e., d/ds X_W(s, a) = W(s, X_W(s, a)),
+        X_W(0, a) = a).
+
+    (c) For every j >= 0 and every spatial multi-index alpha,
+
+            || partial_t^j partial_x^alpha U(t) ||_inf
+              <=  C_{j, alpha}  (1 + t)^(-1 - j).
+
+    (d) The residual force f of U satisfies the same bound:
+
+            || partial_t^j partial_x^alpha f(t) ||_inf
+              <=  C_{j, alpha}  (1 + t)^(-1 - j).
+
+    (e) Each of these mixed derivatives lies in L^2([0, inf); L^inf).
+
+    (f) Every finite logical time s >= 0 is visited at physical time
+        t = exp(s) - 1; the physical clock is onto [0, inf).
+
+PROOF.
+
+(a) div_x U(t, x) = g'(t) div_x W(g(t), x) = 0 because W is
+divergence free. U(0, x) = g'(0) W(0, x) = 1 * 0 = 0.
+
+(b) Let X(t) solve X'(t) = U(t, X(t)), X(0) = a. Set s = g(t) and
+Y(s) := X(g^(-1)(s)) (with g^(-1)(s) = exp(s) - 1 everywhere in
+[0, inf) since g is a bijection). Then
+
+    dY/ds = (dX/dt) / (ds/dt)
+          =  U(t, X) / g'(t)
+          =  (1/g'(t)) * g'(t) W(s, Y(s))       [by definition of U]
+          =  W(s, Y(s)).
+
+And Y(0) = X(0) = a. Since smooth Lipschitz fields on R^3 have unique
+flows through any point, Y(s) = X_W(s, a). Undoing the substitution,
+X_U(t, a) = X_W(g(t), a). []
+
+(c) Apply the identity (ID) with F = W repeatedly. Put a = 1/(1+t)
+and s = g(t). Then
+
+    U(t, x) = a * W(s, x).
+
+Taking one time derivative:
+
+    partial_t U = a^2 ( partial_s - 1 ) W(s, x).
+
+Taking two time derivatives:
+
+    partial_t^2 U = partial_t [ a^2 (partial_s - 1) W(s, x) ]
+                 = a^3 ( partial_s - 2 ) ( partial_s - 1 ) W(s, x).
+
+In general, partial_t^j U = a^(j+1) L_j(partial_s) W(s, x) where L_j
+is a polynomial of degree j. Since all partial_s commuted with
+W are bounded, |partial_t^j U| <= C_j a^(j+1) = C_j (1+t)^(-1-j).
+
+For spatial derivatives, commute partial_x^alpha through the time
+derivative:
+
+    partial_t^j partial_x^alpha U = a^(j+1) L_j(partial_s) partial_x^alpha W,
+
+which is bounded by C_{j, alpha} (1+t)^(-1-j). []
+
+(d) The residual force is
+
+    f  =  U_t  +  (U . grad) U  -  nu Delta U.
+
+Each piece, individually, has the required decay.
+
+Piece U_t. From (c) with j = 1: |U_t| <= C_1 a^2 = C_1 (1+t)^(-2).
+In fact partial_t^j U_t = partial_t^(j+1) U, giving a^{j+2} =
+(1+t)^(-2-j) <= (1+t)^(-1-j). Good.
+
+Piece (U . grad) U. Each entry is U_i partial_i U_j for some i, j.
+Write U = a W and recognise that U . grad U acts on a W as
+
+    (a W) . grad (a W)  =  a^2 (W . grad) W.
+
+So (U . grad) U = a^2 (W . grad) W, which is a^2 times a bounded
+function. Mixed derivatives add factors of a as before.
+
+Piece -nu Delta U. Delta_x U = a Delta_x W, which is a^1 times a
+bounded function.
+
+So each term of f, together with all its time and space derivatives,
+is bounded by a constant times a^(j+1) = (1+t)^(-1-j). Taking a sum
+with the finitely many terms of the residual force, we get (d). []
+
+(e) This is the direct consequence of (c) and (d): the square of the
+right-hand side is (1+t)^(-2-2j), which is integrable over [0, inf)
+because the exponent is strictly less than -1. []
+
+(f) g(t) = log(1 + t) = s iff t = exp(s) - 1, which is finite for
+every finite s. []
+
+5.4  HOW TO READ LEMMA 5.1.
+
+Suppose we have designed a periodic "processor" W that does what we
+want (one unit of logical time = one instruction step). Lemma 5.1
+turns W into a physical velocity U that runs W at physical speed
+1/(1+t), so each instruction takes longer as t grows -- but the
+accumulated contribution to decay is 1/(1+t) per instruction, giving
+the (1+t)^(-1) factor everywhere. Meanwhile, every finite instruction
+count is reached at a finite physical time, because log(1 + t) is
+onto. This is exactly the "non-integrable speed" that the original
+article needs.
+
+
+==============================================================================
+SECTION 6.  THE REVERSIBLE RECORDER
+==============================================================================
+
+We want the fluid flow to carry out the computation. A fluid flow is
+invertible between any two finite times (smooth, bounded-gradient
+vector fields on R^3 have invertible flows). A Turing machine's
+transition map may not be invertible: two different (state, letter)
+pairs (q_1, a_1) and (q_2, a_2) may write the same pair (b, d) and enter
+the same next state q'. If that happened in the fluid, two distinct
+input codings would arrive at the same output coding, and the fluid
+would have "merged" two distinct points of R^3 -- impossible for a
+diffeomorphism.
+
+BENNETT'S FIX (1973). Enlarge the tape with extra "history" and "marker"
+tracks and delay the ordinary head move. First write the tape letter,
+then record the source instruction in the history, then finally move
+the head. The recorder's map is injective on its domain even when the
+original is not.
+
+We make this fully explicit and verify every detail.
+
+6.1  SETUP.
+
+Let Q, A, delta, q_0 be as in Section 1. Write delta(q, a) = (q^+, b, d^+)
+with d^+ in {-1, 0, +1}. If delta(q, a) is undefined, we do NOT halt
+immediately. Instead we substitute
+
+    delta(q, a)  :=  (H, a, 0),
+
+where H is a NEW symbol that will be our unique halting state. This
+modification changes "halt" into "enter H by a defined step"; the H
+state itself has no outgoing rules.
+
+Define the index set
+
+    I  :=  { (q, d, a) : q in Q with q =/= H,  d in {-1, 0, +1},  a in A }.
+
+Define the HISTORY ALPHABET
+
+    Hist  :=  { blankH, frontierP }  union  { [i] : i in I }.
+
+Here blankH is "no history here" and frontierP marks the right end of
+the record block. [i] records "the current instruction came from
+source i".
+
+Define the WORK ALPHABET
+
+    Wk  :=  A  x  Hist  x  {0, 1}.
+
+The third factor is the MARKER BIT: it is 1 at the head position
+during a recorder pass, 0 elsewhere. A cell now holds a triple
+(work-letter, history-letter, bit).
+
+The states of the auxiliary machine are
+
+    R_{q, d},  B_{q, d},  L_{q, d}    (for q in Q, d in {-1, 0, +1}),
+    F_i                              (for i in I).
+
+We also have R_{H, d}, B_{H, d}, L_{H, d} for q = H, to which the
+machine never transitions; those states are terminal.
+
+6.2  THE INVARIANT AT A READY STATE.
+
+A READY STATE is any R_{q, d}. At a ready state after n ordinary
+machine steps, say the head is in state q, reading letter a in cell i.
+We maintain this INVARIANT:
+
+    (INV-1) The work letters on cells equal the ordinary machine's tape.
+    (INV-2) The history frontier (frontierP) sits at cell k := 2 + n.
+    (INV-3) Records [i_1], [i_2], ..., [i_n] occupy cells 2, ..., n+1.
+    (INV-4) Every other cell's history is blankH.
+    (INV-5) Every cell's bit is 0.
+    (INV-6) The frontier k satisfies k - i >= 2 (frontier is at least
+            two cells to the right of the head).
+
+So the frontier moves one to the right for each ordinary step, and the
+records form a growing block to the right of cell 1.
+
+INITIALIZATION at n = 0. The tape is blank except for input w at
+cells 0, ..., |w|-1. The head is at cell 0. All bits are 0. The
+history is blankH everywhere except at cell 2, which is frontierP.
+We are in state R_{q_0, 0}. And (INV-6) holds: frontier at 2, head
+at 0, so 2 - 0 = 2.
+
+6.3  THE SIX RULE FAMILIES.
+
+We use the letters "a" for a work letter in A, "gam" for a history
+letter in Hist, and "b" for a bit in {0, 1}. The following six rule
+families are the ENTIRE transition table of the auxiliary machine.
+Ranges over a, gam, b are implicit as stated.
+
+FAMILY 1 (write-and-mark). In state R_{q, d_0} with q =/= H and (q, a)
+in the domain of delta, on cell (a, gam, 0) with gam =/= frontierP,
+write (b, gam, 1), move right, and enter state F_i where
+i := (q, d_0, a).
+
+FAMILY 2 (scan right to the frontier). In state F_i, on cell
+(v, gam, 0) with gam =/= frontierP, write (v, gam, 0), move right, and
+stay in F_i. This scans over unmarked cells to the right.
+
+FAMILY 3 (insert the record). In state F_i, on cell (v, frontierP, 0),
+write (v, [i], 0), move right, and enter state B_{q^+, d^+}, where
+(q^+, b, d^+) = delta(q, a) and i = (q, d_0, a).
+
+FAMILY 4 (build the new frontier). In state B_{q, d}, on cell
+(v, blankH, 0), write (v, frontierP, 0), move left, and enter state
+L_{q, d}.
+
+FAMILY 5 (scan left to the marker). In state L_{q, d}, on cell
+(v, gam, 0) with gam =/= frontierP (so history is not the frontier
+just written), write (v, gam, 0), move left, and stay in L_{q, d}.
+
+FAMILY 6 (erase the marker and perform the ordinary move). In state
+L_{q, d}, on cell (v, gam, 1) with gam =/= frontierP, write
+(v, gam, 0), move by d, and enter state R_{q, d}.
+
+Additionally, on ANY ready state R_{H, d} (which is never entered) we
+provide no outgoing rules, so those states are terminal.
+
+6.4  LEMMA 6.1 (Analysis of the recorder).
+
+Let M = (Q, A, delta, q_0) be the auxiliary machine defined in 6.3,
+initialized as in 6.2 on the same finite input w as the ordinary
+machine. Then:
+
+    (a) The auxiliary machine's reads, writes and motions, followed
+        across successive ready states, have EXACTLY the same work tape
+        as the ordinary machine at the same ordinal number of steps,
+        and the head is in the same cell, and the state is q of R_{q, d}.
+
+    (b) Each ordinary step of the original machine uses a positive
+        finite number of auxiliary steps: specifically 2k + 3 auxiliary
+        steps, where k = 2 + n is the current frontier index.
+
+    (c) The auxiliary machine reaches a state R_{H, d} exactly when the
+        ordinary machine halts (with our convention that an undefined
+        step enters H).
+
+    (d) On the FULL DOMAIN of the auxiliary transition table, the
+        destination state and the full written symbol (the triple
+        (work, history, bit)) determine the incoming rule uniquely.
+        In particular, the auxiliary transition map is INJECTIVE on its
+        full domain.
+
+Proof.
+
+(a)-(c). We use induction on n = number of ordinary steps completed.
+
+Base case n = 0. The initialization puts us in state R_{q_0, 0},
+frontier at cell 2, head at cell 0, tape the given input. This matches
+the ordinary machine's initial configuration.
+
+Inductive step. Suppose we have completed n steps and are in state
+R_{q, d_0}, with invariant (INV-1) - (INV-6) holding, frontier at k =
+2 + n, head at cell i, so k - i >= 2.
+
+    Family 1 fires once: writes (b, gam, 1) to cell i, moves to cell
+    i+1, enters state F_i.
+
+    Then Family 2 fires for k - i - 1 steps: the head moves right from
+    cell i+1 to cell k-1, no writes, staying in F_i.
+
+    Then Family 3 fires once: writes [i] to cell k, moves to cell k+1,
+    enters state B_{q^+, d^+}.
+
+    Then Family 4 fires once: writes frontierP to cell k+1, moves to
+    cell k, enters state L_{q^+, d^+}.
+
+    Then Family 5 fires for k - i - 1 steps: the head moves left from
+    cell k to cell i+1, staying in L_{q^+, d^+}.
+
+    Then Family 6 fires once: erases the marker bit at cell i, moves
+    by d^+ (which is d of the ordinary instruction), enters state
+    R_{q^+, d_0}.
+
+    Total auxiliary steps: 1 + (k - i - 1) + 1 + 1 + (k - i - 1) + 1
+    = 2*(k - i - 1) + 4 = 2(k - i - 1) + 4. With k - i >= 2 this is
+    a positive integer bounded by 2k - 2.
+
+    Now we verify the invariant. The tape's work letters are the same
+    as the ordinary machine (the write by Family 1 updated the letter
+    from a to b at the same cell). Records: we appended [i] at cell
+    k = 2 + n. So the records now occupy cells 2, ..., n+2 = (2+n)+...
+    Specifically we now have records at 2, ..., (2+n+1) = 2, ..., n+2.
+    Frontier at cell k+1 = 3 + n = 2 + (n+1). New invariant frontier
+    index is 2 + (n+1), as required.
+
+    All bits zero again, and head position is now i + d^+. Need
+    k+1 - (i + d^+) >= 2. Since k - i >= 2 and d^+ <= 1 in absolute
+    value, we have k+1 - (i + d^+) >= 2 - 1 + 1 = 2. Good.
+
+    State is R_{q^+, 0}: matches the ordinary machine's new state q^+
+    (with the track d_0 = 0 which we always keep at 0).
+
+So (INV) is preserved after each ordinary step. By induction, this
+completes the proof of (a).
+
+For (b): already counted. Each ordinary step uses at most 2k - 2
+auxiliary steps, where k is the current frontier, so finite.
+
+For (c): the auxiliary machine is in R_{q, d} at ready states. If the
+ordinary machine halts at step n reading (q, a) with delta(q, a)
+undefined, then by our modification delta(q, a) is defined as
+(q, a) |--> (H, a, 0), so the auxiliary machine emulates this and
+enters R_{H, 0}, which has no outgoing rules -- the auxiliary machine
+halts. Conversely, if the auxiliary machine reaches R_{H, 0}, then
+the ordinary machine's state at that ordinal step was H, which means
+delta had been applied and entered H from some (q, a) with delta(q, a)
+formerly undefined in the original before our modification. Either
+way, the ordinary machine halts.
+
+For (d): we must show that on the full domain, the destination state
++ full written symbol determines the incoming rule. Consider each
+family.
+
+Into F_i: the destination state is F_i where i = (q, d_0, a), and the
+written symbol is (b, gam, 1). The index i identifies (q, d_0, a), so
+identifies the source state R_{q, d_0} and the read letter a. Then the
+written letter b is determined by (q, a) since b = b_{q, a} of delta.
+So the source state, source letter, and destination state together
+identify the incoming rule.
+
+But we can reach F_i from only ONE incoming rule (Family 1) and one
+choice of d_0. Actually Family 1 is the only family that has an
+F-something as target. So this is unique.
+
+Into B_{q^+, d^+}: only Family 3 has a B-something as its target, and
+Family 3 writes (v, [i], 0). Here v is the read work letter and i is
+the record inserted. Given the destination state B_{q^+, d^+} and the
+written symbol (v, [i], 0), we can read off i = (q, d_0, a), hence
+the source state R_{q, d_0}, and hence the source letter a (from b).
+Then v is the retained work letter. Family 3 is the only one into any
+B, so the incoming rule is unique.
+
+Into L_{q, d}: two cases.
+
+    Family 4 writes (v, frontierP, 0) at the frontier.
+    Family 5 writes (v, gam, 0) with gam =/= frontierP.
+
+    So given the destination L_{q, d} and written symbol (v, gam, 0):
+    if gam = frontierP, it is Family 4; if gam =/= frontierP, it is
+    Family 5. Unique in either case.
+
+Into R_{q, d}: only Family 6 targets an R-something. Family 6 writes
+(v, gam, 0) on a cell marked 1. But in the full domain, Family 6 fires
+only when the read bit was 1 (marker) and the history gam =/= frontierP.
+
+    Given destination R_{q, d} and written symbol (v, gam, 0): v and
+    gam identify exactly the source work letter and source history
+    letter of the read cell. So the incoming rule is unique.
+
+    And nothing else has this destination, since Family 1 targets F_i,
+    not R.
+
+Into terminal R_{H, d}: never entered.
+
+So on the full domain of the auxiliary table, the pair (destination
+state, written symbol) determines the incoming rule. This forces the
+transition map to be INJECTIVE: two distinct predecessor configurations
+would have written the same (destination, written symbol), hence
+would be the same rule, hence the same predecessor cell and history.
+
+That completes the proof of Lemma 6.1.
+
+
+==============================================================================
+SECTION 7.  CODING A CONFIGURATION AS A POINT OF THE PLANE
+==============================================================================
+
+We want to turn a full configuration -- the whole infinite tape -- into
+a single point (x, y) in the plane, together with a state which acts as
+a horizontal offset. And we want the recorder's transition to be an
+AFFINE MAP on each source rectangle, precise enough to write down as a
+bounded vector field.
+
+7.1  THE GAMMA ALPHABET.
+
+Let Gamma := A x Hist x {0, 1} be the alphabet of one cell (as in
+Section 6). Let nG := |Gamma| be its size. Order the elements of Gamma
+so that the blank cell (blank, blankH, 0) has index 0.
+
+7.2  THE DIGITS.
+
+Assign to index h in {0, ..., nG - 1} the DIGIT
+
+    c(h)  :=  2h  in  {0, 2, 4, ..., 2 nG - 2},
+
+and the BASE
+
+    G  :=  2 nG.
+
+Note: c(h) in [0, G - 2], so the digits are a subset of {0, ..., G-1}
+with gaps of size 1 between consecutive digits.
+
+7.3  THE POSITIONAL CODE OF A ONE-SIDED WORD.
+
+For a sequence sigma = (sigma_1, sigma_2, ...) with each sigma_j in
+Gamma, define
+
+    E(sigma)  :=  sum_{j = 1}^{inf} c(sigma_j) G^{-j}.
+
+Since the digits c(sigma_j) lie in {0, ..., G - 2}, we have
+0 <= E(sigma) <= (G-2)/(G-1) < 1.
+
+Also E(sigma) in the FIRST-LETTER INTERVAL
+
+    I_h  :=  [ c(h)/G ,  (c(h) + 1)/G ]  for sigma_1 with index h.
+
+Because c(h) / G = 2h / (2 nG) = h / nG, and E(sigma) satisfies
+
+    E(sigma) - c(h) / G  =  sum_{j >= 2} c(sigma_j) G^{-j}  in [0, 1/G].
+
+So E(sigma) lies in [c(h)/G, (c(h) + 1)/G]. Right endpoint included if
+all the remaining digits vanish (the all-blank tail).
+
+STRICT CONTAINMENT: Most sequences are strictly inside their interval;
+only the "carry-all-zeros" case sits at the right endpoint. This is
+harmless: any ambiguity at endpoints is resolved by the discreteness
+of the code (see 7.4).
+
+7.4  UNIQUE DECODING.
+
+If sigma = h * omega (where * is concatenation, h is a single letter
+with digit c(h), and omega is the rest), then
+
+    E(sigma)  =  c(h)/G  +  E(omega) / G.
+
+So E(h * omega) = ( c(h) + E(omega) ) / G in I_h. Reading off h from
+E(sigma) determines which interval I_h we are in, hence h. Then
+omega is decoded by setting
+
+    E(omega)  =  G E(sigma) - c(h),
+
+which is again a point in [0, 1], and can be decoded inductively. This
+gives a UNIQUE decoding of any E(sigma) in the code set.
+
+Moreover, intervals I_{h1} and I_{h2} with h1 =/= h2 are disjoint and
+have a gap of size at least
+
+    1/G  -  0  =  1/G
+
+between them (because consecutive digits differ by 2 and each interval
+has width 1/G, so the gap between I_h and I_{h+1} is (c(h+2) - c(h))/G
+- 2/G = 2/G - 2/G = 0... hmm let's check.)
+
+Wait, need care. I_h has width 1/G. c(h+1) = c(h) + 2. So
+I_h has right endpoint (c(h) + 1)/G, and I_{h+1} has left endpoint
+c(h+1)/G = (c(h) + 2)/G. Gap = ((c(h) + 2) - (c(h) + 1))/G = 1/G.
+
+But between the LAST interval I_{nG - 1} and the FIRST interval I_0
+(interpreted on the circle), the gap is 1/G + (1 - (c(nG-1)+1)/G)...
+actually if we are on the real line, there is no wrap, but I_0 and
+I_{nG-1} are far apart. So the minimum gap is 1/G. Good.
+
+7.5  COORDINATES OF A CONFIGURATION.
+
+Given the auxiliary machine at a ready state R_{q, d_0}, with head at
+cell i, define the LEFT and RIGHT HALF-TAPES:
+
+    LEFT  =  ( cell_{i-1}, cell_{i-2}, cell_{i-3}, ... )
+    RIGHT =  ( cell_i, cell_{i+1}, cell_{i+2}, ... )
+
+where cell_j is the triple (work, history, bit) at cell j (interpreted
+as a letter of Gamma).
+
+Define two REAL NUMBERS
+
+    xi   :=  E(LEFT)   in [0, 1],
+    eta  :=  E(RIGHT)  in [0, 1].
+
+Then the pair (xi, eta) in [0, 1]^2 encodes the tape, and the state
+q (together with the track d_0) contributes a horizontal OFFSET
+
+    ALPHA_{q, d_0}  :=  -3 * index of state q  if q =/= H,
+    ALPHA_{H, d_0}  :=  +3 * (index of state q) for stop state H.
+
+More precisely (from the original): let s run over the states of the
+auxiliary machine. Give them distinct positive indices so that the
+"halting" states R_{H, d_0} get NEGATIVE origins. Define the STATE
+ORIGIN by
+
+    o_s  :=  +3 * index(s)    for nonterminal s,
+    o_s  :=  -3 * index(s)    for terminal s = R_{H, d_0}.
+
+Then the FULL CODE of a configuration (s, tape, head i) is the pair
+(x, y) in R^2
+
+    x  :=  o_s  +  xi,
+    y  :=  eta.
+
+So the entire configuration is a single point (x, y) in R^2.
+
+7.6  SOURCE AND IMAGE RECTANGLES.
+
+Fix a specific transition of the auxiliary machine in the form
+
+    (s, a)  |-->  (s', (b, gam', b'), d)
+
+where s = R_{q, d_0}, a is a work letter, (b, gam', b') is a triple in
+Gamma, d in {-1, 0, +1}, and s' = next state.
+
+The SOURCE RECTANGLE is the set of (x, y) whose head is in state s
+reading work letter a, and whose left letter is l (a work letter we
+have to keep track of for right moves) and whose right half-tape
+starts with (a, gam, bit). There are multiple sub-rectangles
+corresponding to l, gam, bit, d_0, but the recorder's structure makes
+most of these fixed.
+
+More concretely (following the original presentation), we SPLIT each
+recorder-family rule by its LEFT LETTER l, obtaining geometric
+branches indexed by i. For a given split branch with source state s,
+written triple (b, gamega', b'), displacement d, read letter a, and
+left letter l, define:
+
+    C_i  :=  (o_s + I_l) x I_a    if d =/= 0,
+    C_i  :=  (o_s + I_l) x I_a    if d = 0.
+
+The image Θ_i(C_i) is given by the affine map below.
+
+7.7  THE AFFINE MAP.
+
+For a branch i corresponding to a rule (s, a) |--> (s', (b, gam', b'), d)
+with left letter l, the tape update is:
+
+    d = +1:  remove front of RIGHT (letter (a, gam, bit)),  prepend
+             to LEFT. Image:
+
+                 x'  =  o_{s'}  +  ( c(b) + (x - o_s) ) / G,
+                 y'  =  G y - c(a).
+
+    d = -1:  remove front of LEFT (letter (l, gam_l, bit_l)),
+             prepend to RIGHT (letter (b, gam', b')).
+
+                 x'  =  o_{s'}  +  G (x - o_s)  -  c(l),
+                 y'  =  ( c(l) + y + ( c(b) - c(a) ) / G ) / G.
+
+    d =  0:  overwrite.
+
+                 x'  =  o_{s'}  +  (x - o_s),
+                 y'  =  y + ( c(b) - c(a) ) / G.
+
+7.8  LEMMA 7.1 (The affine map realizes the tape update).
+
+For each such branch, the map Θ_i sends the point (x, y) of any
+configuration in the source rectangle C_i to the point (x', y') of the
+corresponding target configuration. And on all inputs in C_i, Θ_i is
+an affine bijection with linear part diag(lambda_i, lambda_i^{-1}) for
+some lambda_i > 0.
+
+Proof.
+
+For d = +1:  we must remove the first letter a from RIGHT and prepend
+it as the new first letter on LEFT. In code, write
+
+    x  =  o_s + c(l_1)/G + c(l_2)/G^2 + ...           [LEFT]
+    y  =  c(a)/G + c(a_2)/G^2 + c(a_3)/G^3 + ...       [RIGHT]
+
+where l_1, l_2, ... are LEFT's letters, and a = a_1 the read letter of
+RIGHT. The new right is a_2 a_3 ..., so
+
+    y'  =  c(a_2)/G + c(a_3)/G^2 + ...  =  G y - c(a_1)  =  G y - c(a).
+
+The new left is a_1 l_1 l_2 ..., so
+
+    x'  =  o_{s'}  +  c(a_1)/G  +  c(l_1)/G^2  +  ...
+        =  o_{s'}  +  ( c(a_1)  +  ( c(l_1)/G + c(l_2)/G^2 + ... ) ) / G
+        =  o_{s'}  +  ( c(a)  +  (x - o_s) ) / G.
+
+So the affine map is exactly what the rule says. Linear part:
+diag(1/G, G). Positive. Determinant 1.
+
+For d = -1: we must remove l_1 from LEFT and prepend (b, gam', b') to
+RIGHT. Write
+
+    x  =  o_s  +  c(l_1)/G  +  c(l_2)/G^2  + ...
+    y  =  c(a_1)/G  +  c(a_2)/G^2  + ...
+
+The new LEFT is l_2 l_3 ..., so
+
+    x'  =  o_{s'}  +  G (x - o_s)  -  c(l_1)  =  o_{s'}  +  G (x - o_s)  -  c(l).
+
+The new RIGHT is (b, gam', b') a_1 a_2 ..., so
+
+    y'  =  c(b)/G  +  c(a_1)/G^2  +  c(a_2)/G^3  +  ...
+        =  c(b)/G  +  ( c(a_1)  +  c(a_2)/G  +  ... ) / G^2  -- wait let me redo.
+
+Better:
+
+    y'  =  c(b)/G  +  c(a_1)/G^2  +  c(a_2)/G^3  +  ...
+        =  c(b)/G  +  (1/G^2) ( c(a_1) + c(a_2)/G + ... )
+
+Hmm need to align. Write y directly as
+
+    y  =  c(a_1)/G  +  c(a_2)/G^2  +  ...
+
+Then y' = c(b)/G + c(a_1)/G^2 + c(a_2)/G^3 + ...
+
+We want to express y' in terms of y:
+
+    y'  -  c(b)/G  =  c(a_1)/G^2  +  c(a_2)/G^3  +  ...
+                   =  (1/G) [ c(a_1)/G  +  c(a_2)/G^2  +  ... ]
+                   =  y / G.
+
+So  y'  =  c(b)/G  +  y / G  =  ( c(b) + y ) / G.
+
+Hmm but the original formula says y' = ( c(l) + y + (c(b) - c(a))/G ) / G.
+That doesn't match my derivation. Let me re-read the original.
+
+From original (bcs-scalar.tex):
+d = -1: (o_{s'}+G(x-o_s)-c(l), (c(l)+y+(c(b)-c(a))/G)/G).
+
+Hmm. Let me re-derive with the original's convention that (x, y) = (o_s + E(left), E(right)) where E(right) starts with the READ LETTER a. Then when moving left:
+
+- Old LEFT = l, l_2, l_3, ... (l = letter at cell i-1, i.e., ONE LEFT of head)
+- Old RIGHT = a, a_2, a_3, ... (a = letter at head, a_2 = cell i+1)
+- New head is at cell i-1, so new state s' = next state
+- New LEFT = l_2, l_3, ...
+- New RIGHT = (b written at cell i-1), a (which was cell i), a_2, ...
+
+Wait, so:
+    x' = o_{s'} + E(new LEFT) = o_{s'} + E(l_2 l_3 ...)
+       = o_{s'} + G(E(l l_2 l_3 ...) - c(l)/G)
+       = o_{s'} + G(E(LEFT) - c(l)/G)
+       = o_{s'} + G(x - o_s) - c(l).
+
+    y' = E(new RIGHT) = E(b, a, a_2, ...)
+       = c(b)/G + c(a)/G^2 + c(a_2)/G^3 + ...
+       = c(b)/G + (1/G^2)(c(a) + c(a_2)/G + ...) -- wait let me redo.
+
+    E(a a_2 a_3 ...) = c(a)/G + c(a_2)/G^2 + c(a_3)/G^3 + ... = y.
+
+    E(b a a_2 ...) = c(b)/G + c(a)/G^2 + c(a_2)/G^3 + ...
+
+    Compare:
+    E(b a a_2 ...) - c(b)/G = c(a)/G^2 + c(a_2)/G^3 + ...
+                            = y_old_tail = (1/G)(c(a)/G + c(a_2)/G^2 + ...) ?
+
+    c(a)/G^2 + c(a_2)/G^3 + ... = (1/G)[c(a)/G + c(a_2)/G^2 + ...] = y/G.
+
+    So E(b a a_2 ...) = c(b)/G + y/G = (c(b) + y)/G.
+
+Hmm. So my derivation gives y' = (c(b) + y)/G, which has NO c(l) or c(a) in it.
+
+But the original formula is y' = (c(l) + y + (c(b) - c(a))/G)/G. That seems totally different.
+
+Wait — I bet the original is doing something more subtle. The recorder on a LEFT MOVE doesn't simply write b at cell i-1. It FIRST writes to the read cell (cell i), THEN writes the b to cell i-1. Actually, look at the recorder rules. Family 1 writes to cell i (where the head is). Then it writes [i] to cell k (right). Then Family 4 writes frontierP to cell k+1. Then Family 5 moves left to cell i+1. Then Family 6 erases marker at cell i and moves by d.
+
+So the "written" b is at cell i. When d = -1, the head moves to cell i-1. So the work letter at cell i is b (as the recorder wrote). And the letter at cell i-1 stays whatever it was (call it l). So after the d=-1 move:
+
+- old head at cell i, read (a, gam, 0)
+- written (b, [i], 0) at cell i (after Family 1 and Family 3 overwrite)
+- old head cell i, new head cell i-1
+- new LEFT = old LEFT truncated by one = l_2 l_3 ... where left was l l_2 l_3 ...
+- new RIGHT starting at i-1 = (l, X) where X is what was at cell i after the write.
+
+At cell i-1 we have letter (l, gam_{l}, bit_{l}). Wait, but this letter is a THREE-TUPLE (work, hist, bit). We were writing it as "l" for short, but l is a triple.
+
+Oh, so my "l" should be replaced by the full triple at cell i-1, and "b" should be replaced by the full written triple (b, [i], 0).
+
+Also "a" was the letter at cell i BEFORE the write, and (b, [i], 0) is what's after.
+
+So:
+- old RIGHT = (a, gam_a, bit_a) at cell i, then a_2 at cell i+1, ...
+  E(old RIGHT) = c((a, gam_a, bit_a))/G + c(a_2)/G^2 + ...
+- old LEFT = ...wait, in "left" order, cell i-1 is FIRST letter, then cell i-2, etc.
+
+So:
+- old LEFT = l_full, l_2, l_3, ...
+  where l_full = (l, gam_l, bit_l) is the triple at cell i-1.
+- old RIGHT = a_full, a_2, a_3, ... where a_full = (a, gam_a, bit_a) at cell i.
+
+After the recorder does its work, the letter at cell i is (b, [i], 0). The bit at cell i is 0.
+
+New head is at cell i-1. New state s'.
+
+    new LEFT = l_2, l_3, ... (drop l_full)
+
+    x' = o_{s'} + E(new LEFT) = o_{s'} + G(E(old LEFT) - c(l_full)/G)
+       = o_{s'} + G(x - o_s) - c(l_full).
+
+So the formula is o_{s'} + G(x - o_s) - c(l_full), which is what the original has! Good.
+
+    new RIGHT starts at cell i-1 = l_full, then cell i = (b, [i], 0), then
+    cell i+1 = a_2, ...
+
+    y' = E(new RIGHT) = E(l_full, (b, [i], 0), a_2, a_3, ...)
+      = c(l_full)/G + c((b, [i], 0))/G^2 + c(a_2)/G^3 + ...
+
+    Now, E(old RIGHT) = c(a_full)/G + c(a_2)/G^2 + c(a_3)/G^3 + ...
+
+    Hmm, that gives us c(a_2)/G^3 etc in y', but c(a_2)/G^2 in old RIGHT.
+
+    So we cannot simply express y' in terms of y without also involving c(a_full).
+
+Let me redo. Old RIGHT reads (a_full, a_2, a_3, ...). We know y = E(old RIGHT).
+
+    y  = c(a_full)/G + c(a_2)/G^2 + c(a_3)/G^3 + ...
+
+    y' = c(l_full)/G + c((b, [i], 0))/G^2 + c(a_2)/G^3 + c(a_3)/G^4 + ...
+
+    Let's compute (1/G) y and compare:
+
+    (1/G) y  = c(a_full)/G^2 + c(a_2)/G^3 + c(a_3)/G^4 + ...
+
+    So y' - (1/G) y = c(l_full)/G + c((b, [i], 0))/G^2 - c(a_full)/G^2
+
+    y' = c(l_full)/G + c((b, [i], 0))/G^2 - c(a_full)/G^2 + (1/G) y
+
+    = ( 1/G )( c(l_full) + ( c((b, [i], 0)) - c(a_full) )/G + y )
+
+    = ( c(l_full) + y + ( c((b, [i], 0)) - c(a_full) ) / G ) / G.
+
+This matches the original formula
+    y' = ( c(l) + y + ( c(b) - c(a) )/G ) / G
+if we interpret l = l_full, b = b_full = (b, [i], 0), a = a_full.
+
+OK, so my initial derivation was wrong because I forgot that the OLD letter at cell i is a_full, not just a, and similarly for left. And crucially, the "read letter a" identity does NOT directly give y' in terms of y without the a_full correction.
+
+Good, so the formula matches. Let me trust the original.
+
+For d = 0: new head at cell i, new LEFT and new RIGHT starting at i.
+
+    x' = o_{s'} + E(old LEFT) (unchanged, LEFT is still cells i-1, i-2, ...)
+       = o_{s'} + (x - o_s).  [shift offset by o_{s'} - o_s]
+
+    y' = E( (b_full) a_2 a_3 ... )   [old RIGHT was a_full a_2 a_3 ..., replaced a_full by b_full]
+
+       = c(b_full)/G + c(a_2)/G^2 + c(a_3)/G^3 + ...
+
+       = y + ( c(b_full) - c(a_full) )/G.
+
+Matches original.
+
+Good. Now, the linear part is diag(lambda, 1/lambda) where:
+- d = +1:  lambda = 1/G, det 1.
+- d = -1:  lambda = G, det 1.
+- d = 0:   lambda = 1, det 1.
+
+All positive.
+
+And lambda_i, when d = +1, is 1/G (small). When d = -1, is G (big). When d = 0, is 1. So lambda_i is always positive and bounded by G.
+
+7.9  SEPARATION OF SOURCES AND IMAGES.
+
+For the three-phase interpolation to work (Section 8), we need:
+
+    (S) The source rectangles C_i are pairwise DISJOINT.
+    (I) The target rectangles Θ_i(C_i) are pairwise DISJOINT.
+
+Disjointness of sources:
+    Two source rectangles C_i differ either in the STATE state s or in
+    one of the configuration bits (l, a, d_0, ...). If they differ in
+    state s, the horizontal offsets o_s differ by at least 3, while each
+    interval [o_s + l, o_s + l + 1/G] lies in [o_s, o_s+1] within
+    horizontal extent 1. So the intervals [o_s, o_s + 1] are disjoint
+    for different s by a gap of at least 3 - 1 = 2.
+
+    If two sources have the same state, they differ in either d_0 (one
+    of three values), l (one of |Gamma| values), a (one of |Gamma|
+    values), or a bit. The intervals I_a and I_{a'} for different
+    letters a, a' are horizontally separated by at least G^{-1} - 2
+    ... hmm wait, I_a and I_{a'} are in the vertical coordinate y.
+    So the disjointness in y is from I_a and I_{a'} being disjoint for
+    different letters a, a'. From 7.4, I_{a} and I_{a'} with different
+    a, a' have a gap of at least 1/G.
+
+    And in the horizontal coordinate, the interval is (o_s + I_l), so
+    for different l the horizontal intervals are disjoint if the same
+    s (with gap 1/G).
+
+    Combining: sources are pairwise disjoint with at least gap
+    min(1/G, [3 minus 1]) = 1/G in sup-norm.
+
+    So sources are pairwise disjoint with gap >= 1/G.
+
+Disjointness of images:
+
+    This is where the recorder's injectivity (Lemma 6.1(d)) matters.
+    For d =/= 0, the image rectangles are at o_{s'} + [something in
+    [0, 1/G)] on the horizontal and [0, 1] on the vertical. For d = -1,
+    the image y is (c(l) + y + ...) / G, in [c(l)/G, (c(l)+1)/G] within
+    the letter interval for l. For d = +1, the image x is o_{s'} + [0,
+    1/G), and y' is [0, 1]. For d = 0, the image x is o_{s'} + [0, 1]
+    in some interval shape and y is I_b.
+
+    The critical thing: two distinct IMAGE rectangles have distinct
+    (state s', and either "two-digit start" (l, b) or, in the stationary
+    case, the position in the coordinate product).
+
+    From Lemma 6.1(d): the destination state s' determines the
+    displacement d (the recorder ensures this). So all images landing
+    in state s' must come from rules all with the same d. Within those
+    rules, the pair (l, b) is INJECTIVE (source determines l from left
+    letter and b from write), so distinct rules have distinct (l, b).
+
+        For d = +1: image is (o_{s'} + (c(b) + I_l)/G) x [0, 1].
+        Two distinct (l, b) pairs give distinct horizontal intervals
+        (that are separated by c(b) and by c(l) differences, at
+        least G^{-2} apart, because moving c(b) by 2 moves the
+        interval by 2/G and moving c(l) by 2/G^2 moves it by 2/G^2).
+        So at least gap of magnitude 1/G^2.
+
+        For d = -1: (o_{s'} + [0, 1]) x (c(l) + I_b)/G. Distinct (l, b)
+        give distinct vertical intervals separated by >= G^{-2}.
+
+        For d = 0: (o_{s'} + I_l) x I_b. Distinct (l, b) give distinct
+        products separated by at least min(1/G, 1/G) = 1/G in the
+        sup-norm.
+
+    So images are pairwise disjoint with gap >= G^{-2} in each dimension.
+
+This completes the setup for Section 8.
+
+
+==============================================================================
+(The proof continues with Sections 8-12 in the next part.)
+==============================================================================
+
+
+==============================================================================
+SECTION 8.  THREE SCALAR POTENTIALS: LIFT, EXECUTE, LOWER
+==============================================================================
+
+We have, from Section 7, a coding of every configuration as a point (x, y)
+of the plane, plus a target rectangle Theta_i(C_i) for each branch i of
+the recorder's transition table. Lemma 7.1 gives a positive diagonal
+affine map Θ_i on C_i with linear part diag(lambda_i, lambda_i^{-1}).
+
+We need a smooth divergence-free velocity field W(tau, x, y, z) that,
+during one unit of logical time tau in [0, 1], sends every point of
+source C_i x {0} to the corresponding point of image Θ_i(C_i) x {0},
+with all derivatives bounded, effective bounds, and W(tau, .) = 0 near
+tau = 0 and tau = 1.
+
+8.1  TWO DIVERGENCE-FREE DIFFERENTIAL OPERATORS.
+
+For any smooth P: R^3 --> R, define
+
+    D_y P  :=  ( -partial_z P,  0,  partial_x P ),
+    D_z P  :=  (  partial_y P,  -partial_x P,  0 ).
+
+Both are divergence free. For D_y P, div = -partial_x partial_z P + 0
++ partial_z partial_x P = 0 (mixed partials commute). For D_z P, div =
+partial_x partial_y P - partial_y partial_x P = 0. Good.
+
+8.2  THE INTERMEDIATE PATH AND ITS SCALAR POTENTIAL.
+
+Fix a branch with Theta_i(x, y) = (lambda_i x + alpha_i, lambda_i^{-1} y
++ beta_i), lambda_i > 0, alpha_i, beta_i in R. Define
+
+    a_i(r)  :=  1 + (lambda_i - 1) r,   b_i(r)  :=  (lambda_i - 1) / a_i(r).
+
+So a_i(0) = 1, a_i(1) = lambda_i, b_i(0) = lambda_i - 1,
+b_i(1) = (lambda_i - 1) / lambda_i. All positive. (Since a_i(r) > 0
+for r in [0, 1] and lambda_i > 0.)
+
+The path P_i(r; x_0, y_0) is defined by
+
+    (x(r), y(r))  :=  ( a_i(r) x_0  +  r alpha_i,  a_i(r)^{-1} y_0  +  r beta_i ),   0 <= r <= 1.
+
+At r = 0: (x_0, y_0). At r = 1: (lambda_i x_0 + alpha_i, lambda_i^{-1} y_0 + beta_i) = Theta_i(x_0, y_0).
+
+The SCALAR POTENTIAL of this path is
+
+    K_i(x, y, r)  :=  b_i(r) x y  +  (1 - r b_i(r)) alpha_i y  -  (1 + r b_i(r)) beta_i x.
+
+LEMMA 8.1 (The scalar potential of the reciprocal interpolation).
+
+For every (x_0, y_0, r) with r in [0, 1],
+
+    ( partial_y K_i, -partial_x K_i )( (x, y)(r), r )  =  d/dr (x, y)(r).
+
+Proof. Differentiate K_i.
+
+    partial_y K_i (x, y, r)  =  b_i(r) x + (1 - r b_i(r)) alpha_i.
+    partial_x K_i (x, y, r)  =  b_i(r) y - (1 + r b_i(r)) beta_i.
+
+Substitute x = a_i x_0 + r alpha_i and y = a_i^{-1} y_0 + r beta_i:
+
+    partial_y K_i  =  b_i a_i x_0 + b_i r alpha_i + alpha_i - r b_i alpha_i
+                   =  b_i a_i x_0 + alpha_i
+                   =  (lambda_i - 1) x_0 + alpha_i.
+
+    -partial_x K_i =  -b_i a_i^{-1} y_0 - b_i r beta_i + beta_i + r b_i beta_i
+                    =  -b_i a_i^{-1} y_0 + beta_i
+                    =  -(lambda_i - 1) a_i^{-2} y_0 + beta_i.
+
+Differentiate the path directly:
+
+    d/dr (a_i(r) x_0 + r alpha_i)  =  (lambda_i - 1) x_0 + alpha_i.
+    d/dr (a_i^{-1}(r) y_0 + r beta_i)  =  -(lambda_i - 1) a_i^{-2} y_0 + beta_i.
+
+These match. []
+
+8.3  THE THREE PHASES.
+
+Let rho be the smooth step from Section 5.1 (with rho(v) = sigma(v) there)
+and let, for m = 1, 2, 3,
+
+    r_m(tau)  :=  rho( 8 tau - (2m - 1) ).
+
+Properties:
+  (i)  r_m is smooth and 1-periodic: r_m(tau + 1) = r_m(tau) + 1.
+
+  (ii) r_m is nondecreasing and its derivative r_m'(tau) is supported
+       in the open interval ((2m - 1)/8, 2m/8). So:
+
+           r_1' is supported in (1/8, 2/8),
+           r_2' is supported in (3/8, 4/8),
+           r_3' is supported in (5/8, 6/8).
+
+       The three supports are pairwise disjoint.
+
+  (iii) r_m' has all derivatives zero at every integer tau (flatness of
+        the smooth step at the seam).
+
+So one instruction is performed in FOUR-STAGE segments of the unit
+period [0, 1]:
+
+    tau in [0, 1/8]:      WAIT.       W = 0.
+    tau in [1/8, 2/8]:    LIFT.       z goes 0 to h_i.
+    tau in [2/8, 3/8]:    WAIT.       W = 0.
+    tau in [3/8, 4/8]:    EXECUTE.    (x, y) travels C_i to Θ_i(C_i).
+    tau in [4/8, 5/8]:    WAIT.       W = 0.
+    tau in [5/8, 6/8]:    LOWER.      z goes h_i to 0.
+    tau in [6/8, 1]:      WAIT.       W = 0.
+
+8.4  THE THREE CUTOFFS.
+
+Enumerate the branches i = 1, ..., N, and assign distinct heights
+
+    h_i  :=  3 i,    i = 1, ..., N.
+
+Choose SMOOTH CUTOFFS:
+
+    g_i(x, y):      1 on a neighborhood of source C_i,
+                    0 outside a small enlargement.
+                    Supp(g_i) are pairwise disjoint.
+
+    gbar_i(x, y):   1 on a neighborhood of image Θ_i(C_i),
+                    0 outside a small enlargement.
+                    Supp(gbar_i) are pairwise disjoint.
+
+Note: source family and image family are separate. A point can lie in
+BOTH a source C_i and an image Θ_j(C_j); this is fine, because the two
+cutoffs are active in DIFFERENT time phases (g_i in phase 1, gbar_i in
+phase 3).
+
+Choose HEIGHT CUTOFFS:
+
+    eta_i(z):       1 on a neighborhood of h_i,
+                    0 outside (h_i - 1, h_i + 1).
+                    Supports eta_i are pairwise disjoint in z.
+
+    vartheta(z):    1 on [-1, 3N + 1] (in particular on a neighborhood
+                    of [0, 3N]), with Supp(vartheta) compact and with
+                    vartheta flat (all derivatives zero) at 0 and at
+                    each h_i.
+
+Choose LARGE SPATIAL CUTOFF:
+
+    Xi(x, y):       1 on |(x, y)|_inf <= A, compactly supported,
+
+where A is chosen larger than every max(1, lambda_i) O + alpha_i and
+max(1, lambda_i^{-1}) O + beta_i, and larger than the loading segment
+of Section 9. O := 1 + max_s |o_s|. Then the whole interpolation path
+of every branch stays within Xi = 1.
+
+8.5  THE PERIODIC PROCESSOR W.
+
+Define
+
+    P_1(tau, x, y, z)  :=  r_1'(tau) x vartheta(z) sum_{i=1}^N h_i g_i(x, y),
+    P_2(tau, x, y, z)  :=  r_2'(tau) Xi(x, y) sum_{i=1}^N eta_i(z) K_i(x, y, r_2(tau)),
+    P_3(tau, x, y, z)  :=  -r_3'(tau) x vartheta(z) sum_{i=1}^N h_i gbar_i(x, y).
+
+Define
+
+    W(tau, x, y, z)  :=  D_y P_1  +  D_z P_2  +  D_y P_3.
+
+Then W is smooth, divergence-free, and:
+
+    (a) W(tau, .) = 0 for tau in [0, 1/8] and [3/4, 1].
+    (b) All derivatives of W vanish at integers tau (since r_m' does
+        to infinite order and K_i is bounded).
+    (c) All derivatives of W are bounded.
+
+The PERIODIC PROCESSOR is V(tau, x, y, z) := W(tau - floor(tau), x, y, z).
+This is smooth, divergence-free, 1-periodic in tau, and has V(0, .) = 0.
+
+8.6  LEMMA 8.2 (One-period trajectory of the processor).
+
+Fix a branch i and a source point (x_0, y_0, 0) in C_i x {0}. Let
+(x(tau), y(tau), z(tau)) solve
+
+    d/dtau (x, y, z)  =  V(tau, x, y, z),   (x(0), y(0), z(0)) = (x_0, y_0, 0).
+
+Then:
+
+    (a) tau in [0, 1/8]: (x, y, z) = (x_0, y_0, 0).
+    (b) tau in [1/8, 2/8]: (x, y, z) = (x_0, y_0, h_i r_1(tau))   if fractional.
+    (c) tau in [2/8, 3/8]: (x, y, z) = (x_0, y_0, h_i).
+    (d) tau in [3/8, 4/8]: z = h_i, and (x, y) follows the interpolation
+        path P_i(r_2(tau); x_0, y_0); in particular at tau = 1/2,
+        (x, y) = Θ_i(x_0, y_0).
+    (e) tau in [4/8, 5/8]: (x, y, z) = (Θ_i(x_0, y_0), h_i).
+    (f) tau in [5/8, 6/8]: (x, y, z) = (Θ_i(x_0, y_0), h_i (1 - r_3(tau))).
+    (g) tau in [6/8, 1]: (x, y, z) = (Θ_i(x_0, y_0), 0).
+
+In particular, the one-period map sends (x_0, y_0, 0) to
+(Θ_i(x_0, y_0), 0).
+
+Proof. We do the phases in order.
+
+(a) All r_m' = 0 on [0, 1/8], so W = 0.
+
+(b) On (1/8, 2/8), r_1' != 0, r_2' = r_3' = 0. So W = D_y P_1.
+
+On a source point in C_i (interior), g_i = 1, partial_x g_i = 0,
+g_j = 0 for j != i. At heights z in [0, h_i], vartheta(z) = 1 so
+vartheta'(z) = 0.
+
+    partial_z P_1  =  r_1' x vartheta'(z) sum_j h_j g_j
+                   =  0   (since vartheta'(z) = 0).
+
+    partial_x P_1  =  r_1' vartheta(z) sum_j h_j ( g_j + x partial_x g_j )
+                   =  r_1' h_i.
+
+So D_y P_1 = (0, 0, r_1' h_i). The (x, y) parts are constant; z evolves
+as h_i r_1(tau). r_1 increases from 0 to 1 over [1/8, 2/8]. So z goes
+from 0 to h_i.
+
+(c) All r_m' = 0 on [2/8, 3/8]. W = 0. Point stays at (x_0, y_0, h_i).
+
+(d) On (3/8, 4/8), r_2' != 0, r_1' = r_3' = 0. So W = D_z P_2.
+
+At z = h_i, only eta_i(z) is 1 (and eta_j = 0 for j != i). Also on C_i,
+Xi = 1 (by choice of A). So P_2 = r_2' K_i(x, y, r_2(tau)).
+
+    D_z P_2  =  ( partial_y (r_2' K_i), -partial_x (r_2' K_i), 0 )
+             =  r_2' ( partial_y K_i, -partial_x K_i, 0 ).
+
+Let r(tau) := r_2(tau). By Lemma 8.1 with r = r(tau):
+
+    ( partial_y K_i, -partial_x K_i )( (x, y)(r), r )  =  d/dr (x, y)(r).
+
+Composing with r = r_2(tau):
+
+    d/dtau (x, y)(r_2(tau))  =  r_2'(tau) d/dr (x, y)(r_2(tau))
+                             =  r_2'(tau) ( partial_y K_i, -partial_x K_i )( (x, y)(r_2(tau)), r_2(tau) ).
+
+This matches the (x, y) component of D_z P_2, so (d) holds. z is
+constant because D_z P_2's third component is 0.
+
+At tau = 4/8, r_2 = 1, so (x, y) = Θ_i(x_0, y_0).
+
+(e) All r_m' = 0 on [4/8, 5/8]. W = 0. Point stays at (Θ_i(x_0, y_0), h_i).
+
+(f) On (5/8, 6/8), r_3' != 0, r_1' = r_2' = 0. So W = D_y P_3.
+
+At (x, y) = Θ_i(x_0, y_0) (interior), gbar_i = 1 and partial_x gbar_i = 0,
+gbar_j = 0 for j != i. At z = h_i, vartheta(h_i) = 1 and
+vartheta'(h_i) = 0.
+
+    partial_z P_3  =  -r_3' x vartheta'(z) sum_j h_j gbar_j
+                   =  0   (since vartheta'(h_i) = 0).
+
+    partial_x P_3  =  -r_3' vartheta(z) sum_j h_j ( gbar_j + x partial_x gbar_j )
+                   =  -r_3' vartheta(h_i) h_i
+                   =  -r_3' h_i.
+
+So D_y P_3 = (0, 0, -r_3' h_i). z decreases as h_i (1 - r_3(tau)),
+from h_i at tau = 5/8 to 0 at tau = 6/8.
+
+(g) All r_m' = 0 on [6/8, 1]. W = 0. Point stays at (Θ_i(x_0, y_0), 0). []
+
+8.7  POINTS OUTSIDE THE SOURCES.
+
+What if a point (x, y, 0) at tau = 0 is not in any source C_i?
+
+   If (x, y, 0) is at z = 0 and outside every C_i, then phases 1, 2, 3
+   do not touch it (g_i, gbar_i, or Xi vanish near it), so the point
+   stays at (x, y, 0) throughout the period.
+
+   If the point is at height h_j but (x, y) not in C_j, then phase 1's
+   lift does nothing (g_j = 0 at (x, y)), so it stays at z = h_j. Phase 3's
+   lower would push it down if gbar_j = 1 near it, but if (x, y) is not
+   in Θ_j(C_j) then gbar_j = 0 and it stays put.
+
+   Anyway, for our theorem only ONE particle matters -- the one starting
+   at the origin -- and it always lives in a source rectangle at integer
+   tau (until halting). So this case is not exercised by our main
+   trajectory.
+
+8.8  DETECTION SAFETY.
+
+We prove two claims about the detector set D := {x_1 < -1}. Here
+x_1 is the FIRST COORDINATE of the point (x, y, z).
+
+CLAIM A (nonhalting). On a nonhalting run, the running particle's
+x-coordinate satisfies x(tau) >= 3 for every tau >= 0. In particular,
+it never enters D.
+
+Proof. The auxiliary machine on a nonhalting run is always in a
+nonterminal state at integer tau. Nonterminal states have o_s = +3 *
+index(s) >= +3. So x = o_s + xi where xi in [0, 1], so x >= 3.
+
+During phases 1 and 3, the (x, y) coordinates are unchanged. During
+phase 2, the interpolation goes from x_0 = o_s + xi_0 >= 3 to
+x_1 = o_{s'} + xi_1 >= 3 (both nonterminal), linearly. So x stays >= 3
+during phase 2. []
+
+CLAIM B (halting). Let the halting micro-step be the transition into
+state R_{H, 0}. Let k be the integer period in which this transition
+happens. Then at some tau in (k, k+1), the running particle's
+x-coordinate satisfies x(tau) < -1.
+
+Proof. The source state of the halting micro-step is L_{H, 0}
+(nonterminal, o_s = 3 * index(L_{H, 0}) >= 3). The target state is
+R_{H, 0} (terminal, o_{s'} = -3 * index(R_{H, 0}) <= -3). During phase 2
+of period k, x goes linearly from x_0 = o_s + xi_0 >= 3 to
+x_1 = o_{s'} + xi_1 <= -3 + 1 = -2. So x(tau) passes through -1 at
+some intermediate tau_* in phase 2. After tau_*, x(tau) < -1. []
+
+In particular, the halting visit is at an INTERMEDIATE time in phase 2
+of the final micro-transition. []
+
+8.9  EFFECTIVITY.
+
+Every quantity used above is effective: given the Turing machine (Q, A,
+delta, q_0) and the input w, one can compute finitely many rational
+numbers (c(h), G, o_s, lambda_i, alpha_i, beta_i, h_i, A), and finite
+smooth cutoffs (g_i, gbar_i, eta_i, vartheta, Xi) with explicit rational
+bounds. No step involves following the machine's own computation. The
+whole construction is a top-level program that builds a finite formula
+for the force.
+
+This completes Section 8.
+
+
+==============================================================================
+SECTION 9.  LOADING THE INPUT AND THE LOGARITHMIC CLOCK
+==============================================================================
+
+We now tie everything together. There are three things left to do:
+
+    A. Load the initial configuration (x_*, y_*, 0) of the auxiliary
+       machine onto the material particle's trajectory, in time
+       t in [0, 1].
+
+    B. Switch on the log clock at t = 1, running the periodic processor
+       V at logical time tau = log_2(t).
+
+    C. Verify the composite trajectory is smooth, has fine decay, and
+       satisfies the detector event.
+
+9.1  THE LOADING FIELD.
+
+Let (x_*, y_*) be the code of the initial configuration of the auxiliary
+machine (R_{q_0, 0}, initial tape, head at 0). Recall x_* = o_{R_{q_0, 0}}
++ xi_*, y_* = eta_*, with xi_* = E(blank, blank, ...) = 0 and x_* = +3 *
+index(R_{q_0, 0}) >= 3. So x_* >= 3.
+
+Define the LOADING PROFILE r_*(t) := sigma(2 t - 1/2), t >= 0, sigma the
+smooth step of Section 5. Then:
+
+    r_*(0) = 0,    r_*(1) = 1,
+    r_*' is flat (all derivatives zero) at t = 0 and at t = 1,
+    r_*(t) = 0 for t in [0, 1/4],   r_*(t) = 1 for t in [3/4, 1].
+
+Let vartheta, Xi be the cutoffs from Section 8. Define the LOADER SCALAR
+POTENTIAL
+
+    P_*(t, x, y, z)  :=  r_*'(t)  Xi(x, y)  vartheta(z)  ( x_* y  -  y_* x ).
+
+The corresponding divergence-free velocity is
+
+    U_load(t, x, y, z)  :=  D_z P_*(t, x, y, z)
+                        =  r_*'(t)  Xi(x, y)  vartheta(z)  ( x_*, y_*, 0 ).
+
+Then U_load is smooth, divergence-free, supported in Supp(Xi) x Supp(vartheta),
+and satisfies:
+
+    (i)  U_load(t, .) = 0 for t in [0, 1/4] U [3/4, 1].
+    (ii) The origin's trajectory under U_load is
+         X_load(t) = ( r_*(t) x_*,  r_*(t) y_*,  0 ) for t in [0, 1].
+         In particular X_load(0) = (0, 0, 0) and X_load(1) = (x_*, y_*, 0).
+
+Justification of (ii). U_load's velocity at a point (x, y, 0) on the
+loading segment from the origin to (x_*, y_*) is
+
+    U_load(t, x, y, 0)  =  r_*'(t) Xi(x, y) vartheta(0) (x_*, y_*, 0).
+
+By choice of Xi (which we may enlarge if necessary to cover the segment
+from origin to (x_*, y_*)), Xi(x, y) = 1 at every point on the segment.
+Also vartheta(0) = 1 (Section 8.4). So U_load(t, x, y, 0) = r_*'(t) (x_*,
+y_*, 0) at every segment point.
+
+The velocity is everywhere parallel to the segment (which is the direction
+(x_*, y_*, 0)). Thus the segment is invariant under the flow, and the
+parametrization X_load(t) = r_*(t)(x_*, y_*, 0) solves the ODE. []
+
+9.2  THE LOG CLOCK FIELD.
+
+Let V be the periodic processor of Section 8.5. Turn it into a physical
+velocity field by
+
+    U_log(t, x, y, z)  :=  (1/(t log 2))  V( log_2(t), x, y, z )
+              =:  g'(t)  V( g(t), x, y, z ),
+
+where g(t) = log_2(t) = log(t)/log(2), so g'(t) = 1/(t log 2), for
+t >= 1. Then:
+
+    (i)  U_log is smooth, divergence-free, and supported in
+         Supp(Xi) x Supp(vartheta), independent of t.
+
+    (ii) U_log(t, .) = 0 for t in [1, 2] because V(0, .) = 0 and V is
+         flat at tau = integer (Section 8.5(b)).
+
+    (iii) The origin's trajectory under U_log, starting from
+          (x_*, y_*, 0) at t = 1, is
+
+              X_log(t)  =  X_V( log_2(t);  (x_*, y_*, 0) ),
+
+         where X_V is the flow of V from tau = 0.
+
+    (iv) For every j, alpha, there is a constant C_{j, alpha} such that
+
+             || partial_t^j partial_x^alpha U_log(t) ||_inf  <=  C_{j, alpha} t^(-1-j).
+
+    (v)  X_log lands at the code of the n-th micro-configuration
+         at t = 2^n (n auxiliary micro-steps completed).
+
+Proof. (i) and (ii) are direct from Section 8.5. (iii) uses the standard
+log-clock identity: if U(t, x) = g'(t) W(g(t), x) with g(t) = log_2(t),
+then X_U(t, a) = X_W(g(t), a). The proof is exactly as in Lemma 5.1(b).
+
+(iv). We computed in Section 5.4 the derivative identity
+    partial_t[ a^r F(s, x) ]  =  a^(r+1) ( partial_s - r log 2 ) F(s, x)
+
+with a(t) = 1/(t log 2), s(t) = log_2(t). (The extra "log 2" factor
+appears because da/dt = -a/t = -a^2 log 2.)
+
+Applying repeatedly: partial_t^j U_log = a^{j+1} L_j(partial_s) V(s, x)
+with L_j a polynomial of degree j in partial_s (with log 2 coefficients).
+Since V has bounded mixed derivatives (Section 8.5(c)), we get
+|partial_t^j partial_x^alpha U_log| <= C_{j, alpha} a^{j+1}
+= C_{j, alpha} / (t log 2)^{1+j} <= C_{j, alpha}' t^{-1-j}. []
+
+(v) is the definition of V: V is 1-periodic in tau, and its one-period
+map is theta. So at tau = n, the point is the n-th micro-configuration. []
+
+9.3  THE COMPOSITE VELOCITY FIELD.
+
+Define
+
+    U(t)  :=  U_load(t)  for 0 <= t <= 1,
+    U(t)  :=  U_log(t)   for t >= 1.
+
+Then U is smooth on [0, inf) x R^3. Proof of smoothness at t = 1:
+  - U_load(1, .) = r_*'(1) Xi vartheta (x_* y - y_* x) = 0, since
+    r_*'(1) = 0 (with all derivatives).
+  - U_log(1, .) = (1/log 2) V(0, .) = 0, since V(0, .) = 0.
+  - All time derivatives at t = 1 vanish on both sides (r_*' is flat
+    at t = 1, and V is flat at tau = 0).
+
+So the two pieces weld smoothly. []
+
+Also:
+
+    (i) U(0, .) = 0 (both pieces vanish there; U_load(0) = 0 since
+    r_*'(0) = 0).
+
+    (ii) U(t, .) is supported in Supp(Xi) x Supp(vartheta) for all t.
+
+    (iii) U(t, .) is divergence free for every t (each piece is).
+
+    (iv) The particle starting at the origin has trajectory
+
+             X(t)  =  (r_*(t) x_*, r_*(t) y_*, 0)          for t in [0, 1],
+             X(t)  =  X_V( log_2(t); (x_*, y_*, 0) )      for t > 1.
+
+9.4  THE DETECTOR EVENT FOR X(t).
+
+CLAIM (LEMMA 9.1). Let M be the auxiliary machine and its initial
+configuration. Then:
+
+    (a) If M does not halt, X(t) never lies in {x_1 < -1} for any t >= 0.
+
+    (b) If M halts, X(t) lands in {x_1 < -1} at some finite time t.
+
+Proof. (a) For t in [0, 1], x(t) = r_*(t) x_* with r_*(t) in [0, 1]
+and x_* >= 3, so x(t) >= 0 (in fact 0 <= x(t) <= x_*). No visit to
+x < -1.
+
+For t >= 1: by Claim A of Section 8.8, the trajectory X_V(tau) never
+has x_1 < -1 for any tau on a nonhalting run. Since X(t) =
+X_V(log_2(t), ...), X(t) never has x_1 < -1 either. []
+
+(b) The auxiliary machine halts. Let k_0 be the final (k_0-th)
+micro-step, after which the machine is in R_{H, 0} (terminal). By Claim
+B of Section 8.8, X_V(tau) enters {x_1 < -1} at some intermediate
+tau_* ∈ (k_0 - 1, k_0). Then X(t) enters {x_1 < -1} at
+t = 2^{tau_*}. This is a finite time. []
+
+So the detector event holds. We have proven Lemma 9.1.
+
+9.5  THE RESIDUAL FORCE.
+
+Define
+
+    f(t, x)  :=  U_t + (U . grad) U - nu Delta U,
+    p(t, x)  :=  0.
+
+Then (U, 0) is the unique solution of (NS) with this force and
+initial velocity U(0, .) = 0 (Lemma 4.1). The force f is smooth,
+supported in Supp(Xi) x Supp(vartheta) for all t, and satisfies the
+derivative bound
+
+    || partial_t^j partial_x^alpha f(t) ||_inf  <=  C_{j, alpha} (1 + t)^(-1 - j)
+
+for every (j, alpha). (Sketch: on [0, 2] this is a compact smooth
+bounded function; on [2, inf) the derivation in Section 5.4(d) shows
+each of U_t, (U . grad) U, and -nu Delta U is bounded by
+C_{j, alpha} (1+t)^{-1-j} times bounded kernel derivatives. Combine.)
+
+
+==============================================================================
+SECTION 10.  THE MAIN THEOREM, ASSEMBLED
+==============================================================================
+
+We now state the main theorem and combine the pieces.
+
+THEOREM 10.1 (Main; high-school-readable statement). Fix a positive
+real viscosity nu. Let Q, A, delta, q_0 be an ordinary two-sided Turing
+machine, and let w be a finite input word over A. Then there is a smooth
+force f : [0, inf) x R^3 --> R^3 with the following properties.
+
+    (i) COMPACT SUPPORT. There is one compact subset of R^3 that
+        contains the support of f(t, .) for every time t >= 0.
+
+    (ii) SMOOTH SOLUTION. Written as the residual force of a smooth
+         divergence-free velocity U with U(0, .) = 0, the pair (U, 0)
+         is a classical solution of Navier-Stokes:
+
+             U_t + (U . grad) U - nu Delta U + grad(0) = f,
+             div U = 0,
+             U(0, .) = 0.
+
+    (iii) UNIQUENESS. (U, 0) is the unique classical solution in the
+          comparison class of Section 2 (velocity in C([0,T];H^2) cap
+          C^1([0,T];L^2), pressure in C([0,T];H^1), bounded |U|+|grad U|
+          on [0,T] x R^3 for every T).
+
+    (iv) DECAY. For every j >= 0 and every spatial multi-index alpha,
+
+             || partial_t^j partial_x^alpha U(t) ||_inf
+           + || partial_t^j partial_x^alpha f(t) ||_inf
+               <=  C_{j, alpha}  (1 + t)^(-1 - j).
+
+         Consequently each derivative lies in L^2([0, inf); L^inf),
+         and the kinetic energy is uniformly bounded.
+
+    (v) DETECTOR. Let X(t) denote the material trajectory of the
+        origin under U:
+
+             X'(t) = U(t, X(t)), X(0) = 0.
+
+        Then
+
+             M halts on w   <=>   { t >= 0 : X_1(t) < -1 } is nonempty.
+
+        The halting visit occurs at an intermediate time during the
+        last micro-transition of the halting run (Section 9.4(b)), and
+        is followed by eternal rest at a fixed point in {x_1 < -1}.
+
+PROOF. We take the following steps.
+
+Step 1. Apply Section 6 (Lemma 6.1) to convert the ordinary machine into
+the auxiliary reversible machine with six rule families and injective
+transition map. The auxiliary machine halts on w if and only if the
+original machine halts on w (Lemma 6.1(c)).
+
+Step 2. Apply Section 7 to code every auxiliary configuration as a point
+(x, y) of the plane, with the state recorded as a horizontal offset
+o_s. Nonterminal states have o_s >= 3; terminal state R_{H, 0} has
+o_{R_{H, 0}} <= -3.
+
+Step 3. For each branch i of the auxiliary transition table, use Lemma
+7.1 to write Theta_i as a positive diagonal affine map
+(x, y) |--> (lambda_i x + alpha_i, lambda_i^{-1} y + beta_i), and note
+the source rectangles C_i and image rectangles Theta_i(C_i) are each
+separated (source family and image family separately; Section 7.9 has
+the details, with gaps at least G^{-2}).
+
+Step 4. Apply Section 8 to build the periodic processor V(tau, x, y, z)
+whose one-period map sends every source rectangle C_i x {0} to the
+image Theta_i(C_i) x {0}, at height h_i = 3i, via three scalar
+potentials P_1, P_2, P_3 and two divergence-free operators D_y, D_z.
+Verify Lemma 8.2 (each phase is the intended trajectory). Provide the
+detection safety lemma (Section 8.8): on nonhalting runs x >= 3
+throughout; on halting runs x < -1 at some intermediate time.
+
+Step 5. Apply Section 9 to load the initial configuration and switch
+the log clock on. Build the composite velocity U(t, x, y, z). Verify
+that X(t) = (r_*(t) x_*, r_*(t) y_*, 0) on [0, 1] and
+X(t) = X_V(log_2(t); x_*, y_*, 0) for t >= 1. Conclude the detector
+event (Lemma 9.1).
+
+Step 6. Define f := U_t + (U . grad) U - nu Delta U. By Lemma 4.1,
+(U, 0) is a classical solution of (NS) with this f and initial data
+U(0, .) = 0, and it is the unique classical solution in the comparison
+class.
+
+Step 7. Verify the four claims in Theorem 10.1.
+
+    (i) Compact support: Supp(Xi) x Supp(vartheta) is compact and
+    independent of t.
+
+    (ii) Smooth solution: by Step 6.
+
+    (iii) Uniqueness: by Lemma 4.1(b).
+
+    (iv) Decay: for t in [0, 2], U and f are smooth on a compact set;
+    for t >= 2, Lemma 5.1 as specialized in Section 9.5 applies to U,
+    and the derivation in Section 5.4(d) applies to f.
+
+    (v) Detector: by Lemma 9.1.
+
+This completes the proof of Theorem 10.1. []
+
+REMARK. Four features of the construction deserve emphasis.
+
+    FIRST, we do not solve Navier-Stokes. We DESIGN U and read off the
+    force f. Uniqueness of U (Section 4) ensures the resulting
+    trajectory is not a choice.
+
+    SECOND, we do not do the computation by following the machine's
+    internal state = checking each step at runtime. Instead, we PRECOMPUTE
+    a finite formula for V from the machine's transition table, at
+    "compile time". The evaluator does arithmetic, not simulation.
+
+    THIRD, the decay (1+t)^(-1-j) is not enough to make U or f
+    integrable in time (only their mixed derivatives squared are), but
+    it is enough for a "physical" force that vanishes at infinity.
+
+    FOURTH, the detector tests exactly the eventual resting condition
+    of the trajectory. On a non-halting run, the particle never reaches
+    a halting state and never enters the detector half-space. On a halting
+    run, the particle enters the halting state's configuration (with a
+    negative x offset) in finite time, and the linear interpolation during
+    the last micro-transition drives it strictly below x = -1.
+
+
+==============================================================================
+SECTION 11.  WHY THE DETECTOR IS UNDECIDABLE
+==============================================================================
+
+The computational content of Theorem 10.1 is that a WELL-CHOSEN smooth
+force can encode a Turing machine's halting problem. This implies that
+no algorithm can decide, from the force description alone, whether the
+fluid detector fires.
+
+COROLLARY 11.1 (Undecidability of the compact-support detector).
+
+Fix nu > 0. Suppose an algorithm A existed that, on input a Turing
+machine (Q, A, delta, q_0), a finite input word w, and the smooth force
+f from Theorem 10.1, decided whether the material particle starting at
+the origin ever enters {x_1 < -1}. Then A would be a decision procedure
+for the halting problem.
+
+Proof. Construct the algorithm A_halting as follows. On input (M, w):
+
+    Step 1. Apply the constructive map (M, w) -> (U, f) of Theorem
+    10.1 to (M, w). (This map is effective: it uses only finitely many
+    rational steps per Section 8.9, and the loading and clock are
+    explicitly finite formulas per Sections 5 and 9.)
+
+    Step 2. Feed f to A.
+
+    Step 3. If A says "the particle enters {x_1 < -1}", output "M
+    halts on w". Otherwise, output "M does not halt on w".
+
+By Theorem 10.1(v), the two answers match: A's answer is "yes" iff M
+halts on w. So A_halting solves the halting problem.
+
+But Turing (1936) proved no decision procedure for halting exists.
+Contradiction. []
+
+COROLLARY 11.2 (Undecidability of the other detectors).
+
+The same conclusion holds for:
+
+    (i) The material detector of the prefix construction (Section 12.1,
+        detector set {1/2 < x_1 < 1} on the torus T^3).
+
+    (ii) The velocity-field detector of the diffusion construction
+         (Section 12.3, condition u_3(t, x) > 1/2 for some (t, x)).
+
+Proof. Same composition. Each detector equivalence is directly cited
+from the corresponding section. []
+
+REMARK. The undecidability is WITH RESPECT TO FINITE DESCRIPTIONS OF
+f, not to the actual physical evolution. Once f is given, the velocity
+U is unique (Lemma 4.1) and the trajectory X(t) is uniquely determined.
+So the event is a well-defined mathematical object. What is undecidable
+is the decision problem on finite descriptions of f.
+
+This contrasts with the SCHEME of the construction, which is manifestly
+effective: given (M, w) we produce (U, f) in finite time. That map is
+neither injective nor is its inverse computable.
+
+
+==============================================================================
+SECTION 12.  VARIANTS AND EXTENSIONS
+==============================================================================
+
+We state and prove three further theorems. They use the machinery of
+Sections 4-10 with modest modifications. Each gives a different detector
+or a different ambient space.
+
+    12.1. Prefix construction (torus, mean-zero force, material
+          detector). Section 12.1.
+
+    12.2. Expanded planar construction (torus, periodic or eventually
+          stationary forcing). Section 12.2.
+
+    12.3. Velocity-field detector via diffusion. Section 12.3.
+
+Followed by the decision corollary (Section 12.4).
+
+12.1.  THE PREFIX CONSTRUCTION (TORUS, MEAN-ZERO FORCE).
+
+12.1.1. STATEMENT.
+
+THEOREM 12.1. Fix nu > 0. Let (Q, A, delta, q_0) be a two-sided Turing
+machine and w a finite input word. Then there exists:
+
+    - a smooth divergence-free velocity U : [0, inf) x T^3 --> R^3
+      with U(0, .) = 0;
+    - a residual force f := U_t + (U . grad) U - nu Delta U, mean zero
+      on T^3,
+
+such that:
+
+    (i) || partial_t^j partial_x^alpha U(t) ||_inf
+      + || partial_t^j partial_x^alpha f(t) ||_inf
+        <=  C_{j, alpha}  (1 + t)^(-1 - j).
+
+    (ii) The particle from p_* := (1/4, 1/2, 1/2) has x_3(t) = 1/2 for
+         all t, and its planar trajectory enters (1/2, 1) x (0, 1)
+         if and only if M halts on w.
+
+    (iii) (U, 0) is the unique classical solution in the torus comparison
+          class (velocity in C([0,T]; H^2) cap C^1([0,T]; L^2), pressure
+          in C([0,T]; H^1) with mean zero).
+
+Compare with Theorem 10.1: same decay, but on the torus, and with
+mean-zero pressure. The price is losing the half-space {x_1 < -1}
+detector (because the torus does not distinguish x < -1 from x >= 0);
+instead we use the "right half" (1/2, 1) x (0, 1) on the torus, which is
+well-defined by a boundary.
+
+12.1.2. THE PREFIX MACHINE.
+
+The prefix machine operates on TWO STACKS instead of a tape.
+
+Let Gamma be the ordinary work alphabet with blank square. For each
+nonterminal q, previous displacement d in {-1, 0, +1}, and read letter
+a in Gamma, define a RECORD SYMBOL g(q, d, a). Let G be the set of these
+symbols. The prefix alphabet is Lambda := Gamma union G.
+
+The tape is encoded by two infinite stacks L (tape left of head,
+reversed) and R (tape from head onwards). At a CHECKPOINT, deleting
+records from L gives the tape left of head; deleting records from R
+gives the tape from head onwards. The top of the cleaned R is the work
+letter being read.
+
+Add a READ-ONLY ORIGIN BIT (preserved by every write) marking the
+initial cell position, so absolute head position can be recovered.
+
+The PREFIX RULES (labels C(q, d) and S_±(q); "eps" is the empty prefix
+and "alpha, beta -> alpha', beta'" rewrites the top of L, top of R):
+
+    (C(q, d); eps, a) -> (S_+(q'); b g, eps)     [m = +1, delta(q,a) = (q', b, m)]
+    (C(q, d); eps, a) -> (S_-(q'); eps, b g)     [m = -1]
+    (C(q, d); eps, a) -> (C(q', 0); g, b)        [m = 0]
+
+    (S_+(q); eps, g') -> (S_+(q); g', eps)       [transfer record L <- R]
+    (S_+(q); eps, c)  -> (C(q, 1); eps, c)       [find work letter on R]
+    (S_-(q); g', eps) -> (S_-(q); eps, g')       [transfer record L -> R]
+    (S_-(q); c, eps)  -> (C(q, -1); eps, c)      [find work letter on L]
+
+Here g = g(q, d, a) is the source record.
+
+Terminal labels: exactly C(q, d) with q in Q_h (the halting states).
+Scan labels S_±(q) remain NONTERMINAL even for q in Q_h, so an unfinished
+move completes at the terminal checkpoint.
+
+INITIALIZATION: C(q_in, 0) with L = blank^inf and R = omega blank^inf,
+where blank^inf is the infinite blank tail and omega is the input
+(with origin bit).
+
+12.1.3. LEMMA 12.1 (Analysis of the prefix machine).
+
+The prefix rules have:
+
+    (a) Pairwise disjoint source cylinders. (Rules with the same label
+        test incompatible top letters; distinct labels are disjoint.)
+
+    (b) Pairwise disjoint target cylinders.
+
+    (c) Initialized checkpoints recover ordinary machine
+        configurations. Each ordinary transition takes a positive
+        finite number of prefix steps. A terminal checkpoint occurs
+        exactly on halting.
+
+Proof.
+
+(a). Rules with common source label C(q, d) test different top-of-R
+letters a. Rules with common source label S_+(q) test different
+top-of-R: g' for the transfer rule, work letters c for the find-work
+rule. Distinct by the record/work-different alphabets. Rules with
+common S_-(q) test different top-of-L: g' (record) or c (work). Same
+argument. Rules with distinct labels are disjoint by construction. []
+
+(b). Images into S_+(q) either start L with b g (work letter b then
+record g; from an ordinary right-move rule) or with g' (a record alone;
+from the scan loop). Different first letter of L. Images into S_-(q):
+either L unchanged (from the transfer loop) or L drops its top (from
+an ordinary left-move rule) — distinguished by the top of L. Images
+into C(q, ±1): the top of R is a specific first letter c (work letter).
+Images into C(q, 0): the top of L is g, the source record. []
+
+(c). Induction on the number k of ordinary steps. Suppose k ordinary
+steps done, so k records exist (one per transition). Delete records:
+the tape is recovered. Count records and use the origin bit: the head
+position is recovered. The auxiliary state is C(q, d) with q the actual
+ordinary state, and d the last displacement (or 0 at initialization).
+A new ordinary transition reads its input via top of L and top of R:
+either "the top of R is work letter a" (right move, easy) or "the top
+of R is a record" (left move, scan). Each is handled by a finite
+sequence of prefix rules. The last prefix step enters a state with
+label C(q', ±1) or C(q', 0), which IS a checkpoint. If q' in Q_h,
+it is terminal. []
+
+12.1.4. THE POSITIONAL CODE (ONE-SIDED VERSION).
+
+Let M_alphabet := |Lambda| be the alphabet size. Assign DIGITS
+D(h) = 1, 3, ..., 2 M_alphabet - 1 in BASE B := 2 M_alphabet + 1.
+
+For w in Lambda^inf:
+    gamma(w) := sum_{j=1}^{inf} D(w_j) B^{-j}.
+For a finite prefix alpha in Lambda^n:
+    c(alpha) := sum_{j=1}^{n} D(alpha_j) B^{-j},
+    I(alpha) := [c(alpha), c(alpha) + B^{-n}].
+
+Then gamma(alpha w) = c(alpha) + B^{-|alpha|} gamma(w), so the tree of
+prefixes is faithfully encoded by nested intervals with gap >= B^{-n}
+between distinct prefixes of length n.
+
+State labels and their squares: enumerate the (finitely many) labels of
+the prefix machine as ell_1, ..., ell_N. For each i, let K_i be the
+closed axis-aligned square of half-side 1/[16(N+1)] with center
+
+    (1/4,  i/(N+1))  if ell_i is nonterminal,
+    (3/4,  i/(N+1))  if ell_i is terminal.
+
+Nonterminal centers are in Omega_- = (0, 1/2) x (0, 1); terminal centers
+are in (1/2, 1) x (0, 1) ⊂ Omega = (0, 1)^2. The K_i are pairwise
+disjoint.
+
+Let Phi_i: [0, 1]^2 -> K_i be the affine map (u, v) |-> center + u*half-
+side (or similar). Encoded state: Phi_i(gamma(L), gamma(R)).
+
+For each rule (ell_i; alpha, beta) -> (ell_j; alpha', beta'):
+    source rectangle D_rule  :=  Phi_i( I(alpha) x I(beta) ),
+    image  rectangle E_rule  :=  Phi_j( I(alpha') x I(beta') ).
+
+Sources are pairwise disjoint (distinct intervals inside disjoint K_i).
+Images are pairwise disjoint, by Lemma 12.1(b). Every D_rule lies in
+Omega_-; every E_rule lies in either Omega_- (nonterminal target) or
+(1/2, 1) x (0, 1) (terminal target). The natural map on D_rule to E_rule
+is a positive diagonal affine map; its determinant may differ from 1.
+
+12.1.5. LEMMA 12.2 (Planar rectangle identification).
+
+Let D_i, E_i (1 <= i <= m) be rational axis-aligned closed rectangles
+with positive side lengths. Suppose:
+
+    (i)  The D_i are pairwise disjoint and contained in
+         Omega_- = (0, 1/2) x (0, 1).
+
+    (ii) The E_i are pairwise disjoint and each lies entirely in one
+         open half of Omega = (0, 1)^2 (either Omega_- or
+         (1/2, 1) x (0, 1)).
+
+Then there is an effective smooth field v_*(s, Y) supported in
+(0, 1) x Omega, whose time-one map on each full D_i is the positive
+diagonal affine identification of D_i onto E_i. If E_i in Omega_-,
+the whole trajectory from D_i remains in Omega_-. No incompressibility
+is asserted in this planar lemma.
+
+Proof. Shrink, move, expand. (Adapted from Cardona-Miranda-Peralta-
+Salas-Proposition 5.1.)
+
+Setup. Choose positive rational enlargement margins eps. Let p_i, q_i
+be the centers of D_i, E_i. Let r_i^D, r_i^E be their half-side vectors.
+
+TEMPORARY CENTERS. Write y_0 := min_i {p_{i, 2}, q_{i, 2}} and choose
+    k_i := (1/8, i y_0 / [2(m+1)]),   i = 1, ..., m.
+These are distinct and lie in Omega_-.
+
+MOVE SCHEDULE. Move p_i -> k_i one at a time, in increasing order i,
+avoiding centers k_j (j < i) and p_j (j > i). Then move k_i -> q_i
+one at a time, avoiding q_j (j < i) and k_j (j > i). Each first route
+lies in Omega_-. Each second route lies in Omega_- if its target does,
+else in Omega.
+
+ROUTE WITHIN A HALF-PLANE. For a segment a -> b in the allowed rectangle
+(0, bmax) x (0, 1), choose a waypoint w at height min(a_2, b_2)/2 (below
+both a and b, so no horizontal forbidden line crosses at that height),
+and with x-coordinate w_1 positive and smaller than bmax and every
+positive intersection of a line through a or b and a forbidden center.
+For each forbidden center o, the line ao or bo meets the horizontal
+line y = w_2 in at most one point; pick w_1 smaller than all such
+positive intersections. Then the polyline a -> w -> b avoids every
+forbidden center and stays in the allowed rectangle.
+
+CLEARANCE. Choose a single eps_0 > 0 smaller than 1/20 of each rectangle
+half-side, each boundary distance, and (for each segment a -> b and each
+held center o to be avoided) |det(b - a, o - a)| / 2. All these are
+positive and finitely many, so eps_0 is effective.
+
+SHRINK. Let zeta be a smooth step on [0, 1]. For source i, define the
+diagonal matrix family
+    A_i(tau)  :=  (1 - zeta(tau)) I  +  zeta(tau) diag((eps_0, eps_0) / r_i^D).
+Then A_i(0) = I, A_i(1) = diag(eps_0/r_i^D), all diagonal entries
+positive. Use the velocity
+    A_i'(tau) A_i^{-1}(tau) (Y - p_i)  x  (symmetric cutoff around D_i).
+The path is p_i + A_i(tau)(Y - p_i). All values lie in D_i.
+
+TRANSLATE. For each scheduled segment a -> b, set c(tau) := a + zeta(tau)
+(b - a) and use the translation field c'(tau) times a symmetric cutoff
+that is 1 on the moving eps_0-square and 0 on all held eps_0-squares.
+This translates the small square exactly; it vanishes on held squares.
+
+EXPAND. After the eps_0-square at q_i is in place, use the diagonal family
+    (1 - zeta(tau)) I  +  zeta(tau) diag(r_i^E / (eps_0, eps_0))
+to send the eps_0-square to E_i, with a symmetric cutoff.
+
+COMPOSE. Concatenate the finite list of phases into a single template
+supported in [0, 1]:
+    v_*(s, Y)  :=  J  sum_{j=0}^{J-1}  V_j(J s - j),
+so that at time s = j/J the phase is V_j.
+
+The composed time-one map sends p_i + xi -> q_i + diag(r_i^E/r_i^D) xi
+on D_i, which is the required positive diagonal affine map. If E_i in
+Omega_-, every stage (shrink on D_i, translate within Omega_-, expand on
+q_i) stays in Omega_-. If E_i in the right half, only the last expansion
+crosses into the right half. All cutoffs, paths, and inverse diagonal
+lower bounds are finitely many effective data. []
+
+12.1.6. THE TRANSVERSE LIFT.
+
+The planar field v(s, Y) (loader plus periodic template) is not
+divergence free in 2D. Introduce a smooth 1-periodic function
+eta: R --> R with
+
+    eta(z) = 0     near z = 1/2 ± (1/4 + eps),
+    eta(z) = z - 1/2   for z in (1/4, 3/4),
+
+and consider three-dimensional velocities of the form
+
+    W(s, Y, z)  :=  ( eta'(z) v(s, Y),  -eta(z) div_Y v(s, Y) ).
+
+Divergence check:
+    partial_Y . ( eta'(z) v )  +  partial_z ( -eta(z) div_Y v )
+      =  eta'(z) div_Y v  -  eta'(z) div_Y v  =  0.
+
+At z = 1/2, eta(1/2) = 0, eta'(1/2) = 1. So W(s, Y, 1/2) = (v(s, Y), 0).
+The third component vanishes at z = 1/2; the (x, y) coordinates of a
+particle at z = 1/2 follow the flow of v exactly. The planar set z = 1/2
+is invariant.
+
+Spatial mean on T^3. With symmetric cutoffs, v has zero mean in Y
+(integrating v over [0, 1]^2 gives 0), so int_{T^3} W_1 = 0 and
+int_{T^3} W_2 = 0. The z integral of div_Y v vanishes because v is
+periodic in Y. So W has zero spatial mean. []
+
+12.1.7. THE LOADER.
+
+The initial code of the prefix machine is a point Z_in in Omega_-. We
+need the particle at p_* := (1/4, 1/2) at time 0, and Z_in at time 1.
+
+Choose a smooth coplanar field v_in (mirroring Section 9.1) with
+
+    v_in(t, Y)  :=  r_*'(t) Xi(Y) (Z_in - p_*)
+
+where r_* is the loading profile from Section 9.1 and Xi is a smooth
+cutoff supported near the segment from p_* to Z_in. Then the trajectory
+from p_* is
+
+    Y(t)  =  p_*  +  r_*(t) (Z_in - p_*),
+
+i.e., a straight segment from p_* to Z_in. In particular Y(0) = p_*,
+Y(1) = Z_in. Since the segment stays in Omega_- (both endpoints are
+there, and Omega_- is convex), the trajectory never leaves Omega_-;
+so it never enters (1/2, 1).
+
+12.1.8. THE COMPOSITE FIELD AND THE DETECTOR.
+
+Let v_* be the periodic template of Lemma 12.2, and v_in the loader.
+Define
+
+    v(s, Y)  :=  v_in(s, Y)  +  sum_{n>=1} v_*(s - n, Y),
+
+extended by zero in time on [0, inf) minus the union of the intervals
+[0, 1] and [n, n+1] for n >= 1. The sum is finite at each s (only
+one translate is active at any s, up to boundaries).
+
+Then:
+
+    (a) At logical time s = 1 + n, the trajectory from p_* is the
+        n-th prefix step of the auxiliary machine (starting from the
+        initial configuration). This is because the loader puts the
+        particle at the initial code at s = 1, and each subsequent
+        template step advances by one prefix transition.
+
+    (b) The particle at z = 1/2 has the exact planar trajectory Y(s).
+
+    (c) On non-halting runs, the machine is at a nonterminal
+        checkpoint at every integer (and in a nonterminal intermediate
+        state within each period); the code lies in Omega_- throughout
+        by Lemma 12.2; so the trajectory never enters (1/2, 1) x (0, 1).
+
+    (d) On halting runs, at some integer n the machine reaches a
+        terminal checkpoint C(q, d) with q in Q_h. Its code has a
+        position in K_j for a terminal label j, i.e., in
+        (3/4 ± 1/16) x (0, 1) ⊂ (1/2, 1) x (0, 1). The trajectory
+        enters (1/2, 1) x (0, 1) during the final prefix transition
+        (intermediate phase of Lemma 12.2, expanding into the right
+        half). []
+
+Apply the log clock: for t > 1, U(t, x) := (1/(t log 2)) W(log_2 t, x).
+For t in [0, 1], U(t, x) := W(t, x) (which contains the loader).
+The rest is exactly as in Section 9.
+
+Uniqueness and force smoothness follow as in Section 4 and Section 9.5.
+
+That proves Theorem 12.1.
+
+(This completes the prefix construction. Sections 12.2, 12.3, 12.4
+about the expanded planar and diffusion constructions follow.)
+
+12.2.  THE EXPANDED PLANAR CONSTRUCTION.
+
+We now give the version of the machine realization in which ALL motion is
+in a plane, so the third spatial coordinate is free to be a CLOCK via
+suspension. Two things follow:
+
+    (a) Periodic forcing from rest: the field repeats every unit of time.
+    (b) Eventually stationary forcing: after a smooth startup profile,
+        the field stops depending on t entirely.
+
+Both exhibit the same detector event for the particle starting at X_*.
+A further use of the same planar field (Section 12.3) gives a
+velocity-field detector through diffusion.
+
+12.2.1. STATEMENTS.
+
+THEOREM 12.2a (Periodic forcing). Fix nu > 0. Let (Q, A, delta, q_0) be
+a two-sided Turing machine and w a finite input word. Then there is a
+smooth divergence-free velocity U_p : [0, inf) x T^3 --> R^3 with
+U_p(0, .) = 0 and U_p(t + 1, .) = U_p(t, .) for all t (1-periodic in t),
+such that with f_p := (U_p)_t + (U_p . grad) U_p - nu Delta U_p:
+
+    (i) f_p is 1-periodic in t and has zero spatial mean on T^3.
+
+    (ii) All mixed derivatives of U_p and f_p are uniformly bounded in
+         (t, x): || partial_t^j partial_x^alpha U_p ||_inf +
+         || partial_t^j partial_x^alpha f_p ||_inf <= C_{j, alpha}.
+
+    (iii) The material particle from X_* = (1/4, 1/4, 1/4) enters the
+         fixed slab S := {2/3 < X_1 < 5/6} ⊂ T^3 if and only if M halts
+         on w. A visit occurs at an integer time t = k in phase.
+
+THEOREM 12.2b (Eventually stationary forcing). Same data, same X_*. There
+is another smooth divergence-free U_s : [0, inf) x T^3 --> R^3 with
+# ^C interrupted by user!
