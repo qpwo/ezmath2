@@ -1,0 +1,308 @@
+THE APPROXIMATION THRESHOLD FOR METRIC k-MEDIAN
+A plain-language tour
+==================================================
+
+This document explains one theorem and why it is exactly tight. It is
+meant to be read straight through by a high-school student who is
+comfortable with fractions and the idea of an average. A few formulas
+appear where they make a statement precise; none are needed to follow
+the story.
+
+One-sentence version: if you must choose k locations to act as "centers"
+for a set of points, there is a fast, reliable method that is always
+within a factor of about 1.7358 of the best possible, and no fast method
+can promise better than that factor unless P = NP.
+
+1. THE PROBLEM
+--------------
+
+Input:
+  - a finite set F of candidate facilities (possible center locations),
+  - a finite set J of clients (points that need service),
+  - a distance d(a,b) between every two points, obeying the metric rules:
+       nonnegative:  d(a,b) >= 0, and d(a,b) = 0 only when a = b;
+       symmetric:    d(a,b) = d(b,a);
+       triangle:     d(a,b) <= d(a,c) + d(c,b).
+  - an integer k with 1 <= k <= |F|.
+
+Choose a set S of at most k facilities. Its cost is the total distance
+from every client to its nearest chosen facility:
+
+   cost(S) = sum over j in J of  min over i in S of d(j,i).
+
+Let OPT_k be the smallest possible cost over all valid S. The distances
+are rational numbers written in binary; k and the metric are part of
+the input. Note that the candidate facilities F need not equal the
+clients J. This "specified candidate facilities" model is the one
+studied here.
+
+A tiny example. Put clients at positions 0, 1, 3, 10 on a line, with
+distance equal to absolute difference, and let every client also be a
+candidate. For k = 2, choosing facilities at 1 and 10 gives
+1 + 0 + 2 + 0 = 3. Choosing 0 and 3 gives 0 + 1 + 0 + 7 = 8. Choosing
+1 and 3 gives 1 + 0 + 0 + 7 = 8. So {1, 10} is best among these and
+has cost 3.
+
+2. WHAT "APPROXIMATION RATIO" MEANS
+-----------------------------------
+
+k-median is NP-hard, so (assuming P != NP) no algorithm can find the
+exact optimum quickly on every input. We instead ask for a guarantee:
+an algorithm has approximation factor alpha if, on every input, it
+returns a valid S with
+
+   cost(S) <= alpha * OPT_k.
+
+For example alpha = 2 means "never worse than twice the best". When
+OPT_k = 0 (all clients sit on facilities) a good algorithm should also
+return cost 0.
+
+"Polynomial time" means the running time grows like a fixed power of
+the input size, so it stays practical as the input grows. The power may
+depend on how small an accuracy we demand.
+
+3. THE MAIN RESULT
+------------------
+
+THEOREM. Fix any accuracy eps > 0. There is a deterministic algorithm
+that, on every finite rational metric k-median instance with
+1 <= k <= |F|, runs in polynomial time and returns a set S of at most k
+facilities with
+
+   cost(S) <= (1 + 2/e + eps) * OPT_k,
+
+where e = 2.71828... is Euler's number. The polynomial may depend on
+eps but not on the instance.
+
+Numerically, 1 + 2/e = 1 + 0.73575888... = 1.73575888..., so the
+promise is "never more than about 73.6 percent above the best
+possible". "Deterministic" means the algorithm never flips a coin; its
+output is fixed by the input, up to fixed tie-breaking. That is stronger
+than an algorithm that is only correct on average over its own
+randomness.
+
+4. WHY 1 + 2/e IS THE LIMIT
+---------------------------
+
+The number 1 + 2/e is not an accident of the analysis. It is exactly
+the best any polynomial-time algorithm can promise unless P = NP. The
+proof turns a different hard problem, MAX k-COVERAGE, into this one.
+
+MAX k-COVERAGE. You have a universe of m elements and a family of
+subsets. You must choose k subsets to cover as many elements as
+possible. Feige proved that, unless P = NP, no polynomial-time
+algorithm can always cover more than a (1 - 1/e + delta) fraction of
+the best-coverable count, for any fixed delta > 0.
+
+THE REDUCTION. From a coverage instance build a distance:
+  - candidate facilities = the subsets;
+  - clients = the universe elements;
+  - facility-to-client distance = 1 if the element is in the subset,
+    otherwise 3;
+  - distance between two distinct facilities = 2;
+  - distance between two distinct clients = 2.
+These obey the triangle inequality (two facilities are 2 apart, and
+going through any client costs at least 1 + 1 = 2), so this is a metric.
+
+If a chosen set of k facilities covers c elements, each covered element
+is distance 1 from its nearest chosen facility and each uncovered
+element is distance 3. Hence
+
+   cost = c * 1 + (m - c) * 3 = 3m - 2c.
+
+  - If the coverage instance has a perfect k-cover, then c = m and
+    OPT_k = m.
+  - If every k-cover leaves at least (1/e - delta) m elements uncovered,
+    then c <= (1 - 1/e + delta) m, so every choice has cost at least
+        3m - 2(1 - 1/e + delta) m = m (1 + 2/e - 2 delta).
+
+An algorithm promising a factor strictly below 1 + 2/e could, on these
+instances, tell the two cases apart and thereby beat MAX k-COVERAGE.
+That is impossible unless P = NP.
+
+Combining the two halves: the theorem gives factor 1 + 2/e + eps for
+every eps > 0, and the reduction rules out any factor below 1 + 2/e.
+The infimum (greatest lower bound) of achievable factors is exactly
+1 + 2/e. The theorem does not claim that the endpoint itself is
+achieved; it claims every factor above it is reachable.
+
+Technical note: this hardness argument uses the model where candidate
+facilities may differ from clients. The variant with F = J is a
+genuinely different problem, and this threshold does not apply to it.
+
+5. HOW THE ALGORITHM WORKS (BIG PICTURE)
+----------------------------------------
+
+The method follows recent work called iterative randomized rounding. The
+new ingredient is a sharper cost accounting that pushes the factor below
+2 down to 1 + 2/e. There are five stages; each either loses nothing or
+loses an amount that can be made arbitrarily small by choosing constants.
+
+STAGE A. Write down an LP (linear program).
+Variables:
+   y_i  = amount of facility i opened, in [0,1];
+   x_ij = fraction of client j served by facility i, in [0,1].
+Constraints: each client is fully served (sum over i of x_ij = 1); no
+client uses more of a facility than is opened (x_ij <= y_i); total
+opening mass is at most k (sum over i of y_i <= k). Minimize the total
+distance. The LP optimum L satisfies L <= OPT_k, so rounding the LP
+solution to an actual facility set with cost close to L gets us close to
+OPT_k.
+
+STAGE B. Prepare the openings: snap to a grid.
+The LP may spread facilities thinly (say y_i = 0.37). Choose a fixed
+small mass g = 1/Delta for a constant integer Delta, and round all
+openings onto multiples of g. This "preparation" keeps two promises:
+   - the total opened mass grows by only a constant (at most 3g above
+     the original total);
+   - each client's expected cost grows by only a factor 1 + eta, for any
+     desired eta > 0.
+The tool is a representative-and-bundle construction: nearby clients
+are grouped, and small missing pieces ("deficits") are rounded together
+with the facilities that can supply them. This is delicate because one
+supplier can serve many clients, and the same mass can be counted by
+several clients' assignments.
+
+STAGE C. Round the grid to facilities, round by round.
+Treat each unit of grid opening as Delta identical copies of mass g.
+There are many rounds. In each round:
+   - Build a random directed graph. Each active copy (a "target") picks
+     exactly Delta other copies as "sources", with probabilities that
+     decrease with distance. The taper makes far sources unlikely.
+   - Flip coins. A selected source opens its facility and erases all its
+     targets. Erasing frees copies so clients can be reassigned.
+Forcing a source to open whenever it would erase too many copies keeps
+the total number of facilities from growing without bound.
+
+STAGE D. Control the cost with a potential.
+For one client, define a potential that mixes the cost of its surviving
+candidate copies with an upper bound on its eventual connection
+distance. Show that, in expectation, this potential grows no faster
+than the target factor allows. The proof needs a separate combinatorial
+lemma, the finite comparison inequality (Section 6). That lemma is what
+makes the factor 1 + 2/e rather than 2.
+
+STAGE E. Make it deterministic, then remove the surplus.
+The analysis only uses finitely many low-order moments (mostly first and
+second, with at most fourth order for the count statistic) of the random
+choices. Replace the coins by finite lists of outcomes whose weights
+reproduce those moments exactly. Such lists have polynomial size by a
+classical convexity argument (Caratheodory's theorem). Expand all the
+(constantly many) rounds and pick the cheapest output that stays within
+the opening budget. The result is deterministic. The construction may
+open up to k + c facilities for a constant c. A reduction of Li and
+Svensson turns any such "pseudo-approximation" into one that opens at
+most k facilities, losing only an arbitrarily small amount in the ratio.
+That is the last stage.
+
+6. THE FINITE COMPARISON INEQUALITY (THE HEART)
+-----------------------------------------------
+
+This self-contained statement about probabilities and distances is where
+the 2/e enters, and it is the engine of the whole result. Here is the
+idea, without all the constants.
+
+Take a finite set of "rows" i with probabilities adding to 1 and
+nonnegative numbers D_i whose average is 1. Think of D_i as how far row
+i is. There is a matrix q_{ti} in [0,1] describing which row can erase
+which, and numbers R_i >= 0 with the property that, whenever q_{ti} < 1,
+
+   R_i (1 - P q_{ti}) <= D_i + D_t,
+
+where P is a fixed number in (0, 1/2]. Let Theta = P(y-x)^2 / y be a
+quantity that shrinks to zero as y approaches x. Then, under these
+hypotheses, a certain long sum (the drift) is at most 2 Theta.
+
+The proof has a clear shape. Rows where the drift is positive are
+"donors"; they must be far away (D_i large), and the size of their
+donation is bounded. They send charges to rows that are closer. Each
+receiving row (D_t small) has enough built-in negative contribution to
+pay exactly the charges it received. So every positive contribution is
+covered by a negative contribution lower in the distance order, and the
+total is controlled. No symmetry of q is needed; the charging is
+directed.
+
+This is what keeps the factor below 2. Earlier iterative-rounding
+analyses relied on a general "transfer" statement whose parameter was
+forced to be at least 2 for k-median. Replacing it with the directed
+charging argument, plus a carefully chosen potential, is the
+contribution that reaches 1 + 2/e.
+
+7. WHY THE CONSTANTS ARE TRUSTWORTHY
+------------------------------------
+
+Approximation proofs are full of inequalities with real-number
+coefficients, and it is easy to lose correctness in a pile of
+estimates. This paper avoids that trap: every numerical inequality the
+drift analysis needs is proved with an exact rational certificate.
+
+Concretely, the required bounds have the form "some polynomial in a
+variable X is nonnegative on [0,1]". Each such claim is checked by
+writing the polynomial in the Bernstein basis, a sum of plainly
+nonnegative terms, with explicit rational coefficients. A finite table
+of integers then certifies the whole thing, and a computer can verify
+it with exact integer arithmetic. Appendix A of the paper contains the
+tables. Nothing depends on floating-point arithmetic.
+
+8. HOW THIS FITS WITH EARLIER WORK
+----------------------------------
+
+  - Charikar, Guha, Tardos, Shmoys (2002): first constant factor for
+    k-median, via LP rounding.
+  - Jain and Vazirani (2001): Lagrangian relaxation and primal-dual
+    methods linking facility location and k-median.
+  - Arya et al. (2004): local search gives factor 3 + eps.
+  - Li and Svensson (2016): a constant number of extra facilities can be
+    removed at small additional loss. This underlies the last stage.
+  - Byrka et al. (2017): bi-point rounding, factor 2.675 + eps.
+  - Gowda et al. (2023): factor 2.613.
+  - Cohen-Addad, Grandoni, Lee, Schwiegelshohn, Svensson (2025/2026):
+    factor 2 + eps, the first break below 2.
+  - Byrka et al. (2026): a graph-based iterative-rounding framework that
+    also gives 2 + eps and generalizes to other clustering costs.
+  - This paper: factor 1 + 2/e + eps, about 1.7358 + eps, matching the
+    MAX k-COVERAGE hardness boundary.
+
+The step from 2 + eps to 1.7358 + eps is the new part: a sharper cost
+analysis inside the iterative-rounding framework.
+
+9. WHAT TO REMEMBER
+-------------------
+
+  - Problem: pick at most k centers to minimize total distance from
+    clients to nearest center; candidate centers may be separate from
+    clients.
+  - Result: deterministic polynomial-time factor 1 + 2/e + eps for any
+    fixed eps > 0; since 2/e = 0.735758..., the factor is about 1.7358.
+  - Tightness: MAX k-COVERAGE reduces to k-median so that no factor
+    below 1 + 2/e is possible unless P = NP. So 1 + 2/e is the exact
+    approximation threshold for this model.
+  - Method: LP relaxation, grid preparation, tapered iterative rounding
+    with a directed graph, a potential controlled by the finite
+    comparison inequality, exact rational certificates, derandomization
+    by moment matching, and the Li-Svensson reduction that removes
+    surplus facilities.
+
+The word "infimum" matters. The theorem guarantees every factor
+strictly above 1 + 2/e but does not claim the endpoint is attainable.
+
+10. GLOSSARY
+------------
+
+  metric: an abstract space whose points have distances obeying
+    nonnegativity, symmetry, and the triangle inequality.
+  k-median: choosing at most k centers to minimize total distance from
+    clients to nearest center.
+  approximation factor alpha: a promise that the returned cost is at
+    most alpha times the optimum on every input.
+  LP relaxation: a linear program whose optimum is a lower bound on the
+    integer optimum; it lets answers be fractional.
+  rounding: converting a fractional LP answer into an actual set of
+    facilities.
+  expectation: the weighted average of a random quantity.
+  deterministic: no randomness; the output is fixed by the input.
+  infimum: the greatest lower bound; here, the smallest factor that no
+    algorithm can beat.
+  P and NP: complexity classes. P holds problems solvable quickly, NP
+    holds problems whose proposed solutions are quickly checkable. It is
+    widely believed that P != NP.
