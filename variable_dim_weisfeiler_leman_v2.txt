@@ -1,0 +1,2841 @@
+VARIABLE-DIMENSION WEISFEILER-LEMAN EQUIVALENCE
+ON GENERAL AND SUB CUBIC GRAPHS
+
+A complete, self-contained proof.
+
+Version 2. Meant to be read from front to back.
+
+
+ABSTRACT
+
+Deciding whether two graphs are indistinguishable by joint-update
+k-dimensional Weisfeiler-Leman refinement is EXPTIME-complete when the
+two graphs are given by explicit adjacency matrices and the integer
+k >= 2 is written in binary. The hardness holds even when the two graphs
+are connected, simple, uncolored, of the same positive order, and of
+maximum degree at most three.
+
+
+CONTENTS
+
+  0. How to read this.
+  1. What is proved, and why it is surprising.
+  2. Refinement, the counting game, and the upper bound.
+  3. A computation written as a small circuit.
+  4. Consistency of scalar images.
+  5. Affine blocks and exact projection.
+  6. The general graph realization and the game transfer.
+  7. The connected subcubic realization.
+  8. Uniform size and time bounds; completeness.
+  A. Notation.
+
+
+0. HOW TO READ THIS.
+
+There is one main theorem and one long reduction. The reduction turns an
+arbitrary exponential-time computation into a pair of polynomial-size
+graphs. Everything is built so that a particular two-player game on the
+pair has a winning strategy exactly when the computation rejects.
+
+The proof is a chain of six links. Each link is a self-contained lemma or
+proposition with a complete proof, and each link has a one-sentence
+statement of what it buys:
+
+  Link 1 (Section 3). Every exponential-time computation on an input of
+  length m becomes a polynomial-size "product circuit" whose accepting
+  tests are false exactly when the input should be accepted.
+
+  Link 2 (Section 4). Every such circuit becomes a system of constraints
+  on small sets of bits ("scalar-image consistency"), solvable exactly
+  when every test is false.
+
+  Link 3 (Section 5). Every consistent system becomes a supply of
+  compatible "affine offsets" on small sets of local blocks, with an
+  exact extension property: any allowed choice on a small set extends
+  when one more block is added.
+
+  Link 4 (Section 6). The offsets become winning moves in the game, and
+  conversely the game recovers the constraints. This is the game transfer.
+
+  Link 5 (Section 7). The same block data is realized by connected graphs
+  of maximum degree three, with the same game and decoding properties.
+
+  Link 6 (Section 8). All objects have polynomial size and are produced
+  in polynomial time, which completes the reduction and the theorem.
+
+If you only want the shape of the argument, read Section 1 and the
+statement of each of the six links. If you want the proof, read straight
+through. Every claim used later is proved before it is used.
+
+
+1. WHAT IS PROVED, AND WHY IT IS SURPRISING.
+
+1.1 The two problems.
+
+Let X be a finite simple undirected graph, with vertex set V(X). Fix an
+integer k >= 2. A k-tuple is an ordered list v = (v_1,...,v_k) of k
+vertices of X.
+
+Weisfeiler-Leman refinement colors the k-tuples and refines the coloring
+in rounds. We use the joint-update convention.
+
+Round 0. The initial color of v records, for every ordered pair (i,j) of
+positions, whether v_i = v_j and whether v_i is adjacent to v_j.
+
+Round s+1. For a tuple v and a vertex z, let v[i <- z] mean v with its
+i-th entry replaced by z. The new color of v is the pair
+
+    ( old color of v , the multiset of all vectors
+      ( color_s(v[1<-z]), ..., color_s(v[k<-z]) ) as z ranges over V(X) ).
+
+So all k replacements coming from one and the same vertex z stay grouped
+together inside one vector, and the multiset ranges over vertices z, not
+over positions i. That grouping is what "joint update" means.
+
+Color names are shared between any two graphs under comparison. Write
+
+    G =_k H
+
+if for every round s the multisets of round-s colors on V(G)^k and on
+V(H)^k are equal. This is k-dimensional Weisfeiler-Leman equivalence.
+
+Two languages.
+
+  WL is the set of triples (G,H,k) such that G and H are finite simple
+  uncolored undirected graphs, given by explicit adjacency matrices,
+  k >= 2 is given in binary, and G =_k H.
+
+  SUBWL is the same, with the extra requirements that G and H are
+  connected, have the same positive number of vertices, and have maximum
+  degree at most three.
+
+Inputs that violate the stated conditions are outside the languages.
+
+1.2 The main theorem.
+
+  THEOREM A. Both WL and SUBWL are EXPTIME-complete under deterministic
+  polynomial-time many-one reductions.
+
+"EXPTIME" is the class of languages decidable in time 2^(polynomial in
+input length). "Complete" means: the language is in EXPTIME, and every
+language in EXPTIME reduces to it by a polynomial-time map that preserves
+yes/no answers.
+
+Two remarks on the statement.
+
+  The degree bound is an upper bound only. The constructed graphs of
+  maximum degree three need not be regular.
+
+  The theorem is about equivalence of a supplied pair at a supplied
+  dimension. It is not about finding the least dimension that identifies
+  one graph among all possible mates; a companion paper treats that
+  different question.
+
+1.3 Why degree three is surprising.
+
+Luks proved that isomorphism of graphs of any fixed maximum degree is
+decidable in polynomial time. So on bounded-degree graphs, the strongest
+possible equivalence test, namely isomorphism, is easy. Theorem A says
+that a weaker test, refinement at a prescribed dimension, is EXPTIME-hard
+on the same class. The difficulty is not telling the graphs apart; it is
+deciding what refinement at that particular dimension reports about a
+pair that may well be non-isomorphic.
+
+1.4 Where the ideas come from.
+
+Weisfeiler and Leman introduced the refinement method for graph
+canonization. Cai, Furer and Immerman built non-isomorphic degree-three
+graphs that stay indistinguishable under linearly many counting
+variables; those are lower bounds on dimension, not on the cost of
+deciding refinement. Kiefer and Neuen recorded the joint-update
+convention and the exact (k+1)-pair bijective game used in Section 2.
+For dimension supplied as input, Seppelt proved coNP-hardness of pair
+equivalence and asked about EXPTIME; Lichter, Rassmann and Schweitzer
+independently proved coNP-hardness for simple uncolored graphs. Grohe,
+Lichter, Neuen and Schweitzer compress CFI constructions into smaller
+graphs while keeping long refinement sequences. The product-address,
+scalar-image and corner-potential methods used here are shared with a
+companion paper on unconditional time lower bounds at fixed dimension;
+here the number of binary coordinates grows with the input, so every
+constant is tracked as a function of that number.
+
+1.5 Proof strategy in one page.
+
+We must show two things: membership (a decision procedure inside
+EXPTIME) and hardness (a reduction from an arbitrary EXPTIME language).
+
+Membership is Section 2. Cap the dimension at the number of vertices
+(if k is at least the order, equivalence is just isomorphism, provable
+from the first round alone). Then there are only 2 n^k tuple entries, and
+at most that many rounds before the coloring stabilizes, so the whole
+table computation is 2^(O(n log n)) times a polynomial in the input
+length. That is EXPTIME.
+
+Hardness is Sections 3 through 8.
+
+Fix an arbitrary EXPTIME language L_0 and an input word w of length m.
+Take a deterministic machine M that decides the complement of L_0 and
+halts within T = 2^(p(m)) steps, for a fixed polynomial p with
+p(m) >= m + 2. Put d = p(m) + 2, H = 2^d = 4T, r = 2d, K = r + 1.
+The reduction outputs the two graphs and the dimension k = r.
+
+The intended polarity is
+
+    w in L_0
+      <=> M rejects w
+      <=> the circuit of Link 1 has no true accepting test
+      <=> the scalar-image system of Link 2 is consistent
+      <=> the graphs of Link 4 or 5 are r-equivalent.
+
+Each "<=>" is a proved equivalence.
+
+  Link 1 turns the whole exponential computation into a circuit described
+  by polynomially many rules. Times and tape positions are written in
+  binary using r bits total; there is one gate of each type at each
+  binary address. A "connection schema" gives, for each coordinate, a
+  small allowed set of bits and an injective remapping, so one rule
+  describes many wires at once. Successor and predecessor are described
+  by carry and borrow cases, polynomially many, without listing the
+  2^r addresses.
+
+  Link 2 replaces the circuit by constraints on nonempty sets of one- or
+  two-bit vectors, one set per variable. Each constraint equates the
+  image of one scalar linear form at one endpoint with the image of
+  another form at the other endpoint. A true gate output forces the image
+  {0}; a false output can keep the full image {0,1}. So the constraints
+  are solvable exactly when no accepting test is true. The crucial
+  feature is that the equalities are per-comparison, not one global
+  assignment: different comparisons may use different vectors from the
+  same set.
+
+  Link 3 compresses the exponentially many addressed comparisons into
+  polynomially many constant-size blocks. Each comparison schema is
+  drawn as a long wire; the r binary coordinates of an address are put on
+  a cycle; a site is one step of the cycle; a square relates two site
+  values across one wire link plus two shared scalar values. Offsets are
+  translations taking homogeneous block solutions to affine ones. Offsets
+  on different blocks must agree on shared values. The exact projection
+  proposition says: on any set of at most K blocks there is a nonempty
+  family of compatible offsets, and restricting a family to a subset
+  gives exactly the family for that subset. So any choice extends when
+  one more block is added. The proof uses shifts at wire types and
+  potentials at corners; a closed walk around the whole cycle pins down a
+  full address, while on any component that does not wrap the potentials
+  can absorb a change of shifts.
+
+  Link 4 builds graphs whose vertices are the legal block valuations,
+  tagged by private leaves. Duplicator announces a bijection: on each
+  currently active block it uses the chosen offset, on every inactive
+  block it uses a fresh extension. Spoiler's single chosen vertex then
+  activates at most one new block, so the pre-chosen extensions never
+  need to agree with each other. Conversely, special zero-valued queries
+  are answered by legal valuations, and summing the answers around the
+  coordinate cycle produces the scalar images. A ring of marked sites can
+  be moved across a wire using one spare pair, which yields exactly the
+  required image equalities.
+
+  Link 5 does the same with connected graphs of maximum degree three.
+  Blocks become paths of valuations connected to prefix trees, with
+  equality matchings encoding shared values; a triangle-and-path gadget
+  removes the vertex colors. All extra difficulty is in recognition: the
+  game must be able to read the encoded data even at a history with every
+  pair slot occupied. This is handled by the "reached-history principle"
+  from Section 2: a property can be tested in a hypothetical continuation
+  that first discards unrelated pairs, and the conclusion then holds
+  already at the original history.
+
+  Link 6 counts. Every object is polynomial in r + m, and r is polynomial
+  in m, so the whole reduction runs in polynomial time and outputs
+  polynomial-size graphs with the dimension k = r written in binary.
+
+For readability we use F for the field GF(2) with elements 0 and 1, and
+we write addition in F as +, so 1 + 1 = 0. All vector spaces below are
+over F.
+
+
+2. REFINEMENT, THE COUNTING GAME, AND THE UPPER BOUND.
+
+This section has two jobs. It pins down the exact refinement rule and
+proves that deciding its outcome is in EXPTIME. Then it states and proves
+the equivalence with a two-player game where Duplicator must announce a
+whole bijection before Spoiler names a vertex. That game is the target of
+every reduction in the rest of the paper.
+
+2.1 The refinement rule, stated exactly.
+
+  DEFINITION 2.1 (joint-update k-dimensional refinement).
+  Let X be a finite simple graph and k >= 2. For v in V(X)^k let
+  v[i <- z] be v with coordinate i replaced by z. The initial color
+  chi_0(v) records, for every ordered pair (i,j), whether v_i = v_j and
+  whether v_i v_j is an edge. The recursive color is
+
+      chi_{s+1}(v) = ( chi_s(v),
+                       { ( chi_s(v[1<-z]), ..., chi_s(v[k<-z]) ) :
+                         z in V(X) } ),
+
+  where the outer braces denote a multiset. Color names are common to
+  all graphs under comparison. Write G =_k H if for every s >= 0 the
+  multiset of chi_s values over V(G)^k equals the multiset of chi_s
+  values over V(H)^k.
+
+A warning that the definition makes the reader's life easy: the multiset
+in the definition ranges over vertices z, and each element of the multiset
+is a whole k-vector of old colors. If instead one took k separate
+multisets, one per coordinate, one would get a different, weaker
+relation. We never do that.
+
+2.2 Capping the dimension.
+
+  LEMMA 2.2 (capping). Let G and H have the same positive order n. For
+  every integer k >= n with k >= 2, G =_k H if and only if G and H are
+  isomorphic. Consequently, for n >= 2 and k >= 2,
+
+      G =_k H   <=>   G =_{min(k,n)} H.
+
+  Proof. If f: V(G) -> V(H) is an isomorphism, it acts coordinatewise on
+  tuples. It preserves the initial color (it preserves equality and
+  adjacency), and by induction on s it preserves every color chi_s. So it
+  carries each color class bijectively onto a class with the same name,
+  which makes the two histograms equal at every round. This gives one
+  direction.
+
+  Conversely assume k >= n and the round-0 histograms agree. Choose a
+  tuple v in V(G)^k whose n distinct entries are all the vertices of G;
+  this is possible because k >= n. The histogram equality gives a tuple w
+  in V(H)^k with chi_0(w) = chi_0(v). The equality part of the initial
+  color says v_i = v_j exactly when w_i = w_j. Hence the rule
+  v_i -> w_i is well defined on the n distinct entries of v and is
+  injective into the n entries of w; since both graphs have n vertices,
+  it is a bijection onto all of V(H). The adjacency part of the initial
+  color says v_i v_j is an edge exactly when w_i w_j is an edge. So the
+  bijection is an isomorphism. For the displayed equivalence at k >= n,
+  apply the same argument once at k and once at min(k,n); at k < n the
+  two statements are literally the same. QED
+
+The point of Lemma 2.2 is computational. It lets the decision procedure
+replace an astronomically large binary k by min(k,n), with a comparison
+that is polynomial in the input length even when the numeric value of k
+is enormous.
+
+2.3 Membership in EXPTIME.
+
+  PROPOSITION 2.3 (upper bound). Both WL and SUBWL belong to EXPTIME.
+  More precisely, after the input conditions are checked, an input of
+  common order n >= 2 and total length L bits is decided in time
+
+      2^(O(n log n)) * L^(O(1)),
+
+  with absolute constants in the exponents.
+
+  Proof. First check the input format. Read the two adjacency matrices,
+  verify symmetry, zero diagonal, entries in {0,1}, and that the k field
+  is a binary integer k >= 2. For SUBWL also check equal positive orders,
+  maximum degree at most three, and connectedness. Reject any failure.
+  For WL, unequal orders are rejected immediately because the two tuple
+  tables have different sizes; orders zero or one give trivial graphs and
+  are accepted.
+
+  Now assume the common order is n >= 2. Replace k by min(k,n) using
+  Lemma 2.2. This is a comparison of one binary integer with n, so it
+  costs polynomial time in L regardless of the magnitude of k. From here
+  on 2 <= k <= n.
+
+  Keep two tables, one over V(G)^k and one over V(H)^k, and give all
+  entries of both a common set of integer color labels. The total number
+  of entries is
+
+      A = 2 n^k.
+
+  One round works as follows. At each entry v and each vertex z, form the
+  vector of the k old colors chi_s(v[i<-z]) for i = 1,...,k; this vector
+  belongs to that graph alone, we never mix the two graphs at this step.
+  Sort the n resulting vectors with multiplicities by any fixed total
+  order on color tuples, prepend the old label chi_s(v), and use the
+  sorted result as the next signature. Sorting all signatures over both
+  tables simultaneously assigns the next common labels.
+
+  Every new partition refines the old one, because the old label is part
+  of the signature. A strict refinement strictly increases the number of
+  color classes, which is at most A. Hence after at most A rounds either
+  no class splits, or the process has reached a fixed number of classes.
+  If a round makes no split, its new labels are a bijective renaming of
+  the old classes; substituting those names into the next signatures
+  cannot create a split. So stabilization happens within A rounds,
+  counting the final no-split round. Compare the two histograms initially
+  and after every round, rejecting as soon as they differ. If they agree
+  through stabilization, every later round is a renaming and they agree
+  forever.
+
+  Size accounting. An integer label uses O(1 + log A) bits, a replacement
+  vector has k labels, and a signature has n replacement vectors plus an
+  old label. Each round is a fixed polynomial in A + n + k + L, even with
+  sequential access only. Since k <= n and n >= 2, multiplying by at most
+  A = 2 n^k rounds gives
+
+      (A + n + k + L)^(O(1)) = 2^(O(n log n)) * L^(O(1)).
+
+  Finally the order n is bounded by a polynomial in L, because the input
+  lists all matrix entries explicitly. So the displayed bound is a bound
+  of the form 2^(poly(L)), which is EXPTIME. QED
+
+2.4 The bijective game.
+
+The game is played on a fixed pair of graphs G and H of the same order
+n, with q >= 1 named pair slots. A slot is either vacant or occupied by
+one pair (v,w) with v in V(G) and w in V(H). Initially every slot is
+vacant. A move is one of the following two things.
+
+  Spoiler may discard any set of occupied slots.
+
+  Spoiler may name a vacant slot and ask for a new pair. Duplicator must
+  first announce one bijection f: V(G) -> V(H) of the entire vertex sets.
+  Only after hearing f does Spoiler choose a vertex v in V(G). The named
+  slot then receives (v, f(v)).
+
+The same vertex may appear in several slots, and so may the same pair.
+Duplicator wins a play if after every move the occupied slots form a
+partial isomorphism: for every two occupied slots (v,w) and (v',w'),
+v = v' exactly when w = w', and v v' is an edge in G exactly when w w' is
+an edge in H. Duplicator wins the game if it has a strategy that wins
+against every finite play. Strategies may depend on the entire finite
+history, and there is no bound on their computational cost.
+
+The order of choices is the whole point: the whole bijection comes
+before the individual vertex. A construction that only answered an
+already chosen vertex would prove a strictly weaker statement.
+
+2.5 Refinement and announced bijections are the same thing.
+
+  LEMMA 2.4 (game characterization). For graphs G and H of the same
+  positive order and every integer k >= 2, G =_k H if and only if
+  Duplicator wins the game with k+1 slots.
+
+  Proof. First, one symmetry of the colors. Claim: if two tuples have
+  equal round-s colors, then applying the same coordinate permutation to
+  both gives tuples of equal round-s colors. At s = 0 this is clear from
+  the definition of the atomic data. For the induction step, equal
+  next-round colors give equal old colors and a matching between
+  replacement vertices whose entire old-color vectors agree. By the
+  inductive hypothesis, applying the coordinate permutation to each
+  replaced tuple preserves these equalities. Reordering the vector
+  components by the same permutation then gives the replacement vectors
+  of the permuted tuples, and their multisets agree. The statement is
+  about equality of colors, not about individual color names being fixed
+  by a permutation.
+
+  Direction 1: from equivalence to a winning strategy.
+
+  Assume G =_k H. On the union of the two tuple tables let ~ mean
+  equality in a stable common refinement partition. Stability means the
+  labels no longer split, so for every pair of related tuples there is a
+  bijection of replacement vertices matching the whole replacement-color
+  vectors. That is: for v ~ w there is a bijection f: V(G) -> V(H) with
+
+      (2.1)  v[i <- z] ~ w[i <- f(z)]   for all z in V(G) and all
+             i = 1,...,k, simultaneously.
+
+  Indeed the stable-color vectors in the two multisets can be paired with
+  their multiplicities, and such a pairing matches replacement vertices
+  bijectively.
+
+  Because the two stable histograms agree and are nonempty, some related
+  pair v, w exists. Append to it any vertex and its image under a
+  bijection f satisfying (2.1). The resulting pair of (k+1)-tuples has
+  this property: deleting any one coordinate gives related k-tuples. For
+  the deletion of the new entry it is the original pair; for the deletion
+  of an old entry it is one of the replacements in (2.1), up to the
+  common coordinate permutation covered by the symmetry claim above.
+
+  Duplicator keeps one such pair of (k+1)-tuples as auxiliary data,
+  arranged so that the occupied slots equal the actual marked pairs and
+  the vacant slots are virtual. Discarding a slot leaves the auxiliary
+  data unchanged. When slot j is named, delete its virtual entries; the
+  remaining coordinates are a related pair of k-tuples, and Duplicator
+  announces the bijection from (2.1) for that related pair. Spoiler then
+  chooses v, and slot j receives (v, f(v)). The projection omitting j is
+  unchanged. A projection omitting any other slot is, up to a common
+  coordinate permutation, one of the replacements in (2.1). Hence the
+  auxiliary invariant survives every move. Every two occupied
+  coordinates occur together in some k-projection because k >= 2, so
+  their equality and adjacency agree in the two graphs. This is exactly
+  the partial-isomorphism condition, and this strategy wins.
+
+  Direction 2: from a winning strategy to equivalence.
+
+  Fix a winning strategy for Duplicator. We prove by induction on s that
+  at every reached history with exactly k occupied slots, the two tuples
+  read in any common ordering of the occupied slots have equal round-s
+  colors. At s = 0 this is the partial-isomorphism condition. Suppose it
+  holds at round s, and consider such a history with tuples v, w. Name
+  the one vacant slot and let f be the announced bijection. For every
+  choice of z in V(G) and every i, there is a continuation that first
+  places (z, f(z)) and then discards the old i-th slot and reorders the
+  remaining k slots to put the new slot in position i. The inductive
+  hypothesis applies to that reached history and gives
+
+      chi_s( v[i <- z] ) = chi_s( w[i <- f(z)] ).
+
+  The bijection f was announced before z was chosen and is the same for
+  all choices, so it matches the entire replacement vectors; the old
+  tuple colors agree by induction. By the recursion, the round-(s+1)
+  colors agree. This proves the induction.
+
+  Finally build a map F: V(G)^k -> V(H)^k as follows. From the empty
+  history, fill k fixed slots in a fixed order, never discarding, always
+  following the strategy. This defines F. It is bijective: given any
+  target tuple, invert the first announced bijection to recover the
+  first source entry; the recovered history determines the second
+  announced bijection, which recovers the second entry; continue. This
+  inversion remains valid even though the strategy depends on history.
+  The induction just proved says that F preserves round-s colors for
+  every s. Hence the two histograms agree at every round. QED
+
+2.6 The reached-history principle.
+
+We will repeatedly need a small piece of logical hygiene about winning
+strategies at a fixed history. It is the following observation.
+
+  Suppose a winning strategy for Duplicator is fixed, and a history h has
+  been reached. Let P be a property of the marked pairs at h. If failure
+  of P would allow Spoiler, starting from h, to reach a lost position
+  after discarding any chosen occupied slots and making some further
+  moves, then P already holds at h.
+
+Why: a winning strategy must avoid every lost continuation, from every
+reached history. So if P failed at h, the strategy could not win. The
+statement does not ask us to actually play that continuation during the
+intended line of play, and it does not require restoring any discarded
+marks. We will use this pattern constantly: to test a property of a
+marked pair, we imagine a continuation that discards all unrelated pairs,
+retains the pair, and performs the test. The conclusion is a fact about
+the original history, whatever the occupancy there.
+
+
+3. A COMPUTATION WRITTEN AS A SMALL CIRCUIT.
+
+This is Link 1. We take an arbitrary halting computation of a fixed
+deterministic machine and describe the whole computation by polynomially
+many rules, called a product description. It is a circuit whose gates live
+at binary addresses; there is one gate of each type per address, but the
+wiring is compressed. The circuit succeeds or fails on a single input
+depending on whether the machine accepts.
+
+3.1 Circuit conventions.
+
+A circuit is built from two kinds of gates and no others.
+
+  A SCALAR gate has one output. Its value is the OR of the values
+  arriving along all incoming connections. It may additionally be
+  declared a seed, in which case it is true no matter what arrives. An
+  empty OR is false. So a scalar gate is true exactly when it is a seed
+  or at least one of its incoming sources is true.
+
+  An AND gate has two input ports, called port 1 and port 2. Each port
+  computes the OR of the values arriving at it. The gate is true when
+  both port ORs are true.
+
+A designated TEST is any scalar gate with no outgoing connections. The
+circuit is finite and acyclic, so for a fixed input the rules determine
+all truth values uniquely: process the gates in any topological order.
+
+3.2 What a product description of a circuit is.
+
+A PRODUCT DESCRIPTION has an address length r, and contains gates of a
+few fixed types at each of the 2^r addresses. A specific circuit is then
+obtained by expanding every schema into individual connections.
+
+  A GATE TYPE is one of the types just described (one scalar type per
+  tape letter for the circuits below, plus two AND types per triple of
+  letters). Each type has one gate at each binary address in {0,1}^r.
+
+  A CONNECTION SCHEMA specifies: a source type, a destination type, a
+  destination port (irrelevant for scalar destinations), and for every
+  coordinate i = 1,...,r a nonempty coordinate domain A_i subset {0,1}
+  and an injective coordinate map
+
+      sigma_i : A_i -> {0,1}.
+
+  The schema describes the following connections. The source address
+  ranges over the product
+
+      A = A_1 x A_2 x ... x A_r,
+
+  and the connection carries the source value at address a = (a_1,...,a_r)
+  to the destination at the componentwise image
+
+      sigma(a) = ( sigma_1(a_1), ..., sigma_r(a_r) ),
+
+  at the specified destination port.
+
+  A SEED REQUEST or TEST REQUEST specifies a scalar type together with a
+  product domain of addresses; every address in that domain receives a
+  seed, or becomes a test.
+
+A product description lists only schemas and requests, each by a small
+table of coordinate entries. It does not list the 2^r individual
+connections and gates.
+
+3.3 The machine and parameters.
+
+Let M be a fixed deterministic one-tape machine whose tape is doubly
+infinite. Its tape alphabet is finite and fixed. Head displacements are
+in {-1,0,1}. On a word w of length m the head starts at position 0, the
+word w occupies positions 0,...,m-1, and every other cell is blank.
+Halting configurations are frozen: once M halts, nothing changes.
+
+Let p be a fixed integer polynomial with p(m) >= m + 2 and such that
+M halts on every length-m input within T = 2^{p(m)} steps. Put
+
+    d = p(m) + 2,   H = 2^d = 4T,   r = 2d,   K = r + 1.
+
+An address is a pair (t,j) of d-bit nonnegative integers t,j with
+0 <= t,j < H. The first group of bits is time; the second is tape
+position. Time is not cyclic; tape position is read modulo H. Since
+p(m) >= 2 we have r >= 8.
+
+  PROPOSITION 3.1 (uniform product-circuit compilation). Fix M and p
+  as above. For every word w of length m one can generate a product
+  description of a finite acyclic circuit at address length r = 2(p(m)+2),
+  with scalar terminal tests, such that at least one test is true if and
+  only if M accepts w.
+
+  The description has O_M(1) gate types and O_M((r+1)^2 + m) connection
+  schemas and seed or test requests. Each schema has r constant-size
+  coordinate entries. All coordinate domains are nonempty binary sets
+  and all coordinate maps are injections. The total number of coordinate
+  entries is O_M( r ((r+1)^2 + m) ). The description is generated
+  deterministically in time polynomial in r + m, with constants depending
+  only on M and p, and no loop is ever run over all 2^r addresses or all
+  H times.
+
+  Proof. There are three parts: simulate the machine on a ring, build the
+  gates that compute one ring step, and encode time and position shifts by
+  polynomially many product cases. Then a short count.
+
+  PART A. THE RING SIMULATION.
+
+  Let Gamma be the fixed tape alphabet. Let Sigma be its plain letters
+  together with tagged copies carrying a head state of M; there is an
+  additional fixed tag for the "halted" state. If M halts, it stays put,
+  so every halting configuration is frozen.
+
+  There is a fixed map
+
+      F : Sigma x Sigma x Sigma -> Sigma
+
+  that updates the centre cell of every ring configuration that has
+  exactly one head-tagged cell. Concretely, scanning a length-3 window
+  (a,b,c) with b the centre:
+
+    - if b is head-tagged, its state and scanned symbol determine the
+      symbol written in the centre and whether the head remains;
+
+    - if the head tag is on a (the left neighbour), a's tag determines
+      whether the head moves right into the centre and, if so, its new
+      state; the tape symbol in the centre is b;
+
+    - if the head tag is on c (the right neighbour), the symmetric
+      rule applies;
+
+    - if there is no head tag in the window, the centre is unchanged.
+
+  F is defined arbitrarily on windows that cannot arise from a one-head
+  configuration; those windows never appear in the simulation.
+
+  The same rule F implements one M-step on a cyclic tape of length H,
+  not just on the line. Start with exactly one head. The head writes a
+  symbol and moves by the prescribed displacement, so the ring still has
+  exactly one head. A window that straddles the seam of the ring is a
+  legitimate local case, not an arbitrary entry of F.
+
+  Initialization of the ring: put w in positions 0,...,m-1, the head at
+  position 0, and blanks elsewhere; when m = 0 the head sits on a blank.
+
+  Why the ring computes the same thing as the machine for H-1 steps.
+  Positions stay in [-T,T] during T steps because m <= T. The reduction
+  modulo H is injective on [-T,T], since that interval has length 2T and
+  H = 4T > 2T. So every visited position of the machine corresponds to a
+  distinct ring cell. By induction on time, each scanned ring cell has
+  received exactly the same writes as its unique line counterpart. The
+  next transition therefore writes the same symbol and moves to the same
+  corresponding cell. A cell whose 3-window meets the head lies in the
+  halo [-T-2,T+2]; that halo has 2T+5 cells, which are distinct modulo
+  H = 4T because 2T + 5 <= 4T for T >= 3 (here T >= 4). Other cells have
+  no head in their window and are unchanged. Hence ring and line agree
+  for H-1 steps, and the ring freezes at halting. The configuration at
+  time H-1 therefore records the outcome of M.
+
+  PART B. THE GATES.
+
+  For each letter f in Sigma introduce one scalar gate type S_f.
+
+  Seed the gate S_f(0,j) precisely for the initial letter at position j,
+  head tag included. There are only m' = max(1,m) such positions.
+
+  For each triple (a,b,c) in Sigma^3 introduce two AND gate types U_{abc}
+  and V_{abc}. For t > 0 use these connections:
+
+    (3.1)  S_a(t-1, j-1)  -->  U_{abc}(t,j),  port 1,
+    (3.2)  S_b(t-1, j)    -->  U_{abc}(t,j),  port 2,
+    (3.3)  S_c(t-1, j+1)  -->  V_{abc}(t,j),  port 2.
+
+  At every time, including time 0, use these connections:
+
+    (3.4)  U_{abc}(t,j)  -->  V_{abc}(t,j),          port 1,
+    (3.5)  V_{abc}(t,j)  -->  S_{F(a,b,c)}(t,j).
+
+  All position indices in (3.1) through (3.5) are read modulo H.
+
+  Acyclicity. Assign rank 3t to U-gates at time t, 3t+1 to V-gates at
+  time t, and 3t+2 to S-gates at time t. Every connection strictly
+  increases rank. So the circuit has no directed cycle.
+
+  Correctness. At time 0 the U-gates have no incoming connections from
+  t-1, and the V-gates only see the same-time connection from U, which
+  is false. Exactly the intended scalar seeds are true. Suppose the true
+  scalars at time t-1 specify the actual letter at every cell of the
+  ring. At (t,j), the AND gate U_{abc} is true exactly when a and b are
+  the actual letters at j-1 and j; the AND gate V_{abc} is true exactly
+  when c is also the actual letter at j+1. Exactly one triple of actual
+  letters makes V true there, so exactly the scalar for the next letter
+  appears at S(t,j). Induction proves that the scalar gates record the
+  ring computation at every time.
+
+  TESTS. For each letter f carrying an accepting state, test every gate
+  S_f(H-1,j). Some test is true exactly when M accepts w. These gates
+  have no outgoing connections: a scalar's outgoing connections advance
+  time, and none starts at time H-1. The same-time connections (3.4) do
+  not leave scalar gates. So the tests are terminal.
+
+  PART C. CARRY AND BORROW TABLES.
+
+  Number bits within either d-bit group from 0 to d-1, least significant
+  first. For 0 <= h < d define two product domains:
+
+    I_h^+ = { x in {0,1}^d : x_i = 1 for i < h, and x_h = 0 },
+    I_h^- = { x in {0,1}^d : x_i = 0 for i < h, and x_h = 1 }.
+
+  Bits above h are unrestricted. On either domain use the componentwise
+  map
+
+      theta_{h,i}(x_i) = 1 - x_i for i <= h,  and  x_i for i > h.
+
+  Its restriction to each coordinate domain is injective.
+
+  The domains I_h^+, for h = 0,...,d-1, partition all numbers strictly
+  below H-1, and theta_{h,i} on I_h^+ implements addition of one. So
+  these d domains implement time increment without overflow.
+
+  For cyclic position increment, add the all-ones singleton and flip all
+  bits on that additional domain. For cyclic position decrement, the
+  domains I_h^- partition the nonzero numbers, and theta on I_h^-
+  subtracts one; add the all-zero singleton, flipping all bits, for the
+  wraparound case. Each cyclic shift thus uses d + 1 product cases.
+
+  In source coordinates the temporal connections (3.1) to (3.3) are the
+  maps
+
+      (t,j) -> (t+1, j+1),  (t,j) -> (t+1, j),  (t,j) -> (t+1, j-1).
+
+  Combine an I_h^+ case on the time bits with a position case on the
+  position bits. The two digit groups are disjoint, so the combination is
+  again a product domain. The two shifted kinds need d(d+1) schemas each;
+  the unshifted kind needs d. There is no all-ones time case, because the
+  time group is not cyclic. Each connection in (3.4) uses one identity
+  schema, likewise (3.5).
+
+  PART D. INITIAL AND FINAL REQUESTS.
+
+  Put m' = max(1,m), so m' < H. At time 0, seed one singleton position
+  request per 0 <= j < m', using the actual initial letter. When m = 0
+  this seeds the head-bearing blank at position 0. Every other initial
+  position carries the plain blank.
+
+  Write the d bits of m' as mu_0, ..., mu_{d-1}. The set of positions
+  j >= m' decomposes disjointly as the singleton {m'} together with, for
+  every h with mu_h = 0, the domain
+
+      j_i = mu_i for i > h,  j_h = 1,  j_i in {0,1} for i < h.
+
+  Indeed, for j > m', the largest bit where j and m' differ has exactly
+  this shape. Fixing all time bits to zero makes each such blank request a
+  product in all r coordinates. There are at most d + 1 blank domains and
+  at most m' + d + 1 seed requests in total. Each accepting letter needs
+  one test request, fixing every time bit to one and leaving all position
+  bits free.
+
+  PART E. COUNTING AND GENERATION TIME.
+
+  Write q = |Sigma|. There are q + 2 q^3 gate types. The connection
+  schemas number
+
+      q^3 ( 2d(d+1) + d + 2 )  =  q^3 ( 2 d^2 + 3 d + 2 ).
+
+  The seed and test requests add O_M(d + m + 1) domains. Their coordinate
+  tables have O_M( r ((r+1)^2 + m) ) constant-size entries.
+
+  To generate them, loop over the fixed alphabet, over the carry or
+  borrow index h, over the m' initial positions, and over the bit
+  positions of m' that equal zero. Each coordinate entry is filled by an
+  identity rule, a flip rule, or a fixed-bit rule. All loop lengths are
+  polynomial in r + m, and all counters and small position numbers use
+  O_M(log(r + m + 2)) bits. No loop is ever run through H times or 2^r
+  addresses. QED
+
+The polarity corollary that turns Proposition 3.1 into a reduction from
+an arbitrary EXPTIME language is stated and proved as Corollary 4.3 at
+the end of Section 4, after the scalar-image machinery is in place.
+
+
+4. CONSISTENCY OF SCALAR IMAGES.
+
+This is Link 2. We replace a circuit by a constraint system on nonempty
+sets of small vectors. The system is solvable exactly when every test is
+false. The point of the strange-looking "image of a scalar form" phrasing
+is that the constraints are local to each comparison: they do not ask for
+one globally satisfying vector, only that each comparison can be witnessed
+somewhere in each direction.
+
+4.1 The constraint system.
+
+Throughout this section all vector spaces are over F = GF(2), so the only
+scalars are 0 and 1. For a nonempty set Q of vectors and a scalar affine
+form phi (a map phi(x) = lambda(x) + c with lambda linear and c in F),
+write phi(Q) for the image set { phi(u) : u in Q }; it is a nonempty
+subset of F.
+
+  DEFINITION 4.1 (product consistency instance). Fix an address length r.
+  The instance has a finite nonempty set P of REAL TYPES. Each real type
+  P has a value dimension d_P in {1,2}. For every P in P and every
+  address a in {0,1}^r there is one VARIABLE with value space F^{d_P}.
+
+  A SCHEMA e in E consists of:
+    - ordered endpoint types P and R (they may coincide),
+    - a product domain A_e = A_{e,1} x ... x A_{e,r}, with each A_{e,i} a
+      nonempty subset of {0,1},
+    - coordinate injections sigma_{e,i} : A_{e,i} -> {0,1},
+    - a scalar affine form phi_{e,0} on F^{d_P} and a scalar affine form
+      phi_{e,1} on F^{d_R}.
+
+  Write sigma_e for the componentwise address map. The instance is
+  CONSISTENT if there exist nonempty sets Q_{P,a} subset of F^{d_P}, for
+  every real type P and every address a, such that for every schema e and
+  every a in A_e,
+
+      (4.1)   phi_{e,0}( Q_{P,a} )  =  phi_{e,1}( Q_{R, sigma_e(a)} ).
+
+  Each equality compares one scalar image at each end. Several
+  comparisons are never combined into a joint image condition.
+
+The linear part of an affine form may be zero, so constant forms are
+allowed. Parallel schemas between the same pair of types are allowed,
+and a schema may have P = R.
+
+4.2 A circuit becomes a consistency instance.
+
+The first construction is on the fully expanded finite circuit, before
+compression.
+
+  Given a finite acyclic circuit with the conventions of Section 3,
+  build an instance as follows.
+
+  SCALAR GATES. A scalar gate owns one scalar variable, so one real type
+  of dimension 1. Its input direction and its output direction are both
+  the identity form on F.
+
+  AND GATES. An AND gate owns a variable (x1,x2) in F^2, so one real type
+  of dimension 2. Its two input directions are the projection forms
+  s_1(x1,x2) = x1 and s_2(x1,x2) = x2. Its output direction is the sum
+  form o(x1,x2) = x1 + x2.
+
+  A DUMMY scalar variable is introduced once, with its own scalar real
+  type.
+
+  SEEDS and TESTS. For each seed at a scalar gate, compare the scalar's
+  identity direction with the constant-zero form on the dummy. For each
+  test at a scalar gate, compare the scalar's identity direction with the
+  constant-one form on the dummy. The dummy variable may take any
+  nonempty set of values, because its two constant forms have images {0}
+  and {1} regardless of that set.
+
+  CONNECTIONS. For each individual connection, let o be the source's
+  output direction (identity for a scalar source, x1 + x2 for an AND
+  source) and let s be the destination's input direction (identity for a
+  scalar destination, the appropriate coordinate projection for an AND
+  destination). Create a PRIVATE BUFFER variable (z,z') in F^2, one
+  buffer per individual connection, and impose these three separate image
+  equalities, all over that connection's endpoints:
+
+      (4.2)   o = z,    o = z',    z + z' = s.
+
+  Here z and z' are the two coordinate forms on the buffer, and o and s
+  act on the source and destination variables respectively. Notice the
+  three comparisons are separate: the first two do not require the same
+  source value to equal both buffer coordinates at once.
+
+Before proving the expanded construction's correctness, here is the point
+of the buffer.
+
+  If a source output image is {0}, then (4.2) forces every buffer vector
+  to have both coordinates zero, and since the buffer set is nonempty, its
+  set is exactly {(0,0)}; the third comparison then forces the
+  destination direction image to be {0}. So a zero output propagates
+  forward.
+
+  If a source output image is the full F, the buffer can be chosen to
+  have full coordinate images on both coordinates while still realising
+  any prescribed nonempty destination image; the symmetric support runs
+  backwards. This is what makes the condition "per comparison" rather
+  than a global assignment.
+
+  PROPOSITION 4.2 (circuit consistency). For every finite acyclic circuit
+  with the conventions of Section 3, the construction above gives nonempty
+  scalar-image constraints with vector dimensions at most two that are
+  consistent if and only if every test is false.
+
+  More quantitatively, if the circuit has a product description with g
+  gate types, c connection schemas, and b seed and test requests in
+  total, the result is an instance with g + c + 1 real types and 3c + b
+  comparison schemas, at the same address length. Its coordinate domains
+  and maps are copied from that description, or are identities. In
+  particular, the circuit of Proposition 3.1 gives O_M((r+1)^2 + m) real
+  types and comparison schemas, with dimensions in {1,2}.
+
+  Proof. First we handle the expanded circuit, then the product
+  representation.
+
+  DIRECTION 1: A TRUE TEST PREVENTS CONSISTENCY.
+
+  Suppose a family of nonempty sets Q satisfies all comparisons. We show
+  that every true gate has output image {0}, by induction in any
+  topological order of the circuit.
+
+  A true scalar gate is either a seed or has a true predecessor. If it is
+  a seed, the seed comparison equates its own output image with the
+  constant-zero image {0}, so its output image is {0}. If it is not a
+  seed, it has a true incoming source, whose output image is {0} by the
+  induction hypothesis; the first two comparisons in (4.2) force the
+  buffer set to {(0,0)}, and the third forces the gate's own input
+  direction image to be {0}; since the gate is scalar, its output image
+  is also {0}.
+
+  At a true AND gate, each of the two input ports has at least one true
+  incoming source, so each port's image is {0}. The port image is the
+  image of a coordinate projection over the AND gate's own variable set,
+  so every vector in that set has both coordinates zero; the AND set is
+  exactly {(0,0)}, and the sum output image is {0}.
+
+  Hence every true gate has output image {0} under every consistent
+  family. But a true test has the constant-one comparison, which forces
+  its output image to be {1}. It cannot be both {0} and {1}. So no
+  consistent family exists. This proves: if some test is true, then no
+  consistency.
+
+  DIRECTION 2: A CONSISTENT FAMILY WHEN ALL TESTS ARE FALSE.
+
+  Assume every test is false, and build sets.
+
+    - At each test's scalar gate, use the set {1}.
+    - At every other scalar gate, use {0} if the gate is true, and F if
+      the gate is false.
+    - At each AND gate, use
+
+        (4.3)   { (x1,x2) in F^2 : x_j = 0 for each true input port j }.
+
+  All these sets are nonempty. At a true AND gate both ports are true,
+  so the set is {(0,0)}; its sum output image is {0}. At a false AND gate
+  at least one port is false, so at least one coordinate is unrestricted;
+  as that coordinate ranges over F, the sum output takes both values, and
+  the output image is F. Thus every true source has output image {0} and
+  every false source has output image F, and the exceptional false test
+  scalar is never a source (tests have no outgoing connections).
+
+  Buffers. For a connection whose source output is true ({0}), the
+  destination port is true, and the destination direction image is {0};
+  choose the buffer set {(0,0)}, and all three comparisons in (4.2) hold.
+
+  For a connection whose source output is false (F), let D subset F be
+  the already chosen nonempty image of its destination direction. Use
+
+      (4.4)   B_D = { (z,z') in F^2 : z + z' in D }.
+
+  Then the sum image is exactly D, and each coordinate image over B_D is
+  all of F: given any d in D, the pairs (u, u+d) as u runs over F already
+  fill both coordinate images. So all three comparisons (4.2) hold: the
+  first two because the source output image is F while the coordinate
+  images of B_D are both F, and the third because z+z' has image D and
+  the destination direction s has the same image D.
+
+  The three cases for D are small enough to write in a table:
+
+      D      B_D                       each coordinate image
+      {0}    {(0,0),(1,1)}              F
+      {1}    {(0,1),(1,0)}              F
+      F      F^2                        F
+
+  Hence all three comparisons hold in every case. In particular, a false
+  source can drive a zero-forced port through the diagonal buffer, or a
+  false test through the off-diagonal buffer, while keeping its own full
+  output image. Different connections have their own private buffers and
+  impose no coupling beyond these individual equalities.
+
+  Seed and test comparisons hold by construction: seed gates have image
+  {0} = constant-zero image, test gates have image {1} = constant-one
+  image, with the dummy taken to be F.
+
+  This builds a consistent family when every test is false.
+
+  PRODUCT REPRESENTATION. Give each gate type its one- or
+  two-dimensional real type, with variables at all addresses. Give each
+  connection schema its own two-dimensional buffer type, indexed in the
+  source address system. On its source product domain, the first two
+  comparisons in (4.2) use identity address transmission from the source
+  gate to its buffer; the third uses the schema's own componentwise map
+  from buffer to destination. Hence an allowed buffer address corresponds
+  to exactly the intended individual connection of that schema.
+  Overlapping domains of distinct schemas use distinct buffer types, so
+  they never interfere. Buffer variables outside their schema's domain
+  are unused; they may take the full set F^2.
+
+  Use one scalar dummy type with variables at all addresses. Seed and
+  test requests become identity-transmission comparisons on the same
+  product domains, with the appropriate constant form at the dummy end.
+
+  This gives exactly one real type per gate type, one per connection
+  schema, and one dummy; and exactly three comparisons per connection
+  schema plus one comparison per request. All coordinate domains stay
+  nonempty and all transmitted maps are injective. QED
+
+4.3 The polarity: from an EXPTIME language to a consistency instance.
+
+Now stack Proposition 3.1 on top of Proposition 4.2 and choose the
+machine to decide the complement of the source language. This gives the
+clean reduction with the polarity we want.
+
+  COROLLARY 4.3 (the polarity of the reduction). For every binary
+  language L_0 in EXPTIME there are a fixed deterministic machine M and a
+  fixed integer polynomial p, with p(m) >= m + 2, such that a word w of
+  length m can be transformed in time polynomial in m into a product
+  scalar-image instance at address length r = 2(p(m)+2) >= 8 that is
+  consistent exactly when w belongs to L_0. The instance has
+  O_M((r+1)^2 + m) real types and comparison schemas, with dimensions in
+  {1,2}.
+
+  Proof. Start with a decider for L_0 and swap its two halting outputs to
+  obtain a decider for the complement. Turn it into a fixed one-tape
+  machine with a polynomial time overhead: store all the tapes and head
+  markers of a multitape machine on fixed tracks, and after every
+  simulated step scan the used interval once to collect the scanned
+  symbols and once to write the updates. After t simulated steps the used
+  interval has length O_M(m + t + 1), so a fixed number of scans per step
+  gives polynomial total overhead. Enlarge a fixed integer polynomial p
+  to absorb that overhead and to ensure p(m) >= m + 2. Apply Proposition
+  3.1 to this normalized complement decider; then apply Proposition 4.2.
+
+  Consistency is equivalent to all tests being false, which for the
+  complement decider is equivalent to M not accepting w, which is
+  equivalent to w in L_0.
+
+  The exact buffer counts (three comparisons per connection schema, one
+  per request) give the stated number of real types and comparison
+  schemas. Because r is polynomial in m for the fixed polynomial p, the
+  generation time is polynomial in m as well. QED
+
+
+5. AFFINE BLOCKS AND EXACT PROJECTION.
+
+This is Link 3, the technical heart. We compress the exponentially many
+addressed comparisons into polynomially many constant-size blocks. Each
+block has a small vector space of legal "homogeneous" valuations and a
+small affine family of "version-one" valuations. Translating the
+homogeneous solutions by a vector (an offset) gives the version-one
+solutions. Offsets on different blocks must agree on every shared readout.
+
+The key proposition says: if the scalar-image instance is consistent, then
+for every set U of at most K blocks there is a nonempty family H_U of
+compatible offset lists, and restricting a family from U to a subset V
+gives exactly H_V. In other words, a compatible choice on a small set can
+always be extended when one more block is added. That is precisely what a
+Duplicator strategy needs when it must announce a whole bijection before
+Spoiler names a vertex.
+
+Throughout this section fix a product scalar-image instance as in
+Definition 4.1 at an address length r >= 3, and set K = r + 1. All
+constructions here use the instance alone. The witness sets Q_{P,a} are
+used only in proofs, never in the algorithms.
+
+5.1 Subdivided comparison wires.
+
+Write each affine endpoint form of a schema e: P -> R as
+
+    phi_{e,j}(v) = lambda_{e,j}(v) + c_{e,j},   j in {0,1},
+
+with lambda_{e,j} linear and c_{e,j} in F.
+
+Replace e by its own oriented WIRE
+
+    P = t_0,  t_1, ...,  t_{4K},  t_{4K+1} = R.
+
+The 4K internal types are private to this wire and have value dimension
+one. The endpoints are the original real types, with their dimensions
+d_P, d_R in {1,2}. If P = R, the two endpoints are identified as one
+type, but the internal types and all 4K+1 links remain distinct. In
+particular every individual link has distinct endpoints. Write T for the
+resulting set of all types, and d_t for the value dimension at t in T.
+
+For each coordinate i in {1,...,r}, the allowed labels at a type are
+
+    A_{t,i} = {0,1}                          if t is real,
+    A_{t,i} = A_{e,i}                        if t is internal to the wire
+                                             of e.
+
+For a link l = tu, oriented toward the second endpoint of its wire, let
+
+    M_{l,i}  subset of  A_{t,i} x A_{u,i}
+
+be its coordinate matches. On every link except the last of the wire they
+are (a,a) for a in A_{e,i}; on the last link they are
+(a, sigma_{e,i}(a)) for a in A_{e,i}. Thus one full address a in A_e is
+unchanged along the internal types, and is sent to sigma_e(a) at the
+second real endpoint.
+
+Associate to every link one scalar equation
+
+    (5.1)   L_{l,t} h_t + L_{l,u} h_u = b_l,
+            h_t in F^{d_t},  h_u in F^{d_u}.
+
+Here the form at an internal type is the identity. On the first link of
+the wire, the form at P is lambda_{e,0} and b_l = c_{e,0}; on the last
+link, the form at R is lambda_{e,1} and b_l = c_{e,1}; on every other
+link b_l = 0. Consequently the first equation says
+
+    h_{t_1} = phi_{e,0}( h_P ),
+
+the last equation says
+
+    h_{t_{4K}} = phi_{e,1}( h_R ),
+
+and the interior equations identify all the internal scalars. This
+interpretation covers constant endpoint forms (where lambda is zero) and
+loop wires (where P = R and the two endpoints keep their respective
+forms).
+
+5.2 Readouts, blocks, and local affine fibers.
+
+Index boundaries cyclically by i in {1,...,r}, so that r+1 means 1, and
+put
+
+    delta_i = 1 if i = r,  and  0 otherwise.
+
+The CORNERS are triples (i,t,a) with a in A_{t,i}. There are two kinds
+of READOUT NAMES, viewed also as named undirected edges between corners.
+
+    A HORIZONTAL readout x_{i,t,a,a'} joins (i,t,a) to (i+1,t,a'), for
+    every a in A_{t,i} and a' in A_{t,i+1}. Its value lies in F^{d_t}.
+
+    A VERTICAL readout y_{i,l,a,b}, for l = tu, joins (i,t,a) to (i,u,b)
+    for every (a,b) in M_{l,i}. Its value lies in F.
+
+"Horizontal" and "vertical" refer only to the auxiliary corner diagram.
+
+The set of BLOCKS is written B. Each block has a set R(B) of readout
+names, as follows.
+
+    SITE BLOCKS. For each horizontal readout there is one site block
+    whose only readout is that horizontal.
+
+    SQUARE BLOCKS. For each row i, each link l = tu, and each pair of
+    matches (a,b) in M_{l,i} and (a',b') in M_{l,i+1}, there is one square
+    block with readouts
+
+        x_t = x_{i,t,a,a'},   x_u = x_{i,u,b,b'},
+        y_i = y_{i,l,a,b},    y_{i+1} = y_{i+1,l,a',b'}.
+
+So each block has a small connected corner diagram: one edge for a site,
+or the four sides of a square.
+
+For eps in {0,1} let Z_B^eps be the set of LEGAL VALUATIONS of the
+readouts of B. A site admits every valuation. A square admits exactly the
+valuations satisfying
+
+    (5.2)   L_{l,t} x_t + L_{l,u} x_u + y_i + y_{i+1}
+                = eps * delta_i * b_l.
+
+Readout values in (5.2) are local to a block. Agreement between different
+blocks is an additional condition, imposed through offsets.
+
+  LEMMA 5.3 (local affine fibers). For every block B, the set Z_B^0 is a
+  vector space and Z_B^1 is a nonempty affine translate of it:
+
+      Z_B^0 + xi = Z_B^1   for every xi in Z_B^1.
+
+  The projection of either fiber to any one readout name is onto that
+  readout's entire value space. Every valuation uses at most six bits.
+
+  Proof. A site has 2^{d_t} <= 4 valuations in either version. A square at
+  a link tu has 2^{d_t + d_u + 1} <= 16, because at least one link
+  endpoint is internal (dimension 1).
+
+  For a site the assertion is immediate.
+
+  For a square, the equation (5.2) is one scalar linear equation with a
+  possibly nonzero right-hand side. Its two verticals are distinct, each
+  with coefficient one, so it is not the zero equation. The homogeneous
+  solution set Z_B^0 is a vector space, and each nonempty fiber is a coset
+  of it. Nonemptiness and the projection assertion follow from this: after
+  fixing any one readout, at least one remaining readout is free and can
+  be set to satisfy the equation. Explicitly, if the prescribed readout is
+  a vertical, the other vertical can be solved for; if it is a horizontal,
+  both verticals are free and one of them can be solved for. Both fibers
+  have the same nonemptiness and fullness by translation.
+
+  Bit count. The two horizontals contribute at most 2 + 2 = 4 bits; the
+  two verticals contribute 2 more; total at most six bits. QED
+
+5.3 The exact projection target.
+
+  PROPOSITION 5.4 (compatible offsets with exact projection). Suppose the
+  product scalar-image instance is consistent. Then there exist nonempty
+  families H_U, one for every U subset of B with |U| <= K, of lists
+
+      xi = ( xi_B : B in U ),   xi_B in Z_B^1,
+
+  such that the offsets within a list agree on every shared readout and
+
+      (5.3)   H_U |_V  =  H_V    whenever V subset of U.
+
+  Here H_U |_V deletes the entries belonging to U minus V.
+
+The rest of this section proves Proposition 5.4. The statement is exact
+restriction equality, not just surjectivity in one direction: every list
+in the smaller family extends to a list in every permitted larger family
+and vice versa.
+
+Before the proof it helps to see the mechanism on the simplest possible
+case, a ring of sites.
+
+  THE SITE-RING MODEL. Fix a type t and an allowed address a in the
+  product of the A_{t,i}. The r site blocks with readouts
+
+      x_i = x_{i,t,a_i,a_{i+1}},   i in {1,...,r} cyclic,
+
+  form a cycle on the corners (i,t,a_i). Try to write the r readouts as
+
+      x_i = M_i + M_{i+1} + delta_i h,   M_{r+1} = M_1,
+
+  with vectors M_1,...,M_r and h in F^{d_t}. Every potential M_i occurs
+  twice in the ring sum, and only delta_r is nonzero, so
+
+      sum_{i=1}^{r} x_i = h.
+
+  A complete ring therefore determines the shift h. Conversely, if this
+  one equality holds, choose M_1 freely and solve successively around the
+  cycle; all readouts are realised.
+
+  After deleting one site, the retained edges form a path. For any new
+  shift h', its potentials can be solved successively along that path
+  while every retained x_i stays fixed; the missing edge removes the
+  ring-sum constraint. Put g = h' + h. Adding g to all retained
+  potentials from the missing edge onward preserves every retained x_i.
+
+  The general proof must handle squares, partial address domains, and
+  several corner components that merge when a block is added. The next
+  lemmas generalise the cycle distinction:
+
+    - a closed walk that crosses the row-r seam an odd number of times
+      ("wrapping") needs at least r blocks; with exactly r blocks it
+      determines one full address;
+
+    - on any component that does not wrap, a change of shifts can be
+      absorbed by adjusting corner potentials without changing any
+      retained readout.
+
+That dichotomy, plus one existence statement for shifts, proves exact
+projection.
+
+
+5.4 Small supports and recovered addresses.
+
+For U subset of B let Gamma_U be the union of the corner diagrams of the
+blocks in U, with shared corners and shared named edges identified. A
+block belongs wholly to one connected component of Gamma_U.
+
+The SUPPORT of a component C of Gamma_U is the set of types and the set
+of distinct wire links that appear in C: horizontals stay at one type,
+while a vertical readout projects to its wire link. In particular several
+square blocks on the same link do not create several support edges. Write
+T(C) for the set of types in the support of C.
+
+  LEMMA 5.5 (small supports). If |U| <= K, the support of every
+  component of Gamma_U is a tree with at most one real type. Without a
+  real type it lies in the interior of a single wire. With a real type it
+  consists of that type together with possibly initial arms of wires
+  incident with it.
+
+  Proof. The support is connected because the corner component is
+  connected. Only square blocks introduce support links, so it has at most
+  |U| <= K distinct links. Internal wire types are private and have degree
+  two in the full wire layout. A path connecting two distinct real types,
+  or a cycle in that layout, must therefore contain a whole wire, which
+  has 4K+1 > K links. Neither can occur inside the support. This also
+  excludes a cycle created by a loop schema or by parallel schemas. The
+  stated descriptions follow by following the private wire interiors from
+  the unique real type, if one is present. QED
+
+ALIGNMENT. For every coordinate of every oriented link, fix a permutation
+pi_{l,i} of the ambient two-element set {0,1} that extends its matches.
+Such a permutation exists because those matches are the graph of an
+injection on a nonempty binary subset. Use the identity for identity
+matches, including partial identities, and use pi_{l,i}^{-1} in the
+reverse direction. These permutations are analytical choices; actual
+vertical edges still use only actual matches.
+
+In a support tree, fix a reference type. Unique paths transport the
+ambient labels at each type to the reference type, separately at each
+coordinate. These transported labels are the ALIGNED LABELS. Every
+vertical edge preserves its aligned label. Changing the reference applies
+the same coordinate permutation to all labels, and restricting to a
+subtree gives the same alignment up to this change of reference.
+Consequently an aligned binary address can be expressed at any type in
+the support. Its expression at an internal type need not satisfy that
+wire's full address domain unless a further argument supplies this fact.
+Such an argument appears at the end of this subsection.
+
+MARKERS AND WRAPPING. Assign a marker omega in F to each named edge: a
+horizontal in row i has marker delta_i, and a vertical has marker zero. A
+collection of blocks, or a corner component, is WRAPPING if its diagram
+contains a closed walk whose marker sum is one. Traversals, including
+repeated traversals, are counted in this sum.
+
+  LEMMA 5.6 (wrapping and address recovery). Let |U| <= r+1.
+
+  (1) Every wrapping subcollection of U has at least r blocks.
+
+  (2) A wrapping subcollection with exactly r blocks has one block in each
+      row, lies in a single corner component, and determines a unique full
+      aligned address.
+
+  (3) Any two wrapping r-block subcollections of U lie in the same corner
+      component and determine the same address in that component's
+      alignment.
+
+  (4) If the support of a wrapping r-block subcollection has no real type,
+      it lies in a single wire e, and its recovered address, expressed in
+      that wire's internal labels, belongs to A_e.
+
+  Proof. Take a marker-one closed walk. Let c_i in F be the parity of its
+  horizontal traversals in row i. Count incidences of the walk at all
+  corners on boundary i. The total incidence count at those corners is
+  even (each traversal of a named edge has two endpoints, and both
+  endpoints of a horizontal are on that boundary), and a vertical
+  traversal contributes twice on the same boundary. So
+
+      c_{i-1} + c_i = 0.
+
+  Since the marker sum is c_r = 1, all the c_i equal one. Each row
+  therefore contributes a horizontal edge to the walk, and every block has
+  horizontals in just one row. This proves (1).
+
+  With exactly r blocks there must be one block in every row. The witness
+  walk meets all of them, so all lie in its corner component. Use the
+  alignment of that component, or of any containing corner component in
+  Gamma_U.
+
+  The horizontals of the unique row-i block prescribe one aligned label at
+  boundary i and one at boundary i+1: for a square the two horizontals
+  have the same aligned labels because of its vertical matches.
+
+  Now count incidences at boundary i separately for each aligned label.
+  Vertical traversals contribute an even number of incidences to that
+  label. The total horizontal contribution from each neighbouring row is
+  odd, and it occurs at that row's prescribed label. The labels prescribed
+  by rows i-1 and i must therefore agree. Their common value is the i-th
+  coordinate of the recovered address. This proves existence and
+  uniqueness, hence (2).
+
+  Two r-element subcollections of a set of size at most r+1 share at least
+  r-1 blocks. In the present setting these common blocks have distinct
+  rows. In particular the two subcollections are in the same corner
+  component. Every boundary is incident with a common row, since at most
+  one row is missing from the overlap and r >= 3. Its address coordinate
+  is consequently the same for both subcollections. This proves (3).
+
+  Finally a support without a real type is inside one wire by Lemma 5.5.
+  All its internal matches are identities. Every recovered coordinate is
+  the label of a corner at an internal type, hence lies in A_{e,i}.
+  Reading all coordinates gives an address in A_e. This proves (4). QED
+
+Only wrapping subcollections of exactly r blocks will select an address
+in the construction below. A component with r+1 blocks may wrap without
+containing such a subcollection; in that case no address condition is
+imposed on it.
+
+5.5 Admissible shifts and corner potentials.
+
+Assume now that the scalar-image instance is consistent, and fix nonempty
+witness sets Q_{P,a} satisfying (4.1). For every wire e: P -> R and every
+a in A_e define the nonempty scalar set
+
+    (5.4)   D_{e,a}
+              = phi_{e,0}( Q_{P,a} )
+              = phi_{e,1}( Q_{R, sigma_e(a)} ).
+
+These are individual image equalities, with no requirement on joint
+images of different forms.
+
+Fix U subset of B with |U| <= K, and a component C of Gamma_U. A SHIFT
+SYSTEM on C is a vector (h_t : t in T(C)) with h_t in F^{d_t} satisfying
+(5.1) on every support link. Its coordinates are indexed by the types of
+this component: different corner components may use different shifts at
+the same type.
+
+A shift system is ADMISSIBLE if it also satisfies the following
+condition, whenever C contains a wrapping r-block subcollection. By
+Lemma 5.6, the recovered address is independent of that subcollection.
+
+    If the support contains a real type P, express the recovered address
+    there as a_P, and require h_P in Q_{P, a_P}.
+
+    If the support has no real type, let e be its wire, express the
+    recovered address in the internal labels as a, and require the common
+    internal scalar to belong to D_{e,a}. The address lies in A_e by
+    Lemma 5.6.
+
+If C contains no wrapping r-block subcollection, there is no additional
+condition. Write S(C) for the set of admissible shift systems.
+
+  LEMMA 5.7 (existence of shifts). Every set S(C) just defined is
+  nonempty.
+
+  Proof. If the support has no real type, all its types lie in one wire
+  interior. Its equations merely identify their scalar shifts. Choose any
+  scalar, or any element of D_{e,a} when that condition is present.
+
+  If the support has a real type P, choose any vector in F^{d_P}, or any
+  vector of Q_{P,a_P} when required. The endpoint equation then determines
+  the scalar along each incident arm, and the interior equations propagate
+  it along that arm. The arms do not meet, so there is no further
+  compatibility requirement. QED
+
+Notice that when a real type is present we do not additionally impose an
+image-set condition on every arm. Some arm may not admit the recovered
+address in its full wire domain. Its shift is nevertheless well defined by
+the endpoint equation, which is the only condition needed there.
+
+Now choose independently an admissible shift system on each corner
+component. At every corner v = (i,t,a) choose an arbitrary potential
+M_v in F^{d_t}. Define values on its component's named edges by
+
+    (5.5)   x_{vw} = M_v + M_w + delta_i h_t
+                     for a horizontal in row i at type t,
+            y_{vw} = L_{l,t} M_v + L_{l,u} M_w
+                     for a vertical on l = tu.
+
+Every square satisfies (5.2) with eps = 1. Indeed, each corner potential
+occurs twice in its boundary expression and cancels, leaving
+
+    delta_i ( L_{l,t} h_t + L_{l,u} h_u ) = delta_i b_l.
+
+Sites have no equation. Since a named edge is assigned only one value,
+the resulting offsets agree on all readouts shared between blocks.
+
+Define H_U to be the set of all lists
+
+    xi = ( xi_B : B in U ),   xi_B in Z_B^1,
+
+obtained in this way from admissible shifts and arbitrary corner
+potentials. The shifts exist by Lemma 5.7, so H_U is nonempty. For
+U = empty, it consists of the empty list. There is no uniqueness claim
+for representations by shifts and potentials; all permitted
+representations contribute to the same family.
+
+5.6 Restriction and extension.
+
+Two lemmas isolate the roles of wrapping and nonwrapping components. The
+first concerns the shifts themselves; the second permits shifts to change
+while preserving the represented offsets.
+
+  LEMMA 5.8 (lifting shifts from a wrapping component). Let V be a proper
+  subset of U subset of B, with |U| <= r+1. If C_0 is a wrapping component
+  of Gamma_V and C is its containing component in Gamma_U, then
+  restriction of shift systems defines a surjection
+
+      S(C) -> S(C_0).
+
+  Proof. We have |V| <= r. By Lemma 5.6, C_0 uses exactly r blocks. Its
+  recovered address is the one used for C, expressed in the respective
+  coordinate systems. There are three cases.
+
+  If the support of C_0 contains a real type P, it is also the unique real
+  type of C. The admissible systems on either component are parameterized
+  by the same vector h_P in Q_{P,a_P}; that vector determines the scalars
+  on all of their arms. Restriction preserves this parameter and is onto.
+
+  If the support of C has no real type, both components are inside the
+  same wire e. Their admissible systems are parameterized by the same
+  scalar in D_{e,a}, so restriction is again onto.
+
+  In the remaining case C contains a real type P, but C_0 does not. The
+  connected support of C_0 lies inside one arm at P, belonging to a wire
+  e. Its recovered internal address a belongs to A_e. Therefore the
+  ambient permutation transport from that address to the incident real
+  endpoint agrees, on every coordinate, with the actual endpoint map: it
+  is the identity if P is the first endpoint of e, and sigma_e if P is the
+  second. Thus the map from the parameter for C to the parameter for C_0
+  is respectively
+
+      phi_{e,0}: Q_{P,a} -> D_{e,a},   or
+      phi_{e,1}: Q_{P,sigma_e(a)} -> D_{e,a}.
+
+  The applicable map is onto by (5.4). Once its preimage has been chosen,
+  all the other arm scalars of C are determined and admissible. Only the
+  incident endpoint of this arm is used, so the argument also covers a
+  loop wire. Injectivity of the endpoint form is not required. QED
+
+  LEMMA 5.9 (changing shifts on a nonwrapping component). Let C_0 be a
+  nonwrapping corner component. Suppose two shift systems (h_t) and
+  (h~_t) satisfy the link equations on its support. Every collection of
+  offsets represented by the first system and corner potentials can also
+  be represented by the second system after changing those potentials.
+
+  Proof. Put g_t = h~_t + h_t. Adding the two copies of the link equation
+  gives
+
+      (5.6)   L_{l,t} g_t = L_{l,u} g_u
+              on every support link l = tu.
+
+  Since C_0 is nonwrapping, the marker sum is zero on every closed walk.
+  Choose one corner as a root, and define s_v in F to be the marker sum
+  along a path from the root to v. This is independent of the path:
+  concatenating two such paths, one reversed, gives a closed walk, whose
+  marker sum is zero, and reversing a path negates its marker sum, which
+  is the same as itself over F. Consequently
+
+      s_v + s_w = omega(vw)
+
+  on every named edge.
+
+  Replace the old potential at a corner of type t by
+  M~_v = M_v + s_v g_t. On a horizontal in row i the change in (5.5) is
+
+      (s_v + s_w) g_t + delta_i (h~_t + h_t)
+        = delta_i g_t + delta_i g_t = 0.
+
+  On a vertical, s_v = s_w, so the change is
+
+      s_v L_{l,t} g_t + s_w L_{l,u} g_u
+        = s_v ( L_{l,t} g_t + L_{l,u} g_u ) = 0
+
+  by (5.6). Thus all old readout values are preserved. The argument allows
+  vector shifts at a two-dimensional real type and does not require its
+  endpoint forms to be nonzero. QED
+
+  Proof of Proposition 5.4. Use the families defined by (5.5).
+  Nonemptiness, legality, and agreement on shared readouts have already
+  been proved. It remains to establish the projection equality. The case
+  V = U is immediate, so suppose V is a proper subset of U. Then |V| <= r.
+  Each component C_0 of Gamma_V lies in a component C of Gamma_U.
+
+  First take a represented list in H_U and restrict its shifts and
+  potentials to each C_0. These shifts satisfy all old link equations. If
+  C_0 is nonwrapping, it has no additional address condition. If it wraps,
+  its admissibility follows from Lemma 5.8. The restricted representation
+  therefore belongs to H_V, proving H_U |_V subset of H_V.
+
+  For the other inclusion, fix an arbitrary list in H_V, and choose any one
+  of its representations by admissible old shifts and potentials. There is
+  at most one wrapping old component: one would already require r of the
+  at most r old blocks. For each component C of Gamma_U, choose an
+  admissible new shift system. If C contains the wrapping old component
+  C_0, choose it to extend the selected old shifts on C_0, using Lemma 5.8.
+  On all other new components choose any admissible shifts.
+
+  Keep the old potentials on a wrapping old component. On every
+  nonwrapping old component, apply Lemma 5.9 to replace its old shifts by
+  the restriction of the chosen new shifts without changing any old
+  offset. Distinct old components have disjoint corner sets, so these
+  potential changes coexist even when several old components merge into a
+  single new component or have different old shifts at the same type.
+  Assign arbitrary potentials to the additional corners of Gamma_U.
+
+  The new shifts and these potentials represent a member of H_U. They
+  satisfy every new square equation by (5.5), while on each old named edge
+  the value is unchanged. Hence this member restricts to the prescribed
+  list in H_V, proving the reverse inclusion. QED
+
+Two features of the proof are worth isolating, because later arguments
+use them.
+
+    First, if a component first becomes wrapping only when all r+1 blocks
+    are present, it has no wrapping proper subcollection and no address
+    condition is needed: all the old components are covered by the gauge
+    lemma.
+
+    Second, a wrapping old component asks for at most one scalar preimage
+    from a real-type witness set. Thus the individual image equalities in
+    (5.4) suffice, even for non-affine witness sets or noninjective
+    endpoint forms.
+
+The families H_U, their shifts, and the witnesses Q_{P,a} are used only in
+this existence argument. The reduction never enumerates them.
+
+
+6. THE GENERAL GRAPH REALIZATION AND THE GAME TRANSFER.
+
+This begins Link 4. We have compatible offsets on small sets of blocks.
+Now we build a pair of graphs whose parts are indexed by blocks, so that
+an offset on a block acts as a bijection of that part. Duplicator's
+announced bijection is assembled block by block. The converse reading of
+the game, which recovers the scalar images, is the "game transfer"
+proposition of 6.3.
+
+6.1 Valuation vertices and private leaves.
+
+Fix the affine block data of Section 5, at an address length r >= 3. For
+eps in {0,1} build a graph G^eps as follows.
+
+    BASE VERTICES. One base vertex (B,z) for every block B in B and every
+    valuation z in Z_B^eps.
+
+    BASE ADJACENCY. Two base vertices (B,z) and (C,w) are adjacent exactly
+    when all three of the following hold:
+
+        (6.1)   B =/= C,
+                R(B) intersect R(C) is nonempty,
+                z(rho) = w(rho) for every rho in R(B) intersect R(C).
+
+    There are no edges within a block. Agreement is required on every
+    common readout; a disagreement on even one readout gives a nonedge.
+
+Write J = |B|, and let N be the common number of base vertices over the
+two versions. The base-vertex counts in the two versions agree by
+Lemma 5.3. Number blocks by j(B) in {1,...,J} in the same order in both
+versions. At each (B,z) attach j(B)(N+1) PRIVATE LEAVES, adjacent only to
+that owner. Denote them leaf(B,z,nu), for 1 <= nu <= j(B)(N+1). Call the
+resulting graphs G^0, G^1, and let V_B^eps contain all base vertices of
+block B together with all their leaves. These parts partition the graph.
+
+6.2 The general realization and its decoding.
+
+  PROPOSITION 6.1 (general realization). For the affine block data at
+  address length r >= 3, the graphs G^0, G^1 are simple, uncolored, and
+  of the same positive order. They have O(J^3) vertices.
+
+  Every offset xi_B in Z_B^1 determines a fixed bijection
+  Psi_{B,xi_B}: V_B^0 -> V_B^1, depending only on B and xi_B, by
+
+      (B,z)             |-->  (B, z + xi_B),
+      leaf(B,z,nu)      |-->  leaf(B, z + xi_B, nu).
+
+  For any set U of blocks, offsets agreeing on all shared readouts make
+  the union of these maps an isomorphism of the induced subgraphs on the
+  corresponding parts.
+
+  At every history reached by a winning K = r+1-slot strategy, a marked
+  base vertex (B,z) is answered by (B,z') with z' in Z_B^1. If zero base
+  vertices of distinct blocks are simultaneously marked, their responses
+  agree on every shared readout, even when all K slots are occupied.
+
+  Proof. The adjacency rule and the owner rule introduce no loops and no
+  multiple edges. Each block has nonempty legal fibers of equal
+  cardinality, so the two graphs have equal positive orders. Each block
+  has at most 64 valuations, a convenient loose constant, hence
+  J <= N <= 64 J. The total order is at most
+
+      N + N * J * (N + 1) = O(J^3).
+
+  LOCAL MAPPING. Translation by a legal affine offset bijects Z_B^0 with
+  Z_B^1. All owners in block B have the same number of leaves, so the
+  displayed map is a bijection of the entire part.
+
+  Within a base block the translation preserves equality, and there are
+  no base edges inside a block to preserve. Between two distinct parts of
+  an active set U the offsets agree on every shared readout; adding equal
+  offsets preserves both agreement and disagreement on each name, hence
+  the entire adjacency condition (6.1). Blocks with no common name stay
+  nonadjacent.
+
+  Cross-part edges. A leaf is adjacent only to its owner. For a base
+  vertex in the owner's block the same translation is applied to the base
+  and to the owner, whether or not the owner itself is marked, so their
+  equality is preserved. A base vertex in a different block remains a
+  nonowner. Distinct leaves stay distinct because owner translation is
+  injective and the local index is unchanged. Repeated selections,
+  different leaves at one owner, and leaves at different owners are
+  therefore all handled. Leaf--leaf adjacency is absent, and no leaf is
+  identified with a base vertex. This proves the induced-subgraph claim
+  on any union of compatible parts.
+
+  RECOGNITION. First observe that a marked pair reached under any winning
+  strategy with at least two slots has equal degrees. After discarding
+  every other pair, request another slot. The announced bijection must
+  preserve adjacency to the retained pair for every possible choice of
+  Spoiler's vertex, so it carries the one neighborhood bijectively onto
+  the other. This is a property of the reached history; it does not need
+  a spare slot at that history in the intended play.
+
+  Every leaf has degree one. A base vertex in block number j has degree
+  in
+
+      [ j (N+1),  j (N+1) + N - 1 ].
+
+  These intervals are disjoint, and their lower endpoints are greater than
+  one. Thus every reached base response is a legal valuation in the same
+  block. Distinct homogeneous zero vertices sharing a readout are
+  adjacent, so their responses must satisfy (6.1) and agree on all shared
+  names. QED
+
+Proposition 6.1 supplies the two interfaces that the game needs:
+
+    compatible offsets induce blockwise maps on all vertices, including
+    the leaves;
+
+    zero-valued queries decode to legal affine valuations, with
+    shared-readout agreement.
+
+The next subsection isolates these two interfaces as a general criterion
+and proves that in any pair of graphs satisfying it, the game on one side
+is equivalent to consistency of the scalar-image instance on the other.
+
+
+6.3 The realization interface, and the game transfer.
+
+We isolate exactly what the rest of the argument uses. Any pair of graphs
+with the two properties below turns the game into a test of consistency of
+the scalar-image instance, and conversely.
+
+  PROPOSITION 6.2 (a realization interface for the game). Let a product
+  scalar-image instance have address length r >= 3, put K = r+1, and form
+  its affine block data. Suppose finite simple graphs W^0, W^1 of the same
+  positive order have partitions
+
+      V(W^eps) = disjoint union over B in B of V_B^eps,   eps in {0,1},
+
+  with the following two properties.
+
+  (1) LOCAL MAPS. For every block B and every offset xi_B in Z_B^1 there
+  is a fixed bijection Psi_{B,xi_B}: V_B^0 -> V_B^1 depending only on that
+  offset and the constructed graphs. Whenever offsets on a set of blocks
+  agree on all shared readouts, the union of their maps is an isomorphism
+  of the induced subgraphs on the corresponding parts.
+
+  (2) ZERO DECODING. For every B, eps and z in Z_B^eps there is a nonempty
+  set D_B^eps(z) subset of V_B^eps; for fixed B and eps these sets are
+  pairwise disjoint. At every history reached under any winning K-slot
+  strategy, a marked vertex in D_B^0(0) is answered by a vertex in
+  D_B^1(zeta_B) for some legally determined zeta_B in Z_B^1. For
+  simultaneous such marks in distinct blocks B and C, the decoded
+  valuations zeta_B and zeta_C agree on every shared readout. Both
+  assertions hold even when all K slots are occupied.
+
+  Then
+
+      the instance is consistent
+        <=>  Duplicator wins on W^0, W^1 with K slots
+        <=>  W^0 =_r W^1.
+
+  For the general construction the query sets are simply
+  D_B^eps(z) = { (B,z) }, and both hypotheses follow from Proposition
+  6.1. The sets D_B^eps(z) are allowed to be bigger because the subcubic
+  construction will use a whole triangle for each valuation.
+
+  Proof. Lemma 2.4 gives the game/WL equivalence, because a K-slot game
+  with K = r+1 slots tests dimension r and r >= 3. We prove the two
+  directions that involve consistency.
+
+  DIRECTION 1: WITNESSES GIVE A WINNING STRATEGY.
+
+  Suppose the instance has witnesses, and take the nonempty families H_U
+  supplied by Proposition 5.4 for every set U of blocks with |U| <= K.
+  Recall that their restriction maps satisfy (5.3) and that every list in
+  such a family agrees on all shared readouts.
+
+  Call a block ACTIVE when its part V_B^0 contains a currently marked
+  first-graph vertex. Duplicator maintains the following invariant: if U
+  is the active set, then there is a list xi = (xi_B : B in U) in H_U
+  such that every marked vertex v in V_B^0 is paired with
+  Psi_{B,xi_B}(v). By the local-map hypothesis, the union of these maps
+  is an isomorphism between the induced subgraphs on the active parts, so
+  in particular the marked pairs form a partial isomorphism.
+
+  Initially U is empty, and the invariant holds with the empty list.
+  After any discards, restrict the list to the remaining active set; the
+  restriction inclusion of (5.3) keeps it in the required family.
+
+  Suppose a vacant slot is requested. There are at most K-1 = r occupied
+  slots, so |U| <= r. For EACH inactive block B choose a list
+
+      (6.2)   eta^B in H_{U union {B}},   eta^B |_U = xi.
+
+  Such a list exists by the extension direction of exact projection
+  (5.3). All these choices are made before Spoiler chooses a vertex; they
+  may be made by a fixed total order on the finite sets of possible lists.
+  Define a map f on the whole first graph by
+
+      f |_{V_B^0} = Psi_{B, xi_B}       if B in U,
+      f |_{V_B^0} = Psi_{B, eta^B_B}    if B not in U.
+
+  Every piece is a bijection from V_B^0 onto V_B^1, and these parts
+  partition the two vertex sets. Hence f is one bijection of the entire
+  graphs, and Duplicator announces f.
+
+  If Spoiler chooses a vertex in an active block, keep the current list.
+  Otherwise the chosen vertex lies in V_B^0 for a single inactive block B,
+  and Duplicator uses the particular list eta^B from (6.2) as the new
+  invariant. It agrees with every old active offset and gives the
+  announced image of the newly chosen vertex. No second inactive block
+  becomes active during this move. Therefore compatibility between the
+  choices made for two different inactive blocks is never needed: only one
+  of those choices is ever used to update the invariant. Duplicator wins
+  through every finite history.
+
+  DIRECTION 2: A WINNING STRATEGY GIVES ATTAINED IMAGE SETS.
+
+  Fix a winning strategy. For each block B choose once and for all a
+  vertex z_B in D_B^0(0) representing its zero valuation; this set is
+  nonempty because 0 is in Z_B^0. A ZERO-QUERY HISTORY is a finite history
+  from the empty position under the fixed strategy in which every vertex
+  chosen by Spoiler is one of these z_B; discards are unrestricted.
+
+  By the zero-decoding hypothesis, a response to z_B lies in
+  D_B^1(zeta_B) for a unique legal valuation zeta_B in Z_B^1. If zero
+  representatives of distinct blocks are simultaneously marked, the
+  response valuations agree on every shared readout, by the second
+  realization hypothesis applied at the current history, even when all K
+  slots are occupied. No further test has to be run during a zero-query
+  history. Once a pair is marked, its actual response vertex and its
+  decoded valuation stay fixed until that pair is discarded.
+
+  For a type t and an allowed full address a in the product of the
+  A_{t,i}, let S_i(t,a) be the site block with readout
+  x_{i,t,a_i,a_{i+1}}, where indices are cyclic. These r blocks are
+  distinct because they have distinct row indices. We call them the SITE
+  RING at (t,a). At a zero-query history having precisely one
+  representative of each of these sites marked, define its RING SUM to be
+
+      (6.3)   h_t = sum over i = 1..r of
+                    zeta_{S_i(t,a)}( x_{i,t,a_i,a_{i+1}} )
+              in F^{d_t}.
+
+  There are exactly r occupied slots at such a history, in any arrangement,
+  and one slot is vacant.
+
+  For a real type P and an address a in {0,1}^r, let H_{P,a} be the set of
+  all finite zero-query histories from empty under the fixed strategy that
+  end with precisely the site ring at (P,a) marked, one pair per site, in
+  any arrangement of the slots. Define
+
+      (6.4)   Q_{P,a}
+                = { h_P(h) : h in H_{P,a} }  subset of  F^{d_P}.
+
+  The definition ranges over ALL such histories under the one fixed
+  strategy. Directly querying the r ring sites from the empty position
+  shows that every Q_{P,a} is nonempty. We will verify the individual
+  image equalities for these sets without requiring the strategy to give
+  the same response when a ring is visited again.
+
+  TRANSFERRING ONE RING ACROSS A LINK.
+
+  Let l = tu be a link. Fix allowed addresses a at t and b at u with
+  (a_i,b_i) in M_{l,i} for every i. For this paragraph write
+
+      T_i = S_i(t,a),   U_i = S_i(u,b).
+
+  Let Q_i be the square block in row i determined by the matches
+  (a_i,b_i) and (a_{i+1},b_{i+1}). Its horizontal names are the readouts
+  of T_i and U_i, and its vertical names are
+
+      y_i = y_{i,l,a_i,b_i},   y_{i+1} = y_{i+1,l,a_{i+1},b_{i+1}}.
+
+  The two endpoint types of a link are distinct, including on a subdivided
+  loop schema. In each of these lists the row blocks are distinct, and the
+  sites are distinct from the squares.
+
+  Start at any zero-query history with precisely the T_i marked. Denote
+  their decoded horizontal vectors by alpha_i, and fix the numerical value
+  h_t = sum of alpha_i from this starting history. For i = 1,...,r place
+  z_{Q_i} in the vacant slot BEFORE discarding the pair at T_i. During
+  that placement there are r+1 = K occupied slots. Since Q_i and T_i are
+  then simultaneously marked and share their t-horizontal, the new square's
+  response has that horizontal equal to alpha_i.
+
+  More explicitly, after processing rows 1,...,j the marked blocks are
+  exactly
+
+      Q_1, ..., Q_j, T_{j+1}, ..., T_r.
+
+  For i <= j the marked square keeps alpha_i on its t-horizontal. For
+  i > j the original site pair is still present and keeps alpha_i. This
+  proves by induction that after the first phase all r squares are marked
+  and that their old-side horizontals are the original vectors alpha_i,
+  not newly selected ring values.
+
+  At this all-square history, write beta_i for the response's
+  u-horizontal in Q_i. The adjacent squares Q_{i-1} and Q_i share the
+  name y_i, so their values on it agree; denote the common value by eta_i.
+  The legal valuation equation (5.2) in version one reads
+
+      L_{l,t} alpha_i + L_{l,u} beta_i + eta_i + eta_{i+1}
+        = delta_i b_l.
+
+  Summing over all rows cancels each vertical value twice in F. Since the
+  sum of the delta_i is 1, this gives
+
+      (6.5)   L_{l,t} h_t + L_{l,u} ( sum_i beta_i ) = b_l.
+
+  Now replace each Q_i by U_i, again placing the site's zero
+  representative BEFORE removing the square's pair. The shared
+  u-horizontal copies beta_i into the new site's response. After
+  processing rows 1,...,j the marked blocks are
+
+      U_1, ..., U_j, Q_{j+1}, ..., Q_r;
+
+  the new sites keep their copied beta_i and the remaining squares keep the
+  values fixed at the all-square history. At the end precisely the u-ring
+  is marked and its ring sum is h_u = sum_i beta_i. Hence the starting and
+  ending ring sums satisfy
+
+      (6.6)   L_{l,t} h_t + L_{l,u} h_u = b_l.
+
+  Every replacement changes the occupied-slot count from r to r+1 and back
+  to r. The whole transfer uses 2r placements and 2r discards, and every
+  chosen vertex is still a fixed zero representative.
+
+  The same construction works starting at the u-ring: first replace its
+  sites by the same squares, then the squares by the t-sites. The same
+  equation holds, with the starting value at u kept fixed. No response is
+  required to recur after its pair has been discarded.
+
+  TRANSFERRING ALONG A WHOLE COMPARISON WIRE.
+
+  Fix a schema e: P -> R and an address a in A_e. Along its wire use the
+  address a at P and at every internal type, and the address sigma_e(a) at
+  R. These are allowed addresses, and their adjacent coordinates are
+  actual matches at every link: all but the last link use the restricted
+  identity, while the last uses (a_i, sigma_{e,i}(a_i)) at coordinate i.
+
+  Take any h_P in Q_{P,a}, choose one witnessing history in (6.4), and
+  continue it by the link transfers just proved. The final history is
+  another finite zero-query history, now ending with exactly the ring at
+  R, sigma_e(a). Its ring sum h_R therefore belongs to Q_{R,sigma_e(a)}.
+  The successive ring sums satisfy (6.6). Interior link equations equate
+  consecutive scalar shifts, while the two endpoint equations identify
+  their common value with the endpoint affine forms. Consequently
+
+      phi_{e,0}(h_P) = phi_{e,1}(h_R).
+
+  This proves
+
+      phi_{e,0}( Q_{P,a} ) is contained in
+      phi_{e,1}( Q_{R, sigma_e(a)} ).
+
+  For the opposite inclusion, start from any history witnessing an element
+  of Q_{R,sigma_e(a)} and traverse the wire in reverse. At the last link,
+  invert each sigma_{e,i} only on its image: the specified coordinate
+  sigma_{e,i}(a_i) has the unique allowed preimage a_i. All remaining
+  reverse matches are restricted identities. Thus the reverse transfer
+  reaches the ring at P, a and proves the other inclusion. No
+  surjectivity of a partial coordinate injection onto the ambient binary
+  set has been used.
+
+  If P = R, the two endpoint rings are still successive occurrences in one
+  and the same history. Their decoded responses may differ, even if the
+  two addresses are equal. Both attained values belong to the appropriate
+  set in (6.4), which is all that the image equality requires. Likewise,
+  separate schemas need no simultaneous choice of endpoint witnesses. We
+  have proved (4.1) for every schema and every address in its domain,
+  establishing consistency. QED
+
+  COROLLARY 6.3 (correctness of the general realization). For every
+  product scalar-image instance at address length r >= 3, its general
+  realization satisfies
+
+      the instance is consistent  <=>  G^0 =_r G^1.
+
+  Proof. Apply Proposition 6.2 with the parts, maps and singleton query
+  sets supplied by Proposition 6.1. QED
+
+
+7. THE CONNECTED SUBCUBIC REALIZATION.
+
+This is Link 5. We reuse the affine blocks of Section 5, but replace the
+valuation graph and its private leaves by a different graph: connected, of
+maximum degree three, and still with a block part for every block. Every
+vertex of a block part must admit a local map depending only on that
+block's offset.
+
+The one new difficulty compared to Section 6 is recognition: the game
+must be able to read the encoded data even at a history with all K slots
+occupied. We handle this with the reached-history principle of 2.6:
+hypothetical continuations that first discard unrelated pairs establish
+invariants of the original history.
+
+Throughout this section take r >= 8, so K = r + 1 >= 9. Write N = |B|.
+
+Facts from Lemma 5.3 that we use freely:
+
+    a block has at most four readout names, each of dimension 1 or 2;
+
+    the total number a_B of scalar coordinates is at most six;
+
+    Z_B^0 is a vector space and Z_B^1 = Z_B^0 + xi for every xi in Z_B^1,
+    and both are nonempty;
+
+    projection onto any one named readout is full;
+
+    coordinates of a common name appear in the same prescribed order at
+    every block that contains it.
+
+For a valuation z and a name rho in R(B), write z|_rho for its value on
+that readout.
+
+  PROPOSITION 7.1 (subcubic realization). From the block data one can
+  construct graphs X^0, X^1 with partitions
+
+      V(X^eps) = disjoint union over B in B of V_B^eps,   eps in {0,1},
+
+  having the following properties.
+
+  (1) Both graphs are finite, simple, connected, uncolored, of maximum
+  degree at most three, and of the same positive order. Their orders are
+  O(N^4), and the construction is polynomial in the size of the
+  explicitly listed block data.
+
+  (2) For each z in Z_B^eps, the part V_B^eps contains a specified
+  triangle T_B^eps(z); the triangles are pairwise disjoint. For every
+  xi_B in Z_B^1 there is a fixed bijection
+  Psi_{B,xi_B}: V_B^0 -> V_B^1, depending only on B, xi_B and the
+  constructed graphs, and it sends T_B^0(z) onto T_B^1(z + xi_B).
+
+  If U subset of B and the offsets (xi_B : B in U) agree on all names
+  shared by blocks in U, then the following map is an isomorphism of
+  induced subgraphs:
+
+      disjoint union over B in U of Psi_{B,xi_B}:
+      X^0[ union of V_B^0, B in U ]  ->  X^1[ union of V_B^1, B in U ].
+
+  (3) Fix a winning Duplicator strategy in the K-slot game, with
+  K = r+1 >= 9. At every reached history, a marked vertex in T_B^0(z) is
+  paired with a vertex in T_B^1(z') for a unique z' in Z_B^1. If
+  simultaneous marked vertices lie in T_B^0(z) and T_C^0(w) with B =/= C,
+  then for every rho in R(B) intersect R(C),
+
+      z|_rho = w|_rho   implies   z'|_rho = w'|_rho.
+
+  Both conclusions hold even when all K slots are occupied.
+
+  We construct the graphs and prove the proposition in stages.
+
+7.1 Channels, prefix forests, anchors, equality matchings.
+
+For every block B form an ordered list of CHANNELS. The first member is
+channel 0, which specifies no readout. For every other block C =/= B and
+every shared name rho in R(B) intersect R(C), add a channel denoted
+c_B(C,rho). The channels c_B(C,rho) and c_C(B,rho) are called OPPOSITE.
+Their order is fixed by the block data and is the same in both versions.
+
+In each channel c choose an order of the a_B scalar coordinates, again
+common to the two versions. In a proper channel c = c_B(C,rho), the
+coordinates of rho in their prescribed order must come first. Put
+
+    q_{Bc} = 0          if c = 0,
+    q_{Bc} = dim(rho)   if c = c_B(C,rho).
+
+For a valuation z, write pi_{Bc,h}(z) for its length-h prefix in channel
+c's order.
+
+Now build a vertex-colored graph Y^eps. All vertex positions in the
+following four parts are distinct.
+
+    (1) SPINES. For every channel c and legal valuation z in Z_B^eps,
+    create a vertex s_{Bc}^eps(z). For consecutive channels c, c+1, join
+    s_{Bc}^eps(z) to s_{B,c+1}^eps(z). Thus each valuation has one path
+    through the channel list. Set s_B^eps(z) = s_{B0}^eps(z), the
+    DISTINGUISHED VERTEX of that valuation.
+
+    (2) PREFIX FORESTS. For q_{Bc} <= h <= a_B and every prefix u of
+    length h that extends to a valuation in Z_B^eps, create a vertex
+    f_{Bc,h}^eps(u). For h > q_{Bc}, join it to the vertex indexed by its
+    truncation to length h-1. These form rooted trees whose roots have
+    level q_{Bc}. Join the leaf f_{Bc,a_B}^eps( pi_{Bc,a_B}(z) ) to
+    s_{Bc}^eps(z).
+
+    (3) ANCHORS. Create an anchor alpha_B^eps and join it to
+    f_{B0,0}^eps(empty prefix). Join all anchors in a path through the
+    blocks in a fixed order.
+
+    (4) EQUALITY MATCHINGS. For opposite proper channels specifying rho,
+    join their roots with the same value of rho. Write c = c_B(C,rho),
+    c' = c_C(B,rho), and q = dim(rho) = q_{Bc} = q_{Cc'}. For each u in
+    the value space of rho, join f_{Bc,q}^eps(u) to f_{Cc',q}^eps(u).
+    Full projection onto rho ensures that both roots exist for every u,
+    so this is a perfect matching of the two root sets.
+
+A special case: if q_{Bc} = a_B, a root is also a leaf. It is one vertex,
+adjacent both to its spine vertex and to its opposite root. There is no
+additional copy and no truncation edge in this case.
+
+The SORTS are:
+
+    one anchor sort for each block;
+
+    one spine sort for each block and channel;
+
+    one tree sort for each block, channel and level.
+
+If there are s sorts, assign them the consecutive integers 1,...,s in a
+fixed enumeration order, common to the two versions. Let col(v) be the
+resulting color of a vertex. Different labels within a sort receive the
+same color. Assign every vertex constructed at B to its BLOCK PART.
+
+  LEMMA 7.2 (colored promises). Each Y^eps is simple, connected, and has
+  maximum degree at most three. Each block part is connected. There are
+  O(N^2) vertices and O(N^2) sorts.
+
+  Proof. Degrees. A spine vertex has at most two spine neighbours and one
+  leaf neighbour. A nonroot internal tree vertex has one parent and at most
+  two children. A nonleaf root has at most two children and one further
+  neighbour: its anchor in channel zero, or its matched opposite root in a
+  proper channel. A leaf has its spine neighbour and either its parent or,
+  when it is also a root, its matched opposite root. An anchor has its
+  channel-zero root neighbour and at most two neighbours on the anchor
+  path. So every degree is at most three.
+
+  Simple. All tree, spine and anchor vertices occupy distinct positions. A
+  proper root belongs to just one channel and has just one matching edge;
+  its opposite root belongs to a different block. The remaining edge types
+  have their distinct indicated endpoints, so no loop and no multiple edge
+  is introduced.
+
+  Connected. Every legal prefix has a full legal extension, so it reaches
+  a leaf and then the spine at that channel. The spine path reaches
+  channel zero at the same valuation, and the channel-zero tree reaches
+  the anchor. So each block part is connected. The anchor path joins all
+  the block parts.
+
+  Counts. There are at most
+
+      N + sum over B =/= C of |R(B) intersect R(C)|
+        <=  N + 4 N (N-1)
+
+  channels in total. A channel has at most 2^6 spine vertices and at most
+  sum_{h=0}^{6} 2^h tree vertices. It also has at most eight sorts: one
+  spine sort and at most seven tree-level sorts. Adding the N anchors and
+  N anchor sorts proves both O(N^2) estimates. QED
+
+
+7.2 A walk that tests a shared readout.
+
+  LEMMA 7.3 (readout walk). For distinct blocks B, C and a shared name rho
+  in R(B) intersect R(C), there is a fixed sequence of sorts such that
+  s_B^eps(z) and s_C^eps(w) are joined by a walk following that sequence
+  if and only if z|_rho = w|_rho. The sequence is common to both versions.
+
+  Proof. Start at channel zero of B. Follow its spine to c_B(C,rho), then
+  go to the leaf and ascend its tree to the root. Cross the matching to the
+  opposite root in C. Descend to a leaf, go to its spine, and follow the
+  spine to channel zero of C. Record the sort at every position of this
+  route. When a root is also a leaf it contributes just one position.
+
+  The sorts specify the block and channel throughout, and the level of
+  each tree vertex. Every spine step preserves the full valuation. The leaf
+  is indexed by that valuation, and truncation to the root retains exactly
+  the coordinates of rho. The prescribed step to the opposite root can
+  only use the matching of equal values. A descent on the other side
+  extends that same root value, and its subsequent spine steps preserve
+  the chosen extension. Consequently every walk with the specified sorts
+  has equal endpoint readouts.
+
+  Conversely, if the endpoint readouts agree, their two prefix paths reach
+  a matched pair of roots and give the required walk. QED
+
+7.3 Translations that use one block offset.
+
+  LEMMA 7.4 (colored block translations). Every xi_B in Z_B^1 determines a
+  color-preserving isomorphism between the block parts of B in Y^0 and
+  Y^1. It fixes the anchor, sends
+
+      s_{Bc}^0(z)  |-->  s_{Bc}^1(z + xi_B),
+      f_{Bc,h}^0(u) |--> f_{Bc,h}^1( u + pi_{Bc,h}(xi_B) ),
+
+  and depends on no other block's offset. On a union of parts, these maps
+  form an induced-subgraph isomorphism whenever the chosen offsets agree
+  on shared names.
+
+  Proof. Translation by xi_B bijects Z_B^0 with Z_B^1. Its effect on a
+  prefix depends only on that prefix and commutes with truncation. The
+  displayed maps therefore give bijections at every sort, preserving the
+  tree, leaf-to-spine and consecutive-channel edges and their nonedges.
+  The empty prefix is fixed, so the anchor edge is preserved.
+
+  The only edges between parts are anchor-path edges and root-matching
+  edges. Anchors are fixed individually. For a root matching on rho, roots
+  with values u, v are adjacent exactly when u = v. If the two block
+  offsets have the same restriction d to rho, then
+
+      u = v   <=>   u + d = v + d,
+
+  which preserves adjacency and nonadjacency across that matching.
+  Different channels stay different channels, so no other cross-part
+  adjacency can arise. QED
+
+7.4 Removing the sort colors.
+
+At each vertex v of Y^eps, assign its incident edges injectively to ports
+1, 2, 3 in any fixed construction order. Replace v by a triangle with
+vertices
+
+    t(v,1), t(v,2), t(v,3).
+
+For each j, create a connector b(v,j) adjacent to t(v,j). Attach a private
+path of length col(v) to this connector, with the connector as the path's
+initial vertex. All other vertices on this path are new. For an edge vw of
+Y^eps assigned to ports j, j', add the edge b(v,j) b(w,j'). No other edges
+or colors are retained. Call the resulting uncolored graph X^eps.
+
+Every new vertex made at v belongs to v's block part. In particular the
+two endpoints of an edge between different blocks belong to their
+respective blocks. Denote these parts by V_B^eps. The triangle replacing
+s_B^eps(z) is denoted T_B^eps(z).
+
+  LEMMA 7.5 (uncolored promises and local lifts). The graphs X^eps are
+  simple, connected, uncolored, and of maximum degree at most three. They
+  have the same positive order, of size O(N^4). Each colored block
+  translation in Lemma 7.4 has a fixed lift Psi_{B,xi_B}: V_B^0 -> V_B^1,
+  depending only on that offset, satisfying the induced-isomorphism
+  assertion of Proposition 7.1.
+
+  Proof. Degrees. Every triangle member has degree three. A connector has
+  its triangle neighbour and its first path neighbour, and, precisely when
+  its port is used, one external connector neighbour; its degree is two or
+  three. All other path vertices have degree at most two. The edge lists
+  introduce neither loops nor repeated edges. Each replacement is
+  connected, and replacements are joined exactly along the original
+  graph's edges, so X^eps is connected. There is at least one block, each
+  with nonempty legal valuations, so the order is positive.
+
+  Local ports. Fix a block and offset, and write v' for the image of a
+  vertex v under the colored block translation. Define a permutation of
+  the three ports at v to those at v' as follows.
+
+      A port used by an edge within the block goes to the port used by the
+      image of that edge under the colored translation.
+
+      At an anchor, a port used by an external anchor-path edge goes to
+      the port for the anchor-path edge toward the same other block.
+
+      At a proper-channel root, the port used by its edge to the opposite
+      root goes to the port for the unique such edge at its image root.
+
+      The unused ports are matched in their fixed numerical orders.
+
+  These prescriptions are disjoint and exhaustive. Internal incidences are
+  bijected by a within-block isomorphism. Each anchor keeps the same
+  external anchor incidences, and each proper root has exactly one
+  external incidence at both source and image. So the unused port counts
+  agree, and the prescriptions really give a permutation. Crucially, the
+  third prescription does not require the neighbouring block's offset.
+
+  Using this port permutation, map triangle members to triangle members,
+  connectors to connectors, and private paths in order to their
+  corresponding private paths. The colors of v and v' agree, so the path
+  lengths agree. This gives a bijection Psi_{B,xi_B} of the block parts,
+  with the asserted action on the distinguished triangles.
+
+  Compatible unions. For compatible offsets on a union of blocks, every
+  internal edge and every anchor edge is carried to the edge prescribed by
+  its endpoint port permutations. For an equality matching, the root
+  values are shifted by the same readout offset, so the equality condition
+  is preserved in both directions. At its two endpoints the unique
+  external ports are exactly the ports used by that matching. Unused ports
+  remain unused, and all channels remain their own channels. It follows
+  that all edges and nonedges between replacements in the union are
+  preserved. The maps inside the replacements are isomorphisms too, which
+  proves the induced-subgraph assertion. Edges leaving the union impose no
+  condition on unchosen offsets.
+
+  Orders. For equal orders, choose an arbitrary legal offset separately at
+  each block. The resulting bijections of disjoint parts give a bijection
+  of the two vertex sets; compatibility is not needed for this count.
+  Finally, if the number of sorts is s, a colored vertex of color c
+  produces exactly 6 + 3c vertices. By Lemma 7.2 both s and |V(Y^eps)| are
+  O(N^2), giving the order bound O(N^4). All enumerations use at most
+  six-bit valuations and prefixes, explicit block pairs and shared names,
+  and paths of polynomial length. They therefore implement the
+  construction in polynomial time. QED
+
+
+7.5 What a winning game must preserve.
+
+To establish the decoding hypothesis of Proposition 6.2 for X^0 and X^1,
+we use the reached-history principle of 2.6. A hypothetical continuation
+may discard unrelated pairs to test the retained pairs. If failure of an
+asserted property would let Spoiler force a loss, that property must
+already hold at the original history. The test need not return to that
+history or restore discarded answers. Thus the tests below establish
+invariants even when all slots are occupied.
+
+  LEMMA 7.6 (recognition under a winning strategy). Let K >= 6, and fix a
+  winning strategy on X^0, X^1. At every reached history:
+
+  (1) Paired vertices have the same degree and agree as to whether they
+  lie in a triangle.
+
+  (2) A triangle member over v in V(Y^0) is paired with a triangle member
+  over some v' in V(Y^1) of the same sort.
+
+  (3) If two marked triangle members lie over adjacent vertices v, w of
+  Y^0, their responses lie over adjacent vertices v', w' of Y^1.
+
+  (4) A marked member of T_B^0(z) has a unique decoded response z' in
+  Z_B^1, meaning that its response belongs to T_B^1(z'). For simultaneous
+  marked members at distinct blocks, equality of any shared readout
+  implies equality of the decoded response readouts.
+
+  None of the conclusions requires a free slot at the history in
+  question.
+
+  Proof. DEGREES AND TRIANGLES. Retain a paired vertex and request one
+  further slot. For every vertex Spoiler could choose, Duplicator's
+  announced bijection must preserve adjacency to the retained vertex. The
+  bijection therefore takes its neighbour set onto the other neighbour
+  set, proving degree equality with two slots. To test membership in a
+  triangle, retain the vertex and mark the two other triangle members,
+  using three slots. The converse can be tested in the second graph:
+  after a bijection is announced, Spoiler can choose the preimage of any
+  desired second-graph vertex. Partial isomorphism then proves triangle
+  membership in both directions.
+
+  The only triangles in X^eps are the designated replacement triangles.
+  Indeed, private path vertices cannot lie in a triangle; a connector has
+  only one triangle-vertex neighbour; and edges between connectors form a
+  matching, since each connector is a single port. There are no other
+  edges between replacements. Thus a response to a triangle member lies in
+  a unique replacement triangle.
+
+  SORT RECOVERY. Retain such a pair, and mark the connector attached to
+  its first-graph triangle member. By triangle membership and adjacency,
+  its response is the unique nontriangle neighbour of the second-graph
+  triangle member. At a connector, the first private-path vertex is its
+  unique neighbour of degree below three. The triangle member has degree
+  three, and any connector reached across an external connector edge has
+  degree three because that port is used. This assertion also covers an
+  unused connector and a private path of length one. Consequently a third
+  mark forces the first private-path step.
+
+  Continue along the source path, retaining the previous and current
+  vertices and using a third slot for the next vertex. Adjacency and
+  inequality from the previous vertex force the forward step in the
+  target private path. The original triangle mark can be discarded once
+  the traversal has started. If the lengths differed, at their first
+  discrepancy a terminal vertex of degree one would be paired with an
+  internal vertex of degree two. The degree invariant excludes this. The
+  path lengths, and therefore the sort numbers, are equal.
+
+  All assertions used during this test are invariants of reached winning
+  histories, established by their own alternative continuations.
+
+  UNDERLYING ADJACENCY. Retain the two marked triangle representatives
+  over v, w, and also mark the actual triangle ports used by vw and the
+  two connectors attached to those ports. This requires at most six slots.
+  An actual port may already be the representative; duplicate marking is
+  allowed, or its extra mark may be omitted. Its response lies in the same
+  triangle as its original representative, by equality in the coincident
+  case and by adjacency and triangle membership otherwise. Each connector
+  response must be the unique nontriangle neighbour of its port response.
+  The two connectors are adjacent, so their underlying auxiliary vertices
+  are adjacent in Y^1. The two response representatives cannot belong to
+  one triangle: the source representatives are distinct and nonadjacent,
+  whereas distinct members of one triangle are adjacent.
+
+  DISTINGUISHED VERTICES AND SHARED READOUTS. Sort recovery sends a
+  triangle over a channel-zero spine vertex of block B to a triangle over
+  another channel-zero spine vertex of that same block. The legal
+  valuation indexing this vertex gives the unique decoded response.
+
+  Suppose now that the two source valuations at distinct blocks agree on
+  a shared readout. Their distinguished vertices admit the sort-prescribed
+  walk from Lemma 7.3. First discard all marked pairs except these two
+  endpoint pairs. Mark triangle members over the intermediate vertices
+  successively, always retaining both endpoints and at most two
+  consecutive intermediate pairs. Four slots suffice. Sort recovery gives
+  the required sorts of all response vertices. Underlying adjacency,
+  applied to each consecutive pair when both are marked, shows that the
+  responses trace a walk of precisely the prescribed sorts. Lemma 7.3 now
+  forces equality of the response readouts.
+
+  The four walk slots need not be supplemented by six adjacency-test
+  slots. Underlying adjacency is already an invariant of every reached
+  winning history: its proof may discard the unrelated endpoint pairs in
+  a different continuation. Similarly, the unary tests need not retain
+  the other walk marks. The largest simultaneous test uses six slots, and
+  the conclusion about the retained endpoints therefore holds already at
+  the original history, regardless of its occupancy. QED
+
+7.6 Proof of the subcubic realization.
+
+  Proof of Proposition 7.1. The graph promises, equal orders, size bound,
+  local lifts and compatible-union isomorphisms are Lemmas 7.2 and 7.5.
+  The distinguished triangles have the stated indexing by construction.
+  Since K = r+1 >= 9, Lemma 7.6 supplies the decoding and shared-readout
+  invariants. QED
+
+  COROLLARY 7.7 (correctness of the subcubic realization). For every
+  product scalar-image instance at address length r >= 8, its connected
+  subcubic realization satisfies
+
+      the instance is consistent   <=>   X^0 =_r X^1.
+
+  Proof. Use D_B^eps(z) = T_B^eps(z) in Proposition 6.2. The block maps and
+  decoding properties are exactly those proved in Proposition 7.1; its
+  parameter condition holds because r >= 8. QED
+
+
+8. UNIFORM SIZE AND TIME BOUNDS; COMPLETENESS.
+
+This is Link 6. The algebraic witnesses are existential and are never
+supplied to the graph compiler. The compiler enumerates only the product
+schemas, the local blocks, the constant-size valuations, and the graph
+vertices. The two realizations have different costs, so their bounds are
+kept separate.
+
+8.1 The common size calculation.
+
+For the instance compiled from a fixed machine M and polynomial p as in
+Section 3, on a word of length m, put
+
+    r = 2(p(m) + 2),   b = r + 2,   K = r + 1.
+
+Since p(m) >= m + 2 we have m <= r, and since p(m) >= 2 we have r >= 8.
+
+    The computation construction produces O_M(b^2) real types and
+    comparison schemas, each of dimension at most two, with r constant-size
+    coordinate entries.
+
+    Subdividing each comparison wire multiplies the type and link count by
+    O(r), giving O_M(b^3) types and links. Copying an r-coordinate table
+    onto each link costs O_M(b^4) entries at worst.
+
+    For each type or link and each row there are at most four blocks: one
+    chooses two binary labels, or two label matches each determined by a
+    binary label. So |B| = O_M(b^4).
+
+    A site has at most four legal valuations; a square has at most 2^6.
+    So the common number N of base vertices is again O_M(b^4), and J <= N.
+
+The two realizations then have this growth.
+
+    Quantity                    General              Subcubic
+    intermediate vertices       O_M(b^4) base        O_M(b^8) auxiliary
+    block or sort encoding      O_M(b^12) vertices   O_M(b^16) vertices
+    output matrix entries       O_M(b^24)            O_M(b^32)
+
+The subcubic construction has O_M(b^8) channels, with constantly many
+auxiliary vertices per channel, and O_M(b^8) sorts. Replacing each
+auxiliary vertex by a gadget whose paths have length at most the sort
+count gives the final O_M(b^16) order.
+
+The constants below may depend on the fixed M and p; the exponents in the
+graph-size and compiler-time bounds are absolute.
+
+8.2 The smaller general compiler.
+
+  PROPOSITION 8.1 (uniform general-graph compiler). Fix the machine M and
+  polynomial p used in Proposition 3.1. For a word w of length m, put
+  r = 2(p(m)+2). The constructions of Propositions 3.1, 4.2 and 6.1
+  produce two equally large simple uncolored graphs of order
+  O_M((r+1)^12). Their explicit adjacency matrices and the binary
+  parameter k = r can be produced by a deterministic multitape machine in
+  time O_{M,p}((r+2)^80).
+
+  Proof. Since p(m) >= m+2 we have m <= r. The number of original
+  consistency types and schemas is O_M(r^2), and every vector dimension is
+  at most two. Each schema has r constant-size binary coordinate entries.
+  Subdividing each wire with 4(r+1) internal types gives O_M(r^3) types
+  and links.
+
+  Blocks and vertices. For each type-row or link-row pair there are at
+  most four blocks. A site has at most four legal valuations; a square has
+  two vector readouts of dimensions at most two and two scalar readouts,
+  hence at most 2^6 valuations, a deliberately loose bound. Thus both J
+  and N are O_M(r^4), and J <= N because every block has a legal
+  valuation in each version. There are at most J(N+1) leaves at any base
+  vertex, so the total order is at most
+
+      N + N J (N+1) <= N + N^2 (N+1) = O_M((r+1)^12).
+
+  The two output matrices have O_M((r+1)^24) entries in total. There is at
+  least one scalar real type, which alone supplies four sites per row and
+  two valuations per site, so the graph order is at least 8r and the
+  output parameter is below the order.
+
+  An explicit polynomial-time implementation. All lists are stored
+  sequentially, so no unit-cost random access is assumed.
+
+      (i) Count m, evaluate p, and set d, r, K. Enumerate the fixed
+      alphabet, the carry and borrow cases, the initial positions, and the
+      final-time tests. Fill each product table coordinate by coordinate.
+      Only the max{1,m} exceptional initial positions and the d+1
+      possible blank suffix domains are generated. Apply the buffer and
+      dummy construction and enumerate wire and link identifiers.
+
+      (ii) Enumerate the constant number of local label choices for each
+      type-row or link-row pair. Record the named readouts of each block
+      and enumerate all of its local valuations. Test its affine or
+      homogeneous equation directly. Count N and enumerate leaves by an
+      owner identifier and a local index. This produces vertex lists in
+      both graph versions.
+
+      (iii) Enumerate ordered pairs of vertices and stream the
+      corresponding matrix bits. For base vertices, compare the constant
+      number of named readouts and their values, and check that the blocks
+      differ. For a pair involving a leaf, test owner incidence. Leaf-leaf
+      pairs are nonadjacent. The diagonal is zero. Finally write r in
+      binary.
+
+  Bit cost. The descriptions use O_{M,p}((r+2)^12) records, each of at
+  most O_{M,p}((r+2)^2) bits; this includes full coordinate tables,
+  identifiers, valuation lists and counters. Allow the larger total
+  working-storage length
+
+      D = O_{M,p}((r+2)^16) bits.
+
+  The stated loops need at most O_{M,p}((r+2)^24) record generations and
+  matrix-entry writes. Each uses at most O_{M,p}((r+2)^2) elementary
+  lookups, copies, comparisons or arithmetic operations; constructing a
+  coordinate table can scan all r entries. A sequential list lookup or an
+  elementary binary arithmetic operation on at most D bits costs O(D^2)
+  time by ordinary scanning and schoolbook algorithms. The total cost is
+  thus at most
+
+      O_{M,p}((r+2)^24) * O_{M,p}((r+2)^2) * O(D^2)
+        = O_{M,p}((r+2)^(24+2+32))
+        = O_{M,p}((r+2)^58),
+
+  which is within the asserted exponent 80.
+
+  Polynomial evaluation also fits. If p(x) is the sum of c_i x^i and A is
+  1 + sum of |c_i|, every Horner intermediate at m >= 0 has absolute value
+  at most A (m+1)^q, where q is the fixed degree. Its bit length is
+  O_p(log(r+2)), and there are only q arithmetic stages. The case m = 0
+  has p(0) >= 2 and causes no exception. Reading the input and writing the
+  O(log r)-bit dimension are included. At no stage is the list of 2^r full
+  addresses, the 2^d computation times, a consistency witness, or an
+  offset family enumerated. QED
+
+8.3 The connected subcubic compiler.
+
+  PROPOSITION 8.2 (uniform construction). Fix a machine M and polynomial
+  p satisfying Proposition 3.1, and apply the buffer construction of
+  Proposition 4.2. On an input word of length m put
+
+      r = 2(p(m)+2),   K = r+1,   b = r+2.
+
+  The two graphs X^0, X^1 and the binary dimension k = r can be produced
+  deterministically in time O_{M,p}(b^160). Each output graph has
+  O_M(b^16) vertices. They have the same positive order and are connected,
+  simple, uncolored, undirected graphs of maximum degree at most three,
+  regardless of whether the scalar-image instance is consistent.
+
+  Proof. We give explicit polynomial bounds and a construction that uses
+  only the compressed descriptions. Since p(m) >= m+2 we have r >= 8 and
+  m <= b.
+
+  Types, links, blocks. The computation construction produces
+  O_M(b^2) real types and comparison schemas, each described by endpoint
+  identifiers, two constant-size affine forms, and r constant-size
+  coordinate domains and maps. Each comparison wire has 4K private
+  internal types and 4K+1 links, so the subdivided layout has O_M(b^3)
+  types and links. At a fixed row and type there are at most four choices
+  of a site's pair of labels; at a fixed row and link there are at most
+  four choices of a square's two coordinate matches. Multiplying by r rows
+  gives
+
+      |B| = O_M(b^4).
+
+  Channels and auxiliary vertices. A block has at most four readout names,
+  so the number of proper channels, indexed by ordered pairs of distinct
+  blocks and a shared name, is at most 4|B|^2. Including channel zero at
+  every block, the total number of channels is O_M(b^8).
+
+  Every legal valuation uses at most six bits by Lemma 5.3. Hence a
+  channel has at most 2^6 spine vertices, at most seven prefix levels, and
+  at most 2^6 vertices on any one of those levels; these are absolute
+  constants, independent of r. There are only constantly many vertex sorts
+  per channel and one anchor and anchor sort per block. Consequently
+
+      |V(Y^eps)| = O_M(b^8),   s = O_M(b^8),
+
+  where s is the number of positive integer sort colors.
+
+  Final order. A colored vertex of color c is replaced by three triangle
+  vertices, three connectors, and three private paths with c new vertices
+  each, so it produces exactly 6 + 3c vertices. Since 1 <= c <= s,
+
+      |V(X^eps)| <= (6 + 3s) |V(Y^eps)| = O_M(b^16).
+
+  The two explicit output matrices have O_M(b^32) entries, and the output
+  dimension r has O(log b) binary bits.
+
+  All structural promises follow from Proposition 7.1. Equal order does not
+  need a compatible global offset: each individual block has a nonempty
+  affine valuation space, any of its legal offsets supplies a bijection
+  between its two block parts, and their cardinalities agree and can be
+  added over the partition. There is at least one site block and a legal
+  valuation in each version, so the common order is positive.
+
+  An implementation. The construction uses these finite lists and loops.
+
+      (i) Evaluate p and generate the circuit's schema domains and
+      coordinate maps by the carry, borrow and initialization cases of
+      Proposition 3.1. Expand each connection into its comparison schemas,
+      subdivide each comparison wire, and enumerate the type, link and
+      block lists. A coordinate scan has length r; no step ranges over the
+      full set of addresses.
+
+      (ii) Compare the at most four names of each ordered pair of blocks to
+      enumerate channels and their opposite-channel identifiers. For every
+      channel, enumerate bit strings of length at most six to list its
+      legal valuations and occurring prefixes: a prefix occurs if one of
+      the constantly many full strings extending it satisfies the local
+      equation. Enumerate the sorts to assign their positive color
+      numbers. Fix all ordering choices by the same nested enumeration
+      rules in the two versions.
+
+      (iii) Form the auxiliary vertex and edge lists from the defining
+      rules. For example, enumerate unordered pairs of auxiliary vertices
+      and test those rules. Assign a vertex's incident ports in generated
+      edge order, a list of length at most three. Generate the triangle,
+      connector and private-path vertices using the sort numbers as
+      path-length counters.
+
+      (iv) Enumerate pairs of output vertices and write their adjacency
+      bits. A vertex record contains its original auxiliary vertex, its
+      triangle/connector/path kind, its port, and, for a path vertex, its
+      distance from the connector. With the old edge and port lists, the
+      replacement rules decide adjacency from such records.
+
+  All local valuation tests have constant dimension. The witness sets and
+  the families H_U are used only in the correctness proof and are never
+  constructed by this algorithm.
+
+  Bit cost. Individual records, coordinate tables and counters can be
+  padded to O_{M,p}(b^2) bits. Identifiers and counters need only
+  O(log b) bits, and individual schema tables use O(r) entries; even a
+  time or position address has only d = r/2 bits. There are at most
+  O_{M,p}(b^32) records if the output matrix bits are included, so
+  O_{M,p}(b^40) bits suffice for lists and working storage with scratch
+  space. The fixed polynomial p is evaluated on polynomially bounded
+  integers by ordinary integer arithmetic.
+
+  The ordered block-pair loop has O_M(b^8) iterations, the auxiliary
+  vertex-pair loop has O_M(b^16), and the output pair loop has O_M(b^32).
+  The other enumeration loops have no larger count. The work of each
+  iteration can be expressed using O_{M,p}(b^2) basic record operations:
+  identifier lookup or update, copying, comparison, and elementary integer
+  arithmetic. Edge information is stored as endpoint and port records, so
+  no whole adjacency row is copied into a vertex record. The total number
+  of these operations is at most O_{M,p}(b^40).
+
+  Implement an identifier lookup by a sequential scan of the stored lists;
+  every basic record operation is then bounded by the square of the
+  allowed tape length, using sequential scans and schoolbook arithmetic.
+  With workspace D = O_{M,p}(b^40) bits, each such operation costs
+  O(D^2) = O_{M,p}(b^80) time, and the preceding count gives time at most
+
+      O_{M,p}(b^40) * O_{M,p}(b^80) = O_{M,p}(b^120),
+
+  which is within the stated O_{M,p}(b^160) allowance. No constant or
+  threshold in this implementation depends on a separately fixed value of
+  the growing dimension. Finally b is polynomial in m for the fixed
+  polynomial p, so this is deterministic polynomial time in the source
+  input length. QED
+
+8.4 The two completeness reductions.
+
+  Proof of Theorem A. Membership for both languages is Proposition 2.3,
+  including invalid encodings and dimensions larger than the graph order.
+
+  For hardness, fix any binary language L_0 in EXPTIME. Choose a
+  normalized deterministic decider M for its complement and a fixed
+  polynomial p as in Corollary 4.3. On w of length m, generate the product
+  circuit and its scalar-image instance at r = 2(p(m)+2) >= 8. For WL use
+  the general realization of Section 6; for SUBWL use the connected
+  subcubic realization of Section 7. Output the two explicit adjacency
+  matrices and k = r in binary. The compiler bounds are, respectively,
+  O_{M,p}((r+2)^80) and O_{M,p}((r+2)^160). Since p is fixed, both are
+  polynomial in m; their polynomial degrees may depend on the source
+  language, as is permitted for a many-one reduction.
+
+  All required graph promises hold on every input, whether accepted or
+  rejected by M. Proposition 6.2 verifies its hypotheses from Proposition
+  6.1 in the general case and from Proposition 7.1 in the subcubic case.
+  Together with the computation reduction this gives, for either output
+  pair W^0, W^1,
+
+      w in L_0
+        <=>  M does not accept w
+        <=>  the circuit has no true terminal test
+        <=>  the scalar-image instance is consistent
+        <=>  W^0 =_r W^1.
+
+  Thus each construction is a deterministic polynomial-time many-one
+  reduction with the required polarity. Because L_0 was arbitrary, both
+  target languages are EXPTIME-hard, and with membership this completes
+  Theorem A. QED
+
+  COROLLARY 8.3 (unary dimension). If the supplied dimension is encoded in
+  unary instead of binary, both WL and SUBWL remain EXPTIME-complete under
+  deterministic polynomial-time many-one reductions.
+
+  Proof. For membership, convert the unary dimension to binary and apply
+  Proposition 2.3; the conversion is polynomial in the input length. For
+  hardness, the reductions just proved output k = r = 2(p(m)+2), which is
+  polynomial in the source input length m. Writing this dimension in unary
+  therefore preserves their polynomial running time. The output graphs and
+  the equivalence condition are unchanged. QED
+
+This completes the proof of Theorem A.
+
+
+A. NOTATION.
+
+A.1 Symbols, in rough order of first use.
+
+  F                     the field GF(2), elements 0 and 1, 1+1 = 0
+  V(X)                  vertex set of a graph X
+  v[i <- z]             the k-tuple v with coordinate i replaced by z
+  chi_s(v)              round-s color of the tuple v
+  G =_k H               k-dimensional WL equivalence (Definition 2.1)
+  WL, SUBWL             the two decision languages of Section 1
+  f: V(G) -> V(H)       a bijection announced by Duplicator
+  K                     the number of pair slots; always K = r+1
+  m                     length of the input word w
+  p                     fixed integer polynomial, p(m) >= m + 2
+  T                     2^(p(m)), a bound on the running time of M
+  d                     p(m) + 2, half the number of address bits
+  H                     2^d = 4T, the ring length
+  r                     2d, the address length, also the output dimension
+  sigma_i               injective coordinate map A_i -> {0,1}
+  A_e                   product domain of a schema
+  Q_{P,a}               witness set of a real-type variable (Definition 4.1)
+  phi_{e,0}, phi_{e,1}  scalar affine endpoint forms of a schema
+  B                     the set of blocks; J = |B|
+  Z_B^eps               legal valuations of block B (site or square)
+  R(B)                  the set of readout names of block B
+  x_{i,t,a,a'}          horizontal readout in row i at type t
+  y_{i,l,a,b}           vertical readout on link l in row i
+  delta_i               1 when i = r, else 0; the row-r seam marker
+  L_{l,t}, b_l          link equation coefficients (5.1)
+  H_U                   family of compatible offset lists on block set U
+  D_{e,a}               scalar image set of wire e at address a (5.4)
+  cap T(C)              set of types in the support of component C
+  M_{l,i}               coordinate matches of link l at coordinate i
+  pi_{l,i}              fixed permutation of {0,1} extending M_{l,i}
+  omega                 marker in F, delta_i on horizontals, 0 on verticals
+  s_v                   marker sum from a root to corner v (Lemma 5.9)
+  G^0, G^1              the general realization (Section 6)
+  W^0, W^1              any pair satisfying the interface of Prop. 6.2
+  N                     common number of base vertices; also |B| in Sec. 7
+  j(B)                  block number used to size the leaf count
+  leaf(B,z,nu)          nu-th private leaf of base vertex (B,z)
+  c_B(C,rho)            channel of B toward C through readout rho
+  q_{Bc}                number of leading readout coordinates in channel c
+  pi_{Bc,h}(z)          length-h prefix of z in channel c's order
+  s_{Bc}^eps(z)         spine vertex of valuation z at channel c
+  f_{Bc,h}^eps(u)       prefix-tree vertex for the length-h prefix u
+  alpha_B^eps           anchor of block B
+  col(v)                sort number (color) of a vertex v of Y^eps
+  t(v,j)                j-th triangle member replacing v
+  b(v,j)                j-th connector attached to t(v,j)
+  T_B^eps(z)            triangle encoding valuation z of block B
+  Psi_{B,xi_B}          local map of block part B determined by xi_B
+  D_B^eps(z)            query set decoded to valuation z (Prop. 6.2)
+  b                     shorthand r + 2 in the size bounds of Section 8
+
+A.2 What depends on what.
+
+  Section 2:  2.2 (capping) and 2.3 (membership) use only 2.1.
+              2.4 (game) and 2.6 (reached history) are used everywhere
+              below.
+
+  Section 3:  3.1 uses nothing from Sections 4 to 8.
+
+  Section 4:  4.1 introduces the constraint system. 4.2 uses 3.1.
+              4.3 uses 3.1 and 4.2.
+
+  Section 5:  5.3 uses 5.1 and 5.2. 5.4 is the target; 5.5, 5.6, 5.7
+              build towards it, and 5.8 and 5.9 supply the two extension
+              lemmas needed for its proof.
+
+  Section 6:  6.1 uses 5.3. 6.2 uses 5.3 and 6.1. The transfer in 6.3
+              uses 2.4, 5.4 (exact projection) and the interface of 6.2,
+              and no other property of the graphs.
+
+  Section 7:  7.1 builds Y^eps. 7.2, 7.3, 7.4 give promises and lifts.
+              7.5 uses the reached-history principle 2.6 to recover data
+              from a winning strategy. 7.6 feeds the interface of 6.2.
+
+  Section 8:  8.1 collects the counts. 8.2 and 8.3 verify that the
+              compilers of Sections 3, 4, 6, 7 run within their stated
+              time and size allowances. 8.4 assembles Theorem A.
+
+A.3 Where each hypothesis is used.
+
+  Equal positive order.
+    Used in 2.2 (capping), 2.4 (the game needs a bijection between two
+  vertex sets), and in every realization (equal block-part sizes give
+  equal graph orders).
+
+  k >= 2.
+    Used in 2.4: two occupied coordinates always occur together in some
+  k-projection.
+
+  Dimension capped at the order.
+    Only in 2.3, to bound the number of tuple entries.
+
+  Consistency of the scalar-image instance.
+    Used only to produce the nonempty families H_U via 5.4, hence to
+  build Duplicator's strategy in one direction of 6.2.
+
+  A winning strategy.
+    Used only in the converse direction of 6.2: the attained image sets
+  are built from one fixed winning strategy.
+
+  K = r + 1.
+    Used as the number of slots throughout. The general realization
+  needs r >= 3 (so K >= 4, enough for the ring transfer and one spare
+  slot). The subcubic recognition tests need K >= 9, i.e. r >= 8, and
+  the machine construction gives exactly r = 2(p(m)+2) with p(m) >= 2.
+
+  The reached-history principle.
+    Used only in 7.5, to read the auxiliary data off a winning strategy
+  even when all slots are occupied.
+
+  No extra hypotheses.
+    There is no degree-regularity hypothesis, no connectivity hypothesis
+  in the general case, no fixed-dimension hypothesis, and no graph-switch
+  theorem imported from elsewhere.
+
+A.4 A reading order for a first pass.
+
+  For the statement of the theorem: Sections 1 and 2 up to and including
+  2.2 and 2.3.
+
+  For how a computation becomes a small circuit: subsections 3.1 and 3.2,
+  then the statement of Proposition 3.1.
+
+  For how the circuit becomes constraints: 4.1 and the statement of 4.2,
+  then 4.3.
+
+  For the compression and the extension property: the statement of 5.4,
+  then the site-ring model of 5.3, then Lemmas 5.5 and 5.6, then 5.7
+  through 5.9 and the proof of 5.4.
+
+  For the game: 2.4, 2.5, then 6.1 and 6.2, then 6.3.
+
+  For the subcubic version: 7.1, then Lemmas 7.3 and 7.5, then Lemma 7.6.
+
+  For the finale: 8.4.
+
+END OF PROOF.
