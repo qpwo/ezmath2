@@ -1,0 +1,1902 @@
+
+How to read this file. This is a study guide to one research paper: the proof
+that square matrix multiplication over every fixed field has exponent
+omega < 2.371054886006746, which beats both the naive 3, Strassen's
+log_2 7 = 2.807, and the previous records 2.371177 and 2.3728596. It is
+written for a patient high-school reader. Each block starts with "Exercise:",
+then a short question, then a self-contained answer. Named results carry a
+short nickname in parentheses, e.g. "Lemma (Identical Direct Sums)"; search
+for the nickname to find the statement. Symbols you will meet first: F is a
+field (you may think of the rationals, but finite fields work too); a tensor,
+written <a,b,c>, encodes multiplying an a-by-b matrix by a b-by-c matrix;
+R(T) is the rank of a tensor T, which is the number of multiplications a
+bilinear algorithm needs; otimes is tensor product (running algorithms in
+parallel on separate inputs) and oplus is direct sum (running algorithms side
+by side on unrelated data); omega is the matrix multiplication exponent;
+w is the least slope of the rank of the small matrix tensors, and one proves
+omega <= w; H(p) = -sum_a p(a) log p(a) is the Shannon entropy of a
+probability distribution p, the average number of bits per symbol; and
+exp(o(N)) means a factor growing slower than exp(c N) for every c > 0.
+
+Exercise: The main theorem. What exactly is proved, over which fields?
+Over every fixed field F, the arithmetic exponent of square matrix
+multiplication satisfies omega_F < 2.371054886006746 < 2.371054887. Here
+omega_F is the infimum of real tau such that two n-by-n matrices over F can be
+multiplied with O(n^(tau+o(1))) additions and multiplications of field
+elements. The algorithm given is exact: it uses only additions and
+multiplications, never a division, so it makes sense and is correct over
+finite fields of any characteristic, including characteristic 2. The choices
+the algorithm makes (which parameters, which subdivisions, which hashes) are
+finitely many and independent of the input matrices; only their existence
+matters. What is not proved: nothing about bit complexity, nothing about
+practical sizes, and nothing about optimality of the exponent.
+
+Exercise: Cost model. What is being counted, and why not bit operations?
+Only field additions and multiplications. This is the classical model for
+"arithmetic complexity": it separates the algebraic structure of the problem
+from the machine. Multiplications by fixed rational numbers and the bookkeeping
+of which entry goes where are also counted as scalar operations, but there are
+only polynomially many of them, so they never affect an exponent. Bit
+complexity is a different question (it needs a specific field, a size of
+elements, and a machine model) and the paper does not address it.
+
+Exercise: Bilinear algorithm. How does "multiply two matrices using R
+multiplications" become an algorithm?
+To multiply A (a-by-b) by B (b-by-c) we need every entry of the product
+C = A B, that is, the numbers C_ki = sum_j A_ij B_jk. An algorithm is
+"bilinear" if it computes all of them from the entries of A and B using only
+additions, subtractions, and multiplications by scalars, in a fixed pattern
+with no branching. Such an algorithm can be pictured as follows: form R
+linear combinations u_1(A),...,u_R(A) of the entries of A, and R linear
+combinations v_1(B),...,v_R(B) of the entries of B; compute the R products
+u_r(A) v_r(B); then each entry of C is a fixed linear combination of those R
+products. Since we never multiply two entries of A together, nor two entries
+of B, the pattern depends only on the tensor shape, not on the data. Every
+known fast matrix multiplication algorithm has this shape.
+
+Exercise: The matrix multiplication tensor. What is <a,b,c>, and what does
+its rank mean?
+Introduce three families of formal variables: x_ij for 1 <= i <= a,
+1 <= j <= b; y_jk for 1 <= j <= b, 1 <= k <= c; z_ki for 1 <= k <= c,
+1 <= i <= a. Then
+  <a,b,c> = sum_{i,j,k} x_ij y_jk z_ki .
+Think of x as the input A, y as the input B, and z as the output C: the
+monomial x_ij y_jk z_ki says "A_ij and B_jk both contribute to C_ki". The
+volume is abc. A rank decomposition of size R writes
+  <a,b,c> = sum_{r=1}^{R} (linear form in x) * (linear form in y) *
+  (linear form in z)
+and each summand is one multiplication: multiply the x-form by the y-form, then
+distribute that single number into the outputs using the z-form. So the rank
+R(<a,b,c>), the least number of summands of this shape, is exactly the least
+number of multiplications of a bilinear algorithm. Three examples.
+(i) If a=b=c=1 the tensor is x y z, rank 1: multiply two numbers with one
+multiplication.
+(ii) <n,n,n> has rank at most n^3 by the school algorithm.
+(iii) Strassen's identity: <2,2,2> has rank at most 7, not 8.
+
+Exercise: Rank toolkit. Which operations on tensors cannot increase rank?
+(i) Restriction. Substitute linear forms separately on the three sides: put
+x_ij = sum_s p_ijs x'_s and similarly on the y and z sides, with any scalar
+p, q, r. Then <a,b,c> becomes some tensor T', and any rank-R decomposition of
+the original gives a rank-R decomposition of T' with the same R. So
+R(T') <= R(<a,b,c>). Substitution on one side only is also allowed.
+(ii) Direct sum. With disjoint variables T oplus T' satisfies
+R(T oplus T') <= R(T) + R(T'). Conversely a direct sum is a tensor, and any
+restriction of it has rank at most that of the whole.
+(iii) Tensor product. Pairing the variables indexwise gives
+<a,b,c> otimes <a',b',c'> = <aa',bb',cc'>, and
+R(T otimes T') <= R(T) R(T'). All three facts are proved by taking decompositions
+of the pieces, substituting, adding, and multiplying out.
+(iv) Flattening (a lower bound, not an operation). Group the x and y variables
+and view the z-coefficient of each monomial as a bilinear form. A summand of
+rank one has a form of rank at most one, so the rank of the flattening matrix
+is at most the tensor rank. For <d,d,d> the flattening is the d^2-by-d^2
+identity, so d^2 <= R(<d,d,d>). This is the only cheap lower bound in the
+subject, and it is what makes the exponent at least 2.
+
+Exercise: Strassen and log_2 7. Why does rank 7 for 2-by-2 give exponent
+log_2 7, and why is a log factor harmless?
+Take the rank-7 identity for 2-by-2 blocks and apply it recursively: split a
+2^k n-by-2^k n matrix into 2^k-by-2^k blocks and use 7 block multiplications
+at each of k levels. Each level costs a constant number of block additions,
+so T(k) <= 7 T(k-1) + c 4^k, and unrolling gives T(k) = O(7^k) = O(n^(log_2 7))
+where n = 2^k. More generally, if R(<d,d,d>) = R_d then
+T(k) <= R_d T(k-1) + c_d d^(2k), whose solution is O(k R_d^k) because
+R_d >= d^2 makes the geometric sum comparable to its largest term. With
+n = d^k this is O(R_d^k log n) = O(n^(log_d R_d) log n). The factor log n is
+absorbed by n^(eta) for any eta > 0, since log n grows slower than n^eta.
+Padding an arbitrary size up to the next power of d changes the cost by at
+most a constant factor. So an upper bound on the rank of one small tensor
+gives an upper bound on omega.
+
+Exercise: The exponent w. Give the formal definition and the bounds on it.
+Let R_d = R(<d,d,d>) and let R_1 = 1. Define
+  w = inf over integers d >= 2 of  (log R_d) / (log d) .
+Because the infimum of log R_d / log d over that set is attained or approached,
+we have log R_d / log d >= w for every d >= 1, that is
+  R_d >= d^w  for all d >= 1.
+The previous exercise, applied with any d, gives omega <= log_d R_d for every
+d, hence omega <= w. The flattening bound gives d^2 <= R_d, so w >= 2; and
+d^3 >= R_d gives w <= 3. No one knows whether w equals omega.
+
+Exercise: Why does omega <= w need the infimum to be approached but not
+attained? And how do we get an upper bound on every R_d?
+Since w is an infimum, for each eps > 0 there is some integer d >= 2 with
+theta = log_d R_d < w + eps. Tensoring m copies of a rank-R_d decomposition
+gives a decomposition of <d^m,d^m,d^m> with R_d^m products, and substituting
+(padding) into <h,h,h> for any h <= d^m costs nothing extra, so
+  R(<h,h,h>) <= R_d^m <= C_eps h^(w+eps), with C_eps = R_d,
+whenever d^m >= h. This uniform bound on all square ranks is used later when
+Schonhage's inequality compares a small tensor with a large one. Notice that
+the construction uses one approximating dimension d; it never needs the
+infimum to be attained, and it never needs w to be computable exactly.
+
+
+Exercise: Lemma (Identical Direct Sums). State Schonhage's inequality and
+say what it means in words.
+Let s, a, b, c be positive integers and let R_* be a number such that
+  R( oplus_{j=1}^{s} <a,b,c> ) <= R_* ,
+where the direct sum uses disjoint variables for the s copies. Then
+  s (abc)^(w/3) <= R_* .
+In words: if s independent copies of the same matrix multiplication tensor
+can be done with R_* multiplications, then R_* is at least s times the
+w-th-power volume of one copy, spread over three sides by a cube root. This
+is the form of Schonhage's asymptotic sum inequality used in this paper, and
+the proof below derives it from exact tensor rank, with no approximation and
+no hypothesis on the field F. Two features matter later. First, the summands
+must be the same oriented triple (a,b,c): the proof compares one triple with
+another triple and needs a common cube. Second, the inequality is a lower
+bound on rank, which is what turns "many matrix tensors of small rank" into
+a bound on an exponent.
+
+Exercise: Proof of (Identical Direct Sums), square case.
+Write U = oplus_{j=1}^{s} <a,b,c> and suppose first a = b = c = d. The two
+degenerate cases are immediate. If s = 1 then R_* >= R(<d,d,d>) >= d^w by the
+definition of w, which is the claim. If d = 1 then U is the sum of the s
+monomials x_j y_j z_j, whose flattening is the s-by-s identity matrix, so
+R_* >= s = s*1^(w/3), again the claim. So assume s >= 2 and d >= 2.
+Step 1: fix eps > 0, and let C_eps be the constant in the uniform square-rank
+bound R(<h,h,h>) <= C_eps h^(w+eps) for all h >= 1. For k >= 1 put
+  h_k = floor( (s^k / C_eps)^(1/(w+eps)) ).
+Then R(<h_k,h_k,h_k>) <= s^k, and (log h_k)/k tends to (log s)/(w+eps).
+Step 2: power the hypothesis. The k-fold tensor power of U is the direct sum
+of s^k copies of <d^k,d^k,d^k>, so it has rank at most R_*^k.
+Step 3: restrict. Choose a rank-r decomposition of <h_k,h_k,h_k> with
+r <= s^k; it presents <h_k,h_k,h_k> as a restriction of r copies of <1,1,1>.
+Tensoring this presentation with <d^k,d^k,d^k> presents the tensor
+<d^k h_k, d^k h_k, d^k h_k> as a restriction of r copies of <d^k,d^k,d^k>,
+hence of the s^k copies inside the k-th power of U. Therefore
+  R_*^k >= R(<d^k h_k, d^k h_k, d^k h_k>) >= (d^k h_k)^w ,
+where the last step is the definition of w applied to the integer d^k h_k.
+Step 4: take logarithms, divide by k, and let k tend to infinity at fixed
+eps. Since (log h_k)/k tends to (log s)/(w+eps),
+  log R_* >= w log d + (w/(w+eps)) log s .
+Now let eps decrease to 0. The second term tends to log s, so
+  log R_* >= w log d + log s, that is R_* >= s d^w = s (d^3)^(w/3),
+which is the claim because abc = d^3. Nothing here used the value of w, only
+its definition and the uniform bound of the previous block.
+
+Exercise: Proof of (Identical Direct Sums), rectangular case.
+Let V = abc and U = oplus_{j=1}^s <a,b,c> with rank at most R_*. The tensors
+<b,c,a> and <c,a,b> are obtained from <a,b,c> by relabelling the three
+variable families, so they have the same rank as <a,b,c>. Distributivity of
+oplus over otimes gives
+  U otimes <b,c,a> otimes <c,a,b>
+    = oplus over s^3 index triples of <a,b,c> otimes <b,c,a> otimes <c,a,b> ,
+and pairing the variable indices on each of the three sides,
+  <a,b,c> otimes <b,c,a> = <ab, bc, ca> , so
+  <a,b,c> otimes <b,c,a> otimes <c,a,b> = <abc, abc, abc> = <V,V,V> .
+Submultiplicativity of rank under otimes bounds the rank of this direct sum by
+R_* * R_* * R_* = R_*^3. The square case applied to d = V now gives
+  s^3 V^w <= R_*^3 . Taking cube roots: s V^(w/3) <= R_* . The case V = 1 is
+covered by the d = 1 argument above. Done.
+
+Exercise: Why must the summands be identical, and where does this paper
+supply identical summands?
+In the powering step the k-th tensor power must be a direct sum of copies of
+one single tensor <d^k,d^k,d^k>, because the conclusion compares that one
+tensor's rank lower bound with R_*^k. If the summands were different triples
+(a_j,b_j,c_j), the tensor power would be a direct sum of products of triples,
+no single cube would bound it, and the arithmetic progression of exponents
+would not collapse. In this paper the identical summands are not an
+assumption about luck: the terminal dimension count (see the block
+"Proposition (Leaf Volumes and Common Dimensions)") forces every output to
+restrict to the same oriented triple (a_N, b_N, c_N), because the terminal
+class sizes and the exact statistic types are fixed by the coarse types.
+
+Exercise: The Coppersmith-Winograd tensor. Define CW_5, count its terms, and
+assign the weights.
+For an integer q >= 1 take variables x_0,...,x_{q+1}, y_0,...,y_{q+1},
+z_0,...,z_{q+1} and put
+  CW_q = sum_{i=1}^{q} ( x_0 y_i z_i + x_i y_0 z_i + x_i y_i z_0 )
+         + x_{q+1} y_0 z_0 + x_0 y_{q+1} z_0 + x_0 y_0 z_{q+1} .
+For q = 5 there are 3*5 + 3 = 18 terms. Give label 0 weight 0, labels
+1,...,q weight 1, and label q+1 weight 2. Every monomial has total weight
+0+1+1 = 0+2+0 = 2: one label of weight 2, or two labels of weight 1, on the
+three sides. A tensor power CW_5^{otimes m} is then graded by the three weight
+sums, and a shape of a strand is exactly such a triple of sums, always adding
+up to 2m. This weight structure is what makes "shapes with a zero coordinate"
+already matrix multiplication tensors, as a later block explains.
+
+Exercise: The Laurent identity. Show that the Laurent polynomial P(t) below
+equals CW_q plus t times a polynomial, and has no negative powers.
+With X_1 = sum_{i=1}^{q} x_i and similarly Y_1, Z_1, put
+  P(t) = t^(-2) sum_{i=1}^{q} (x_0 + t x_i)(y_0 + t y_i)(z_0 + t z_i)
+       - t^(-3) (x_0 + t^2 X_1)(y_0 + t^2 Y_1)(z_0 + t^2 Z_1)
+       + (t^(-3) - q t^(-2)) (x_0 + t^3 x_{q+1})(y_0 + t^3 y_{q+1})
+         (z_0 + t^3 z_{q+1}) .
+The three products have degrees 0..3, then 0,2,4,6, then 0,3,6,9, so only the
+degrees -3, -2, -1 can be negative. Compute each:
+  t^(-3): from line 2, -x_0 y_0 z_0; from line 3, +x_0 y_0 z_0. Total 0.
+  t^(-2): from line 1, +q x_0 y_0 z_0 (one from each of the q summands);
+          from line 3, -q x_0 y_0 z_0. Total 0.
+  t^(-1): from line 1, X_1 y_0 z_0 + x_0 Y_1 z_0 + x_0 y_0 Z_1; from line 2,
+          -t^(-3) times the t^2 coefficient, which is exactly
+          -(X_1 y_0 z_0 + x_0 Y_1 z_0 + x_0 y_0 Z_1). Total 0.
+  t^0:    from line 1, sum_{i} (x_i y_i z_0 + x_i y_0 z_i + x_0 y_i z_i);
+          from line 3, t^(-3) times the t^3 coefficient, which is
+          x_{q+1} y_0 z_0 + x_0 y_{q+1} z_0 + x_0 y_0 z_{q+1}.
+          Line 2 contributes nothing at t^0 because its only degrees there are
+          even. Total CW_q.
+Hence P(t) = CW_q + t Q(t) with Q a polynomial, and every coefficient in
+sight is an integer. So the identity may be reduced modulo any prime and
+stays valid over any field, and it never needs a division.
+
+Exercise: Lemma (CW Power Rank). State the rank bound for powers of CW_q.
+Over every field, for every integer m >= 0,
+  R( CW_q^{otimes m} ) <= (q+2)^m * binom(3m+2, 2) ,
+and for q = 5 this reads 7^m * binom(3m+2, 2). Since binom(3m+2,2) is a
+polynomial in m, the asymptotic rank of CW_5 is at most 7, and a polynomial
+factor will be absorbed by exp(o(N)) later. For m = 0 the bound reads 1 <= 1
+with the empty tensor product being the scalar 1.
+
+Exercise: Proof of (CW Power Rank).
+Write the identity of the previous block as a sum of q+2 = 7 products of three
+Laurent polynomials, absorbing each scalar prefactor into the x-side form.
+Bookkeeping of degrees in one tensor position, per line:
+  line 1: x degrees {-2,-1}, y degrees {0,1},   z degrees {0,1};
+  line 2: x degrees {-3,-1}, y degrees {0,2},   z degrees {0,2};
+  line 3: x degrees {-3,-2,0,1}, y degrees {0,3}, z degrees {0,3}.
+The third x-set includes both t^(-3) and -q t^(-2) inside a single linear
+form, which is why the degrees 0 and 1 appear there. Consequently, expanding
+P(t)^{otimes m} gives 7^m products of the shape A(t) B(t) C(t) where
+  A(t) = sum_{a=-3m}^{m} A_a t^a , B(t) = sum_{b=0}^{3m} B_b t^b ,
+  C(t) = sum_{c=0}^{3m} C_c t^c ,
+and every A_a, B_b, C_c is a single linear form in the tensor-product
+variables of the corresponding side. The constant coefficient of one such
+product is
+  sum over b, c >= 0 with b + c <= 3m of A_{-(b+c)} B_b C_c ,
+a sum of at most binom(3m+2,2) rank-one tensors: the pairs (b,c) of
+nonnegative integers with b + c <= 3m are
+sum_{s=0}^{3m} (s+1) = (3m+1)(3m+2)/2 = binom(3m+2,2) of them, and the
+x-degree -b-c is automatically in the allowed range [-3m, m]. Adding over the
+7^m choices and using P(t) = CW_q + t Q(t), which gives
+  [t^0] P(t)^{otimes m} = CW_q^{otimes m} ,
+proves the bound. Only coefficient addition and multiplication were used, so
+the argument is valid over any field, and for m = 0 both sides are 1. As a
+sanity check take m = 1: the bound is 7 * 10 = 70 for a tensor of 18 terms,
+weak but true.
+
+Exercise: Why is a factor binom(3m+2,2) free, and why does a polynomial
+factor never hurt?
+Because at the end of the proof m will be 8 K N, and
+log binom(24KN+2,2) = O(log N) while the exponential quantities in play have
+exponents of size N. Any factor exp(O(log N)) = N^O(1) is exp(o(N)), which is
+absorbed into every tolerance in the final limit. This is the same reason the
+log n factor was harmless in the Strassen block. It is also why the paper can
+afford the crude bound 7^m rather than the true asymptotic rank of CW_5,
+which is smaller but unknown exactly.
+
+
+Exercise: Strand and shape. Define them, and say carefully which symbol means
+what.
+For an integer ell >= 1, a strand of length ell is a copy of CW_5^{otimes ell}.
+On each of the three sides its variables are words of length ell in the symbol
+set {0,1,...,6}: a word records which of the seven labels of CW_5 sits at each
+of the ell positions. For a triple g = (g_0,g_1,g_2) of nonnegative integers
+with g_0 + g_1 + g_2 = 2 ell, let T_{ell,g} be the tensor obtained from the
+strand by restricting each side to the words whose weight sum is the
+corresponding coordinate of g: weight sum g_0 on the first side, g_1 on the
+second, g_2 on the third. Two alphabets must not be confused. The coordinate
+indices 0,1,2 of g are the three physical sides. The weights 0, 1, 2 are
+attached to labels: label 0 has weight 0, labels 1,...,5 have weight 1, label
+6 has weight 2. The sum g_0+g_1+g_2 = 2 ell holds because each of the ell
+positions contributes total weight exactly 2. Call g positive if all three
+coordinates are positive. This T is a restriction of the strand, so its rank
+is at most the rank of the strand.
+
+Exercise: Splitting a strand. Into which child shapes does a strand of even
+length ell split, and what is the resulting identity?
+Take ell even and split each word into its first ell/2 symbols and its last
+ell/2 symbols. Weight sums add, so T_{ell,g} becomes, as a tensor in the new
+variables, a direct sum over all u with
+  0 <= u <= g coordinatewise and sum_i u_i = ell,
+of T_{ell/2,u} otimes T_{ell/2,g-u}. Indeed the left half has ell/2
+positions, hence total weight ell, which is why the sum of the coordinates of
+u is ell; the right half must then carry g-u; and u_i <= g_i because a
+partial sum cannot exceed the total. In this paper strands of length 8 are
+split into two halves of length 4, those into halves of length 2, and those
+into halves of length 1. Each child is again a strand, of half the length,
+and keeps the shape restriction it inherited. Shapes with a zero coordinate
+are never split: they terminate immediately, for the reason in the next block.
+
+Exercise: Zero coordinate gives matrix multiplication. Prove that T_{ell,g}
+with g_0 = 0 is <1,1,M> with M = [z^{g_1}] (1 + q z + z^2)^ell, and get the
+other orientations.
+If the first side has weight sum 0 then every symbol of that word is the
+unique weight-0 label, so the first word is the all-zero word: exactly one
+variable on the first side. Look at one position of the strand, that is, at
+one copy of CW_q. With the x label fixed at 0, every monomial containing it
+has one of the forms (0, i, i) for i = 1,...,q, or (0, q+1, 0), or (0, 0,
+q+1). So the second and third labels are matched by a fixed bijection: 0 is
+exchanged with q+1, and each i in 1,...,q is held fixed. Therefore a monomial
+of T_{ell,g} is completely determined by its second word, its third word is
+the complementary word, and the total weight condition on the second side is
+exactly weight sum g_1. Hence
+  T_{ell,g} = sum over second words w of weight g_1 of (1) * w *
+  complement(w),
+which is the tensor <1,1,M> with M equal to the number of words of length ell
+and weight sum g_1. Counting words by weight gives the generating function
+  sum_{g_1} M z^{g_1} = (1 + q z + z^2)^ell ,
+because one position contributes weight 0 in one way (label 0), weight 1 in
+q ways (labels 1,...,q), and weight 2 in one way (label q+1). So
+M = [z^{g_1}] (1 + q z + z^2)^ell. If instead g_1 = 0 then the second side is
+forced and the tensor is <M,1,1>; if g_2 = 0 it is <1,M,1>. In all three cases
+the volume is M, and by complementation M = c_ell(max g), where
+  c_ell(j) = [x^j] (1 + 5 x + x^2)^ell  (this is the case q = 5), and where
+max g is the largest of the three coordinates. Volume is what the rank
+argument needs; the orientation is bookkeeping, and the paper keeps the three
+orientations separate so that all outputs are matched later.
+
+Exercise: Restricted matched pairs. What happens to <1,1,M> when the two
+matched sides are cut down by type conditions?
+Suppose the first side is forced, as above, and suppose we impose, on the
+second side, a condition that each position's symbol belongs to some allowed
+set, with the complementary condition imposed on the third side. Then
+monomials survive exactly when each position uses an allowed symbol on the
+second side, and the surviving tensor is again of the form <1,1,M'> where M'
+is the number of allowed matched pairs: choose the allowed second word of the
+required weight, and the third word follows. If no matching word has the
+required weight, the tensor is zero and that population contributes nothing.
+This is the whole content of the leaf counting later: all terminal volumes are
+counts of matched pairs, and each count is a multinomial times a product of
+per-position multiplicities.
+
+Exercise: The plan of the extraction, in one paragraph and without formulas.
+Start with many copies of a length-8 strand tensor. Restrict to a shape (the
+three weight sums) and keep only the pieces whose shape is positive. Split
+each such piece into two length-4 halves. Now we want to keep, as many times
+as possible, one identical "ideal output": a product of child strands, each
+with prescribed statistical type, that is, with prescribed frequencies of
+symbols. The trouble is that the positions of the symbols are chosen at
+random, so two different intended outputs compete for the same monomials. The
+extraction therefore does the following in order. (1) On the first side, keep
+only monomials whose coarse word (the sequence of weight sums) occurs in
+exactly one surviving candidate triple. (2) On the second side, keep only
+variables compatible with exactly one of those candidates, where compatibility
+is a statistical test among the positions whose coarse index forces a
+relation. (3) Do the same on the third side. The result is a direct sum of
+"punctured" ideal outputs, each ideal output with some individual variables
+deleted. (4) Repair the punctures by averaging over symmetries. Three
+capacities, one per side, measure how many outputs survive each test; the
+worst side determines the yield. The next blocks make all of this precise.
+
+
+Exercise: Populations of a joint step. What data define one, and what is a
+coarse block?
+Fix a finite index set R for the populations of one extraction. Population r
+consists of m_r = c_r N copies of a fixed strand tensor F_r with finitely many
+variables, where c_r > 0 is a fixed rational number and N is the large
+parameter that later tends to infinity. On each side the variables of F_r are
+partitioned into coarse blocks, indexed by nonnegative integers; in this paper
+the index is a weight sum over a strand of length at most 8, so it lies in
+{0,...,16}. Every monomial of F_r has its triple u = (u_X, u_Y, u_Z) of coarse
+indices in an ambient support Omega_r, whose elements satisfy
+  u_X + u_Y + u_Z = s_r
+for a fixed integer s_r = 2 ell_r, where ell_r is the strand length of that
+population. In the product of all the copies, a coarse block is a sequence of
+coarse indices, one for every strand position; a fine side variable is a
+complete basis variable of the product, that is, a full word; and its coarse
+block records the coarse index at every position. Populations that differ in
+their history, or in which physical side they occupy, are kept distinct even
+when the strands look alike; this bookkeeping is what lets later steps know
+exactly which statistical conditions were inherited. Nothing is merged that
+was not identical from the start.
+
+Exercise: The coarse law. Which law on Omega_r does the construction use, and
+why maximum entropy?
+Choose a rational law p_r on Omega_r that maximizes entropy among all laws on
+Omega_r with the same three marginals as p_r. Its support may be smaller than
+Omega_r; that is allowed. The construction always uses product weights: pick
+positive rational numbers a_i, b_j, c_k and set
+  p(i,j,k) = Z^(-1) a_i b_j c_k   for (i,j,k) in Omega_r,
+with Z the total. For any competing law q with the same marginals,
+  -sum q log p = -sum p log p = H(p),
+because log p is a sum of three one-coordinate functions plus a constant, and
+the three marginals agree. Also, using log t <= t - 1,
+  sum over q(u) > 0 of q(u) log (p(u)/q(u)) <= sum over q(u) > 0 of
+  (p(u) - q(u)) <= 0,
+which says the relative entropy of q from p is nonpositive, so H(q) <= H(p).
+Thus product weights do achieve the maximum, and they are rational whenever
+a,b,c are. When the three marginals already determine the law, maximality is
+automatic, including for boundary laws that assign zero to some triples.
+
+Exercise: Two kinds of population. What distinguishes them, and why are both
+needed?
+An ordinary population delivers the full tensor block at each selected coarse
+triple u, with no further statistical test on the output. Its blocks may
+themselves be products of child strands. Initial extraction by whole-strand
+shape, and the final split into length-one strands, are ordinary. A sharing
+population consists of copies of T_{ell,g} with ell even, and its coarse index
+u_W is the weight sum inside the left half. Then
+  Omega_r = { u : 0 <= u <= g, sum_W u_W = ell } ,
+and the split of the previous section reads T_{ell,g}|_u =
+T_{ell/2,u} otimes T_{ell/2,g-u}. Splitting is the only place where the tensor
+is genuinely cut in two, so the statistics of the two halves have to be
+prescribed separately; that is what the next block describes. Both kinds
+appear in the same extraction, and the theorem handles them together, which is
+the point of calling it heterogeneous.
+
+Exercise: Child prescriptions. What is prescribed for a sharing population,
+and how are the two halves kept consistent when a weight sum vanishes?
+For each side W, a statistic of a full half-strand variable takes values in a
+fixed finite alphabet A_{r,W}, and a fixed map rho_W sends that alphabet to the
+weight sum of the half. For every half-shape u with p_r(u) > 0, prescribe a
+rational law nu_{r,u,W} supported on rho_W^{-1}(u_W); this is "the empirical
+law of the statistic on the left half, given that the left half has shape u".
+The right half, in the class labelled u, gets the law nu_{r,g-u,W}. When a
+half-shape has a zero coordinate, the two halves of the other two sides match
+by complementation, as in the block on zero coordinates; require that their
+statistics match under a fixed bijection and that the two prescribed laws are
+pushforwards of each other. When a side has a unique possible variable, its
+prescription is the corresponding point mass. The same requirements apply when
+two coordinates vanish. These are exactly the compatibility conditions that
+the lemma on compatibility incidence will need, and they cost nothing extra.
+Note that only the law of the half-shapes is assumed symmetric (p(u) =
+p(g-u)); the two prescriptions nu_{u,W} and nu_{g-u,W} may well differ, and in
+the numerical data they do.
+
+Exercise: Target triples and ideal outputs. Define them, and define
+"useful".
+A target triple e is a triple of coarse sequences, one per side, that has
+exact joint type p_r in every population r; here "type" means the empirical
+distribution of the sequence of triples across positions equals p_r exactly.
+Start with the tensor block at e, that is, the block whose coarse triple at
+every position is the one specified by e. In every sharing population impose,
+separately in every class of positions with given (r, u, half) and on each
+side, a positive type window around the prescribed law nu_{r,u,W}: this means
+that the empirical law of the statistic in that class lies coordinatewise
+within some fixed positive width of the prescribed law. The class indexed by u
+has right-half law nu_{r,g-u,W}. Ordinary populations get no such extra test.
+The tensor product of all these restrictions is the ideal output Q_e. All
+target triples have the same class sizes (each class has c_c N positions with
+c_c > 0 fixed), so all ideal outputs Q_e are isomorphic under position
+permutations that preserve the physical sides; write Q_N for a canonical such
+tensor. A fine side variable lying in a coarse block of e is called useful for
+e if it satisfies all the windows just described; that is precisely what
+"being a variable of Q_e" means. Everything else in the extraction only
+deletes variables; nothing ever adds a monomial.
+
+Exercise: Inherited masks. Which extra statistical conditions may an input
+carry, and what margin condition keeps them compatible with the child windows?
+An input mask is always a deletion of individual side variables; it never
+combines two sides. For a sharing population the allowed masks are finitely
+many empirical tests on the ordered pair of half statistics, or on a fixed
+function of that pair. Their centres must be the pair law D_{r,W} defined in
+the next block, or its pushforward, and their widths must be fixed positive
+numbers. For an ordinary population a mask must already follow from the exact
+target coarse types and the specified ideal blocks. No other inherited masks
+are assumed. Two robustness rules make the recursion work. First, a mask
+imposed on a large received class may instead be enforced separately, with
+tighter widths and the same centre, on any fixed subdivision of that class;
+the partwise conditions then imply the original one. Second, choose the output
+widths small enough that replacing a prescribed child law by any law within
+its window keeps the expected ordered-pair law strictly inside every inherited
+window. That is possible with a uniform positive margin because a
+coordinatewise child error of at most theta changes a product-law coordinate
+by at most 2 theta, and there are only finitely many classes. The margin is
+what the recovery lemma later converts into "only O(1/N) of each orbit is
+lost".
+
+Exercise: The pair law. Define D_{r,W}, and say what it is the law of.
+Inside one sharing population, temporarily drop the index r and put
+  D_W = sum over u in Omega_r of p(u) * ( nu_{u,W} otimes nu_{g-u,W} ) .
+This is the expected law of the ordered pair (statistic of the left half,
+statistic of the right half) on side W, when, within each shape class, the two
+halves independently follow their prescribed laws. It is the centre that the
+inherited pair masks test against: a received population from an earlier
+extraction carries an empirical version of exactly this law, and the current
+extraction must be able to satisfy it while also imposing its own child
+windows. That is what the margin condition above arranges. Note that D_W is
+computed from p and the laws nu only; it is not an extra choice.
+
+Exercise: Designated shapes and the grouped entropy. Why can some shapes be
+tested individually and others only in aggregate?
+After the first side has been processed, its exact type conditions are known,
+and matching transfers some of them to the other sides. Define
+  I_Y = { u in support(p) : u_Z = 0 } ,
+  I_Z = { u in support(p) : u_X u_Y = 0 } .
+If the third coordinate of u vanishes, then on that half the first and second
+sides match by complementation, so an exact condition on the first side forces
+an exact condition on the second: those shapes can be tested one by one on
+side Y. For side Z, a vanishing second coordinate transfers the condition from
+the first side, and a vanishing first coordinate transfers it from the second
+side, which by then has already been made exact; if both vanish the variable is
+forced. For the remaining shapes the pair law determines only an aggregate
+statistic after the designated contributions are removed, so no individual
+test is imposed; they are grouped. Form the partition G_W consisting of the
+singletons {u} for u in I_W together with the residual groups
+{u not in I_W : u_W = i} for each value i of the W coordinate (empty groups
+dropped; a residual group stays residual even when it is a singleton). With
+p(G) = sum of p(u) over u in G, set
+  J_W = sum over G in G_W of p(G) * H( (sum over u in G of p(u) nu_{u,W})
+  / p(G) ) .
+The inner vector is the mixture law of the statistic inside the group G. J_W
+is the entropy of one half-statistic word when only the group is known;
+counting both halves costs 2 J_W, and comparing with the pair entropy H(D_W)
+gives the saving that controls how many compatible targets a fixed variable
+can have.
+
+Exercise: The three capacities. Define them, and explain the name.
+For a sharing population set
+  C_{r,X} = H(p_{r,X}) ,  C_{r,Y} = H(D_{r,Y}) - 2 J_{r,Y} ,
+  C_{r,Z} = H(D_{r,Z}) - 2 J_{r,Z} ,
+where p_{r,X} is the first marginal of p_r. For an ordinary population set
+C_{r,W} = H(p_{r,W}) for all three W, with p_{r,W} the W-th marginal; there is
+no compatibility restriction to pay for. Each C_{r,W} is the entropy saving
+available on side W: the logarithm of the number of candidate outputs a
+variable on that side can be compatible with is N(A_amb - C_W) plus lower order
+terms, so a larger capacity means fewer competitors and more surviving
+outputs. The word "capacity" is used because the three numbers bound, on the
+three sides separately, the guaranteed logarithmic number of independent
+outputs, and the extraction's yield is their minimum. The joint step first
+adds these savings over populations and only then takes the minimum.
+
+Exercise: Theorem (Heterogeneous Joint Step). State it, and read it.
+Let B_N be the tensor product of all populations restricted by the inherited
+masks described above, with the population data, the rational laws p_r, the
+prescriptions nu, and the widths fixed before N grows. Put
+  A_amb = sum over r of c_r H(p_r) ,
+  C_W   = sum over r of c_r C_{r,W}   for W = X, Y, Z ,
+  E     = min { C_X, C_Y, C_Z } .
+If E > 0, then for every eps > 0 one can choose the positive output widths, as
+small as desired, so that for all sufficiently large N divisible by the fixed
+type denominators, a direct sum of exp(o(N)) independent copies of B_N has a
+linear restriction to at least floor(exp(N(E - eps))) independent copies of
+Q_N. Reading it: the yield of one joint step is exp(N E) identical outputs,
+the worst side sets the price, the entry cost is only exp(o(N)) input copies
+which is subexponential and therefore free in every exponent computation, the
+outputs are literally identical (which Schonhage's inequality demands), and all
+choices precede the limit in N. The phrase "does not require common strand
+lengths" is the whole point: populations from different splitting depths can
+share one extraction, so capacities from different depths are added before the
+minimum is taken. The arithmetic fact behind that is
+  sum over r of min_W v_{r,W} <= min_W sum over r of v_{r,W}
+for capacity vectors v_r in R^3: pooling can only help, and a shortage on one
+side at one depth can be paid by a surplus at another depth.
+
+
+Exercise: Counting words of a given type. How many sequences of length m have
+empirical law exactly p, and what is the logarithm?
+If p is a law on a finite alphabet A and m p(a) is an integer for every a, the
+number of words whose empirical distribution equals p is the multinomial
+  m! / prod_{a in A} (m p(a))! .
+Taking logarithms and using log(n!) = n log n - n + O(log(n+2)) for each
+factorial, this equals
+  exp( m H(p) + O(log(m+2)) ) .
+The number of possible types is at most (m+1)^(|A|), so summing over types
+costs only a polynomial factor, that is exp(O(log N)) at N scale. Both bounds
+are uniform on a fixed alphabet, and they remain correct when some p(a) is
+zero, since 0! = 1. Every counting argument in the extraction is an instance
+of this formula: an exact type is a strong condition, worth exp(m H(p)) words,
+and an extra statistical test costs entropy.
+
+Exercise: The number of target triples. Show that
+|T_N| = exp( N A_amb + O(log N) ).
+In population r, the coarse sequence of triples must have empirical law
+exactly p_r, so the number of possible sequences is, by the word count above,
+exp(m_r H(p_r) + O(log N)) with m_r = c_r N. The three sides of a target triple
+are one sequence of triples (the "coarse block at every position" records all
+three sides at once), so multiplying over populations gives
+  |T_N| = exp( N * sum_r c_r H(p_r) + O(log N) ) = exp(N A_amb + O(log N)) ,
+because each population contributes O(log N) and there are finitely many
+populations. Recall A_amb = sum_r c_r H(p_r). This is the raw supply of
+possible outputs before any collision test; the extraction's job is to keep
+about exp(N E) of them and throw the rest away.
+
+Exercise: The degree bound on one side. How many ambient triples can share a
+fixed first-side block?
+Fix a coarse sequence on the first side, and suppose it has the correct
+marginal type in every population (otherwise no target contains it, and the
+bound is trivial). In population r, a candidate ambient joint type q_r must
+have the same marginals, and given the fixed first-side word the number of
+ways to complete it to a full triple sequence is
+  prod_i (m p_{r,X}(i))! / prod_u (m q_r(u))!
+   = exp( m (H(q_r) - H(p_{r,X})) + O(log N) ) .
+Summing over the polynomially many possible q_r, and using maximality of p_r,
+which gives H(q_r) <= H(p_r), yields at most
+  exp( m (H(p_r) - H(p_{r,X})) + O(log N) )
+completions in population r. Multiplying over populations,
+  number of ambient triples at a fixed X block
+   <= exp( N (A_amb - C_X) + O(log N) ) ,
+since C_X = sum_r c_r H(p_{r,X}). The same statement holds with X replaced by
+Y or Z. This is the entire reason the first test is efficient: the first side
+has only exp(N C_X) distinguishable blocks on average, but exp(N A_amb) triples,
+so each block is claimed by only exp(N(A_amb - C_X)) triples. Throughout, all
+these counts ignore the fine masks, which only deletes variables, so they
+bound every interaction that could actually occur.
+
+Exercise: Compatibility. Define the pair filter and the compatibility of a
+fine side variable.
+In a sharing population, and for a side W in {Y,Z}, first impose the pair
+filter: the empirical ordered-pair law of the two half statistics must lie
+within a fixed width eta of the pair law D_W. This is the inherited input mask
+of the previous blocks. Then, for a candidate target triple, a fine side
+variable is compatible with it if its statistic type lies within a fixed width
+chi of the prescribed law in every designated shape class, separately on the
+two halves: the left positions of a class labelled u use nu_{u,W}, and the
+right positions of the class labelled u use nu_{g-u,W}. No individual
+compatibility test is imposed on a residual group, including a residual group
+that happens to contain a single shape. The positions belonging to each tested
+class are read off from the candidate triple. Ordinary populations impose no
+compatibility test at all. For the whole product of populations, a variable is
+compatible if and only if it is compatible in every population. Compatibility
+is a property of one side variable and one candidate triple; the lemma below
+bounds how many triples one variable can be compatible with.
+
+Exercise: Choosing the modulus. How large is M, and why?
+Fix a small slack delta > 0. Since E <= C_X <= A_amb, the number
+A_amb - E + delta is positive. Choose M = 37^k, that is a power of 37 large
+enough that
+  log M = N (A_amb - E + delta) + O(1) .
+A power of an odd prime is used for two reasons: 2 is invertible modulo M, so
+the hash of the third side can be defined with a division by 2, and 37 exceeds
+every possible nonzero difference of coarse indices (which are at most 16 in
+absolute value), so such differences are invertible. The exponent is
+deliberately chosen to sit strictly between A_amb and A_amb - E: strictly
+below the number of candidates, so that collisions are rare; strictly above
+the entropy deficit, so that a target triple has a decent chance of surviving.
+
+Exercise: The Behrend set. Construct a subset U of Z/MZ with no nonconstant
+three-term progression, and bound its size.
+Put h = floor(sqrt(log M)) and b = floor(M^(1/h)/2). For a vector
+d = (d_0,...,d_{h-1}) with each d_j in {0,...,b-1}, encode
+  n(d) = sum_{j=0}^{h-1} d_j (2b)^j .
+Choose a largest class of vectors with the same value of sum_j d_j^2 and let U
+be the set of their encodings. Sizes: every encoding is less than (2b)^h / 2,
+which is at most M/2 because 2b <= M^(1/h); hence a congruence
+x + z = 2y modulo M among encodings is an ordinary integer equation (no
+wraparound), because both sides lie in [0, M). In the equation n(d) + n(e) =
+2n(f), every digit sum is at most 2b-2, so there is no carry in base 2b, and
+the equation degrades to d + e = 2f digit by digit. Taking squared norms,
+  ||d - e||^2 = 2||d||^2 + 2||e||^2 - ||d + e||^2 = 0,
+so d = e, hence also f = d, and the progression is constant. The number of
+possible values of sum_j d_j^2 is at most 1 + h (b-1)^2, so one class has size
+at least b^h / (1 + h b^2). With b >= M^(1/h)/4 and b <= M^(1/h), this gives
+  log |U| = log M - O(sqrt(log M)) .
+The point of the set is negative: it forbids exactly the coincidences that
+would let a hash collision happen for a structural reason. It costs only a
+subexponential factor, which is free.
+
+Exercise: The three hashes. Define x, y and z, and show that a surviving
+triple has all three equal.
+Concatenate the coarse indices of all positions, over all populations, into
+three words I (first side), J (second side), K (third side). Let S be the word
+that has, at the positions of population r, the constant value s_r. Every
+ambient triple satisfies I + J + K = S, because that identity holds position by
+position. Choose uniformly and independently a scalar offset a, a second
+offset b', and a vector v over Z/MZ, and put
+  x(I) = a + <v,I> ,
+  y(J) = b' + <v,J> ,
+  z(K) = ( a + b' + <v, S - K> ) / 2 ,
+where <v,I> = sum_j v_j I_j. Division by 2 is legitimate since M is odd. Keep
+only those coarse blocks whose hash lies in U. If a triple survives, all three
+hashes are elements of U and x + y = a + b' + <v, I+J> = a + b' + <v, S - K> =
+2 z. So x, y, z are three elements of U with x + y = 2z, and since U has no
+nonconstant progression, x = y = z. In words: the hash is designed so that any
+surviving triple has a single hash value on all three sides, and the set U
+turns "one value on all three sides" into "the same value, and no accidental
+alternative".
+
+Exercise: Survival probability. What is the probability that a fixed ambient
+triple survives the hash, and what is the conditional distribution afterwards?
+For a fixed triple e let S_e be the event that all three of its hashes land in
+U. For every choice of v and every t in U there is exactly one pair of offsets
+(a,b') producing x = y = z = t, so
+  Pr(S_e) = h_M := |U| / M^2 .
+Conditioned on S_e, the pair (v, t) is uniform on (Z/MZ)^d x U, where d is the
+total number of positions. This clean conditional statement, with no further
+hash-dependent information, is what allows the later loss estimate to be
+conditioned on S_e alone; that separation is what makes inherited masks
+survivable.
+
+Exercise: Collision probability. Given that e survives, what is the chance
+that another triple sharing one of its blocks also survives?
+Let e' be a distinct ambient triple sharing, say, the first-side block with e.
+Its differences (Delta I, Delta J, Delta K) satisfy Delta I + Delta J + Delta K
+= 0, and since e' is not e, at least one of these differences is nonzero.
+Two distinct triples cannot share two of the three blocks, by the common sum
+identity, so Delta J is nonzero in the shared-first-side case. The hash of e'
+is then
+  x = t + <v,Delta I> , y = t + <v,Delta J> , z = t - (1/2) <v, Delta K> ,
+and survival of e' given S_e is equivalent to <v, Delta J> = 0. The vector
+Delta J has a nonzero coordinate of absolute value at most 16, which is a unit
+modulo 37^k; conditioning on all other coordinates of v leaves exactly one
+value for that coordinate, so
+  Pr( S_{e'} | S_e ) = 1/M
+for every distinct triple e' sharing a block with e. The same argument, with
+Delta I in place of Delta J, handles the cases of sharing the second or the
+third side. No other hash-dependent event is included in this conditioning, so
+the estimate composes with the compatibility count of the next blocks.
+
+Exercise: Lemma (Compatibility Incidence Count). State the bound.
+For fixed population data there is a function xi(eta,chi) tending to 0 as
+(eta,chi) tends to (0,0), such that any fine side variable passing the pair
+filters is compatible with at most
+  exp( N (A_amb - C_W + xi(eta,chi)) + O(log N) )
+target triples that contain its coarse block, before hashing, for W = Y and
+W = Z. The estimate is uniform in the variable and in the arrangement of the
+target. In words: compatibility is almost as restrictive on the later sides as
+the exact type was on the first side, up to an error xi that the extraction
+drives to zero by shrinking the two widths. Since C_W >= E, this bound
+together with the 1/M collision probability will give an exponentially small
+chance that a variable's chosen output is stolen by a competitor.
+
+
+Exercise: Proof of (Compatibility Incidence Count), part 1: the exact double
+count.
+Consider first one sharing population of size m, and fix the coarse word k on
+side W. If k does not have type p_W, no target contains it and the bound is
+immediate, so assume it does. Let C be the set of shape words (u_1,...,u_m) of
+type p with u_{j,W} = k_j for every position j; such a word determines a
+complete coarse triple, so C is exactly the set of candidates containing the
+fixed block. If the given fine variable has pair-statistic word
+z = ((a_1,b_1),...,(a_m,b_m)) with empirical law D', let B be its orbit under
+the group
+  Gamma_k = prod_i Sym{ j : k_j = i } ,
+the permutations of positions that preserve the coarse value on side W.
+Gamma_k acts transitively on B by definition, and on C because all shape counts
+within every coarse class are fixed by the type condition. Compatibility is
+defined by a statistical test on each class, so it is unchanged when the same
+permutation is applied to a candidate and to a statistic word. Therefore the
+two incidence degrees
+  a = #{ z in B : z is compatible with c } ,
+  b = #{ c in C : z is compatible with c }
+do not depend on the choice of c in C and z in B respectively. Counting pairs
+(c,z) with c compatible with z in the two possible orders gives the exact
+finite identity
+  |C| a = |B| b .
+The two sizes are multinomials, by the word-count block:
+  |C| = prod_i (m p_W(i))! / prod_u (m p(u))! ,
+  log |C| = m (H(p) - H(p_W)) + O(log(m+2)) ,
+  |B| = prod_i (m p_W(i))! / prod_{a,b} (m D'(a,b))! ,
+  log |B| = m (H(D') - H(p_W)) + O(log(m+2)) .
+Everything so far is exact; no estimate has been made.
+
+Exercise: Proof of (Compatibility Incidence Count), part 2: bounding one
+degree and concluding.
+Fix a candidate c in C. This fixes the position set of every left and every
+right compatibility group. Look at the left half first. Compatibility specifies
+the law within each designated group to accuracy chi. The row sums of D' give
+the total count of each statistic among the positions with a given coarse value,
+because the map rho_W sends a statistic to the weight sum of its half. Subtract
+the counts already assigned to the designated groups; what remains, in the
+residual group with coarse value i, is the law
+  ( sum_{u in G} p(u) nu_{u,W} ) / p(G)
+up to an error that vanishes with eta and chi. Explicitly, each coordinate
+error is at most (|A_{r,W}| eta + chi) / p(G): summing one row of D' costs at
+most |A_{r,W}| eta, and the weighted errors of the subtracted designated laws
+total at most chi, while p(G) is a fixed positive number. A product of
+multinomial counts over these now-fixed position sets, followed by a sum over
+polynomially many types, bounds the number of left-half statistic assignments
+by
+  exp( m (J_W + o_{eta,chi}(1)) + O(log(m+2)) ) .
+For the right half, use the column sums of D'. Its coarse value at position j is
+g_W - k_j, so the column sums determine exactly the analogous aggregate counts;
+the right half-shape law is p(g-u) = p(u), which gives the same entropy J_W,
+and the actual right prescription is nu_{g-u,W}. Counting the two halves
+independently is legitimate because dropping the requirement that they
+reassemble the exact pair law D' only enlarges the count. Hence
+  a <= exp( m (2 J_W + o_{eta,chi}(1)) + O(log(m+2)) ) ,
+with no factor for choosing group locations, those having been fixed with c. Now
+the identity of part 1 and uniform continuity of entropy on the finite simplex
+give, since log|B| = m(H(D') - H(p_W)) + O(log m) and D' is within eta of D_W,
+  b <= exp( m ( H(p) - H(D_W) + 2 J_W + o_{eta,chi}(1) ) + O(log(m+2)) )
+     = exp( m ( H(p) - C_{r,W} + o_{eta,chi}(1) ) + O(log(m+2)) ) .
+For an ordinary population every candidate is compatible, and the count is
+exp(m(H(p) - H(p_W)) + O(log m)) directly, matching the same form because
+C_{r,W} = H(p_{r,W}) there. The candidate sets, the permutation groups, and the
+compatibility conditions all factor over populations, so multiplying over r and
+using C_W = sum_r c_r C_{r,W} gives
+  exp( N (A_amb - C_W + xi(eta,chi)) + O(log N) )
+with xi(eta,chi) = o_{eta,chi}(1). Shrinking eta and chi shrinks xi; there are
+only finitely many populations, classes, and statistic coordinates, so one
+choice of xi serves all of them.
+
+Exercise: The first test: eligibility. What exactly is deleted, and how likely
+is a target to survive it?
+On the first side, delete every coarse block unless it belongs to exactly one
+ambient triple that survived the hash and that triple is a target. Call the
+retained triples eligible, and freeze this list once and for all: later tests
+never revisit it. Fix a target triple e with survival event S_e; conditional
+only on S_e, the number of competing ambient triples at e's first-side block is
+at most exp(N(A_amb - C_X + o(1))) by the degree bound, and each of them
+survives the hash with probability 1/M by the collision estimate. Since
+log M = N(A_amb - E + delta) + O(1), the expected number of surviving
+competitors is at most
+  exp( N (A_amb - C_X + o(1)) ) / M
+   = exp( N (E - C_X - delta + o(1)) ) <= exp( - delta N + o(N) ) ,
+because C_X >= E. So e is rejected with probability at most
+exp(-delta N + O(log N)). After the test, every retained first-side block has an
+unambiguous assigned triple. In that block, keep only the fine variables useful
+for the assigned triple, that is, those satisfying its output windows; this is a
+deletion of individual variables only.
+
+Exercise: The second and third tests. How are variables on the other two sides
+assigned, and why is one test per side enough?
+On the second side, first impose the pair filters. Then delete every fine
+variable that is compatible with other than exactly one eligible triple
+containing its coarse block; assign the retained variable to that triple and
+impose usefulness for the assignment. Do exactly the same on the third side,
+using the designated classes I_Z (which is legitimate because after the second
+test the second side is exact, and matching transfers its conditions). All
+inherited masks are applied as side-variable deletions and never alter the
+frozen eligible list or the definitions of the compatibility lists. No
+iteration is needed: a variable is examined once, against a list fixed in
+advance, and either it has a unique compatible triple or it dies. The design of
+the designated sets I_Y and I_Z is what makes one pass sufficient: every shape
+class that could otherwise require a second look is either tested exactly (via
+a transferred condition) or deliberately left untested and absorbed into the
+grouped entropy.
+
+Exercise: Why is the survivor a direct sum, not merely a list of pieces?
+Take a monomial that survives every deletion, and let e be its ambient coarse
+triple. Its first-side block survived, so e is that block's unique eligible
+triple, and its first-side variable is useful for e. Consider any sharing half
+with u_Z = 0: there the second and third sides match by complementation, so the
+actual second-side statistics are determined by the first-side ones, which are
+already useful for e; hence the actual second-side variable is compatible with
+e, and the uniqueness test assigns it to e. Now side three. For a half with
+u_Y = 0 the needed statistics transfer from the first side; for a half with
+u_X = 0 and u_Y > 0 they transfer from the second-side variable, which is now
+known to be useful; and when u_X = u_Y = 0 the third-side variable is forced.
+These are precisely the classes in I_Z, so the actual third-side variable is
+compatible with e, and the uniqueness test assigns it to e as well. Ordinary
+populations add no compatibility condition in either argument. Therefore all
+three variables of every retained monomial carry the same assignment. Different
+assignments share no retained fine variable, on any side, because each retained
+variable has exactly one assignment. Inside a fixed assignment e, usefulness
+cuts the block down to exactly Q_e, and all other tests delete individual
+variables of Q_e. So the surviving tensor is a direct sum of tensors Q_e with
+holes, each obtained from its ideal Q_e solely by deleting individual variables.
+This conclusion is about complete variables of the population product; sharing
+a local coordinate factor between two complete variables does not identify them.
+
+Exercise: The loss estimate. Why is the chance that a chosen variable is
+deleted exponentially small?
+Fix e and fix a variable v of Q_e that passes all its deterministic inherited
+and pair masks. Own-triple compatibility and usefulness hold for it by
+definition of Q_e. Let R_{e,v} be the union of two events: the first-side
+eligibility failure of e, and, when v lies on the second or third side, the
+events that some other target triple compatible with v and sharing its coarse
+block survives the hash. Every random deletion of v is contained in R_{e,v}:
+the only ways v can be lost are losing its own assignment or losing a
+uniqueness contest. Competitors are bounded among all target triples, before
+eligibility and before the other deletions, which only makes the bound larger
+and the argument safer. The incidence count and the collision estimate give, for
+some constant c > 0,
+  Pr( R_{e,v} | S_e ) <= exp(-c N) ,
+uniformly in e and in the passing variable, for all large N; the exponent on
+side W is at most N(E - C_W - delta + xi) + O(log N), and C_W >= E, so a small
+delta and xi give c > 0. Two features of this estimate matter for what follows.
+It is conditioned on S_e only, never on eligibility and never on passing a
+hash-dependent test, so it can be averaged over variables without conditioning
+paradoxes. And it is uniform, so the union bound over polynomially many orbits
+later costs only a polynomial factor.
+
+Exercise: The symmetry group and its orbits. Which permutations preserve an
+ideal output, and how many orbits do they have?
+Let G_e act by independent position permutations inside every ideal child class,
+that is, inside every class of positions with given (r, u, half), acting
+simultaneously on all three sides; in ordinary whole-strand blocks use their
+position permutations, and for a factorized ordinary block one may additionally
+permute its child factors independently. Each such permutation preserves the
+tensor factors and the child-side type windows, so it is an automorphism of
+Q_e: it sends monomials with their coefficients to monomials with the same
+coefficients. The action is on complete variables, since a symbol records the
+entire child word including its weight-one labels. The number of orbits is
+small: an orbit is specified by the multiplicity of every symbol in every
+class, so on side W there are at most prod_c (n_c + 1)^(|A_{c,W}|) orbits, with
+n_c = c_c N the class size and |A_{c,W}| the fixed alphabet size. That is
+O(N^d) for a fixed integer d depending only on the population data. Polynomial
+many orbits, each losing at most exp(-cN) in probability, will give an
+exponentially small total failure probability in the next section.
+
+
+Exercise: Lemma (Uniform Loss from Masks). State the bound on how much of an
+orbit the deterministic masks destroy.
+Fix all population masses, rational laws and positive tolerances before N
+grows, and omit classes of zero mass. Write Q_e for the ideal child product of
+a target triple e, including its prescribed child-side type windows but before
+inherited masks and before global pair-frequency masks. Keep distinct the
+population, its previous history, its exact parent split triple, and its left or
+right half; each such class has n_c = c_c N positions with c_c > 0 fixed. Let
+G_e be the product of symmetric groups on these classes, acting simultaneously
+on the three sides. The number of G_e-orbits of variables on the three sides is
+polynomial in N, uniformly in e. Suppose every inherited or global mask is
+either implied by the exact coarse choices, or tests an empirical ordered pair
+of child statistics (or a fixed function of that pair) against its prescribed
+mixture law with a fixed positive tolerance. Choose the child tolerances
+sufficiently smaller than the mask tolerances, with the mixture laws consistent
+as in the joint step. Then there is a constant C_0, depending only on the fixed
+data and tolerances and not on e, on the orbit, or on N, such that in every
+full-variable orbit of every side the fraction of variables failing any of these
+deterministic masks is at most C_0/N.
+
+Exercise: Proof of (Uniform Loss from Masks), part 1: the mixture stays inside
+the window.
+Let A_{c,W} be the finite alphabet of complete child variables on side W in
+class c. An orbit is specified by the multiplicity of every symbol in every
+class, so the number of orbits on side W is at most prod_c (n_c+1)^(|A_{c,W}|),
+a polynomial in N; child type windows only select some of these orbits, and the
+alphabets include all labels even when a mask uses a much coarser statistic.
+Now take one mask with tolerance eta > 0 on a population of size m = c N. Its
+tested law is an ordered-pair mixture. Write the exact parent-triple classes as
+a, with weights w_a = n_a/m, and let q_{a,L}, q_{a,R} be the empirical statistic
+laws of the two halves in a fixed orbit. For the prescribed laws nu_{a,L},
+nu_{a,R} the child windows give coordinate errors at most tau. If a coarsening
+of a child statistic is needed, choose its original window smaller by the fixed
+alphabet size, so the same assertion holds for the statistic actually tested.
+The elementary inequality
+  |q_{a,L}(s) q_{a,R}(t) - nu_{a,L}(s) nu_{a,R}(t)| <= 2 tau
+shows that the mean mixture differs from sum_a w_a (nu_{a,L} otimes nu_{a,R}) by
+at most 2 tau in each coordinate. If the mask centre differs from that
+prescribed mixture by coordinatewise error at most alpha <= eta/4, then choosing
+tau <= eta/8 leaves a margin of at least eta/2 inside the mask's acceptance
+interval; for the consistent rational prescriptions used here alpha = 0. The
+same margin holds for orbits sitting at the boundary of a child window, because
+the estimate is coordinatewise.
+
+Exercise: Proof of (Uniform Loss from Masks), part 2: Chebyshev over a random
+permutation.
+Now uniformly permute an element of the orbit. Inside one parent-triple class of
+size n, the two half-statistic words are arranged independently. If the
+frequencies of the symbols s and t are a and b, the paired count K_{s,t}
+satisfies, for n >= 2,
+  E K_{s,t} = n a b ,
+  Var K_{s,t} = n^2 a(1-a) b(1-b) / (n-1) <= n/8 .
+Here is the computation. Fix the positions of the n a occurrences on the left;
+the indicators that the right symbol is t have mean b, variance b(1-b), and
+covariance -b(1-b)/(n-1) at distinct positions; summing over the n a positions
+gives the formula. The bound is uniform over a, b in [0,1], including
+deterministic symbols. Different parent-triple classes use independent
+permutations, so the variance of a pair count summed over a population of size m
+is at most m/8. Chebyshev's inequality and the acceptance margin give
+  Pr( | (sum_a K_{s,t}^(a))/m - E (sum_a K_{s,t}^(a))/m | > eta/2 )
+   <= (m/8) / (m^2 eta^2/4) = 1/(2 c eta^2 N) .
+For a mask on a fixed function of the ordered pair, a coordinate of the
+pushed-forward law is a sum of at most B pair coordinates with B fixed; choose
+tau <= eta/(8B) and apply the previous bound to each pair coordinate with
+threshold eta/(2B), then sum the coordinate errors and take a finite union
+bound. All positive classes eventually have size at least two. There are only
+finitely many masks and statistic coordinates, so another finite union bound
+gives C_0/N. A uniform group element sends any fixed variable uniformly over its
+full orbit, so this probability is exactly the rejected fraction of that orbit,
+and no conditioning on passing a mask was used. Taking the minimum over the
+finitely many positive tolerance gaps and positive population masses makes C_0
+uniform, as claimed. A statistic that is itself an ordered pair is simply a
+symbol of a larger fixed alphabet, and masks implied by the exact coarse choices
+cause no loss at all.
+
+Exercise: Lemma (Exact Repair by Presence Masks). State the reconstruction
+statement.
+Let Q_N be a tensor over an arbitrary field with at most exp(bN) nonzero
+monomials, for a fixed b > 0, and let G_N be a finite group of
+coefficient-preserving permutations of its variables acting separately on the
+three sides. Suppose a variable restriction H_N of Q_N omits at most C/N of each
+G_N-orbit of variables, for a fixed C > 0; recall that a variable restriction
+means some basis variables are set to zero and all coefficients on the remaining
+variables keep their original values. Then for all sufficiently large N a
+direct sum of R_N = exp(O(N/log N)) copies of H_N has Q_N as a linear
+restriction, and every coefficient is reconstructed exactly once. The bound is
+uniform over all H_N, Q_N, G_N satisfying the same constants. Note that
+R_N = exp(O(N/log N)) is exp(o(N)), which is exactly the input budget the joint
+step allows.
+
+Exercise: Proof of (Exact Repair by Presence Masks), part 1: random shifts
+cover every monomial.
+Put gamma = C/N and, for N > 3C, choose
+  L = ceil( (b+1) N / log(N/(3C)) ) = O(N/log N) .
+Take L independent uniform elements g_1,...,g_L of G_N. A fixed ideal variable
+is absent from g_i H_N with probability at most gamma, since each orbit loses at
+most that fraction and a uniform shift sends the variable uniformly over its
+orbit. For a fixed nonzero monomial x y z of Q_N, the union bound on its three
+variables makes its probability of absence at most 3 gamma. Independence of the
+L shifts followed by a union bound over the support bounds the probability that
+some monomial is uncovered by
+  exp(bN) * (3 gamma)^L <= exp(bN - (b+1)N) = exp(-N) < 1 ,
+using log(3C/N) = -log(N/(3C)) and L log(N/(3C)) = (b+1)N up to rounding. So
+some family of shifts covers every nonzero monomial; fix such a family. The
+group need only preserve Q_N; it is allowed to move the holes of H_N.
+
+Exercise: Proof of (Exact Repair by Presence Masks), part 2: presence masks
+supply every coefficient exactly once.
+For an ideal variable x define its presence mask
+  A(x) = { i in {1,...,L} : x is retained in g_i H_N } ,
+and define B(y), C(z) similarly for the other two sides. Partition each side
+into the classes of variables with equal mask; there are at most 2^L classes per
+side. For every triple of classes (A,B,C) whose rectangle X_A x Y_B x Z_C
+contains a nonzero monomial of Q_N, coverage implies A intersect B intersect C
+is nonempty; choose one index i(A,B,C) in that intersection. All variables of
+those three classes are present in g_{i(A,B,C)} H_N, and since that tensor is a
+variable restriction of Q_N, its restriction to the rectangle is the full ideal
+tensor on the rectangle with every original coefficient. Now use a separate
+copy of H_N for each such rectangle, permute that copy by the chosen
+g_{i(A,B,C)}, and zero all its other variables. In the direct sum of these
+rectangular tensors, map the copied variable (A,B,C,x) to the ideal variable x,
+and similarly on the other two sides; these are ordinary linear maps acting on
+variables. Every nonzero monomial x y z belongs to exactly one triple of mask
+classes, so its coefficient is supplied once and only once. Identifying a
+variable that appears in several rectangles introduces no extra monomials,
+because linear maps act on the sum of the existing tensor terms. No division is
+used and no characteristic is excluded. At most 2^(3L) copies are used, and
+padding with unused copies gives the asserted common bound R_N.
+
+Exercise: Completion of (Heterogeneous Joint Step). How do the pieces give
+exp(N(E - eps)) identical outputs?
+Use the hash slack delta from before, with all entropy errors chosen smaller
+than a fixed fraction of that slack. For a target triple e let S_e be its
+survival event, Pr(S_e) = h_M = |U|/M^2, and let P_e(v) denote the deterministic
+assertion that an ideal variable v of Q_e passes its inherited and global masks.
+Membership in Q_e together with the tolerance inclusions supplies usefulness and
+compatibility with its own triple. Step 1: deterministic losses. For every
+G_e-orbit O of variables, the mask lemma gives
+  d_{e,O} = |{ v in O : not P_e(v) }| / |O| <= C_0/N .
+Step 2: random losses. For a passing variable v let R_{e,v} be the bad event
+defined earlier, and put
+  r_{e,O} = ( 1/|O| ) * sum over v in O with P_e(v) of [ 1 if R_{e,v} ] .
+By linearity of expectation, E(r_{e,O} | S_e) <= exp(-cN); variables failing
+P_e contribute to d_{e,O} and need no collision estimate. If P(N) = O(N^d)
+bounds the number of orbits on all three sides, Markov and a union bound give
+  Pr( some O has r_{e,O} > 1/N | S_e ) <= N P(N) exp(-cN) = exp(-cN + O(log N)) .
+Step 3: good triples. Call e good if it survives hashing, stays eligible, and
+all these random fractions are at most 1/N. Then every good e has missing
+fraction at most gamma_N = (C_0+1)/N in each orbit, and the eligible list stays
+the fixed list used in the assignment. Step 4: count them. With
+log M = N(A_amb - E + delta) + O(1) and log|U| = log M - o(N), the expected
+number of good triples is at least
+  exp(NA_amb + O(log N)) * h_M * (1 - exp(-cN + O(log N)))
+   = exp( N(E - delta) - o(N) ) .
+So one hash choice has at least this many good triples, up to integer rounding;
+no independence between different targets was used. The assignment proof has
+already made the holed outputs H_e disjoint, so discard all other outputs.
+Step 5: repair. Every ideal Q_e has at most exp(bN) monomials: a product on at
+most aN sites of CW_5, which has 3*5+3 = 18 terms, has at most 18^(aN) terms
+before masks, so any b > a log 18 works. Apply the repair lemma with C = C_0+1
+to every good output; one common R_N = exp(O(N/log N)) serves all of them,
+because
+  oplus_{r=1}^{R_N} oplus_{e in G} H_e = oplus_{e in G} oplus_{r=1}^{R_N} H_e
+and the same replication slots supply each summand with R_N copies. The number
+of summands does not multiply the replication cost. Step 6: canonicalize. Exact
+target types give the same number of factors in every population, history,
+split-triple and half class for every e, so simultaneous position relabelings
+within each population put the repaired ideal tensors in a fixed canonical
+order, without permuting the physical sides. This uses only the repaired ideal
+tensors and their child windows; no invariance of an earlier hole pattern is
+needed. Choose 0 < delta < min(E, eps) and then N large enough to absorb the
+o(N) term; the result is at least exp(N(E - eps)) identical ideal outputs
+obtained from exp(o(N)) input copies, as the theorem claims.
+
+Exercise: Lemma (Replication and Composition). State it, and explain why a
+finite sequence of extractions is cheap.
+Write D_r(T) = oplus_{i=1}^{r} T for r copies of T, and write A <= B when A is a
+linear restriction of B. If D_{s1}(T) <= D_{r1}(S) and D_{s2}(V) <= D_{r2}(T),
+then D_{s1 s2}(V) <= D_{r1 r2}(S). Also, for any finite collection,
+  otimes_{i=1}^{j} D_{r_i}(F_i) = D_{prod_i r_i}( otimes_{i=1}^{j} F_i ) .
+The proof is two lines. Take r_2 copies of the first restriction and reorder
+their direct sum as D_{s1}(D_{r2}(T)); apply the second restriction separately
+to its s_1 disjoint blocks. This gives the first identity with r_1 r_2 source
+copies, whatever s_1 is. The second identity is direct-sum distributivity: its
+summands are indexed by the choice of one replication slot for each factor, so
+there are prod r_i of them. Different maps in different direct-sum branches are
+allowed provided a common upper bound on their replication counts is used, since
+unused slots can be padded. Consequently every fixed finite sequence of joint
+extractions, and every finite tensor product of them, costs only exp(o(N))
+replications of its original input: products of finitely many exp(o(N))
+quantities are exp(o(N)), and for a fixed finite set of population
+specifications all positive sizes are cN with c > 0 fixed, so a local o(cN) is
+also o(N).
+
+Exercise: Subdivision restriction. Can a received population be split into
+fixed parts before its next use, and at what cost?
+Let B be the strand tensor of a received population, let nu_W be the prescribed
+statistic law on side W, and let U(m, nu, eta) be the restriction of B^{otimes m}
+to the three coordinatewise type windows with tolerance eta. Partition the
+positions into fixed parts of sizes m_1,...,m_j, and on each part use the same
+laws and a positive tolerance eta_i <= eta. Then there is an exact variable
+restriction
+  otimes_{i=1}^{j} U(m_i, nu, eta_i) <= U( sum_i m_i, nu, eta ) .
+The reason is that the empirical law of a concatenated variable is the weighted
+average of its partwise empirical laws, with error at most
+sum_i (m_i / sum_j m_j) eta_i <= eta, so every retained variable satisfies the
+original window; and after the partwise masks are imposed no condition couples
+different parts, which gives exactly the displayed product. Different side
+tolerances are handled in the same way. Apply this separately inside every
+received history class, since classes with different prescriptions stay
+distinct. The restriction need not retain a large fraction of the earlier
+variables, and that is fine: the next joint step starts from this exact product,
+with its own positive population masses and its consistent inherited laws, so it
+supplies its own yield and its own mask analysis.
+
+Exercise: The tolerance hierarchy. Why can all the widths be chosen before N
+grows, and why does the recursion not break?
+At each step, first make the global and compatibility tolerances small enough
+for the entropy errors allowed by that step's hash slack, then choose the child
+windows smaller than all those tests and smaller than all inherited windows they
+must satisfy, then repeat toward the descendants. There are finitely many
+constraints, and each one allows a strictly positive choice, so the procedure
+terminates with positive numbers. All constants in the recovery and composition
+lemmas may depend on this fixed finite calculation, and the limit in the strand
+count N is taken only after all the choices are made. This is the precise sense
+in which the proof avoids any uniformity in a number of populations or a number
+of stages that grows with N: the schedule and its lot count K are fixed first,
+and only then does N tend to infinity.
+
+
+Exercise: Lot and stages. What is a lot, and what are stages A, B and C?
+A lot consists of N strands of length 8, hence of 8N copies of CW_5. Its
+positive shapes pass through three splitting stages in order: stage A splits
+length 8 into two halves of length 4, stage B splits length 4 into two halves
+of length 2, and stage C splits length 2 into two halves of length 1. Every
+shape with a zero coordinate terminates immediately and is already a matrix
+multiplication tensor, with the volume computed in the block on zero
+coordinates. Stages A and B are sharing populations, because a strand is cut in
+two and the two halves must be prescribed separately. Stage C is an ordinary
+population, because a length-1 shape is terminal and there is nothing further to
+prescribe. The joint step of the earlier sections allows populations from
+different stages to sit inside one extraction, which is exactly what the
+schedule needs.
+
+Exercise: The initial law and H_0. Where does the initial yield come from?
+Choose a symmetric product-weight law on the ordered shapes of size 16: its
+probability at (a,b,c) is proportional to alpha_a alpha_b alpha_c, where every
+alpha_j > 0 and a+b+c = 16. Write A_g for the resulting probability of the
+sorted shape g, so that the multiplicity of the distinct permutations of g is
+already included in A_g. If rho_g gives mass 1/3 to each coordinate of g,
+counting multiplicities, define the common marginal and the initial ordinary
+yield by
+  mu = sum_g A_g rho_g ,   H_0 = H(mu) .
+The product-weight form is what makes mu the marginal of the coarse law: a
+single coordinate of a product law has law mu, and the three coordinates have
+equal marginals by symmetry. Because the law on ordered triples is a product
+law, it maximizes entropy among all laws with those marginals, which is the
+condition the joint-step theorem needs. So the initial extraction is an ordinary
+extraction with coarse law the ordered shape law, whose ambient support is
+{(a,b,c) : a+b+c = 16}, and its three capacities all equal H(mu) = H_0. Its
+yield is exp(N(H_0 - o(1))) identical products of shape tensors, after the
+arbitrarily small losses of the joint step.
+
+Exercise: Physical placements of labels. Why is a shape with ties split into
+several classes, and how much does each get?
+Give each sorted g the canonical labels 0, 1, 2. Its six placements of these
+labels on the three physical sides would each receive amount N A_g / 6. When g
+has ties, several placements give the same physical shape, so this needs care.
+Let s_g be the number of label permutations that fix g. There are 6/s_g distinct
+physical shapes, and each of them must receive the total mass of the s_g
+placements that produce it, namely N A_g s_g / 6. To implement this without any
+fine mask, divide the positions of that physical shape into s_g equal classes
+and assign the distinct tied-label placements to the classes. This is a
+regrouping of full tensor factors, done before any statistical condition is
+imposed; for example, each physical arrangement of the sorted shape (4,6,6) has
+two such classes. Later laws may distinguish the two labels of weight 6, and
+descendants keep their canonical labels and are never re-sorted. Keeping labels
+is what allows the capacities to be tracked per physical side.
+
+Exercise: The stage laws and the numerical parameters. Which laws enter
+stages A and B?
+For each positive sorted g of size 16, choose a positive product-weight law
+P_g(t) on the halves
+  sum_i t_i = 8 ,  0 <= t <= g ,  P_g(t) = P_g(g - t) .
+For every positive ordered t of size 8, likewise choose a positive
+product-weight law p_t(u) on
+  sum_i u_i = 4 ,  0 <= u <= t ,  p_t(u) = p_t(t - u) .
+The symmetry is exact and is used later to count both children only once. The
+numerical data of the last section specify these two families of laws, together
+with parameters d_{t,u} in [0,1] and terminal laws z_t; infeasible subscripts
+always get probability zero. All of them are rational, which matters only for
+the certification of the numbers, not for the algebra.
+
+Exercise: The length-2 statistic and its table. What are the six statistics,
+and what is kappa?
+The statistic of a length-2 word on one side is its unordered pair of weights.
+The coding is
+  i:            0    1    2    3    4    5
+  weight pair: 00   01   11   02   12   22
+  r_i:          0    1    2    2    3    4
+  D_i:          1   10   25    2   10    1
+  kappa:        5    4    2    3    1    0
+Here r_i is the sum of the two weights, D_i counts the actual index words with
+that statistic (so 01 has ten: five choices for the weight-1 label times two
+orders; 11 has 25; 02 has two orders; 12 has ten; 00 and 22 have one each), and
+kappa is the image list for complementation, which exchanges the weights 0 and
+2 and fixes 1. So 00 is complemented by 22, 01 by 12, while 11 and 02 are
+self-complementary. The multiplicities D_i reappear in the terminal volume
+count, where they are the number of labelled words realizing a statistic, and
+they must not be confused with probabilities.
+
+Exercise: The child laws for stage B. Define v_{t,u,W}, and say when a
+parameter d_{t,u} is needed.
+For a positive t, a feasible child u, and a canonical label W, define the law
+v_{t,u,W} on the six statistics by requiring its support to lie on r_i = u_W.
+If u_W is not 2, this determines the law completely: the statistic is the unique
+one with that weight sum, so the law is a point mass. If u_W = 2, there are two
+candidates, 11 and 02, and the law puts masses 1 - d_{t,u} and d_{t,u} on them.
+So a parameter is needed precisely when u is a permutation of 022 or of 112, and
+those are exactly the shapes whose some coordinate equals 2 while the total is
+4. The parameter d_{t,u} is therefore a real number in [0,1] attached to a shape
+and a label, not to a shape alone: complementary children may have different
+values, and in the numerical data they do.
+
+Exercise: The length-4 statistic and the terminal laws. Define V_{t,W} and
+z_t, and check the complementation consistency.
+On a length-4 strand the statistic is the ordered pair of the statistics of its
+two length-2 halves: an element of {0,...,5} x {0,...,5}. For a positive t
+prescribe
+  V_{t,W} = sum_u p_t(u) * ( v_{t,u,W} otimes v_{t,t-u,W} ) ,
+the expected law of that ordered pair, where the left half has shape u and the
+right half has shape t-u. For a zero-coordinate t, let W_* be the first
+canonical label attaining max t; choose a law z_t on the ordered pairs (i,j)
+with r_i + r_j = max t; prescribe V_{t,W_*} = z_t, prescribe the point mass at
+(0,0) on any coordinate of t that vanishes, and prescribe on the remaining
+nonzero coordinate the coordinatewise kappa-image of z_t. The consistency
+condition that the joint-step theorem requires is that the two matched sides
+carry compatible laws, and it holds: complementation exchanges 01 with 12 and
+fixes 11 and 02, and r_{kappa(i)} = 4 - r_i together with D_{kappa(i)} = D_i.
+So a zero-coordinate child u satisfies the zero-side requirements of the joint
+step exactly, with no extra hypothesis on z_t. Note the two layers: z_t is a law
+on ordered pairs of length-2 statistics, while v_{t,u,W} is a law on single
+statistics; both are needed, at different depths.
+
+Exercise: Stages A, B and C. Define each stage as an extraction and give the
+capacities of stage C.
+Stage A is a sharing split of T_{8,g} with coarse law P_g, child laws V_{t,W},
+and canonical priority (0,1,2). Stage B is a sharing split of T_{4,t} with
+coarse law p_t, child laws v_{t,u,W}, and canonical priority pi(t), which is the
+lexicographically first permutation of the labels that reads t as one of
+  (1,1,6), (1,2,5), (1,3,4), (2,2,4), (3,2,3) .
+These five represent every positive size-8 shape up to permutation. The last
+entry is deliberate: it gives the middle priority to the coordinate of weight 2,
+so for t = (2,3,3) the priority is (1,0,2). The symbols here remain the
+inherited labels; nothing is re-sorted. Stage C is an ordinary split of a
+positive T_{2,u}, where u is a permutation of 112. Write the labels as (a,b,c)
+with c distinguished as the weight-2 label; in that order the four possible left
+shapes and their probabilities are
+  left shape:  (1,1,0)   (0,0,2)   (1,0,1)   (0,1,1)
+  probability: d/2       d/2       (1-d)/2   (1-d)/2
+with d = d_{t,u}, and the right shape is u minus the left one. The
+distinguished marginal forces the first two probabilities and the two
+Bernoulli-1/2 marginals force the other two, so the coupling is uniquely
+determined by its marginals, also at d = 0 and d = 1, and it has the maximum
+entropy among couplings with those marginals. Put h_b(d) = H(1-d, d) + d log 2.
+Then the three ordinary capacities are log 2, log 2 and h_b(d_{t,u}), the last
+sitting at label c. Every delivered length-1 shape has a zero coordinate and is
+already a matrix multiplication tensor, so stage C produces terminal factors and
+nothing else.
+
+
+Exercise: Consistency of the masks between stages. Why does stage C see exactly
+the conditions stage B left behind?
+Two checks. From A to B: the input law that B requires is exactly the mixture
+V_{t,W} that A prescribes, because both are defined as the same sum over the
+same half-shapes with the same child laws. So the inherited mask is consistent
+by construction, and the orbit-mask estimate applies once the child tolerances
+are chosen smaller. From B to C: after B is repaired, its ideal children carry
+the prescribed windows v_{t,u,W}. Stage C is an ordinary split, and an exact
+type in the C coupling forces the unordered frequency d_{t,u} on 02 and
+1 - d_{t,u} on 11 at the distinguished label, and forces 01 at the other labels
+of a 112 shape; hence such a type satisfies the received v_{t,u,W} windows
+exactly, with no approximation at all. One subtlety is worth stating: the
+V_{t,W} masks were constraints on the input to B, and after repair their holes
+are gone, so they are not additional constraints on the recovered children. The
+permutation used in repair preserves the ideal child tensor, and there is no
+need for it to preserve the historical pattern of holes. Complementary children
+may carry different d parameters, since each is a separate factor; both actual
+laws appear in the mixture V_{t,W}, which is why no symmetry of d is required.
+
+Exercise: Histories. What is recorded for a population, and why is nothing
+merged?
+A history records the lot, the initial sorted shape g, the placement of labels
+on the physical sides, every coarse split made so far, the left or right
+provenance of each piece, and any subsequent part allocated for a priority
+choice. Two populations with the same present shape but different histories are
+kept separate. In particular the same u arriving from two different t never has
+its d_{t,u} values merged, and the same t arriving from two different g keeps
+its two separate m_t contributions. The sums below record total amounts per
+prescription; they never combine differently prescribed populations into one.
+This is bookkeeping, not mathematics, but it is what makes the inherited-mask
+analysis of the joint step legitimate at every depth, since two populations can
+be statistically different while looking alike.
+
+Exercise: Amounts of the smaller shapes. Derive m_t and m_{t,u}.
+Measure amounts per initial length-8 strand. After summing over all histories
+while retaining their specifications, the amount of length-4 shapes of type t
+is
+  m_t = 2 * sum over positive g of A_g P_g(t) ,
+and the amount of positive length-2 shapes of type u (inside a length-4 type t)
+is
+  m_{t,u} = 2 m_t p_t(u)  for positive t .
+The factor 2 counts the left and the right child. It is legitimate because the
+coarse laws are symmetric under t -> g - t, so summing over the left children
+already accounts for exactly half the parent mass; equivalently, the parent
+split is charged exactly once when we compute capacities. Only positive t
+contributes to m_{t,u}, since a zero-coordinate length-4 shape terminates and
+never reaches stage C.
+
+Exercise: The capacity vectors L_A and L_B. Define them, and give the vector of
+one parent.
+Let L_A be the sharing-capacity vectors of stage A, weighted by A_g and summed
+over positive g, with entries written in the priority order (0,1,2). Let L_B
+be the stage B vectors, weighted by m_t and read in the order pi(t). For each
+parent, its vector is
+  ( H(p_X) , H(D_Y) - 2 J_Y , H(D_Z) - 2 J_Z ) ,
+using that parent's own coarse law and child prescriptions in the definitions
+of the joint step. So a parent contributes to position 0 the entropy of its
+first marginal, and to positions 1 and 2 the saving between the pair entropy and
+twice the grouped entropy. Both vectors are fully determined by the data: the
+laws P_g, p_t, the laws v and V, and the parameters d. No optimization is
+involved, and Table (Partial capacities) in the numerical section lists the
+partial sums by sorted shape.
+
+Exercise: The scalars T, B_* and C_*. Define them and say what they mean.
+Let
+  T    = sum over positive t, positive u of m_{t,u}         (total positive
+         length-2 amount),
+  B_*  = sum over positive t, positive u of m_{t,u} * (2 log 2 + h_b(d_{t,u}))
+         / 3 ,
+  C_*  = B_* + (1/3) * sum_{i=0,1,2} (L_A + L_B)_i .
+T is simply how much material stage C has to process. B_* is the average over
+the three priority positions of the stage C capacity, since a length-2
+population has capacities log 2, log 2, h_b(d) and any of the three may be put
+in a chosen priority position; averaging is what lets us choose how to divide
+the populations. C_* is the average over priority positions of the total stage
+capacity, because the three stages' vectors will be balanced to have equal
+coordinates, and the total of a balanced vector is 3 C_*.
+
+Exercise: Balance conditions and the fractions lambda_i. What is required for
+the balance to be possible, and how is the division made?
+The numerical certificate verifies
+  T log 2 > B_* ,   C_* - (L_A + L_B)_i < T log 2  for i = 0,1,2 .
+When these hold, set
+  lambda_i = ( T log 2 - C_* + (L_A + L_B)_i ) / ( 3 (T log 2 - B_*) ) .
+The three numerators sum to 3 (T log 2 - B_*) by the definition of C_*, so the
+lambda_i are positive and sum to exactly 1. This is the division of the work:
+divide EACH positive length-2 history class into three parts in proportions
+lambda_0, lambda_1, lambda_2. In part i, put that class's distinguished label
+(the one of weight 2) in priority position i, and order the other two labels
+increasingly in the remaining positions. This changes only the order in which
+the three side tests are made; the parent-specific parameter d_{t,u} and all
+masks stay exactly as they were. Note that the subdivision is legitimate before
+any fine mask, by the subdivision restriction block, and that different parts
+may use different tolerance widths, all fixed in advance.
+
+Exercise: The stage C vector. Show that L_A + L_B + L_C = (C_*, C_*, C_*).
+Compute entry i of the total stage C capacity. A population lying in part i has
+its distinguished label, with capacity h_b(d), in priority position i; the two
+other labels have capacity log 2 each. Therefore priority position i receives
+h_b(d) exactly from the populations of part i, that is, from an amount lambda_i
+m_{t,u} of each type, and it receives log 2 from all the populations of the
+other two parts, that is, from the remaining amount (1 - lambda_i) T. Hence
+  (L_C)_i = lambda_i * sum_{t,u} m_{t,u} h_b(d_{t,u}) + (1 - lambda_i) T log 2 .
+By the definition of B_*, sum_{t,u} m_{t,u} h_b(d_{t,u}) = 3 B_* - 2 T log 2, so
+  (L_C)_i = lambda_i (3 B_* - 2 T log 2) + (1 - lambda_i) T log 2
+          = T log 2 - 3 lambda_i (T log 2 - B_*) .
+Substituting the definition of lambda_i,
+  (L_C)_i = T log 2 - ( T log 2 - C_* + (L_A + L_B)_i ) = C_* - (L_A + L_B)_i .
+So the three coordinate sums add up to C_*:
+  L_A + L_B + L_C = (C_*, C_*, C_*) .
+This is the whole content of "capacity balance": no stage changes its own
+capacities, only the order of the tests and the proportions of the material.
+The price is a fixed boundary loss, computed below.
+
+Exercise: The six physical orders. Why does each history appear in equal parts
+in six tensor factors, and why is that a partition and not a duplication?
+Suppress the physical placement of a fixed canonical history h. The history is
+a prescription on the three abstract labels, and each of its six placements phi
+on the three physical sides receives amount a_h N / 6 for the same a_h. This is
+true initially, by the tied-label subdivision, and it stays true inductively
+because every child split and every part allocation multiplies the amount by a
+number that depends only on the canonical history. If rho_h maps priority
+positions to canonical labels, the physical priority is phi composed with
+rho_h. For any prescribed physical order sigma there is exactly one contributing
+placement,
+  phi = sigma composed with rho_h^(-1) ,
+so the six physical orders give a disjoint partition of the material: every
+history lands in exactly one factor for each order, with one sixth of its
+priority-capacity vector. This applies to the stage C parts as well as to
+stages A and B. The reason for splitting by physical order at all is that a
+joint extraction needs all its populations to agree on one common order of the
+three side tests; if the six orders were mixed inside one extraction, the
+capacities could not be added.
+
+Exercise: The schedule. What are the ticks, and what is active at each of them?
+Fix an integer K >= 2 and first perform the initial ordinary extraction on each
+of K lots. Inside every resulting summand, launch lot j at stage A on tick j, at
+stage B on tick j+1, and at stage C on tick j+2. The active stage patterns are
+  tick 1:        A
+  tick 2:        A + B
+  ticks 3..K:    A + B + C      (K - 2 of them)
+  tick K+1:      B + C
+  tick K+2:      C
+and every lot is processed exactly once at each of its three depths. At a tick,
+collect all currently active populations with one physical priority into one
+tensor factor, subdividing a received type class if needed, and apply one joint
+step to each of the six factors. A full tick, where A, B and C are all active,
+has in each factor the total priority-capacity vector
+  (1/6) (L_A + L_B + L_C) = (C_*/6) (1,1,1) ,
+whose minimum is C_*/6; multiplying the six factors' outputs gives log-yield
+approaching N C_*. The four boundary ticks instead have log-yields divided by N
+approaching
+  min L_A ,  min(L_A + L_B) ,  min(L_B + L_C) ,  min L_C ,
+where min x = min over the three coordinates of x. All four minima are strictly
+positive because L_A, L_B, L_C have positive entries, which the certificate
+verifies. Since any nonempty sum of a subset of the active stages has positive
+minimum capacity, the condition E > 0 of the joint step holds at every tick of
+the schedule.
+
+Exercise: The boundary deficit beta. Compute the total yield of a finite
+schedule.
+Compared with what K full ticks would give, the boundary ticks cost a deficit
+  beta = 2 C_* - min L_A - min(L_A + L_B) - min(L_B + L_C) - min L_C .
+Using L_A + L_B + L_C = C_* (1,1,1), we have
+min(L_A + L_B) = C_* - max L_C and min(L_B + L_C) = C_* - max L_A, so
+  beta = (max L_A - min L_A) + (max L_C - min L_C) >= 0 .
+The deficit is exactly the amount by which the two outer stages are unbalanced;
+the middle stage is free because its unbalanced parts are absorbed by the other
+two. The certificate proves 0.533798153 < beta < 0.533798155, so in particular
+beta < 1. Now count: the K initial extractions contribute K H_0; the four
+boundary ticks contribute min L_A + min(L_A+L_B) + min(L_B+L_C) + min L_C; and
+the K - 2 full ticks contribute (K - 2) C_*. The sum is
+  K H_0 + (K - 2) C_* + ( 2 C_* - beta ) = K (H_0 + C_*) - beta ,
+which is the number that enters the rank comparison. The deficit is fixed once
+the laws are fixed, and divided by K it disappears when the number of lots tends
+to infinity. The order of the limits is: fix K, then let N tend to infinity,
+then let the approximation losses go to zero, then let K tend to infinity.
+
+
+Exercise: c_ell(j) and the unrestricted length-8 leaves. What is S_0?
+Write
+  c_ell(j) = [x^j] (1 + 5x + x^2)^ell
+for the number of labelled weight words of length ell and weight sum j; the
+generating function counts one position with weight 0 (one way), weight 1 (five
+ways) or weight 2 (one way). A length-8 leaf with a zero coordinate has, by the
+zero-coordinate block, volume c_8(max g) for a sorted shape g with min g = 0;
+the volume is the same for each of the three orientations, because
+complementation gives c_8(j) = c_8(16 - j) and max g is the larger of the two
+nonzero coordinates. So the contribution of these leaves, per initial strand,
+is
+  S_0 = sum over sorted g with min g = 0 of A_g log c_8(max g) .
+Everything here is exact and rational inside the logarithm; c_ell(j) is an
+integer.
+
+Exercise: Exact statistic counts. How many matched words realize a prescribed
+exact statistic type, and what is the log rate?
+Suppose the statistic on the chosen nonzero side takes values sigma with
+multiplicities b_sigma, and a population of m strands is restricted to the exact
+statistic type theta, with integer counts n_sigma = m theta_sigma. The number of
+surviving matching words is
+  M(m,theta) = ( m! / prod_sigma n_sigma! ) * prod_sigma b_sigma^(n_sigma) .
+First choose the positions of each statistic, then, independently at each
+position, its labelled realization: b_sigma choices for a position whose
+statistic is sigma. The other side is then uniquely determined, and prescribing
+the pushforward type under complementation on that side retains all these
+pairs. Taking logarithms with the multinomial estimate,
+  log M(m,theta) = m ( H(theta) + sum_sigma theta_sigma log b_sigma )
+                   + O(log(m+2)) .
+Zero entries of theta cause no difficulty. All the terminal volumes below are
+instances of this one formula, with different alphabets and different
+multiplicities b_sigma.
+
+Exercise: The zero-coordinate length-4 leaves. What is S_1?
+A length-4 shape t with min t = 0 terminates; its amount is m_t. Its statistic
+on the nonzero side is an ordered pair of length-2 statistics, with law z_t as
+prescribed, and a single position realizes the ordered pair (i,j) in exactly
+D_i D_j labelled ways, because the two halves are independent and each has its
+own multiplicity. So the exact-count formula with alphabet the ordered pairs
+(i,j), law z_t and multiplicities D_i D_j gives a logarithmic rate
+  H(z_t) + sum over ordered pairs (i,j) of z_t(i,j) log(D_i D_j) ,
+and the total contribution of these leaves, per initial strand, is
+  S_1 = sum over ordered t with min t = 0 of m_t * ( H(z_t) + sum_{i,j}
+        z_t(i,j) log(D_i D_j) ) .
+Two bookkeeping points. The pairs are ordered, since the two halves of a
+length-4 strand are distinguishable; consequently an off-diagonal weight in the
+definition of z_t occurs twice in its normalization, once for each order. And
+the complement involution acts on the pairs by kappa in both slots, with
+D_{kappa(i)} = D_i and r_{kappa(i)} = 4 - r_i, so the pushforward prescription
+on the second nonzero side retains every matched pair: no invariance of z_t
+under complementation is assumed or needed.
+
+Exercise: The four sorted shapes of size four. Derive the four cases of R_{t,u}.
+The nonnegative sorted shapes u of size four are (0,0,4), (0,1,3), (0,2,2) and
+(1,1,2), and these give the four disjoint cases of
+  R_{t,u} = 0                      if max u = 4 ,
+  R_{t,u} = log 10                 if max u = 3 ,
+  R_{t,u} = h_b(d_{t,u}) + 2(1-d_{t,u}) log 5
+                                   if max u = 2 and min u = 0 ,
+  R_{t,u} = (2 - d_{t,u}) log 5    if min u > 0 .
+Case (0,0,4): the nonzero side has weight pair of sum 4, which is the single
+statistic 22 with D = 1 labelled word; the matched word is unique, volume 1,
+logarithm 0. Case (0,1,3): the nonzero sides carry weight sums 1 and 3, and the
+weight-3 side has statistic 12 with D = 10 labelled words (five choices for the
+weight-1 label, two orders of the weights 1 and 2); volume 10, logarithm log 10.
+Case (0,2,2): the two nonzero sides both need weight sum 2, and the statistic is
+11 with D = 25 or 02 with D = 2. With m strands and exact type having md
+statistics 02 and m(1-d) statistics 11, the matching count is
+  binom(m, md) * 25^(m(1-d)) * 2^(md) ,
+whose logarithmic rate is H(1-d,d) + 2(1-d) log 5 + d log 2
+= h_b(d) + 2(1-d) log 5, which is the third case. Complementation fixes both 11
+and 02, so the same exact type is allowed on both nonzero sides. Case (1,1,2):
+all coordinates positive; use the four Stage C left shapes with the
+distinguished weight-2 label. The pairs of children are
+  ((0,0,2),(1,1,0)) with probability d/2, volume 1 * 5 = 5;
+  ((1,1,0),(0,0,2)) with probability d/2, volume 5 * 1 = 5;
+  ((0,1,1),(1,0,1)) with probability (1-d)/2, volume 5 * 5 = 25;
+  ((1,0,1),(0,1,1)) with probability (1-d)/2, volume 25.
+So the mean log volume per strand is d log 5 + (1-d) log 25 = (2-d) log 5, the
+fourth case. This includes d = 0 and d = 1 whenever the chosen laws allow them.
+
+Exercise: Dimensions of the positive terminal factors. Where does
+<a,b,c> = <5^{m(1-d)}, 5^{md}, 5^{m(1-d)}> come from, and what is its volume?
+Consider m strands of the case (1,1,2) on the physical sides (X,Y,Z) with Z
+distinguished, and take all four Stage C branches. A strand in a branch with
+probability d/2 contributes a terminal factor with one variable on one side and
+five on another, and a strand in a branch with probability (1-d)/2 contributes
+five, one, five. Because tensor product multiplies dimensions,
+  <a,b,c> otimes <a',b',c'> = <aa',bb',cc'> ,
+the product over all strands is
+  < 5^(m(1-d)) , 5^(md) , 5^(m(1-d)) > ,
+and its volume is 5^(m(2-d)), matching the log rate computed above. Permuting
+the physical sides gives the other orientations of the same volume, so the
+whole computation is orientation-free; the paper nevertheless keeps the three
+orientations separate so that outputs are matched on the nose. The dimension
+triple counts variables with fixed coarse blocks; the choice of coarse blocks
+has already been paid for in the extraction yield, which is why it must not be
+counted twice.
+
+Exercise: Counting both children. Show that
+m_t sum_u p_t(u) (R_{t,u} + R_{t,t-u}) = sum_u m_{t,u} R_{t,u} .
+Change variables u -> t - u in the second sum; the coarse law satisfies
+p_t(u) = p_t(t-u), so
+  m_t sum_u p_t(u) ( R_{t,u} + R_{t,t-u} )
+   = 2 m_t sum_u p_t(u) R_{t,u} = sum_u m_{t,u} R_{t,u} ,
+using m_{t,u} = 2 m_t p_t(u). The equality uses only the symmetry of the coarse
+law; it does NOT identify the parameter d_{t,u} with d_{t,t-u}, which in the
+numerical data are different numbers. The analogous calculation with P_g gives
+the amounts m_t after stage A. In this way every terminal factor is counted
+exactly once, and no child is missed.
+
+Exercise: The terminal rate S_*. Define it and state the volume proposition.
+With the amounts and laws above, put
+  S_* = S_0 + S_1 + S_2 ,
+  S_2 = sum over positive t, and over u <= t with sum_i u_i = 4, of m_{t,u}
+        R_{t,u} .
+This is the logarithmic volume of terminal matrix tensors per initial length-8
+strand. Proposition (Leaf Volumes and Common Dimensions): fix a finite number K
+of lots and rational stage laws satisfying the prescriptions above, and use
+fixed rational subdivisions retaining each history class's prescribed laws as in
+the subdivision restriction, with no need for exact capacity balance in this
+count. Then for all sufficiently divisible N, every completed ideal output in
+the staggered construction has a restriction to the same oriented matrix tensor
+<a_N,b_N,c_N>, with
+  log(a_N b_N c_N) >= K N S_* - O_K(log(N+2)) .
+The implied constant may depend on the fixed laws and subdivisions. For limiting
+real data, the corresponding volume rate can approach S_* arbitrarily closely by
+consistent rational approximation.
+
+
+Exercise: Proof of (Leaf Volumes and Common Dimensions), part 1: one terminal
+population.
+A shape with a zero on the first side has a unique first-side variable, and its
+second and third sides match by complementation: exchange the weights 0 and 2
+and keep the label at a weight-1 position. So a set of M such matched pairs is
+the tensor <1,1,M>, with volume M; a zero on the second side gives <M,1,1> and a
+zero on the third side gives <1,M,1>, with the same volume M, and if two
+coordinates vanish then M = 1. For an unrestricted length-8 leaf, the
+generating function counts the choices on an axis of maximum weight, and
+complementation is a bijection onto the other axis, so the volume is
+c_8(max g); summing over the sorted shapes gives S_0. For a restricted leaf,
+the exact count M(m,theta) of the previous blocks applies: at a zero-coordinate
+length-4 leaf the statistic is the ordered pair of the two length-2 statistics,
+its multiplicity is D_i D_j, and its type is z_t, which is exactly the summand
+of S_1. The two halves of a length-4 strand stay ordered, which is why an
+off-diagonal weight occurs twice in the normalization of z_t and why no extra
+factor of 2 appears in the count. The complement involution sends (i,j) to
+(kappa(i),kappa(j)) and preserves D and r, so the prescription on the second
+nonzero side is exactly the pushforward of z_t and retains every matched pair;
+no invariance of z_t is assumed. For shapes where the two nonzero coordinates
+tie for the maximum, choosing the first maximum only chooses which of the two
+matched words is counted, so the same count applies.
+
+Exercise: Proof of (Leaf Volumes and Common Dimensions), part 2: one common
+oriented triple.
+Keep separate every finite class specified by its lot, full ancestry, left or
+right half, coordinate-label placement on the physical sides, and subdivision
+for a priority choice. Exact coarse types in every output fix the number of
+factors in each such class, so all outputs have the same class sizes.
+Simultaneous relabeling of positions on all three sides then takes each class to
+the same canonical set of positions, and its ideal tensor and its prescribed
+type windows are consequently the same in every output; the recovery argument
+restores those ideal tensors before the terminal restrictions are made. Now
+choose once, in each zero-coordinate class with a statistic prescription, the
+exact matching type used in the count; use the same choice in every output.
+That is legitimate because the data are rational and N is divisible by every
+denominator, so the exact type can be taken equal to the prescribed law and then
+lies inside every positive tolerance window. Each such class then has the same
+integer matching dimension and the same zero physical side, and unrestricted
+classes have fixed matching dimensions anyway. At positive length-2 classes the
+exact Stage C counts give the same oriented dimensions in the triple
+<5^{m(1-d)}, 5^{md}, 5^{m(1-d)}> or in its prescribed side permutation.
+Multiplying these fixed dimensions over all the finitely many classes gives one
+common triple (a_N, b_N, c_N), with each dimension fixed separately, as the
+Schonhage inequality requires. Finally, the parts of each subdivision retain the
+same prescribed laws, so their leading logarithmic contributions add to that of
+the original class; allocating parts among the extraction priorities therefore
+does not change S_*. Summing log M(m,theta) over the finitely many classes
+contributes only O_K(log(N+2)) to the logarithm, while the leading term is
+K N (S_0 + S_1 + S_2); this is the volume bound. For real limiting laws, choose
+consistent rational laws first and then a divisible N, and use continuity of
+entropy on each finite simplex to make the normalized rates tend to S_*.
+
+Exercise: Proposition (Finite Staggered Yield). State the finite statement.
+Assume the prescriptions above, the balance conditions, and positive entries of
+L_A, L_B, L_C, and let S_* = S_0 + S_1 + S_2. For every fixed integer K >= 2 and
+every eps > 0, suitable fixed rational approximations, part allocations and
+tolerances give, for all sufficiently large divisible N, a restriction of
+exp(o_K(N)) copies of CW_5^{otimes 8KN} to s_N identical matrix tensors of
+volume V_N, where
+  log s_N / N >= K (H_0 + C_*) - beta - eps ,
+  log V_N / N >= K S_* - eps .
+Note what the statement does and does not say: it is a statement about a FIXED
+finite K, its constants may depend on K, and it makes no claim uniform in K. The
+losses eps and the rational approximations are chosen after K but before N
+grows; N then tends to infinity inside the fixed schedule.
+
+Exercise: Proof of (Finite Staggered Yield). How are the approximations and the
+tolerances chosen?
+Fix K before making any asymptotic choices. Choose rational product weights for
+the initial, A and B laws, preserving their symmetries, and rational d and z
+data; define the child laws v and V from those same choices by their formulas,
+never approximating an inherited mixture separately. Choose rational
+allocations approaching the balance fractions lambda_i. For these approximations
+the full-tick capacities approach C_*/6, which is all the yield bound requires,
+and by continuity the approximations may also be chosen to keep every boundary
+minimum strictly positive. There are finitely many histories, and all positive
+history masses are now fixed rational multiples of N; omit zero classes and make
+N divisible by every required denominator. Choose the finitely many tolerances
+successively smaller toward the leaves, as the tolerance hierarchy block
+prescribes, so that all inherited masks and subdivisions satisfy the hypotheses
+of the joint step. There are K initial operations and at most 6(K+2) subsequent
+joint operations; the replication lemma pulls all their replication factors back
+to exp(o_K(N)) copies of the original source, and that cost is per operation,
+including all its disjoint summands, not repeated multiplicatively for each
+summand. Entropy continuity makes the total approximation and tolerance loss
+less than eps for this fixed K, before N tends to infinity, and integer rounding
+together with the polynomially many type classes contributes o_K(N). The volume
+proposition applies to these fixed rational laws and subdivisions, because the
+schedule keeps all histories distinct and repair restores their ideal windows
+before any terminal restriction; its common exact terminal types and exact Stage
+C counts give one oriented matrix tensor in every final summand, with volume
+rate approaching K S_*. So the two bounds hold simultaneously.
+
+Exercise: The rank comparison. How do the pieces give
+H_0 + C_* + (w/3) S_* <= 8 log 7 ?
+The source is CW_5^{otimes 8KN}, whose rank is at most, by the CW power rank
+lemma with m = 8KN,
+  exp(o_K(N)) * 7^{8KN} * binom(24KN + 2, 2) ,
+since the polynomial factor is exp(O(log N)). The finite staggered yield gives
+s_N identical copies of <a_N, b_N, c_N> as a restriction of that source, with
+the two lower bounds. So the direct sum oplus_{j=1}^{s_N} <a_N,b_N,c_N> has rank
+at most the rank of the source, and Schonhage's inequality for identical
+summands, applied with volume V_N = a_N b_N c_N, gives
+  s_N * V_N^{w/3} <= exp(o_K(N)) * 7^{8KN} * binom(24KN + 2, 2) .
+Take logarithms, divide by K N, and let the divisible N tend to infinity at
+fixed K. The polynomial factor and the exp(o_K(N)) factor contribute o(1); the
+right side contributes 8 log 7; the left side contributes
+  (log s_N)/(KN) + (w/3) (log V_N)/(KN)
+   >= (H_0 + C_*) - (beta + eps)/K + (w/3)(S_* - eps/K) .
+So, after N tends to infinity, and then letting the approximation losses eps
+decrease to 0 at fixed K,
+  H_0 + C_* - beta/K + (w/3) S_* <= 8 log 7 .
+Now let K tend to infinity last. The boundary deficit divided by K vanishes,
+because beta < 1 is fixed, and the result is the constraint
+  H_0 + C_* + (w/3) S_* <= 8 log 7 .
+Every step used a fixed finite schedule; no estimate uniform in a simultaneously
+growing K is required, and none is available. This is the whole reason the
+staggered schedule can beat the ordinary three-stage analysis: the boundary cost
+is paid once per lot and amortized over arbitrarily many full ticks.
+
+Exercise: From the constraint to the exponent. Solve for w and get omega.
+Since S_* > 0, the constraint reads
+  w <= 3 ( 8 log 7 - H_0 - C_* ) / S_* .
+Because omega <= w, we get
+  omega <= 3 ( 8 log 7 - H_0 - C_* ) / S_* .
+Everything on the right is a number determined by the fixed rational
+parameters: H_0 comes from the initial coarse law, C_* from the stage capacities
+and the balance, S_* from the terminal volumes, and w from the definition of the
+asymptotic rank slope. The numerical section evaluates the quotient and shows it
+is below 2.371054886006746. Note that the cube root in Schonhage's inequality is
+exactly what allows the three stages to be treated symmetrically: the volume
+S_* enters with coefficient w/3 on each of the three sides, and the three sides'
+capacities are balanced so that no single side is the bottleneck.
+
+Exercise: Why is the boundary loss harmless, and why is beta < 1 enough?
+At the level of the exponent, a fixed additive loss per lot is invisible: the
+schedule uses K lots, so the deficiency beta is spread over K(H_0 + C_*) worth of
+yield and disappears as K grows. What would be fatal is a loss proportional to
+K, and the design avoids that by making the boundary ticks a fixed number, four,
+independent of K. The condition beta < 1, verified numerically, is only used to
+keep the intermediate bookkeeping tidy: it lets the proof write the deficit as a
+single number of order one, and it is a strictly stronger statement than the
+positivity of the four boundary minima, which is what the joint step's E > 0
+hypothesis actually needs. Underlying both is the identity
+  L_A + L_B + L_C = (C_*,C_*,C_*) ,
+which is what makes the four boundary minima sum to exactly 2C_* - beta instead
+of something that grows with K.
+
+
+Exercise: The weight function F. Define it and give its two useful bounds.
+For an integer argument n put
+  F(n) = ( sum_{j=0}^{16} (n/640000)^j / j! )^64 .
+The initial weights, the two split-weight arrays and the terminal weights use
+223 distinct arguments of F, including the implicit zero, all between -120770
+and 45052. The binary-parameter array instead supplies fractions n/10^6 and is
+never passed to F. For those 223 arguments exact rational evaluation gives
+  2^(-23) < F(n) < 2^23 .
+Two facts explain the shape of the formula. Positivity: for nonnegative
+arguments every term of the truncated series is nonnegative, and for negative
+arguments the even Taylor partial sum lies above the positive exponential
+exp(n/640000), so the inner sum is positive and so is its 64th power. Rational
+positivity: n is an integer, so the inner sum is a rational number, and so is
+F(n); a rational number can be computed exactly and certified by integer
+arithmetic. The size bounds come from the exponent: 64 times the deviation of
+n/640000 from zero is at most about 12 in absolute value, and the truncation
+error is far smaller than that, so the power stays between 2^(-23) and 2^23.
+These are ordinary real numbers used to choose probabilities; they impose no
+condition on the field of the tensor construction.
+
+Exercise: Decoding rule 1: the initial law. How do 17 integers define A_g?
+Traverse the sorted shapes g of size 16 in increasing lexicographic order; there
+are 30 of them. With a_0,...,a_16 the 17 entries, set
+  A_g = mult(g) * prod_{i=0}^{2} F(a_{g_i}) / Z ,
+  mult(g) = 3! / prod_j ( #{i : g_i = j} )! ,
+  Z = sum over sorted h of size 16 with sum 16 of mult(h) prod_i F(a_{h_i}) .
+Since a sum of three nonnegative coordinates equal to 16 has each coordinate at
+most 16, the 17 entries are exactly what is needed. The law on ORDERED shapes,
+before coalescing permutations, is a product of three one-coordinate weights,
+which is why its entropy is maximal at the given marginals; the multiplicity
+mult(g) converts the ordered law to the sorted law A_g that the construction
+uses. This is the only place where multiplicities enter the initial law.
+
+Exercise: Decoding rule 2: the split laws P_g and p_t. How are 118 and 54
+integers read, and why those counts?
+Read the 118 entries of the Stage A array over all positive sorted g of size 16;
+there are 21 of them. Read the 54 entries of the Stage B array over all positive
+ORDERED t of size 8; there are 21 of them as well. At either parent s, set ell =
+(sum_i s_i)/2, and for coordinate i = 0,1,2, with k = s_i, read one integer
+n_{s,i}(j) for each
+  max(0, k - ell) <= j < floor(k/2) ,
+with n_{s,i}(floor(k/2)) = 0 by convention, contributing no entry. For b in
+B(s) = { b >= 0 : sum_i b_i = ell, b_i <= s_i } put
+  w_s(b) = prod_{i=0}^{2} F( n_{s,i}( min(b_i, s_i - b_i) ) ) ,
+  q_s(b) = w_s(b) / sum_{c in B(s)} w_s(c) .
+Then use P_g = q_g at Stage A and p_t = q_t at Stage B. Each q_s is a positive
+product-weight law and satisfies q_s(b) = q_s(s - b) exactly, because the
+product over i depends on b_i only through min(b_i, s_i - b_i). The entry counts
+follow from the rule: for a coordinate of value k and half-length ell, the
+number of entries is floor(k/2) - max(0, k - ell). Summing that over the 21
+sorted positive g of size 16 with ell = 8 gives 118, and summing over the 21
+positive ordered t of size 8 with ell = 4 gives 54, so the arrays are exactly
+consumed. Both counts are worth checking by hand once, because a single
+miscount would shift every law downstream.
+
+Exercise: Decoding rule 3: the binary parameters. How are 75 integers read,
+and what is their range?
+Read the 75 entries of the fourth array over positive ordered t of size 8, and
+then over u in B(t) with max u = 2. An entry n means d_{t,u} = n/10^6, a real
+number in [0,1]. These cover both the zero-coordinate shapes with a coordinate
+equal to 2 (permutations of 022) and the positive shapes (permutations of 112),
+which is exactly the set where v_{t,u,W} needs a parameter. The stated range is
+0 <= d_{t,u} <= 0.110106, so all these parameters are small but genuinely
+varying; in particular they are not symmetric under u -> t - u, as the example
+d_{(1,3,4),(0,2,2)} = 92966/10^6 and d_{(1,3,4),(1,1,2)} = 1204/10^6 shows.
+Those two children are different factors with different prescriptions, and both
+actual laws appear in the mixture V_{t,W}.
+
+Exercise: Decoding rule 4: the terminal laws z_t. How are 36 integers read,
+and why is the last pair of each parent forced to zero?
+Read the 36 entries over all ordered t of size 8 with a zero coordinate; there
+are 24 such t. For each t list the pairs
+  (i,j) with 0 <= i <= j <= 5 and r_i + r_j = max t ,
+read one integer for each pair except the last, whose integer is defined to be
+zero (so it consumes no entry), assign that integer's F-weight to both (i,j) and
+(j,i), and normalize over ORDERED pairs to obtain z_t. Hence an off-diagonal
+weight occurs twice in the denominator and a diagonal weight once, matching the
+fact that the two halves of a length-4 strand are distinguishable. The
+multiplicities D_i D_j that count labelled words at the leaf are NOT included in
+this probability normalization; they appear only later, in S_1. Making the last
+integer zero is a normalization convention: at least one weight must be zero for
+the "last pair" to be well defined, and the choice is declared rather than
+discovered, so the array has one fewer entry than the number of pairs.
+
+Exercise: The five arrays and their traversal counts. Recite the bookkeeping.
+There are 30 sorted initial shapes (of which 21 are positive), 21 positive
+ordered size-8 shapes, and 24 size-8 shapes with a zero coordinate. The Stage A
+array is read over the 21 positive sorted shapes g of size 16; the Stage B array
+over the 21 positive ordered shapes t of size 8; the binary array over those
+same 21 ordered t and over u in B(t) with max u = 2; the terminal array over the
+24 ordered shapes of size 8 with a zero coordinate. Every specified parent
+consumes its entries, including parents whose eventual amount turns out to be
+zero: for example (6,1,1) is included in the Stage B and binary traversals, and
+skipping it, or skipping a zero-amount parent in the terminal traversal, would
+change the meaning of every later array position. The exact types are rational,
+because F is rational-valued and every normalization is a division by a positive
+rational; only the balance fractions and the limiting tolerance choices require
+subsequent rational approximation.
+
+Exercise: The finite contraction rule. How are the capacities computed from
+finite data without any analysis?
+For a finite nonnegative vector x let
+  K(x) = ( sum_i x_i ) log( sum_i x_i ) - sum_i x_i log x_i ,
+with 0 log 0 = 0. Then K(x) = M H(x/M) when M = sum_i x_i > 0, and K(0) = 0, so
+K is an unnormalized entropy that avoids writing any division. Given a parent s,
+its split law q, a priority (X,Y,Z) and half-laws Q_{b,W}, form the ordered pair
+law
+  D_W(i,j) = sum_{b in B(s)} q(b) Q_{b,W}(i) Q_{s-b,W}(j) .
+For W = Y let I_W = { b : b_Z = 0 }; for W = Z let I_W = { b : b_X b_Y = 0 }.
+The grouped entropy is exactly
+  J_W = sum_{b in I_W} q(b) K(Q_{b,W})
+        + sum_{k=0}^{s_W} K( sum_{b not in I_W, b_W = k} q(b) Q_{b,W} ) ,
+and the capacity vector is
+  ( K( (sum_{b : b_X = k} q(b))_k ) , K(D_Y) - 2 J_Y , K(D_Z) - 2 J_Z ) .
+At A substitute (s,q,Q) = (g, P_g, V) and weight by A_g; at B substitute
+(t, p_t, v_{t,.,.}) and weight by m_t, with the priorities already specified.
+This rule uses each parent exactly once, and it involves only finite additions,
+multiplications, divisions, and logarithms of rational numbers. Together with
+the formulas for H_0, B_*, T, S_0, S_1 and S_2, it fully specifies the numbers;
+there is no optimization and no search anywhere in the certificate.
+
+Exercise: Table (Partial capacities). What do the 30 entries certify?
+The following table gives the partial sums defining L_A and L_B, grouped by
+sorted shape; a B row sums over all ordered parents with that sorted shape.
+Each displayed entry has absolute error less than 4.795 * 10^(-10).
+  A: min g = 1   .010739192  .016912163  .016213531
+  A: min g = 2   .081941050  .088150511  .082591626
+  A: min g = 3   .292033029  .283922596  .257330639
+  A: min g = 4   .547143900  .527202791  .487211274
+  A: min g = 5   .247999127  .248080948  .237330883
+  B: 116         .002770751  .002770751  .000443544
+  B: 125         .080908872  .106275766  .087117877
+  B: 134         .386356324  .454421695  .323639129
+  B: 224         .395346750  .395353092  .248930076
+  B: 233         .611253765  .686627626  .634289551
+All thirty entries are positive, which is what proves positivity of every entry
+of L_A and of L_B, hence of L_A + L_B. The row labels are sorted shapes; for
+example "B: 233" collects all three ordered arrangements of (2,3,3), each read
+in its own priority pi(t). Summing the thirty numbers gives
+sum_i (L_A + L_B)_i = 7.841308829..., which agrees with the value obtained from
+C_* and B_* below to within the accumulated rounding error of 30 entries.
+
+Exercise: Table (Scalars). What do the six numbers certify?
+  H_0 = 1.841147374 ,  B_* = 1.158066972 ,  T = 2.345955063 ,
+  S_0 = 0.031704071 ,  S_1 = 0.882362236 ,  S_2 = 11.680704014 ,
+each with absolute error less than 3 * 10^(-8). From these, C_* = B_* + (one
+third of the sum of (L_A + L_B)_i) and S_* = S_0 + S_1 + S_2 are determined, and
+the two important combinations are certified separately:
+  5.612983956059236756 < H_0 + C_* < 5.612983956059236757 ,
+  12.594770321594676362 < S_* < 12.594770321594676363 .
+Note how S_* is dominated by S_2 = 11.68: almost all of the terminal volume comes
+from the positive length-2 shapes, that is, from stage C, which is exactly why
+the balance of stage C against the earlier stages matters so much. Note also
+that T log 2 - B_* is certified to lie in
+  0.468025165562828972 < T log 2 - B_* < 0.468025165562828973 ,
+which is positive, as the balance condition requires.
+
