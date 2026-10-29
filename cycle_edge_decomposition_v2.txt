@@ -117,10 +117,13 @@ residual graphs later.
 2. WHY THE PROOF IS NOT A ONE-LINE ARGUMENT
 
 A greedy approach fails.  If we repeatedly remove long cycles, the
-remaining graph can become a forest with many edges.  If we remove
-short cycles, there can be too many of them.  We need a global way to
-remove many edges at once, leave a sparse remainder, and pay for the
-whole process.
+remaining graph may still contain many short cycles: a graph can
+have as many as n^3/6 triangles, far more than the C n parts we are
+allowed, so removing every short cycle one by one is hopeless.  On
+the other hand, removing only long cycles leaves the dense core
+unsolved.  We need a global way: turn many edges into cycles and
+single edges at once, leave a sparse remainder, and pay for the whole
+process.
 
 The paper uses induction on the number of vertices.  At each step, it
 looks at a sequence of scales:
@@ -570,6 +573,19 @@ things at once:
 
 Different teams may share internal vertices.  They compete only for
 edges.  This is exactly what the cycle-lifting step needs.
+
+Strategy of the proof.  Treat each candidate path as a hyperedge.
+Its resources are its graph edges plus one token (v, c(p)) for each
+internal vertex v.  The Aharoni-Haxell theorem (Tool 2) supplies
+disjoint hyperedges for all demands at once, which gives (i)--(iii).
+Its hypothesis fails only when there is a small maximum matching M.
+In that case the demands split into a large subfamily I2 with small
+forbidden neighborhoods Y_{c(p)} and pairwise disjoint endpoints.
+Deleting the edges of M and the neighbors of each team, we grow a
+radius-T ball from one endpoint of each I2 demand.  Expansion forces
+the ball to exceed r/2, so the two endpoint balls intersect, and a
+short x_p-y_p path drops out that avoids M.  This contradicts the
+maximality of M.
 
 LEMMA (routing).
 Let P be a graph of order r >= 2 with cut expansion h > 0.  Put
@@ -2286,9 +2302,17 @@ The coefficient of S_i in this expression is at most
         = A2 - 47C/300
         <= 0
 
-if C >= 7A2.
+if C >= 7A2.  Indeed, when C = 7 A2 the coefficient equals
+A2 * (1 - 47 * 7 / 300) = A2 * (1 - 329/300) < 0, since 329/300 > 1,
+and larger C only makes it more negative.
 
-It remains to pay for the order-overlap term.  Set
+It remains to pay for the order-overlap term.  Here is why phi is
+the right potential.  A quotient Q_W has order at most B0 = D^0.30,
+whose log is much smaller than log n.  Since phi(x) = 1 - 1/sqrt(log x),
+this makes phi(B0) smaller than phi(n) by about
+1/sqrt(0.30 w) - 1/sqrt(log n).  That gap, applied to the leading
+Cn term, is the budget that pays for the O(Cn/w) overlap the box
+splitting added.  Concretely, set
 
     delta = 1/sqrt(0.30) - 1 > 0.
 
@@ -2325,7 +2349,10 @@ c in {1, 1/4}.  Also impose
 
     log D_* >= max { C2, 40/3 },
 
-the cutoff absorption inequality, and, for every D >= D_*,
+the cutoff absorption inequality
+    log D_* >= ((A1 + 1)/delta)^2,
+
+and, for every D >= D_*,
 
     D^(-0.01) <= 1/log D,
     D^0.001 <= (1/2) D^0.30,
@@ -2346,5 +2373,50 @@ induction.
 Since phi(n) <= 1, the proposition proves the main theorem for positive
 order.  The zero-vertex graph has the empty partition, completing all
 cases.
+
+
+12. HOW THE PIECES FIT - A CHECKLIST
+
+The proof has six moves.
+
+(1) LAYER EVERY SCALE.  Put D_j = n^(theta^j).  At scale D_j,
+    delete at most N/(2 D_j^0.01) long cycles of length >= D_j^1.01.
+    Then split the remaining graph into overlapping boxes of order
+    at most D_j^1.02, and inside each box cut the edges into
+    expanding pieces (order >= sigma = D_j^0.90) and a residual
+    graph H_Y (average degree <= D_j^0.95).  The residual enters
+    scale D_(j+1).
+
+(2) HANDLE EACH PIECE.  Section 8 (small residue) uses three
+    reservoirs to split a piece into cycles, single edges, and tiny
+    residuals of total order at most eta times the piece order.  The
+    tiny residuals go straight to induction.
+
+(3) PICK A GOOD LAYER.  Section 6 (prefix selection) chooses a scale
+    i whose pieces pay for the whole prefix 0..i+K, with K = 200.
+
+(4) BATCH THE SPARSE BOUNDARY.  Between levels i and i+K, the
+    remaining edges are sparse and live on level-t descendants of
+    order < D^0.001.  Groups of these descendants form batches W of
+    order at most B0 = D^0.30.
+
+(5) FOLD AND LIFT INSIDE EACH BATCH.  Section 9 (pair folding) pairs
+    vertices inside the active subset X_{W,R} = (good vertices of
+    W intersect V(R)) and identifies every pair.  Section 10 uses
+    router edges to trim heavy-neighbor paths and later close every
+    lifted quotient cycle.  Each batch produces a quotient Q_W of
+    order <= B0.
+
+(6) INDUCT.  Every level-i quotient Q_W has order <= B0 < n, and
+    every small-residue residual has total order < n/4.  The
+    potential phi(x) = 1 - 1/sqrt(log x) buys the O(n/w) overlap
+    from box splitting, because phi(B0) is smaller than phi(n) by
+    roughly 1/sqrt(0.30w).
+
+Every original edge of G ends up in exactly one bucket: a completed
+cycle or single edge from a piece, a completed cycle or single edge
+from a batch, a folding error counted as a single edge, or a
+residual graph passed to induction.  The induction bounds each
+bucket by C phi(n) n in total.
 
 END OF PROOF.
