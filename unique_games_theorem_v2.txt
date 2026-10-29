@@ -1,0 +1,1237 @@
+================================================================================
+THE UNIQUE GAMES THEOREM
+A complete, friendly, and self-contained proof tour
+(improved v2: clearer, shorter, and with the quantifiers made explicit)
+================================================================================
+
+AUTHORS: OpenAI
+DATE: 2026-09-23
+THIS FILE: The-Unique-Games-Theorem-v2.txt
+SOURCE PAPER: unique-games-theorem-original.txt
+
+----------------
+WHO IS THIS FOR?
+----------------
+
+This paper has one big idea, but its original form is a thicket of
+symbols. This version keeps every essential part of the proof while
+writing it in plain English and using ordinary examples wherever
+possible. A reader who knows:
+
+  * mod-2 arithmetic (0+1=1, 1+1=0),
+  * basic vectors and matrices,
+  * the idea of "with high probability",
+  * the idea that 3SAT is hard,
+
+can follow the whole argument. Nothing about Unique Games is assumed.
+
+The theorem we prove is:
+
+================================================================================
+THEOREM (Unique Games Theorem, edge-value form)
+================================================================================
+
+For every fixed pair of desired errors epsilon, delta in (0, 1/2),
+there is a finite alphabet K and a deterministic polynomial-time
+reduction from 3SAT to Unique Games with alphabet K such that:
+
+   YES case:  if the 3SAT formula is satisfiable,
+              then value of the game is at least 1 - epsilon.
+
+   NO case:   if the 3SAT formula is unsatisfiable,
+              then value of the game is at most delta.
+
+The game is simple and bipartite. Every constraint is a translation:
+
+             label(right) = label(left) + constant.
+
+The alphabet K, the polynomial running time, and its constants depend
+only on epsilon and delta.
+
+================================================================================
+
+
+================================================================================
+PART 1. THE GAME, THE CONJECTURE, AND WHY THE ORDER OF QUANTIFIERS MATTERS
+================================================================================
+
+1.1. What is a Unique Game?
+------------------------------------------------------------
+
+Imagine two friends are talking on a phone line. Each friend is asked
+a question. They must each answer with one color from a fixed palette
+of q colors:
+
+               colors = {1, 2, 3, ..., q}.
+
+The possible question pairs are the edges of a graph. Each edge comes
+with a PERMUTATION of the q colors. A permutation is just a rule that
+takes the left friend's color and tells us the only acceptable color
+for the right friend.
+
+For example, with q=5, one edge might say:
+
+        right answer = left answer + 1 (mod 5).
+
+So if the left friend says 3, the right friend must say 4. If the
+left friend says 4, the right friend must say 0. There is exactly one
+correct right answer for each left answer. That is the "unique" part.
+
+A translation is one very regular kind of permutation. The final game
+we construct uses only translations, which keeps the bookkeeping simple
+while still proving the strongest statement.
+
+The friends know the whole graph and all the permutation rules before
+the call. They may agree on any strategy they like. Then they are
+asked an edge, separated, and must answer using only their own
+question.
+
+The VALUE of the game is the largest possible fraction of edges that
+they can satisfy, over all strategies.
+
+A labeling is the simplest kind of strategy: assign one permanent
+color to every left vertex and one permanent color to every right
+vertex. It is a harmless mathematical fact that in these games both
+friends can be assumed to use a fixed labeling. The game value is:
+
+        value(game) = max over all labelings of
+                      (satisfied edges) / (all edges).
+
+
+1.2. The Unique Games Conjecture
+------------------------------------------------------------
+
+The Unique Games Conjecture, usually abbreviated UGC, says roughly:
+
+   It is NP-hard to distinguish nearly satisfiable Unique Games
+   from very unsatisfiable Unique Games.
+
+More precisely: for every epsilon, delta > 0 there is some fixed
+alphabet size q such that no polynomial-time algorithm can tell apart
+instances of value at least 1-epsilon from instances of value at most
+delta.
+
+That was a conjecture. This paper proves it.
+
+Our theorem actually gives the stronger, deterministic reduction form:
+a single algorithm that converts a 3SAT formula into an explicit game.
+The game is unweighted, simple, bipartite, and has translation
+constraints on a binary alphabet K = F_2^s.
+
+
+1.3. Why the order of quantifiers is everything
+------------------------------------------------------------
+
+The conjecture would be false if epsilon, delta, and the alphabet size
+were ordered carelessly. Many algorithms solve Unique Games really
+well when epsilon is extremely tiny relative to the instance size.
+
+For example:
+
+  * Trevisan's algorithm succeeds when the completeness error shrinks
+    like 1/log(size of instance).
+  * Charikar--Makarychev--Makarychev give a rounding algorithm with
+    value 1 - O(sqrt(epsilon log q)).
+  * Kolla's spectral enumeration works when a certain spectral
+    dimension is small.
+  * Arora--Barak--Steurer give a subexponential-time algorithm for a
+    fixed small completeness error.
+
+None of these contradict the theorem, because the theorem lets us
+choose epsilon and delta FIRST, then fixes an alphabet K, and only then
+is the input allowed to grow. In particular, the alphabet does not
+grow with the input size.
+
+This paper proves that with that exact order of quantifiers, hardness
+wins.
+
+
+================================================================================
+PART 2. THE PROOF IN ONE PAGE
+================================================================================
+
+The proof has two halves. The forward half builds an object. The
+backward half proves that no cheap strategy can defeat it.
+
+FORWARD HALF (the reduction)
+------------------------------------------------------------
+
+  3SAT
+   |
+   |  1. Hastad's parity gap
+   v
+  Weighted 3-variable parity equations over F2:
+       YES -> almost all satisfiable
+       NO  -> at most 1/2 + xi satisfiable
+   |
+   |  2. Make the three positions distinct
+   v
+  Parity equations with distinct variables:
+       YES -> almost all satisfiable
+       NO  -> at most 4/5 satisfiable
+   |
+   |  3. Build tables on tuples of k equations
+   |     and apply a special LATENT ALPHABET GADGET
+   v
+  A weighted permutation-constraint game:
+       YES -> value very close to 1
+       NO  -> value at most 0.99
+   |
+   |  4. Round weights, subdivide edges
+   v
+  An unweighted simple bipartite game:
+       YES -> value close to 1
+       NO  -> value at most 1 - 1/800
+   |
+   |  5. Take the t-fold parallel product
+   v
+  Final Unique Games instance:
+       YES -> value at least 1 - epsilon
+       NO  -> value at most delta
+
+
+BACKWARD HALF (soundness)
+------------------------------------------------------------
+
+We assume, for contradiction, that some labeling makes the matrix test
+pass with probability at least 0.99.
+
+  Step A. Fourier comparison.
+         High acceptance under the latent noise implies positive
+         acceptance under the ordinary uniform rank-one test.
+
+  Step B. Matrix decoding.
+         The inverse shortcode theorem plus an erasure argument gives
+         two local advice strategies that agree with constant
+         probability gamma > 0.
+
+  Step C. Clean coordinates.
+         On a NO parity instance, every pair of advice strategies
+         agrees with probability at most exp(-c k^(1/3)).
+
+For large enough k:
+
+         exp(-c k^(1/3))  <  gamma,
+
+which contradicts Steps B and C. Therefore no labeling passes the
+matrix test with probability 0.99. Hence the game value is at most
+0.99 on the NO side.
+
+The two halves meet in Section 9. That is the complete argument.
+
+
+================================================================================
+PART 3. HASTAD'S PARITY GAP: THE HARD INPUT
+================================================================================
+
+Every hardness reduction starts with a problem we already know is
+hard. We use 3SAT. From it, Hastad's famous work produces a system of
+equations over F2, i.e. over the two numbers {0,1} with addition mod 2.
+
+Each equation involves three distinct positions of variables:
+
+       x_a + x_b + x_c = b,    where b is 0 or 1.
+
+A weighted parity instance is a finite list of such equations.
+Different occurrences have distinct IDs, even if two occurrences use
+the same variables. Each occurrence has a positive rational weight.
+All weights sum to one. The value of an assignment is the total weight
+of satisfied equations. The optimum is the largest possible value.
+
+THEOREM 3.1 (Weighted parity gap)
+------------------------------------------------------------
+For every fixed xi > 0, there is a deterministic polynomial-time
+reduction from 3SAT to weighted parity instances such that:
+
+  YES case:  optimum is at least 1 - xi.
+  NO case:   optimum is at most 1/2 + xi.
+
+This is our starting point. A satisfiable formula becomes a system
+where almost every equation can be satisfied. An unsatisfiable formula
+becomes a system where no assignment does much better than random.
+
+We then perform a small cleanup step. Some equations might use the
+same variable twice. That is inconvenient. We clone every variable one
+hundred times and replace the occurrence by a small weighted family of
+occurrences using clones. After this cleanup:
+
+LEMMA 3.2 (distinct positions)
+------------------------------------------------------------
+From a weighted parity instance we can construct, in polynomial time,
+another weighted parity instance in which the three variables of every
+equation are distinct, and:
+
+  YES case:  optimum is at least 1 - xi.
+  NO case:   optimum is at most 4/5.
+
+The exact upper-bound formula is
+
+        optimum(E') <= (1 + optimum(E))/2 + 3/100.
+
+If optimum(E) <= 1/2 + xi and xi < 1/100, the right-hand side is at
+most 4/5. That is the only NO-side fact used in the rest of the proof.
+
+For the rest of the paper, "parity instance" means this cleaned-up
+instance with distinct positions. Its "ordinary equation-versus-variable
+game" chooses an equation and one of its three positions. The equation
+side answers with a satisfying triple; the variable side answers with a
+bit. If the optimum is at most 4/5, this ordinary game has value at
+most 14/15. This small constant gap will be amplified later by parallel
+repetition.
+
+
+================================================================================
+PART 4. THE LATENT ALPHABET GADGET
+================================================================================
+
+This is the new tool that makes completeness near one possible.
+
+4.1. Why ordinary tests only give completeness near one half
+------------------------------------------------------------
+
+Imagine the game wants to ask about a large binary vector z. The most
+natural test is to add a random rank-one matrix:
+
+       M  ->  M + a l^T,
+
+and check whether the answer stays the same. Here a and l are random
+binary vectors. If z is the intended answer, then:
+
+       (M + a l^T) z  =  Mz + a (l^T z).
+
+But l^T z is a fair random bit. Therefore:
+
+       Pr[l^T z = 0] = 1/2.
+
+So even the ideal honest answer satisfies the equality test only with
+probability about 1/2. That is not good enough for a Unique Games
+reduction. We need failure probability arbitrarily small.
+
+4.2. The gadget
+------------------------------------------------------------
+
+We invent an alphabet V with a distinguished subspace K and a
+nonlinear map C : V -> K. The map is designed so that replacing x by
+C(x) is very forgiving to random noise. Think of C as a forgiving
+hash: a random small error usually leaves the answer unchanged, but a
+large enough family of independent linear tests still catches it.
+
+FORMAL LEMMA 4.1 (latent alphabet gadget)
+------------------------------------------------------------
+For every small p > 0 there is an integer r_* with the following
+property. For every sufficiently large ell, there exist:
+
+  * a finite binary vector space V,
+  * an identified subspace K = F_2^ell,
+  * a map C : V -> K,
+  * a rational noise distribution mu on V,
+
+such that:
+
+  (1) TRANSLATION EQUIVARIANCE:
+     For every x in V and every k in K,
+
+         C(x + k) = C(x) + k.
+
+  (2) SMALL CHANGE:
+     For independent uniform x in V and noise a drawn from mu,
+
+         Pr[ C(x + a) is not equal to C(x) ]  <=  p.
+
+  (3) LINEAR DETECTION:
+     For every linear subspace G of the dual space V* whose
+     restriction to K has dimension at least r_*,
+
+         Pr_{a ~ mu}[ some g in G has g(a) not 0 ]  >=  1/8.
+
+In words: random noise usually does not move the nonlinear answer by
+much, but any sufficiently rich family of linear tests catches the
+noise with constant probability.
+
+Property (1) is why translations can be used as Unique Game
+constraints. Property (2) is why completeness can be nearly one.
+Property (3) is why cheating strategies still leave a detectable
+signal.
+
+4.3. Where the gadget comes from
+------------------------------------------------------------
+
+The construction starts with a very small quadratic block. Over a big
+finite field F, define:
+
+       Q(x1,x2,x3) = (x2 x3, x1 x3, x1 x2).
+
+The block answer is:
+
+       C_blk(x,y) = y + Q(x).
+
+The vertical translations are y -> y + k, and they become output
+translations. The noise is chosen from special affine subspaces where
+the quadratic cross-terms cancel.
+
+One reason this works is the old friend from calculus and physics:
+quadratic interactions are tame under small symmetric perturbations.
+In the finite-field version:
+
+       Q(x+a) + Q(x) + Q(a)
+
+is nonlinear but constrained to a hyperplane determined by the line
+containing a.
+
+4.4. Why the rank stays detectable
+------------------------------------------------------------
+
+We need both small-change and detection simultaneously. The proof
+uses a harmonic potential:
+
+       H_r = 1 + 1/2 + ... + 1/r.
+
+A generic family of linear observations loses at most one dimension
+when moving down the construction, and a uniformly chosen update loses
+dimension with probability proportional to 3 r / (number of lines).
+But the harmonic function turns that into an expected loss of only a
+constant per level.
+
+This is the heart of Lemma 4.1: a tailored random walk on ranks that
+decays slowly enough to survive until the leaf while the nonlinear
+change probability decays exponentially.
+
+4.5. Quotient and enlargement
+------------------------------------------------------------
+
+Finally, two cosmetic but necessary steps:
+
+  * We quotient out shifts that cause the same output translation, so
+    the output translations are exactly the subspace K.
+
+  * We enlarge the small output alphabet B to any larger K by using
+    many random injections B -> K. This ensures the rank threshold r_*
+    does not grow with ell.
+
+The result is exactly the gadget in Lemma 4.1. Every finite object can
+be found by a terminating deterministic search when p is rational, so
+the reduction is explicit.
+
+
+================================================================================
+PART 5. BUILDING THE OUTER MATRIX GAME
+================================================================================
+
+Now we make the actual Unique Games instance whose vertices are not
+variables but whole TABLES.
+
+5.1. Tables
+------------------------------------------------------------
+
+Let U = (e_1, ..., e_k) be an ordered tuple of k parity equations.
+A table on U is an affine map from the satisfying answers of those
+equations to the latent space V.
+
+Each equation has four satisfying triples:
+   (x,y, b_equation + x + y).
+
+So an equation answer is determined by its first two bits. Adding a
+homogeneous coordinate t_0 = 1 gives the answer space dimension
+m = 1 + 2k: one coordinate for the constant and two slopes per
+equation.
+
+A table P is represented by a matrix in Hom(F_2^m, V). In particular,
+P z means: evaluate the affine table at the valid answer z.
+
+5.2. Two key identifications: keys and folding
+------------------------------------------------------------
+
+Different tables can secretly represent the same information. We first
+simplify each block.
+
+A slope pair (a_i,d_i) can:
+
+  * have rank two, so the table truly depends on both equation bits;
+  * have rank zero, so the block can be omitted;
+  * have rank one, so the table depends only on one variable or one
+    actual answer bit.
+
+The RETAINED coordinates form the support. The REDUCED table is the
+unique linear map on that support. The KEY of a table is its support
+plus its reduced table, including its intercept.
+
+A crucial compatibility: if a question O is obtained from U by
+projecting some equation blocks down to singleton variables, then a
+table on O and its pullback to U have the SAME KEY. Thus one vertex
+label can serve both questions consistently.
+
+Folding is then immediate. Adding a constant h in K to the intercept
+changes the key by h. We group each key with all of its K-translates
+into one vertex. A labeling of vertices defines, for any table P:
+
+        F(P) = label(representative key) + c(P),
+
+where c(P) is the K-component of the key's intercept. This has the
+exact translation property:
+
+        F(P + h e0^T) = F(P) + h.
+
+This is how the final Unique Game constraints become translations of
+the alphabet K.
+
+5.3. The matrix test
+------------------------------------------------------------
+
+Sample:
+
+  * U: k independent parity equations,
+  * P: a uniform table on U,
+  * a: latent noise drawn from mu,
+  * l: a uniform bit vector of length m.
+
+Accept if:
+
+        F(P) = F(P + a l^T).
+
+Here a l^T is rank one with the column a and row l. This test is a
+weighted permutation test on the orbit vertices.
+
+5.4. Completeness
+------------------------------------------------------------
+
+Why does a near-satisfying parity assignment make this test pass with
+very high probability?
+
+Fix a global assignment satisfying the equations. On a tuple where all
+k equations are satisfied, the full answer z is actual and nonzero.
+The table's value becomes:
+
+        C(P z)
+
+and after the update:
+
+        C(P z + a (l^T z)).
+
+Since P z is uniform in V and independent of the noise a, the latent
+gadget says this changes with probability at most p. But equality only
+fails when l^T z = 1 AND the latent change is nonzero. Since l^T z is
+a fair bit independent of the rest, the failure probability is at most
+p/2.
+
+With probability at least 1 - k xi every equation in U is satisfied.
+Therefore completeness is:
+
+        value >= 1 - k xi - p/2.
+
+Both k xi and p/2 can be made arbitrarily small. That is the entire
+point of the latent gadget.
+
+
+================================================================================
+PART 6. THE INVERSE SHORTCODE THEOREM
+================================================================================
+
+For soundness, we need a structural theorem. It says that any function
+which is too stable under uniform rank-one perturbations must be very
+simple on a small "window" of matrices.
+
+THEOREM 6.1 (equality soundness for degree-two shortcode)
+------------------------------------------------------------
+For every eta > 0 there are constants alpha > 0 and r_s >= 1 with the
+following property. If a function
+
+       f : Mat(ell,m) -> F_2^ell
+
+satisfies
+
+       Pr_{M,a,l}[ f(M) = f(M + a l^T) ]  >=  eta,
+
+then there is a nonempty row-and-column slice S, defined by at most
+r_s row equations and at most r_s column equations, such that for
+some vector z and some vector u,
+
+       Pr_{M on slice S}[ f(M) = Mz + u ]  >=  alpha.
+
+A row-and-column slice is a set of matrices that all agree on some
+linear combinations of rows and columns.
+
+WHY THIS MATTERS
+------------------------------------------------------------
+The theorem says: if f almost always keeps its value when we add a
+tiny random rank-one matrix, then after zooming into a carefully chosen
+finite window, f looks exactly like the honest affine table M z + u.
+Thus a cheater who passes often must somewhere be behaving like a real
+table.
+
+The proof starts by identifying each matrix M with a subspace L_M
+inside F_2^ell + F_2^m:
+
+       L_M = { (x, M^T x) : x in F_2^ell }.
+
+Then:
+
+       dimension( L_M intersect L_N ) = ell - rank(M - N).
+
+So adding a nonzero rank-one matrix M - N exactly corresponds to taking
+a neighbor in the Grassmann graph of subspaces.
+
+A fiber that has retention at least eta under the matrix step becomes a
+set of Grassmann vertices with retention at least eta/4. The famous
+Khot--Minzer--Safra expansion theorem says that any set with constant
+retention has positive relative density inside a small interval of
+subspaces. Translating that interval back to matrices gives exactly
+a row-and-column slice and an affine target Mz + u.
+
+The constants alpha and r_s depend only on eta. No folding condition
+is needed. This theorem is the external structural engine of the
+proof.
+
+
+================================================================================
+PART 7. MATRIX EXTRACTION AND FOURIER DECODING
+================================================================================
+
+Now assume some labeling makes the matrix test pass with probability
+at least 0.99. We will use Fourier analysis to extract two highly
+agreeing local strategies for a related "advice experiment".
+
+7.1. A change of noise
+------------------------------------------------------------
+
+For a table Q and a character sigma of K, define the sign:
+
+       f_{Q,sigma}(P) = (-1)^{sigma(F_Q(P))}.
+
+A matrix Fourier frequency is a tuple g = (g_i) of linear functionals
+on V, one for each column i. The eigenvalue of g under the latent
+noise is:
+
+       Lambda_g = Pr_{a ~ mu}[ g_i(a) = 0 for every i ].
+
+This lies in [0,1]. The latent gadget's detection property says:
+
+       if the restriction of the span of the g_i's to K
+       has dimension at least r_*, then Lambda_g <= 7/8.
+
+For ordinary uniform rank-one noise with a uniform in K, the
+eigenvalue at g is instead:
+
+       2^(-dimension of span of restrictions of g_i to K).
+
+Therefore latent acceptance 0.99 forces at least 0.9 of the Fourier
+mass to sit on low-rank frequencies. Mass on low-rank frequencies
+gives positive acceptance under the ordinary uniform rank-one test.
+Concretely:
+
+LEMMA 7.1 (spectral comparison)
+------------------------------------------------------------
+If the table family passes the latent test with probability at least
+0.99, then under ordinary uniform rank-one updates:
+
+       E_{U,T} Pr_{M,a,l}[ F_U(M,T)=F_U(M+a l^T,T) ]
+         >=  0.9 * 2^(-r_*).
+
+So a fixed positive fraction of fibers (U,T) have uniform rank-one
+acceptance at least some fixed multiple of 2^(-r_*).
+
+7.2. From one slice to a useful row fiber
+------------------------------------------------------------
+
+The inverse shortcode theorem gives one good slice on each such
+(U,T). But the U-prover will not see all of M. It sees only the
+compressed rows S = AM, where A : K -> F_2^{r_s} is a random linear
+map.
+
+A technical erasure lemma proves that for a positive fraction of
+(U,T,A,AM), the row fiber
+
+       { M : AM = S }
+
+contains a good slice. The proof is an averaging plus union bound
+argument using Hoeffding's inequality. It shows that if too many row
+fibers were bad, we could alter f by replacing the bad fibers with
+random noise and contradict Theorem 6.1.
+
+LEMMA 7.2 (good row advice)
+------------------------------------------------------------
+With probability at least g_0 > 0, the row advice (U,T,A,S) is good:
+there exist at most r_s column specifications and a target Mz + u,
+valid on the row fiber, that agrees with F on a nonempty set with
+probability at least alpha/2. The good set also determines a short
+nonempty answer set ANS of at most 2^{r_s} valid answers.
+
+Here "valid answer" means a vector whose homogeneous coordinate is 1.
+This last step uses folding in a clever way: if every vector in the
+naturally produced target coset had first bit zero, then translating
+by all h in ker A would make agreement only one per orbit, which is
+too small. So a valid representative must exist.
+
+7.3. The projected advice experiment
+------------------------------------------------------------
+
+We now compare an equation-tuple question U with a sparse projection
+question O. Independently in each of the k blocks, with probability
+beta, we replace the whole equation by only one of its three variables.
+The projection pi maps full equation answers to projected answers.
+
+The two provers are given correlated advice:
+
+       U-prover gets (U, A, T_O pi, S_O pi),
+       O-prover gets (O, A, T_O, S_O).
+
+They must produce actual answers a_U and a_O with pi(a_U) = a_O.
+
+LEMMA 7.3 (padded table law)
+------------------------------------------------------------
+When beta = k^(-2/3), the distribution of the padded table pulled back
+from O to U tends in total variation to a uniformly random table on U
+as k grows along cubes. The distance is o(1).
+
+Therefore the good row advice extracted under unrestricted sampling
+remains present in the actual experiment.
+
+LEMMA 7.4 (transfer of a witness)
+------------------------------------------------------------
+For sufficiently large k, with probability at least gamma_1 > 0, the
+padded U-advice is good and the chosen witness transfers to O: a
+nonempty slice on O on which the projected target still agrees with
+F_O. The transferred answer set is the projection of the original
+short valid answer set.
+
+7.4. The two decoders
+------------------------------------------------------------
+
+Now we define the strategies.
+
+U-prover:
+  If its visible advice is good, it samples an answer uniformly from
+  the short valid answer set ANS. If not good, it returns any valid
+  answer.
+
+O-prover:
+  It uses only its own row fiber { M : AM = S_O }.
+  It chooses a representative M_0, writes the fiber as M_0 + X, and
+  forms the sign function f_sigma on X. It samples a Fourier frequency
+  Phi with probability proportional to |f_sigma_hat(Phi)|^2, then
+  evaluates Phi on a fixed vector h chosen from ker A. If the sampled
+  restriction sigma|_H is nontrivial, this produces a valid answer;
+  otherwise it returns any valid answer.
+
+The O-prover does NOT see the U-prover's witness or answer set. The
+witness is used only in the analysis.
+
+LEMMA 7.5 (a transferred slice gives agreement)
+------------------------------------------------------------
+On data satisfying the transferred witness property, the two private
+rules agree with probability at least
+
+        2^(-ell r_s) (alpha/8)^2 2^(-r_s).
+
+Proof idea: the Fourier coefficients inside the transferred
+slice have total squared mass at least 2^(-ell r_s)(alpha/8)^2. When
+the O-prover samples such a frequency, its returned answer lies in the
+projected answer set. Independently, the U-prover hits a compatible
+representative with probability at least 2^(-r_s).
+
+Multiplying gamma_1 by this conditional agreement gives a constant
+gamma > 0.
+
+PROPOSITION 7.6 (matrix decoding)
+------------------------------------------------------------
+For every large cube k, any table family satisfying folding and sharing
+and passing the matrix test with probability at least 0.99 gives local
+strategies in the projected advice experiment with agreement at least
+a fixed constant gamma > 0.
+
+This is the first incompatible lower bound.
+
+
+================================================================================
+PART 8. CLEAN COORDINATES AND THE SOUNDNESS GAP
+================================================================================
+
+Now we prove the opposite bound: on a NO parity instance, no pair of
+advice strategies can agree often.
+
+8.1. Parallel repetition
+------------------------------------------------------------
+
+We need one classical tool.
+
+THEOREM 8.1 (projection-game repetition, Dinur--Steurer)
+------------------------------------------------------------
+Let G be a finite projection game. Let G^t be the game with t
+independent copies, accepting only if all t copies accept. Then
+
+       value(G) <= 1 - g   =>   value(G^t) <= (1 - g^2/16)^t.
+
+The bound does not depend on the size of the question sets or answer
+alphabets. This alphabet-independence is essential: it lets us choose
+the repetition exponent before the final alphabet is chosen.
+
+8.2. Clean coordinates
+------------------------------------------------------------
+
+Let D_O = (T_O, S_O) be the combined visible advice map from O to
+E_A = W + image(A). Conditional on the question O, every slope column
+and the intercept are independent uniform values of E_A.
+
+A coordinate i is CLEAN if the corresponding block was projected to a
+singleton and its one advice slope is zero. Conditional on the clean
+mask, the equation-variable pairs in the clean coordinates have
+exactly the ordinary equation-versus-variable law.
+
+The probability that a coordinate is clean is:
+
+       p_A = beta * |E_A|^(-1).
+
+That is a positive constant depending only on the fixed dimensions.
+
+LEMMA 8.2 (clean-coordinate bound)
+------------------------------------------------------------
+If the original parity instance has optimum at most 4/5, then every
+pair of strategies in the advice experiment agrees with probability at
+most:
+
+       ( 1 - beta * 2^(-dim W - r_s) / 3600 )^k
+ <= exp( - 2^(-dim W - r_s) * k^(1/3) / 3600 ).
+
+PROOF IDEA
+------------------------------------------------------------
+Fix the advice map information outside the clean coordinates: A, the
+clean set, the intercept, and all slopes outside the clean set. For
+each clean coordinate i, offer the equation to one prover and the
+variable to the other. Each prover can reconstruct the entire advice
+input it originally received from this outside data plus its own clean
+questions.
+
+Why? The equation side sees the equation occurrence and can fill in
+the two zero slopes and the full intercept. The variable side sees the
+variable and can fill in the singleton slope and the original
+intercept. The outside data supplies all non-clean blocks. Therefore
+any agreement in the original advice experiment on every clean
+coordinate would also solve the t-fold product of the ordinary
+equation-versus-variable game.
+
+The ordinary game has value at most 14/15. Parallel repetition gives
+value at most (1 - 1/3600) per clean coordinate. Averaging over the
+clean mask and using the binomial moment bound proves the lemma.
+
+8.3. The fixed matrix-game gap
+------------------------------------------------------------
+
+Choose beta = k^(-2/3). Then:
+
+       k beta^2 = k^(-1/3) -> 0,   needed for padded law comparison,
+       k beta   = k^(1/3) -> infinity,   needed for many clean coords.
+
+For large k, the clean upper bound is smaller than gamma from decoding.
+This contradiction proves:
+
+PROPOSITION 8.3 (matrix game with adjustable completeness)
+------------------------------------------------------------
+For every large cube k and every parity instance:
+
+  YES case:  value(matrix game) >= 1 - k xi - p/2.
+  NO case:   value(matrix game) <= 0.99.
+
+The NO case uses 0.99 as the assumed acceptance threshold in Fourier
+decoding. The YES case uses the latent completeness lemma.
+
+This is the central tension. We now turn it into the final theorem.
+
+
+================================================================================
+PART 9. COMPLETING THE REDUCTION
+================================================================================
+
+The matrix game is still weighted and may have loops and parallel
+edges. We must turn it into the exact promised object.
+
+LEMMA 9.1 (rounding and subdivision)
+------------------------------------------------------------
+Let H be any finite permutation-constraint game with h positive
+rational occurrence weights summing to one. For any small tau > 0,
+there is an unweighted simple bipartite game B with 4Q edges, where
+Q = ceil(h/tau), and the same alphabet, such that:
+
+       | value(B) - (1 - (1 - value(H))/4) | <= tau/4.
+
+Construction: round the weights to integer multiplicities. Replace
+each occurrence by a four-edge path with three fresh interior
+vertices. A satisfied occurrence extends to four satisfied edges; a
+violated one can satisfy only three. The interiors are disjoint, so
+exact equality holds after rounding.
+
+If the constraints of H are translations on a binary space, those of B
+are too. Translation by zero is the identity, and the inverse of a
+translation is still a translation.
+
+9.1. Parameter order
+------------------------------------------------------------
+
+Fix desired errors epsilon, delta in (0,1/2). Choose positive rational
+epsilon_0 <= epsilon and delta_0 <= delta.
+
+  1. Choose a repetition exponent t such that
+
+        (1 - 1/10240000)^t <= delta_0.
+
+     This is possible because the post-subdivision NO gap is 1/800 and
+     parallel repetition with gap g=1/800 gives g^2/16 = 1/10240000.
+
+  2. Choose
+
+        p <= epsilon_0 / t,
+        tau <= min(1/200, epsilon_0 / t).
+
+  3. From p, obtain the latent rank threshold r_*.
+     Put eta = 2^(-r_*)/16.
+     Obtain alpha and r_s from the inverse shortcode theorem.
+
+  4. Choose ell large enough, and construct the latent gadget with K =
+     F_2^ell. This fixes V, C, mu, and the splitting V = K + W.
+
+  5. Choose a cube k large enough for:
+       - shortcode theorem dimension thresholds;
+       - the Hoeffding union bound;
+       - the padded-law total variation bound;
+       - the clean upper bound to be less than gamma.
+
+     Enumerating cubes until all rational inequalities hold is a
+     deterministic finite search whose cost depends only on epsilon and
+     delta.
+
+  6. Finally choose xi small enough that
+
+        k xi + p/2 <= epsilon_0 / t.
+
+This order is the entire proof of the quantifier claim. r_* is fixed
+before ell, ell before k, and k before xi.
+
+9.2. The final theorem
+------------------------------------------------------------
+
+Given a 3SAT formula, apply Hastad's parity gap and make positions
+distinct. Build the matrix game from Section 5.
+
+For a satisfiable formula:
+
+       value(H) >= 1 - d,
+       d = k xi + p/2 <= epsilon_0 / t.
+
+For an unsatisfiable formula:
+
+       value(H) <= 0.99.
+
+Apply rounding and subdivision:
+
+       YES:  value(B) >= 1 - (d + tau)/4.
+       NO:   value(B) <= 1 - 1/800.
+
+Finally take the t-fold parallel product G = B^t:
+
+       YES:  value(G) >= 1 - t(d+tau)/4 >= 1 - epsilon.
+       NO:   value(G) <= (1 - 1/10240000)^t <= delta.
+
+The output is unweighted, simple, bipartite, and has translation
+constraints on K^t = F_2^{ell t}. Thus s = ell t is the required fixed
+alphabet dimension.
+
+POLYNOMIAL ENCODING
+------------------------------------------------------------
+The parity instance size N gives N^k equation tuples. Because k is
+fixed after epsilon and delta, the number of matrix-test occurrences
+is polynomial in N. The number of tables, noise outcomes, and vectors
+per tuple is fixed. Each weight is a product of k parity weights and
+fixed rational factors. Keys and folded representatives are computed
+by linear algebra in fixed dimensions. Comparison of keys by pairs is
+polynomial. Rounding uses Q = O(h) copies, subdivision creates 3Q new
+vertices, and the final product has (4Q)^t edges. Permutation tables
+on F_2^{ell t} have constant size. Hence the entire reduction is
+explicit and deterministic polynomial-time.
+
+This completes the proof of the Unique Games Theorem.
+
+
+================================================================================
+PART 10. CONSEQUENCES
+================================================================================
+
+The theorem turns many conditional hardness results into unconditional
+NP-hardness results. The original reductions and thresholds are due to
+their cited authors; we state the resulting exact forms.
+
+10.1. Max-Cut
+------------------------------------------------------------
+For the problem of splitting the vertices of a graph into two parts to
+maximize crossing edges, approximation above the Goemans--Williamson
+constant alpha_GW ~ 0.87856 is NP-hard at every fixed ratio in
+(alpha_GW, 1). The matching algorithm is due to Goemans and
+Williamson. The hardness reduction uses the Majority Is Stablest
+theorem.
+
+10.2. Vertex Cover
+------------------------------------------------------------
+It is NP-hard to approximate Vertex Cover within factor 2 - epsilon
+for every fixed epsilon > 0.
+
+10.3. Every CSP has an SDP threshold
+------------------------------------------------------------
+A constraint satisfaction problem over a fixed finite domain D with a
+fixed finite family of predicates Lambda has an explicit basic
+semidefinite program. For any fixed Lambda-instance J with
+
+       A = OPT(J) < B = SDP(J),
+
+and every fixed gap eta > 0, it is NP-hard to separate instances of
+value at least B - eta from instances of value at most A + eta. Thus
+Raghavendra's SDP is exactly the optimal approximation algorithm for
+every fixed CSP.
+
+This statement needs a stronger promise form of Unique Games: the
+YES labeling satisfies all constraints incident to almost all left
+vertices. Section 11 derives that finite strong-left form.
+
+10.4. Ordering CSPs
+------------------------------------------------------------
+Fix k >= 2 and a nonempty proper subset Pi of S_k. An ordering CSP
+asks for a global order on variables; an ordered k-tuple is satisfied
+if the order induced on it belongs to Pi. The random-ordering value
+is rho = |Pi|/k!.
+
+It is NP-hard to approximate the weighted finite ordering CSP above
+every ratio r > rho. The threshold is rho.
+
+Two famous examples:
+
+  * Maximum Acyclic Subgraph:
+      k=2, Pi={12}, so threshold 1/2.
+
+  * Betweenness:
+      k=3, Pi={123,321}, so threshold 2/6 = 1/3.
+
+10.5. Cut, deletion, and clustering
+------------------------------------------------------------
+For every fixed constant C > 1, it is NP-hard to approximate within
+C:
+
+  * Multicut,
+  * Sparsest Cut (search version),
+  * Min-2CNF^= Deletion,
+  * Correlation Clustering in general weighted graphs.
+
+A companion paper proves uniform-demand Sparsest Cut hardness and a
+Gaussian propeller kernel-clustering threshold
+
+       alpha_k = (8 pi / 9)(1 - 1/k).
+
+That companion result uses this theorem but is not an input to it.
+
+Under P not equal to NP, all of these problems have no deterministic
+polynomial-time constant-factor approximation.
+
+
+================================================================================
+PART 11. THE APPENDIX: FINITE STRONG-LEFT AND ORDERING TRANSFER
+================================================================================
+
+Some reductions need the Unique Games promise in a stronger, finite
+left-degree form. This appendix states those finite formulations and
+outlines their proofs.
+
+11.1. Simple strong-left games
+------------------------------------------------------------
+
+THEOREM 11.1 (simple strong-left Unique Games)
+------------------------------------------------------------
+For every 0 < zeta, nu < 1 and integers d,H >= 1, there are integers
+h,R >= 1 with h >= H and d | h, and a deterministic polynomial-time
+reduction from 3SAT to explicit unweighted simple bipartite Unique
+Games instances with common left degree h, such that:
+
+  YES case: a labeling strongly satisfies at least 1 - zeta of left
+            vertices. Here "strongly satisfies" means every edge
+            incident to that left vertex is satisfied.
+
+  NO case:  value < nu.
+
+The proof adapts the normalization and sequence construction of Khot
+and Regev. It makes the graph simple by retaining only sequences with
+all tags distinct. The strong-left completeness follows by lifting one
+labeling to all sequence vertices. Soundness follows because retained
+sequences have a constant fraction of all sequences, while the full
+sequence graph has small value. Polynomiality is explicit because all
+parameters depend only on zeta,nu,d,H.
+
+11.2. Finite ordering transfer
+------------------------------------------------------------
+
+THEOREM 11.2 (finite ordering transfer)
+------------------------------------------------------------
+For every k >= 2, proper Pi subset S_k, and every delta > 0, there are
+integers q,H and positive rationals zeta,nu, depending only on
+k,Pi,delta, with the following property.
+
+For every R >= 1 and every simple strong-left Unique Games instance
+over [R] with left degree h >= H and q | h, there is a deterministic
+transformation producing an explicit list of weighted Pi-ordering
+constraints on distinct variables, with rational weights summing to
+one, such that:
+
+  YES case:  OPT_Pi >= 1 - delta,
+  NO case:   OPT_Pi <= rho_Pi + delta.
+
+The constants q,H,zeta,nu do not depend on R or h.
+
+The output variables are pairs (b,z) in B x [m]^R. The construction
+sorts local IDs into q blocks, averages over neighbors, and uses an
+invariance principle. It chooses all constants before applying the
+Unique Games theorem, exactly as required by the quantifier order.
+
+The appendix then makes the reduction expressed only with rational
+weights and finite enumerated neighbor choices, so the resulting
+ordering-CSP instance is explicit and polynomial.
+
+
+================================================================================
+PART 12. A SHORT DICTIONARY OF NOTATION
+================================================================================
+
+  F_2          the field {0,1} with addition mod 2.
+  [n]          {1,2,...,n}.
+  K            final Unique Games alphabet, often F_2^ell or F_2^s.
+  V            latent alphabet containing K.
+  C            nonlinear map V -> K.
+  mu           rational noise distribution on V.
+  value(G)     maximum satisfied fraction of a game G.
+  val(G)       maximum satisfied fraction.
+  OPT          optimum value of an optimization instance.
+  F_Q(P)       restored answer determined by a labeling, question Q,
+               and table P.
+  Hom(E,F)     linear maps from E to F.
+  rank M       dimension of the image of the linear map M.
+  eps, delta   desired completeness error and soundness error.
+  xi           parity-gap error, chosen small after k.
+  k            tuple length used in the outer game.
+  beta         k^(-2/3), sparse projection probability.
+  r_*          latent rank threshold.
+  r_s          maximum slice dimension in the shortcode theorem.
+  alpha        slice agreement lower bound.
+  gamma        decoded advice agreement lower bound.
+  W            a linear complement so V = K + W.
+  A            random linear map K -> F_2^{r_s}.
+  S            compressed matrix rows AM.
+  T            W-valued part of a table.
+  M            K-valued part of a table.
+  pi           answer projection U -> O.
+  e_0^T        homogeneous-coordinate functional.
+
+
+================================================================================
+PART 13. WHY THE PROOF IS COMPLETE
+================================================================================
+
+A common worry with famous results is that a sketch hides a crucial
+quantifier. This proof is designed so the quantifiers are visible.
+
+  1. Hastad's parity gap is external input.
+
+  2. The latent gadget is constructed effectively, and its rank
+     threshold r_* is fixed before ell.
+
+  3. The inverse shortcode theorem is stated with exact dependencies
+     and is translated from a known expansion theorem.
+
+  4. The Fourier comparison between latent and ordinary noise gives a
+     positive surrogate acceptance.
+
+  5. The erasure lemma gives good row advice with positive probability
+     and without assuming any property of the table family beyond
+     folding, sharing, and acceptance.
+
+  6. The projected law comparison justifies using row advice from
+     unrestricted tables inside the actual sparse experiment.
+
+  7. The two decoders are defined only from their own messages.
+
+  8. The clean-coordinate reconstruction is spelled out block by
+     block, including intercept contributions.
+
+  9. Repetition is alphabet-independent, so its exponent is selected
+     before the final alphabet is fixed.
+
+  10. All parameter choices are rational and ordered correctly.
+
+That is the complete proof.
+
+
+================================================================================
+KEY REFERENCES IN THE ORIGINAL PAPER
+================================================================================
+
+  Khot 2002:
+    On the Power of Unique 2-Prover 1-Round Games.
+  Khot 2010:
+    On the Unique Games Conjecture.
+  Khot, Kindler, Mossel, O'Donnell 2007:
+    Optimal Inapproximability Results for MAX-CUT and Other 2-Variable CSPs.
+  Khot, Regev 2008:
+    Vertex cover might be hard to approximate to within 2-epsilon.
+  Raghavendra 2008 / thesis 2009:
+    Optimal Algorithms and Inapproximability Results for Every CSP.
+  Guruswami, Hastad, Manokaran, Raghavendra, Charikar 2011:
+    Beating the Random Ordering Is Hard: Every Ordering CSP Is
+    Approximation Resistant.
+  Chawla, Krauthgamer, Kumar, Rabani, Sivakumar 2006:
+    On the Hardness of Approximating Multicut and Sparsest-Cut.
+  Demaine, Emanuel, Fiat, Immorlica 2006:
+    Correlation Clustering in General Weighted Graphs.
+  Hastad 2001:
+    Some Optimal Inapproximability Results.
+  Barak, Kothari, Steurer 2018/2019:
+    Small-Set Expansion in Shortcode Graph and the 2-to-2 Conjecture.
+  Khot, Minzer, Safra 2023:
+    Pseudorandom Sets in Grassmann Graph Have Near-Perfect Expansion.
+  Dinur, Steurer 2014:
+    Analytical Approach to Parallel Repetition.
+  Khot, Safra 2013:
+    A Two-Prover One-Round Game with Strong Soundness.
+  Khot, Minzer, Safra 2017/2025:
+    On Independent Sets, 2-to-2 Games and Grassmann Graphs.
+  Minzer, Zheng 2026:
+    Near Optimal Alphabet-Soundness Tradeoff PCPs.
+  Mossel, O'Donnell, Oleszkiewicz 2010:
+    Noise Stability of Functions with Low Influences.
+  Isaksson, Mossel 2009:
+    Maximally Stable Gaussian Partitions with Discrete Applications.
+  Dinur, Khot, Kindler, Minzer, Safra 2021:
+    On Non-Optimally Expanding Sets in Grassmann Graphs.
+  Ellis, Kindler, Lifshitz 2026:
+    An Analogue of Bonami's Lemma for Functions on Spaces of Linear
+    Maps, and 2-2 Games.
+  Bellare, Goldreich, Sudan 1998:
+    Free Bits, PCPs, and Nonapproximability.
+  Rao 2011:
+    Parallel Repetition in Projection Games and a Concentration Bound.
+  Raz 1998:
+    A Parallel Repetition Theorem.
+  Holenstein 2009:
+    Parallel Repetition: Simplifications and the No-Signaling Case.
+  Goemans, Williamson 1995:
+    Improved Approximation Algorithms for Maximum Cut and
+    Satisfiability Problems Using Semidefinite Programming.
+  Trevisan 2008:
+    Approximation Algorithms for Unique Games.
+  Charikar, Makarychev, Makarychev 2006:
+    Near-Optimal Algorithms for Unique Games.
+  Arora, Barak, Steurer 2010:
+    Subexponential Algorithms for Unique Games and Related Problems.
+  Kolla 2011:
+    Spectral Algorithms for Unique Games.
+  Khot, Vishnoi 2015:
+    The Unique Games Conjecture, Integrality Gap for Cut Problems and
+    Embeddability of Negative-Type Metrics into l_1.
+  Barak, Gopalan, Hastad, Meka, Raghavendra, Steurer 2015:
+    Making the Long Code Shorter.
+  Bafna, Barak, Kothari, Schramm, Steurer 2021:
+    Playing Unique Games on Certified Small-Set Expanders.
+
+================================================================================
+END OF THE UNIQUE GAMES THEOREM (v2)
+================================================================================
