@@ -1,0 +1,1322 @@
+THE FACTOR-TWO HARDNESS THRESHOLD FOR VERTEX COVER
+A guided proof for curious high-school readers
+
+HOW TO READ THIS
+This is a research-level proof, but the shape of the argument is simple.
+We will build a graph from a hard constraint problem.  A satisfiable input
+creates a huge independent set.  An unsatisfiable input cannot create even
+a moderately large one.  That gap is exactly what makes Vertex Cover hard
+to approximate below factor two.
+
+You do not need to know NP-hardness theory to follow the construction.
+You do need to be comfortable with sets, functions, inequalities, and the
+idea of a proof by contradiction.  The scary-looking constants are only
+there to make a few inequalities true.  They are fixed before the hard
+input is chosen, and they never depend on the size of that input.
+
+A SHORT SYMBOL TABLE
+G        a finite simple undirected graph
+n        number of vertices of G
+tau(G)   minimum size of a vertex cover of G
+alpha    approximation factor, alpha >= 1
+[ k ]    the set {1,2,...,k}
+binom(X,2)  the set of unordered pairs from X
+E        usually an edge set, or a set of pairs of positions
+U, V     the two sides of a Label Cover instance
+Sigma_U, Sigma_V  the label alphabets on the two sides
+M        number of constraint occurrences in a Label Cover instance
+val(Phi) fraction of constraints satisfied by the best labeling
+sigma    the soundness value of Label Cover
+m        an integer parameter, m >= 4, controlling the gap
+d        number of positions in the graph construction
+p        2d+1, the number of grid points
+t        threshold, t = sqrt(d)/(4m)
+nu       variance parameter, nu = 1/(2^7 m^3)
+beta     list threshold parameter, beta = nu/8
+ell      maximum list size, ell = 2/beta
+h        batch size, h = 2 ell
+
+
+1. VERTEX COVER AND APPROXIMATION
+
+A graph G has a set of vertices V(G) and a set of edges E(G).  An edge is
+an unordered pair of distinct vertices.  A vertex cover is a set C of
+vertices such that every edge has at least one endpoint in C.
+
+The complement of a vertex cover is an independent set: a set of vertices
+with no edge between any two of them.  So minimizing the cover is the same
+as maximizing the independent set.  We write tau(G) for the minimum cover
+size and n for the number of vertices.
+
+An alpha-approximation algorithm for Vertex Cover always returns an actual
+vertex cover C with
+
+    |C| <= alpha * tau(G).
+
+The factor is at least 1.  Factor 1 would be exact optimization.
+
+Factor 2 is easy.  Take a maximal matching: a set of disjoint edges that
+cannot be enlarged.  Return both endpoints of every matching edge.  This
+is a vertex cover: if an edge had neither endpoint chosen, we could add it
+to the matching.  Every vertex cover must contain at least one endpoint of
+each matching edge, and the matching edges are disjoint.  Hence the cover
+has size at most twice the optimum.
+
+The theorem below says that no fixed factor below 2 is possible unless
+P = NP.
+
+THEOREM A (explicit cover gap)
+For every integer m >= 4 there is a deterministic polynomial-time
+reduction from 3SAT to finite simple undirected unweighted graphs such that
+
+    formula satisfiable   =>  tau(G) <  (1/2 + 1/m) n,
+    formula unsatisfiable =>  tau(G) >  (1 - 1/m) n.
+
+The reduction outputs the complete vertex list and edge list.
+
+The ratio of the two thresholds is
+
+    (1 - 1/m) / (1/2 + 1/m) = 2 - 6/(m+2).
+
+As m grows this ratio approaches 2.  Given any fixed alpha < 2, choose m
+large enough that alpha < 2 - 6/(m+2).  Then an alpha-approximation would
+return a cover below (1-1/m)n on satisfiable inputs and above (1-1/m)n on
+unsatisfiable inputs.  Comparing the integer cover size with the rational
+threshold (m-1)n/m decides 3SAT.  Therefore approximating Vertex Cover
+within any fixed factor below 2 is NP-hard.
+
+The rest of this text proves Theorem A.  The proof has three engines:
+
+    (1) Label Cover: a hard constraint system with a tiny soundness value.
+    (2) A graph construction that turns a large independent set into short
+        local lists of labels.
+    (3) A decoding argument showing that those lists would solve Label
+        Cover too well, a contradiction.
+
+
+2. LABEL COVER: THE ONLY HARD INGREDIENT
+
+A Label Cover instance Phi has two disjoint finite variable sets U and V,
+two nonempty finite alphabets Sigma_U and Sigma_V, and a finite list of M
+constraint occurrences.  Occurrence c has a left endpoint x_c in U, a right
+endpoint y_c in V, and a total map
+
+    pi_c : Sigma_U -> Sigma_V.
+
+A labeling A gives every variable in U a symbol from Sigma_U and every
+variable in V a symbol from Sigma_V.  It satisfies occurrence c when
+
+    pi_c(A(x_c)) = A(y_c).
+
+The value val(Phi) is the largest fraction of occurrences satisfied by any
+one labeling.  Occurrences are counted with multiplicity.
+
+THEOREM B (perfect-completeness Label Cover)
+For every fixed rational sigma in (0,1) there are nonempty constant
+alphabets and a deterministic polynomial-time reduction from 3SAT to Label
+Cover instances such that
+
+    formula satisfiable   =>  val(Phi) = 1,
+    formula unsatisfiable =>  val(Phi) <= sigma.
+
+This is the standard consequence of the PCP theorem and parallel
+repetition.  The alphabets and all constants may depend on sigma, but not
+on the size of the 3SAT formula.  This theorem is the only external
+hardness input used in the proof.
+
+One warning about language.  A "query" in the graph construction is not
+the same as a constraint occurrence.  A query remembers only the questions
+that a position receives, not the occurrence indices that produced them.
+That forgetting is the whole point of the proof.
+
+
+3. THE PARAMETERS, AND WHY THEY ARE ALLOWED TO LOOK UGLY
+
+Fix an integer m >= 4.  This m controls how close our gap gets to 2.
+We will choose several constants as functions of m.  They are all fixed
+before we look at the 3SAT formula or the Label Cover instance.
+
+For now, let d be an even square integer with
+
+    d >= 4,       sqrt(d) > 4m.
+
+Later we will set d = 2^38 m^10.  The square root is 2^19 m^5, which is
+certainly larger than 4m.
+
+Put
+
+    a  = 1/(4m),
+    p  = 2d + 1,
+    t  = a sqrt(d) = sqrt(d)/(4m).
+
+The graph will use a grid with p points, and adjacency will be controlled
+by the threshold 2t.  Notice that
+
+    d/p < 1/2 < t/2.
+
+The first inequality is just 2d < 2d+1.  The second uses sqrt(d) > 4m.
+
+The source alphabets are not fixed yet.  Once Label Cover gives us
+alphabets Sigma_U and Sigma_V, set
+
+    q = max(|Sigma_U|, |Sigma_V|),
+    r = q^(d-1).
+
+A query will mention at most d-1 distinct variables, so r is an upper
+bound on the number of labels for one query.  The proof never needs q to
+be small; r only appears in places where we can afford it.
+
+We also set
+
+    b0   = 1/(2m),
+    nu   = 1/(2^7 m^3) = b0 a^2 / 4,
+    beta = nu/8,
+    ell  = 2/beta,
+    h    = 2 ell.
+
+The number nu is a variance lower bound per position.  The number beta is
+the threshold for keeping a coordinate in a list.  The number ell is the
+maximum list size.  The number h is the size of a small batch of positions
+that we keep unfrozen during the main technical lemma.
+
+
+4. THE GRAPH CONSTRUCTION
+
+4.1  Positions, seeds, and queries
+
+There are d positions, numbered 1 through d.  Let
+
+    E = binom([d],2)
+
+be the set of unordered pairs of distinct positions.
+
+For each pair e = {j,k} with j < k, choose one constraint occurrence
+c_e from the Label Cover instance.  The tuple
+
+    c = (c_e)_{e in E}
+
+is called a seed tuple.  It is one of M^(|E|) possible tuples.
+
+Occurrence c_e has a left endpoint x_{c_e} in U and a right endpoint
+y_{c_e} in V.  We give x_{c_e} to position j and y_{c_e} to position k.
+Thus position j receives one question from every other position.
+
+For a fixed seed tuple c, the query at position j is
+
+    i_j(c) = ( j, (q_{jk})_{k != j} ),
+
+where the entries are ordered by increasing k, and
+
+    q_{jk} = x_{c_{jk}}  if k > j,
+    q_{jk} = y_{c_{jk}}  if k < j.
+
+Here c_{jk} is shorthand for c_{{j,k}}.
+
+A query has a type (the position j) and an ordered list of endpoint
+questions.  It does NOT remember the occurrence indices c_{jk}.  It also
+does NOT remember the opposite endpoint of any pair.  Different seed
+tuples can therefore produce the same query.  This forgetting is not a
+detail; it is what makes the decoding step work.
+
+Let P(i) be the set of distinct source variables appearing in query i.
+Since there are d-1 questions, |P(i)| <= d-1.  Repeated variables in a
+query are allowed; they are counted once in P(i).
+
+4.2  Labels and compatible selections
+
+A label lambda for query i assigns a symbol from the correct alphabet to
+every variable in P(i).  It must satisfy every source constraint whose
+two endpoints both belong to P(i).  Let Lambda_i be the set of all such
+labels.
+
+There are at most q^|P(i)| <= r labels.  Fix an ordering of variables and
+symbols, and list the valid labels in lexicographic order.  This gives an
+injection
+
+    slot_i : Lambda_i -> {1,2,...,r}.
+
+If Lambda_i is empty, this map is empty.
+
+Now define the coordinate set
+
+    P = { (i,lambda) : i is a query, lambda in Lambda_i }.
+
+A compatible selection is a subset I of P such that:
+
+    (1) I contains at most one label for each query;
+    (2) labels chosen for different queries agree on every variable they
+        share;
+    (3) the combined labeling satisfies every source constraint whose
+        two endpoints lie in the union of the chosen scopes.
+
+Let CalI be the family of compatible selections.  It includes the empty
+selection.  Condition (3) is important: agreement on overlaps alone is
+not enough, because two different scopes can contain variables joined by
+a source constraint that is not inside either scope alone.
+
+For a real vector z indexed by P, define
+
+    ||z|| = max_{I in CalI} | sum_{(i,lambda) in I} z_{i,lambda} |.
+
+This is a norm.  It is finite because CalI is finite.  It is homogeneous
+and satisfies the triangle inequality because it is a maximum of absolute
+values of linear functions.  Every coordinate singleton is compatible,
+so the norm is zero only at the zero vector.
+
+For a query i and a vector s in R^r, define z(i,s) by
+
+    z(i,s)_{i,lambda} = s_{slot_i(lambda)}   for lambda in Lambda_i,
+
+and all other coordinates zero.  For each fixed i, this is linear in s,
+and
+
+    ||z(i,s)|| <= ||s||_infinity.
+
+The reason is that a compatible selection contains at most one coordinate
+from the i-block, so its sum is just one entry of s.
+
+4.3  Vertices and edges
+
+Let
+
+    T = { 2u/p : u = -d, -d+1, ..., d }.
+
+This set has p = 2d+1 points.  They are the midpoints of p equal
+subintervals of [-1,1].  A uniform random element of T is therefore a
+rounded version of a uniform random element of [-1,1].
+
+A vertex of G is a pair
+
+    v = (c, s),
+
+where c is a seed tuple and
+
+    s = (s_1, s_2, ..., s_d)
+
+with each s_j in T^r.  Think of s_j as a small weight vector attached to
+position j.
+
+Define the sum vector
+
+    S_v = sum_{j=1}^d z(i_j(c), s_j).
+
+For two distinct vertices v and w, declare them adjacent exactly when
+
+    ||S_v + S_w|| <= 2t.
+
+This is a finite simple undirected unweighted graph.  The number of
+vertices is
+
+    n = M^(binom(d,2)) * p^(r d).
+
+Choosing a uniform random vertex is exactly the same as choosing every
+seed independently and uniformly from [M], and every grid entry
+independently and uniformly from T.  We do not identify vertices that
+happen to have the same query or the same sum vector.
+
+The edge test is exact.  Every coordinate of S_v + S_w has denominator p.
+The maximum in the norm is therefore an integer divided by p.  The
+threshold is also rational, and because sqrt(d) is an integer, the test
+is a comparison of two integers.  So there is no numerical approximation
+anywhere in the construction.
+
+
+5. COMPLETENESS: A SATISFYING ASSIGNMENT GIVES A BIG INDEPENDENT SET
+
+Assume the Label Cover instance has a labeling A that satisfies every
+constraint occurrence.  We will use A to select a large independent set
+in G.
+
+For each query i, restrict A to the variables P(i).  This restriction is
+a valid label for i, because every source constraint inside P(i) is
+satisfied by A.  Call it lambda_{A,i}.  Let
+
+    I_A = { (i, lambda_{A,i}) : i is a query }.
+
+This is a compatible selection.  The labels agree on overlaps because
+they all come from the single labeling A.  Every source constraint
+inside the union of their scopes is also satisfied by A.
+
+Now keep a vertex v = (c,s) exactly when
+
+    sum_{j=1}^d s_{j, slot_{i_j(c)}(lambda_{A,i_j(c)})}  >  t.
+
+In words: at each position j, look up the slot chosen by the satisfying
+label, read that entry of the weight vector s_j, and add the d numbers.
+Keep the vertex if the sum is larger than t.
+
+We need two facts:
+
+    (a) more than a (1/2 - 1/m) fraction of vertices are kept;
+    (b) the kept vertices form an independent set.
+
+Fact (a) is a tail estimate for a sum of independent uniform grid
+variables.  Conditional on the seed tuple c, the selected slot at each
+position j is fixed.  The entries s_{j,slot} are independent uniform
+elements of T, one from each independent weight block s_j.  Coincident
+questions or coincident slot numbers do not create dependence, because
+the blocks s_j were chosen independently.
+
+So we need the following lemma.
+
+LEMMA 5.1 (midpoint-grid tail)
+Let T_1,...,T_d be independent uniform elements of T.  Then
+
+    Pr[ T_1 + ... + T_d > t ]
+        > 1/2 - sqrt(2) ( a + 1/sqrt(d) )
+        > 1/2 - 1/m.
+
+PROOF.
+Take independent uniform C_1,...,C_d on [-1,1], and round each C_j to
+the midpoint of its subinterval in the partition defining T.  Boundary
+choices have probability zero.  The rounded variables have exactly the
+law of the T_j, and
+
+    | sum_j T_j - sum_j C_j | <= d/p < 1/2.
+
+Put
+
+    A = t + d/p = a sqrt(d) + d/p.
+
+If |sum_j C_j| <= A, then after rounding we still have sum_j T_j <= t.
+So it is enough to bound the central probability for the continuous
+variables.
+
+Each C_j can be written as
+
+    C_j = (L_j + U_j)/2,
+
+where L_j is a fair sign (+1 or -1) and U_j is uniform on [-1,1], all
+independent.  Indeed, conditional on L_j, U_j makes C_j uniform on one
+half of [-1,1]; the two halves together give the full interval.
+
+Condition on U_1,...,U_d.  The event |sum_j C_j| <= A becomes
+
+    | sum_j L_j + sum_j U_j | <= 2A.
+
+So sum_j L_j must lie in an interval of length 4A.  Now
+
+    4A = 4a sqrt(d) + 4d/p < 4a sqrt(d) + 2.
+
+The possible values of sum_j L_j are spaced by 2.  An interval of length
+D contains at most D/2 + 1 points of such a lattice.  Therefore our
+interval contains fewer than
+
+    2a sqrt(d) + 2
+
+possible sign sums.
+
+Write d = 2 d0.  The probability of a sign sum equal to v is
+4^(-d0) binom(2d0, v).  Consecutive ratios show that the largest is the
+central one, v = d0.  It satisfies
+
+    4^(-d0) binom(2d0, d0)
+        = product_{u=1}^{d0} (1 - 1/(2u))
+        <= 1/sqrt(d0+1)
+        < sqrt(2)/sqrt(d).
+
+For the middle inequality, square the product and use
+
+    (1 - 1/(2u))^2 <= u/(u+1)   for u >= 1.
+
+The right side minus the left side is (3u-1)/(4u^2(u+1)), which is
+positive, and the product telescopes.
+
+Multiplying the number of possible sign sums by the largest probability
+gives
+
+    Pr[ |sum_j C_j| <= A ]
+        < sqrt(2) ( 2a + 2/sqrt(d) ).
+
+By symmetry,
+
+    Pr[ sum_j C_j > A ]
+        = (1/2) ( 1 - Pr[ |sum_j C_j| <= A ] )
+        > 1/2 - sqrt(2) ( a + 1/sqrt(d) ).
+
+On this event, rounding leaves sum_j T_j > t.  Finally,
+
+    sqrt(2) ( a + 1/sqrt(d) )
+        < 2 sqrt(2) a
+        = sqrt(2)/(2m)
+        < 1/m,
+
+because sqrt(d) > 4m = 1/a.  This proves the lemma.
+
+Now fact (b).  Suppose v and w are two distinct kept vertices.  Evaluate
+the sum vector S_v + S_w on the compatible selection I_A.  The result is
+
+    sum_{j=1}^d s^v_{j, slot_{i_j(c_v)}(lambda_{A,i_j(c_v)})}
+  + sum_{j=1}^d s^w_{j, slot_{i_j(c_w)}(lambda_{A,i_j(c_w)})}.
+
+This is exactly the sum of the two quantities in the keep rule, so it is
+strictly larger than 2t.  The norm ||S_v + S_w|| is the maximum over all
+compatible selections, so it is at least this value.  Hence
+
+    ||S_v + S_w|| > 2t,
+
+which means v and w are not adjacent.  The kept vertices form an
+independent set.
+
+By Lemma 5.1, more than a (1/2 - 1/m) fraction of all vertices are kept.
+Therefore G has an independent set of size greater than
+
+    (1/2 - 1/m) n.
+
+Its complement is a vertex cover of size less than
+
+    (1/2 + 1/m) n.
+
+This proves the completeness half of Theorem A.
+
+
+6. SOUNDNESS I: A LARGE INDEPENDENT SET BECOMES A FUNCTION
+
+Now assume the Label Cover instance has val(Phi) <= sigma.  Suppose, for
+contradiction, that G has an independent set A with
+
+    |A| >= n/m = 2 b0 n.
+
+We will turn A into a function with a lot of variance.  Later we will
+show that this function would let us decode Label Cover too well.
+
+6.1  Low-norm vertices are almost never independent
+
+Call a vertex low-norm if ||S_v|| <= t.  Any two distinct low-norm
+vertices v and w are adjacent, because
+
+    ||S_v + S_w|| <= ||S_v|| + ||S_w|| <= 2t.
+
+So an independent set contains at most one low-norm vertex.
+
+Since n >= p > 2m, we have b0 n = n/(2m) > 1.  Our independent set has
+size at least 2 b0 n.  After removing its at most one low-norm vertex,
+it still contains more than b0 n vertices of norm greater than t.
+
+6.2  A fixed odd Lipschitz function
+
+Let A_* be the set of sum vectors S_v of those high-norm vertices of A.
+It is a finite nonempty subset of R^P.  If several vertices have the same
+sum vector, we count the vector only once in A_*.
+
+For x,y in A_*, we claim
+
+    ||x + y|| > 2t.
+
+If x and y come from two distinct vertices, those vertices are both in
+the independent set, so they are not adjacent.  The edge rule therefore
+gives ||x+y|| > 2t.  If x = y, then x comes from a high-norm vertex, so
+
+    ||x + y|| = ||2x|| = 2||x|| > 2t.
+
+For a nonempty finite set B and a vector z, write
+
+    dist_*(z,B) = min_{b in B} ||z - b||.
+
+Define
+
+    F(z) = (1/2) ( dist_*(z, -A_*) - dist_*(z, A_*) ).
+
+This function is odd and 1-Lipschitz with respect to the norm.  Oddness
+follows from symmetry of the norm:
+
+    dist_*(-z, -A_*) = dist_*(z, A_*).
+
+The 1-Lipschitz property follows because distance to a set is 1-Lipschitz,
+and we take half a difference.
+
+For z in A_*, the distance to A_* is zero.  The distance to -A_* is
+
+    min_{a in A_*} ||z + a|| > 2t,
+
+so F(z) > t.
+
+LEMMA 6.1 (separation, variance, and oscillation)
+Suppose an independent set contains at least b0 n vertices of norm
+greater than t.  Then there is a fixed nonempty finite set A_* as above
+such that a uniform vertex satisfies S_v in A_* with probability at
+least b0, and ||x+y|| > 2t for all x,y in A_*.
+
+After A_* is fixed, draw fresh independent uniform seeds
+
+    c = (c_e)_{e in E}
+
+and fresh independent continuous weights
+
+    s_j uniform on [-1,1]^r,   j = 1,...,d.
+
+Define
+
+    f(c,s) = F( sum_{j=1}^d z(i_j(c), s_j) ).
+
+Then
+
+    E_s f(c,s) = 0          for every seed tuple c,
+    E f^2 >= nu d.
+
+Moreover, with all coordinates not mentioned held fixed:
+
+    (i)   changing one weight block s_j changes f by at most 2;
+    (ii)  changing one seed c_e changes f by at most 4;
+    (iii) for any k, simultaneously changing seeds incident to k while
+          preserving the question Q_{k,j}(c_{k,j}) received at every
+          opposite position j != k changes f by at most 2.
+
+The set A_*, the function F, and its formula are fixed before the fresh
+seeds and weights are drawn.  A seed enters f only through the endpoint
+questions it produces.
+
+PROOF.
+The probability bound holds because more than b0 n vertices of A have
+sum vector in A_*.
+
+The separation bound was proved just above.  The properties of F were
+also proved above.
+
+For the mean-zero identity, negating every weight entry s_j preserves
+the joint law and negates every z(i_j(c),s_j).  Since F is odd, f is
+negated.  A random variable whose law is symmetric about zero has mean
+zero.
+
+For the variance lower bound, round every continuous weight entry to the
+midpoint of its grid interval.  The rounded entries are independent
+uniform elements of T.  The change in one increment z(i_j(c),s_j) has
+norm at most 1/p, by linearity in the weights and the increment bound.
+Therefore the change in the whole sum has norm at most d/p.  Since F is
+1-Lipschitz, rounding changes f by at most d/p < t/2.
+
+The rounded weights, together with the unchanged seeds, have exactly the
+uniform vertex law.  With probability at least b0 their sum belongs to
+A_*.  On that event, the rounded value of f is greater than t, so the
+unrounded value is greater than t/2.  Hence
+
+    E f^2 >= b0 (t/2)^2
+           = b0 t^2 / 4
+           = b0 a^2 d / 4
+           = nu d.
+
+Now the oscillation bounds.  Every increment z(i_j(c),s_j) has norm at
+most ||s_j||_infinity <= 1.  Replacing one weight block changes one
+increment by a difference of two such vectors, so its norm changes by at
+most 2.  Since F is 1-Lipschitz, f changes by at most 2.  This proves
+(i).
+
+A single seed c_e affects only the two endpoint queries of the pair e.
+Replacing it changes at most two increments, each by norm at most 2, so
+f changes by at most 4.  This proves (ii).
+
+For (iii), suppose we change all seeds incident to k, but we keep the
+question that each such seed sends to every opposite position j != k.
+Then every position j != k receives exactly the same questions as
+before; only position k's query can change.  Thus only the k-th
+increment may change, and its norm changes by at most 2.  Hence f changes
+by at most 2.  This proves (iii).
+
+
+7. SOUNDNESS II: KEEPING VARIANCE WHILE FORGETTING MOST POSITIONS
+
+We now have a function f with variance of order d.  But to decode Label
+Cover, we need each local list to depend only on one position's own
+questions and own weights.  If we simply average f over everything else,
+the variance might disappear.  The restriction lemma says that we can
+freeze almost everything and still keep variance of order h.
+
+7.1  The statement
+
+Fix a set J of h positions.  Freeze:
+
+    - every seed c_e with e not contained in J;
+    - every weight block s_k with k not in J.
+
+Call the frozen values a.  After plugging a into f, we get a function
+f* of the remaining hidden seeds (c_e for e in binom(J,2)) and the
+remaining weights (s_j for j in J).
+
+For j in J, let
+
+    u_j = ( Q_{j,k}(c_{j,k}) )_{k in J, k != j}
+
+be the tuple of questions that j receives from the other positions in J,
+ordered by increasing k.  Together with the frozen data a, this tuple
+determines the whole query at j.
+
+Let H_j(u,s) be the conditional mean of f* given
+
+    u_j = u     and     s_j = s.
+
+The conditional law is explicit: each incident seed c_{j,k} is uniform
+on the fiber of Q_{j,k} that produces the specified entry of u; these
+draws are independent.  All other hidden seeds and all other weights
+keep their original independent laws.  If u is an unsupported question
+tuple, set H_j(u,s) = 0.
+
+LEMMA 7.1 (own-question variance under a restriction)
+Let d >= 4 and let h be an integer with 2 <= h <= d.  Suppose f is
+bounded and measurable, and satisfies
+
+    E_s f(c,s) = 0   for every c,
+    E f^2 >= nu d,
+
+and the three oscillation bounds from Lemma 6.1.  If
+
+    16h + 32h^2 <= nu d / 2,
+
+then there exist an h-element set J subset [d] and frozen data a such
+that
+
+    sum_{j in J} E_{u_j} Var_{s_j} H_j(u_j,s_j) >= nu h / 4.
+
+The expectation is over the remaining hidden seeds and remaining weights
+with their original product law.  It is not conditioned on any event of
+success.
+
+7.2  Proof of the restriction lemma
+
+The proof is bookkeeping with orthogonal projections.  Each projection
+averages one independent coordinate, so it is an orthogonal projection
+in L^2.  The oscillation bounds tell us how much energy each kind of
+averaging can destroy.
+
+Step 1: weight projections.
+Let W_j^0 average the weight block s_j, keeping all other coordinates.
+Let W_j^1 = Id - W_j^0.  These are orthogonal projections.
+
+For S subset [d], put
+
+    Pi_S = (prod_{j in S} W_j^1) (prod_{j notin S} W_j^0),
+    f_S  = Pi_S f.
+
+Expanding the product gives f = sum_S f_S.  Distinct S give orthogonal
+components, because at a position j the factors W_j^0 and W_j^1
+multiply to zero.  The condition E_s f = 0 says f_empty = 0.
+
+On every fiber where all coordinates except s_j are fixed, the
+oscillation bound (i) says |f - W_j^0 f| <= 2.  Therefore
+
+    sum_{S nonempty} |S| ||f_S||^2
+        = sum_{j=1}^d ||f - W_j^0 f||^2
+        <= 4d.
+
+This is the total weight energy.
+
+Step 2: refining seed coordinates.
+For each nonempty S, choose a designated position
+
+    j(S) = min S.
+
+For each seed e, split it according to whether it touches j(S):
+
+    if j(S) not in e:
+        split by P_e^0 and Id - P_e^0;
+
+    if j(S) in e:
+        split by P_e^0, O_{e,j(S)} - P_e^0, and Id - O_{e,j(S)}.
+
+Here P_e^0 averages the seed c_e, and O_{e,j} averages c_e conditional
+on the question Q_{e,j}(c_e).  The three projections in the second line
+are pairwise orthogonal, and they sum to the identity.  This gives a
+further orthogonal decomposition
+
+    f_S = sum_omega f_{S,omega}.
+
+For a component, let T_{S,omega} be the set of seeds where the chosen
+projection is not P_e^0.  Let N_{S,omega} be the set of positions
+k != j(S) for which the projection at e = {j(S),k} is
+Id - O_{e,j(S)}.  These are the incident seed components that the
+designated position's own question does not retain.
+
+Applying Id - P_e^0 and using the one-seed oscillation bound (ii) gives
+
+    sum_{S,omega} |T_{S,omega}| ||f_{S,omega}||^2
+        = sum_{e in E} ||f - P_e^0 f||^2
+        <= 16 binom(d,2)
+        <= 8 d^2.
+
+This is the total seed energy.  It has a d^2, which is too large for
+incident seeds.  The next step fixes that.
+
+Step 3: charging residual incident components to stars.
+For k in [d], define the star projection
+
+    D_k = prod_{j != k} O_{k,j}.
+
+The factors act on distinct seeds, so D_k is an orthogonal projection.
+It keeps all weights, all seeds not incident to k, and the question that
+each incident seed sends to the opposite endpoint j.  By oscillation
+bound (iii),
+
+    ||f - D_k f||^2 <= 4.
+
+For j != k, the range of D_k is contained in the range of O_{k,j}.
+Distance to a larger subspace is no greater than distance to a smaller
+one, so
+
+    ||(Id - O_{k,j}) v||^2 <= ||(Id - D_k) v||^2
+
+for every v.  Therefore
+
+    sum_{S,omega} |N_{S,omega}| ||f_{S,omega}||^2
+        <= sum_{k=1}^d ||(Id - D_k) f||^2
+        <= 4d.
+
+This is the residual incident energy.  It is only of order d, not d^2.
+
+Step 4: what a restriction keeps.
+Fix J and j in J.  Define the projection
+
+    K_{J,j} =
+        W_j^1
+        (prod_{k in J, k != j} W_k^0)
+        (prod_{e in binom(J\{j},2)} P_e^0)
+        (prod_{k in J, k != j} O_{j,k}).
+
+Before applying W_j^1, this projection averages exactly the unfrozen
+data other than the own questions u_j and the own weight s_j.  The final
+W_j^1 centers in s_j.  Thus
+
+    K_{J,j} f
+        = H_j(u_j,s_j) - E_{s'_j} H_j(u_j,s'_j).
+
+If
+
+    V(J,a) = sum_{j in J} E_{u_j} Var_{s_j} H_j(u_j,s_j),
+
+then integrating over the frozen data gives
+
+    E_a V(J,a) = sum_{j in J} ||K_{J,j} f||^2.
+
+Now take a component f_{S,omega} with designated position j = j(S).
+It is preserved by K_{J,j} whenever
+
+    S intersect J = {j},
+    N_{S,omega} intersect J = empty,
+    T_{S,omega} intersect binom(J\{j},2) = empty.
+
+The weight factors keep the component exactly when S intersect J = {j}.
+The seed factors are diagonal in our decomposition: P_e^0 keeps only the
+constant component on a nonincident seed, and O_{j,k} keeps the constant
+and own-question components on an incident seed.  Thus the last two
+conditions are exactly what is needed.  We may discard all other
+nonnegative squared norms, so
+
+    E_a V(J,a)
+        >= sum_{S,omega} 1_{survival conditions} ||f_{S,omega}||^2.
+
+Step 5: average over J.
+Choose J uniformly among all h-element subsets of [d].  For a fixed
+component, the designated position belongs to J with probability h/d.
+Conditional on that, a specified other position belongs to J with
+probability
+
+    p1 = (h-1)/(d-1),
+
+and a specified pair avoiding the designated position belongs to J with
+probability
+
+    p2 = (h-1)(h-2) / ((d-1)(d-2)).
+
+A union bound gives survival probability at least
+
+    1 - p1 (|S|-1 + |N_{S,omega}|) - p2 |T_{S,omega}|.
+
+This bound is still valid if the displayed expression is negative; we
+simply use it as a lower bound.
+
+Using the three energy budgets,
+
+    sum (|S|-1+|N_{S,omega}|) ||f_{S,omega}||^2 <= 8d,
+    sum |T_{S,omega}| ||f_{S,omega}||^2 <= 8 d^2.
+
+Since d >= 4, we have p1 <= 2h/d and p2 <= 4h^2/d^2.  Therefore
+
+    E_{J,a} V(J,a)
+        >= (h/d) ( nu d - 16h - 32h^2 )
+        >= (h/d) ( nu d / 2 )
+        = nu h / 2.
+
+So some choice of J and frozen data has V(J,a) >= nu h/4.  This proves
+Lemma 7.1.
+
+
+8. SOUNDNESS III: FROM VARIANCE TO SHORT LISTS
+
+We now use the variance from Lemma 7.1 to build short lists of labels.
+The idea is to differentiate the conditional means H_j with respect to
+the own weight s_j.  The derivative is a vector in R^r.  It has small
+l1 norm, and its squared l2 norm is controlled by variance.  Keeping the
+large coordinates gives a short list.
+
+8.1  A gradient rule inside the compatibility hull
+
+Let c0 be the sum of the frozen increments:
+
+    c0 = sum_{k notin J} z(i_k, s_k).
+
+For a fixed tuple of batch queries i = (i_j)_{j in J}, define
+
+    psi_i(s_J) = F( c0 + sum_{j in J} z(i_j, s_j) ).
+
+This is a function on the batch weights s_J = (s_j)_{j in J}.
+
+For a compatible selection I in CalI, define a vector
+
+    v_I(i) in R^{J x [r]}
+
+as follows.  Its entry at (j,t) is 1 if there is a label lambda in
+Lambda_{i_j} with
+
+    slot_{i_j}(lambda) = t     and     (i_j,lambda) in I,
+
+and it is 0 otherwise.  Since I contains at most one label per query,
+each block j has at most one nonzero entry.
+
+LEMMA 8.1 (a gradient rule in the compatibility hull)
+There is a deterministic measurable rule g = (g_j)_{j in J} in R^{J x [r]}
+defined at every batch query and real weight tuple, with the following
+properties.
+
+For each fixed query tuple i, outside a finite union of proper affine
+hyperplanes in the batch weights, g equals the gradient of psi_i.  At
+every tuple, including the exceptional hyperplanes,
+
+    g is in the convex hull of { +v_I(i), -v_I(i) : I in CalI }.
+
+Consequently, for every j,
+
+    ||g_j||_1 <= 1,
+
+and g_{j,t} = 0 whenever t is not a slot of a valid label for i_j.
+
+The rule uses only the fixed formula for F, the frozen increments, and
+the supplied batch queries and weights.  It does not inspect which hidden
+seed occurrences produced those queries.
+
+PROOF.
+The distance to a finite set is a minimum of finitely many convex
+piecewise-affine functions, and F is half the difference of two such
+distances.  Thus psi_i is continuous and piecewise affine with finitely
+many pieces.  Its pieces are described by comparing finitely many affine
+candidate expressions.
+
+Compare all pairs of candidates.  If two candidates with different slope
+vectors tie in value, set g = 0.  Otherwise take the true gradient of the
+finite formula for psi_i.  A tie between different slopes is a proper
+affine hyperplane.  Ties between identical affine functions do not
+matter, and a fixed ordering resolves them.
+
+At a point not discarded, choose an active affine expression for the
+distance to -A_* and one for the distance to A_*.  Their slopes are
+signed compatible-incidence vectors.  Since F is half the difference of
+the two distances, g is a convex combination of such signed vectors.
+At a discarded point, g = 0 also belongs to the symmetric hull.
+
+Finally, each signed incidence vector has l1 norm at most 1 in each
+block j, because it has at most one nonzero entry per block.  Convexity
+proves ||g_j||_1 <= 1.  The zero entries outside valid slots are also
+preserved by convexity.
+
+8.2  Conditional gradients and cube variance
+
+For supported own questions u and any s in R^r, define the conditional
+gradient
+
+    bar_g_j(u,s)
+        = E[ g_j(c_J, s_J) | u_j = u, s_j = s ].
+
+The expectation is over the conditional seed law and the other batch
+weights.  For unsupported u, set bar_g_j(u,s) = 0.  Convexity and the
+block bound give, at every own input,
+
+    ||bar_g_j(u,s)||_1 <= 1,
+
+and bar_g_j(u,s) is zero outside the slots of the query i_j(u).
+
+LEMMA 8.2 (conditional cube variance)
+For each j in J and each supported own tuple u, the function
+H_j(u,.) is 1-Lipschitz with respect to the sup norm on the cube
+[-1,1]^r.  For almost every s in [-1,1]^r,
+
+    partial_{s_t} H_j(u,s) = bar_g_{j,t}(u,s),    t = 1,...,r.
+
+Its variance satisfies
+
+    Var_s H_j(u,s) <= 2 E_s ||bar_g_j(u,s)||_2^2.
+
+Consequently, under the restricted product law,
+
+    sum_{j in J} E ||bar_g_j(u_j,s_j)||_2^2 >= nu h / 8 = beta h.
+
+PROOF.
+Replacing the own block s by s', with all other data fixed, changes the
+integrand in the definition of H_j by at most ||s-s'||_infinity.  The
+same bound holds after averaging.  Hence H_j is 1-Lipschitz.
+
+For the derivative identity, fix a seed configuration and all other
+weights.  The full gradient identification from Lemma 8.1 holds outside
+a null set in the batch weights.  Fubini lets us transfer this to almost
+every own s.  The conditional seed law has finite support and does not
+depend on s, so we may unite the exceptional sets.  Dominated convergence
+then gives the displayed derivative identity.
+
+For the variance bound, restrict H_j to a coordinate line.  It is
+absolutely continuous and 1-Lipschitz.  For x,y in [-1,1],
+Cauchy-Schwarz gives
+
+    |H_j(x)-H_j(y)|^2 <= |x-y| * integral |H_j'|^2 <= 2 integral |H_j'|^2.
+
+For independent uniform X,Y on [-1,1], this implies
+
+    Var(H_j(X)) = (1/2) E |H_j(X)-H_j(Y)|^2 <= 2 E |H_j'(X)|^2.
+
+Applying this on each coordinate line, integrating over the other
+coordinates, and summing over coordinates proves the variance bound.
+The factor 2 comes from the length of the interval.
+
+Averaging over the own tuples and summing over j, then using Lemma 7.1,
+gives
+
+    sum_{j in J} E ||bar_g_j(u_j,s_j)||_2^2
+        >= (1/2) * (nu h / 4)
+        = nu h / 8
+        = beta h.
+
+8.3  Thresholding gives lists
+
+For supported u, define
+
+    L_j(u,s) = { lambda in Lambda_{i_j(u)} :
+                 | bar_g_{j, slot_{i_j(u)}(lambda)}(u,s) | >= beta/2 }.
+
+For unsupported u, let the list be empty.  At an actual draw write
+
+    L_j = L_j(u_j,s_j).
+
+Define the maximum compatible hit count
+
+    Z = max_{I in CalI} # { j in J :
+            there is lambda in L_j with (i_j,lambda) in I }.
+
+In words: choose a compatible selection I.  Count how many positions j
+have their list L_j hit by I.  Take the maximum over all compatible
+selections.
+
+PROPOSITION 8.3 (local lists and compatible hits)
+The maps L_j are deterministic total measurable maps.  Each returns at
+most ell valid labels.  Once the instance, F, J, and the frozen data are
+fixed, L_j uses only its own questions u_j and its own weight s_j.  It
+does not use the actual hidden seed occurrences or any other actual
+batch input.  Under the restricted product law,
+
+    E Z >= beta h / 2 = 2.
+
+PROOF.
+The l1 bound gives
+
+    (beta/2) |L_j(u,s)| <= ||bar_g_j(u,s)||_1 <= 1,
+
+so |L_j(u,s)| <= 2/beta = ell.  Only valid labels are tested, so the
+list contains only valid labels.  Measurability is clear from finite
+threshold comparisons.
+
+We transfer the retained mass to the full gradient g.  Let T_j be the
+set of slots of L_j.  For slots outside T_j, the threshold gives
+
+    sum_{t notin T_j} |bar_g_{j,t}|^2
+        <= (beta/2) sum_{t notin T_j} |bar_g_{j,t}|
+        <= beta/2.
+
+For slots inside T_j, conditional Jensen gives
+
+    sum_{t in T_j} |bar_g_{j,t}|^2
+        <= sum_{t in T_j} |bar_g_{j,t}|
+        <= E[ sum_{t in T_j} |g_{j,t}| | own data ].
+
+The last inequality uses that T_j is determined by the own data.  Taking
+expectations, summing over j, and using the energy beta h gives
+
+    E sum_{j in J} sum_{lambda in L_j}
+        |g_{j, slot_{i_j}(lambda)}|
+        >= beta h - (beta/2) h
+        = beta h / 2.
+
+Now fix any realized lists of valid labels.  The function
+
+    g -> sum_{j in J} sum_{lambda in L_j}
+             |g_{j, slot_{i_j}(lambda)}|
+
+is convex.  On a signed generator +v_I or -v_I, it equals the number of
+positions hit by I, because each block has at most one selected slot.
+Therefore its value on the convex hull is at most the maximum hit count
+Z.  Since the realized g lies in that hull,
+
+    sum_{j in J} sum_{lambda in L_j}
+        |g_{j, slot_{i_j}(lambda)}| <= Z.
+
+Combining the two displayed inequalities proves E Z >= beta h/2.  With
+beta h/2 = 2 from our parameter choices, the proposition follows.
+
+
+9. SOUNDNESS IV: PAIR DECODING CONTRADICTS SOUNDNESS
+
+We now have short lists L_j with E Z >= 2.  We will show that, under the
+Label Cover soundness promise val(Phi) <= sigma, actually E Z < 3/2.
+That contradiction finishes the soundness proof.
+
+9.1  The pair event
+
+Fix J and the frozen data from Lemma 7.1.  The lists L_j are fixed total
+maps of their own questions and weights.  For distinct j,k in J, let
+E_{jk} be the event that some compatible selection I in CalI hits both
+lists: there are labels lambda_j in L_j and lambda_k in L_k such that
+
+    (i_j, lambda_j) in I     and     (i_k, lambda_k) in I.
+
+LEMMA 9.1 (decoding a pair)
+For every fixed J, frozen data, and fixed list maps as above,
+
+    Pr(E_{jk}) <= ell^2 sigma      for all distinct j,k in J,
+
+and therefore
+
+    E Z <= 1 + binom(h,2) ell^2 sigma
+        = 3/2 - 1/(2h)
+        < 3/2.
+
+PROOF.
+Fix j < k and write e = {j,k}.  Fix all batch weights and all hidden
+seeds except c_e.  By independence, the remaining occurrence c_e is
+still uniform on [M].
+
+Position j's only varying question is x_{c_e} in U.  Position k's only
+varying question is y_{c_e} in V.  Every other argument of each list map
+is now fixed.  The list maps themselves stay fixed; their conditional
+averages are not recomputed.
+
+For x in U, form the tuple u_j^x by putting x in the e-coordinate of u_j
+and keeping all other coordinates fixed.  Define u_k^y similarly for y in
+V.  Choose default symbols a_U in Sigma_U and a_V in Sigma_V.
+
+For each pair of ranks rho,tau in {1,...,ell}, define a labeling
+A_{rho,tau} of the entire source instance as follows.
+
+At a variable x in U, evaluate L_j(u_j^x, s_j).  If rank rho is present
+in this list, give x its value in that label.  Otherwise give x the
+default a_U.
+
+At a variable y in V, evaluate L_k(u_k^y, s_k).  If rank tau is present,
+give y its value in that label.  Otherwise give y the default a_V.
+
+This defines one symbol at every source variable.  It uses only x on the
+U side and only y on the V side, plus the fixed data.  It does not use
+the sampled occurrence index c_e or its projection map.  Repeated
+variables in a query cause no ambiguity, because a valid label assigns
+one value to each distinct variable in its scope.
+
+By the Label Cover soundness promise, for a uniform occurrence c in [M],
+
+    Pr[ pi_c(A_{rho,tau}(x_c)) = A_{rho,tau}(y_c) ] <= sigma.
+
+Now suppose E_{jk} occurs, and choose ranks rho,tau of labels witnessing
+it.  The endpoint x_{c_e} belongs to the scope of i_j, and y_{c_e}
+belongs to the scope of i_k.  The two labels come from the same
+compatible selection I, so they agree on overlaps and satisfy every
+source constraint whose two endpoints lie in the union of their scopes.
+In particular they satisfy the sampled occurrence c_e.  Their endpoint
+values are exactly the values used by A_{rho,tau}.  Therefore
+
+    pi_{c_e}( A_{rho,tau}(x_{c_e}) )
+        = A_{rho,tau}( y_{c_e} ).
+
+Union bounding over the ell^2 rank pairs gives Pr(E_{jk}) <= ell^2 sigma.
+This estimate is uniform in the fixed weights and seeds, so averaging
+proves it for the original law.
+
+For the expectation bound on Z, use the elementary inequality
+
+    z <= 1 + binom(z,2)     for every integer z >= 0.
+
+The difference between the right side and z is (z-1)(z-2)/2, which is
+nonnegative.  Choose a compatible selection I attaining the maximum in
+the definition of Z.  Each pair among its Z hit positions witnesses the
+corresponding event E_{jk}.  Hence, pointwise,
+
+    Z <= 1 + sum_{ {j,k} in binom(J,2) } 1_{E_{jk}}.
+
+Taking expectations and using the pair estimate,
+
+    E Z <= 1 + binom(h,2) ell^2 sigma.
+
+With sigma = 1/(h^2 ell^2), this becomes
+
+    1 + (h(h-1)/2) * (1/h^2)
+        = 1 + (h-1)/(2h)
+        = 3/2 - 1/(2h)
+        < 3/2.
+
+This proves the lemma.
+
+9.2  The contradiction
+
+Proposition 8.3 gives E Z >= 2 under the restricted product law.
+Lemma 9.1 gives E Z < 3/2 under the same law.  This is impossible.
+
+Therefore our assumption was false: there is no independent set of size
+at least n/m.  Taking complements, every vertex cover has size strictly
+greater than
+
+    n - n/m = (1 - 1/m) n.
+
+This proves the soundness half of Theorem A.
+
+
+10. CHOOSING THE CONSTANTS
+
+Now set
+
+    d = 2^38 m^10.
+
+Then
+
+    sqrt(d) = 2^19 m^5,
+
+which is certainly larger than 4m.  The complete table is:
+
+    a     = 1/(4m)
+    b0    = 1/(2m)
+    nu    = 1/(2^7 m^3)
+    beta  = 1/(2^10 m^3)
+    ell   = 2^11 m^3
+    h     = 2^12 m^3
+    d     = 2^38 m^10
+    sigma = 1/(2^46 m^12)
+    p     = 2d + 1
+    t     = 2^17 m^4
+
+All of these depend only on m.  None depends on the source instance.
+
+We check the four numerical requirements.
+
+(1) d is an even square.
+    2^38 = (2^19)^2 and m^10 = (m^5)^2, so d is a square.  It is even
+    because 2^38 is even.  Also sqrt(d) = 2^19 m^5 > 4m.
+
+(2) The restriction budget.
+    16h + 32h^2
+        = 2^16 m^3 + 2^29 m^6
+        <= 2^30 m^7
+        = nu d / 2.
+
+    The inequality holds for every m >= 1.  For m = 1 it is
+    2^16 + 2^29 <= 2^30, and for larger m the right side grows faster.
+
+(3) The list threshold.
+    beta h / 2
+        = (1/(2^10 m^3)) * (2^12 m^3) / 2
+        = 2.
+
+(4) The decoding budget.
+    binom(h,2) ell^2 sigma
+        = (h-1)/(2h)
+        < 1/2.
+
+    Indeed, ell^2 = 2^22 m^6 and sigma = 1/(2^46 m^12), so
+    binom(h,2) ell^2 sigma = h(h-1)/(2 * 2^24 m^6), which simplifies
+    to (h-1)/(2h).
+
+So all the hypotheses of Lemmas 5.1, 6.1, 7.1, 8.2, and 9.1 hold.
+
+
+11. PUTTING IT TOGETHER
+
+Fix m >= 4 and use the constants in Section 10.
+
+Apply the Label Cover theorem (Theorem B) with sigma.  This gives fixed
+alphabets Sigma_U and Sigma_V, and a deterministic polynomial-time
+reduction from 3SAT to Label Cover instances with perfect completeness
+and soundness at most sigma.
+
+Now fix q = max(|Sigma_U|,|Sigma_V|) and r = q^(d-1).  These are fixed
+constants for this m.  Build the graph G as in Section 4.
+
+The graph has
+
+    n = M^(binom(d,2)) * p^(r d)
+
+vertices.  The source bit length L controls M, and M = O(L).  Since d,
+p, and r are fixed constants once m and the alphabets are fixed, n is
+polynomial in L.  The edge test is exact integer arithmetic, as explained
+in Section 4.3.  Therefore the whole construction is a deterministic
+polynomial-time reduction.
+
+Completeness (Section 5) says that a satisfiable source instance gives
+
+    tau(G) < (1/2 + 1/m) n.
+
+Soundness (Section 9) says that an unsatisfiable source instance gives
+
+    tau(G) > (1 - 1/m) n.
+
+This proves Theorem A.
+
+Now take any fixed real alpha with 1 <= alpha < 2.  Choose an integer
+m >= 4 such that
+
+    alpha < R_m = (1 - 1/m) / (1/2 + 1/m)
+                = 2 - 6/(m+2).
+
+Such an m exists because R_m tends to 2 as m grows.
+
+Suppose an alpha-approximation algorithm for Vertex Cover existed.  On a
+satisfiable input it would return a cover C with
+
+    |C| <= alpha tau(G)
+         < alpha (1/2 + 1/m) n
+         < (1 - 1/m) n.
+
+On an unsatisfiable input, every cover has size greater than
+(1 - 1/m)n, so the algorithm would return
+
+    |C| > (1 - 1/m) n.
+
+Thus comparing the integer |C| with the rational threshold (m-1)n/m
+decides 3SAT.  The comparison uses only integer arithmetic: multiply |C|
+by m and compare with (m-1)n.  The real number alpha is used only to
+choose the fixed integer m; it is not an input to the reduction.
+
+Therefore approximating Vertex Cover within any fixed factor below 2 is
+NP-hard.
+
+The matching upper bound is elementary.  A maximal matching gives a
+vertex cover of size at most twice the optimum.  Hence the approximation
+threshold is exactly 2, unless P = NP.
+
+
+12. THE WHOLE PROOF IN ONE PARAGRAPH
+
+Start with a Label Cover instance that is either perfectly satisfiable or
+has value at most a tiny sigma.  Build a graph whose vertices are seeds
+and grid weights.  A satisfying labeling gives a huge independent set by
+a tail bound for sums of independent symmetric grid weights.  Conversely,
+a large independent set gives one fixed odd Lipschitz function F with
+variance of order d.  Freeze most positions; the restriction lemma keeps
+variance of order h in conditional means that see only one position's own
+questions and weights.  Differentiate those means to get short lists of
+candidate labels.  The lists have maximum compatible hit count Z with
+expectation at least 2.  But pair decoding shows that, under Label Cover
+soundness, Z has expectation less than 3/2.  Contradiction.  Therefore no
+large independent set exists, so every vertex cover is larger than
+(1-1/m)n.  The gap between the two cases is 2 - 6/(m+2), which approaches
+2.  This proves that factor 2 is the exact threshold for Vertex Cover
+approximation, unless P = NP.
+
+
+A SHORT HISTORICAL NOTE
+
+Vertex Cover was among Karp's original NP-complete problems in 1972.  The
+factor-2 maximal-matching algorithm is classical.  Hardness for factors
+below 7/6 was proved by Hastad, and below about 1.36068 by Dinur and
+Safra.  Khot and Regev proved factor-2 hardness assuming the Unique Games
+Conjecture.  The 2-to-2 Games program later gave unconditional hardness
+below sqrt(2).  The proof above is a self-contained route to the full
+factor-2 threshold, using only perfect-completeness Label Cover as its
+external hardness input.
