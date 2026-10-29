@@ -1,0 +1,1652 @@
+THE SPHERICAL PERCEPTRON WITH BI-ORTHOGONALLY INVARIANT DISORDER
+=================================================================
+
+A clear, complete exposition for curious high-school readers.
+Based on the OpenAI technical paper of the same name (September 2026).
+
+WHO THIS IS FOR
+---------------
+
+You should have seen, at least once:
+  - random variables, expectation, basic probability density;
+  - vectors and matrices (add, multiply, transpose);
+  - the integral as "sum over many tiny pieces".
+
+You do NOT need:
+  - spin-glass theory, random matrix theory, functional analysis;
+  - any prior machine learning.
+
+Every technical term is defined before use. Every formula is followed
+by a "how to read this" line.
+
+HOW TO READ
+-----------
+
+Shortest path:
+  Part 0 -> 1.3 -> 1.4 -> Part 5 -> Part 6.
+
+Intuition behind the proof:
+  Part 2 -> Part 3 -> Part 4.
+
+Symbol glossary:
+  Part 7.
+
+THE PROBLEM, IN ONE SENTENCE
+----------------------------
+
+We take many random linear measurements of a point on a sphere, weight
+each point by "how activated" its measurements are, and ask what the
+log total weight per dimension converges to as the dimension grows.
+
+THE ANSWER, IN ONE SENTENCE
+---------------------------
+
+It converges, to an explicit variational formula. The formula splits
+into:
+  (a) a term for how the input squared norm is divided among the
+      singular-value groups of the measurement matrix;
+  (b) a "block-angular" pressure that depends only on the group
+      dimensions, their singular values, and the activation f.
+
+BOTH the formula AND its proof are covered below. Parts 0-1 give the
+setup and result; Parts 2-4 sketch the proof; Parts 5-6 say what
+happens at the edges; Part 7 has the glossary.
+
+
+PART 0 - THE STORY
+==================
+
+0.1 What is a perceptron?
+-------------------------
+
+In mathematics, a perceptron is a simple "decision rule" based on a
+weight vector w.
+
+  - Pick a weight vector w with N real coordinates.
+  - For each pattern x (also a vector in R^N), compute the scalar
+        (w . x) = w_1 x_1 + w_2 x_2 + ... + w_N x_N.
+  - Pass this scalar through a "response" (or "activation") f.
+
+The classic example is f(z) = sign(z). In machine learning, f might be
+a smooth sigmoid. In our paper, f can be any bounded continuous
+function.
+
+0.2 Why a sphere?
+-----------------
+
+Physics puts spins on a sphere of fixed length because their total
+magnetization is fixed. Mathematics likes a sphere because it has no
+boundary, so no boundary conditions are needed.
+
+The sphere we use is
+     S^N = { w in R^N : w_1^2 + w_2^2 + ... + w_N^2 = N }.
+This is the ordinary unit sphere scaled up by sqrt(N). Every w in S^N
+has squared length exactly N.
+
+Uniform probability measure on S^N is written sigma_N.
+
+0.3 The pressure
+----------------
+
+Fix a matrix A with M rows and N columns. Each row of A is one random
+pattern. For a weight w, the measurements are
+     (Aw)_r = (row r of A) . w,      r = 1, ..., M.
+
+The pressure (also called "free energy per dimension") is
+
+     F_N(A, f)
+       = (1/N) * log( INT_{w in S^N}
+                        exp( sum_{r=1}^M f((Aw)_r) )
+                        d sigma_N(w) ).
+
+How to read this:
+  INT     = integral over the sphere S^N, using uniform measure.
+  exp(.)  = the exponential function e^z.
+  log     = the natural logarithm.
+  sum_r f((Aw)_r)  is the "activation energy" of w.
+  e^{sum_r f}      is the "Boltzmann weight" of w.
+  The (1/N) is there so the result scales as per-dimension.
+
+If some w gives large f-values on many rows, it gets exponentially more
+weight. If f is negative on most rows, w gets exponentially less
+weight. The partition function "counts" w, weighted by how activated
+they are.
+
+0.4 What is "the disorder"?
+---------------------------
+
+We do not choose A. A is a random matrix, chosen once and held fixed.
+Only w is integrated over.
+
+In statistical physics language, the matrix A is the "disorder", and
+the integral over w is the "thermal" integral. The pressure
+(1/N) log Z still depends on A. Our theorem says: for a suitable class
+of A, the pressure concentrates around a deterministic limit.
+
+0.5 What is bi-orthogonal invariance?
+-------------------------------------
+
+A square matrix O is orthogonal if O^T O = I. Orthogonal matrices
+preserve lengths and angles: ||O v|| = ||v|| for every v.
+
+Say a random M-by-N matrix A has "bi-orthogonally invariant law" if
+
+     A has the same law as U A V
+
+for every pair of independent uniform orthogonal matrices
+U (size M-by-M), V (size N-by-N), independent of A.
+
+The word "bi" means "both sides" (left and right). Every such A is
+equivalent in distribution to
+
+     A = U S V^T
+
+with U, V uniform orthogonal and independent of each other and of S,
+where S is the (rectangular) diagonal matrix of singular values. So
+the randomness of A lives ONLY in the "angles" U, V; the singular
+values S are fixed (or at least independent).
+
+Below we do NOT require A to be Gaussian or any specific form. We
+require only:
+  - bi-orthogonal invariance, this strong symmetry of the law;
+  - a mild assumption on the singular values (stated in 0.6).
+
+0.6 The spectral hypothesis
+---------------------------
+
+Write the singular values of A as s_1, ..., s_r, where r = min(M,N).
+Write delta_a for the Dirac mass at a point a: the measure that puts
+mass 1 on the single point a and 0 elsewhere. Let
+
+     mu_A = (1/r) sum_{j=1}^r delta_{s_j}
+
+be the empirical singular-value distribution, a probability measure
+on [0, infinity).
+
+We assume there is a deterministic compactly supported probability
+measure nu on [0, infinity) such that, as N grows,
+
+     (a) mu_A -> nu weakly,
+     (b) max_{r} dist(s_{N,r}, supp nu) -> 0.
+
+(a) says the distribution of singular values converges. (b) says no
+singular value strays far from the support of nu. This is our "no
+outliers" assumption. It is what makes the formula below exactly the
+answer: without it, a single far-away singular value could shift the
+pressure (see Section 6.1 for a concrete example).
+
+Also define alpha = lim M/N (positive, and we treat only finite
+positive alpha below).
+
+0.7 Roadmap
+-----------
+
+We will:
+  1. State the main theorem precisely  (Section 1.3).
+  2. Unpack its variational formula    (Section 1.4).
+  3. Split that formula into two layers, "radial" and "angular"
+     (Parts 2-3).
+  4. Sketch the proof                  (Part 4).
+  5. Note extensions and boundary behavior (Parts 5-6).
+  6. Provide a symbol glossary             (Part 7).
+
+
+PART 1 - THE MODEL AND THE MAIN THEOREM
+=======================================
+
+1.1 Notation
+------------
+
+- N, M       positive integers.  alpha = lim M/N in (0, infinity).
+- A          real M-by-N matrix (our measurement matrix).
+- S^N        sphere { w in R^N : sum_i w_i^2 = N }.
+- sigma_N    uniform probability measure on S^N.
+- f          bounded continuous function from R to R (the activation).
+- r_N        min(M, N).
+- s_{N,1}, ..., s_{N,r_N}   singular values of A, sorted decreasingly.
+- delta_a    Dirac mass at the point a: delta_a(S) = 1 if a in S, else 0.
+- supp nu    support of the probability measure nu.
+
+1.2 The pressure
+----------------
+
+     F_N(A, f)
+       = (1/N) log( INT_{w in S^N}
+                    exp( sum_{r=1}^M f((Aw)_r) )
+                    d sigma_N(w) ).
+
+Symbols:
+  (Aw)_r  is the r-th coordinate of the vector A w in R^M.
+  exp{}   is the exponential function.
+  log     is the natural logarithm.
+
+1.3 The main theorem
+--------------------
+
+THEOREM (Main theorem).
+
+Fix alpha in (0, infinity) and M = floor(alpha N). Let f be bounded
+and continuous. Suppose A_N is bi-orthogonally invariant and the
+spectral hypothesis of Section 0.6 holds, that is:
+
+     (1/r_N) sum_{r=1}^{r_N} delta_{s_{N,r}}  ->  nu  weakly
+            in probability,
+     max_{r <= r_N} dist(s_{N,r}, supp nu) -> 0  in probability,
+
+for a fixed compactly supported probability measure nu on [0, infinity).
+
+Then the pressure F_N(A_N, f) converges in probability AND in mean
+to a deterministic number F_{alpha,nu}(f).
+
+That is the theorem. The rest of the paper is (i) an explicit formula
+for F_{alpha,nu}(f), and (ii) a proof that the formula is correct.
+
+1.4 The formula
+---------------
+
+The formula comes in two layers.
+
+LAYER 1 - Block approximation of the singular spectrum.
+Approximate the singular values by finitely many positive groups
+     s_1, ..., s_h  with  multiplicities  n_1, ..., n_h,
+such that n_j / M -> p_j > 0.
+
+Define v_j = alpha p_j. Then sum_j v_j = min(alpha, 1). To see why,
+use sum_j p_j = lim (sum n_j)/M = lim r_N/M = min(1, 1/alpha), so
+sum_j v_j = alpha * min(1, 1/alpha) = min(alpha, 1).
+
+If alpha >= 1, sum_j v_j = 1.
+If alpha < 1, sum_j v_j = alpha < 1.
+
+In the second case, there are N - r_N = N - M = N(1 - alpha) rows of
+A that are all zero (structural null input directions). So we
+INTRODUCE an extra "null block" of size v_0 = 1 - alpha, with singular
+value s_0 = 0. Now sum_{j=0}^h v_j = 1 again.
+
+So the block approximation gives us:
+     I   =  { 1, ..., h }             if alpha >= 1,
+     I   =  { 0, 1, ..., h }          if alpha < 1.
+And we have v_j / alpha = p_j (block proportions of output space) and
+v_0 = 1 - alpha (the structural null input).
+
+LAYER 2 - Radial formula.
+Let rho_i be the FRACTION of input squared norm assigned to block i.
+That is, rho_i >= 0, sum_{i in I} rho_i = 1, and the input has squared
+norm N * rho_i in block i.
+
+Then define
+     F_{approx}(alpha, nu, f; (s_j, p_j))
+       = sup over rho_i > 0, sum rho_i = 1, of
+           { (1/2) sum_{i in I} v_i log(rho_i / v_i)
+             + alpha * P_p^f( ( s_j^2 * rho_j / alpha )_{j=1}^h ) }.
+
+Here (the key point):
+  P_p^f(a) is the ANGULAR PRESSURE, defined in Part 2. It depends only
+  on the block proportions p_j, the activation f, and the
+  "per-output-coordinate squared norm per block" vector
+     a_j = s_j^2 * rho_j / alpha.
+
+Then
+     F_{alpha,nu}(f)  =  lim   F_{approx}(alpha, nu, f; (s_j, p_j))
+                        (spectral mesh -> 0).
+
+The limit is over finer and finer approximations of the singular
+spectrum nu by finite groups (s_j, p_j).
+
+How to read the formula:
+  - The first term  (1/2) sum_i v_i log(rho_i / v_i) comes from the
+    Dirichlet distribution on how squared norm splits between blocks.
+    It is a purely combinatorial entropy: information-theoretic cost
+    of splitting a sphere across h+1 subspaces.
+  - The second term  alpha * P_p^f(...) comes from the "directional"
+    part of the sphere integral. Once the norms are fixed, the
+    directions inside each block become independent and uniform on
+    their own spheres. The angular pressure P_p^f is the leading
+    contribution from the directions. The factor alpha converts a
+    per-M pressure into a per-N pressure.
+  - The supremum over rho says: the system "chooses" the best split
+    of the input norm across the singular-value blocks, trading off
+    entropy (Dirichlet combinatorial count) against activation.
+
+1.5 About J_p and H_p
+---------------------
+
+The terms J_p and H_p that will appear in the angular formula below
+are geometric normalizations, not activation effects:
+
+  - J_p = (1/2) int_0^p log(1 - u) du  is the limiting logarithmic
+    Jacobian of the Gaussian-orthogonalization from coefficients to
+    fields. It is negative and purely geometric: it quantifies how
+    much "extra space" the linear map w -> G w eats up when going
+    from N coefficients to M measurements.
+  - H_p(a) = (1/2) sum_j p_j log(2 pi e a_j / p_j)  is the limiting
+    entropy per coordinate of a product of Euclidean shells of the
+    given block radii a_j. It is the classical "volume of a sphere
+    of squared radius M a in M dimensions" contribution.
+
+Neither term depends on the activation f. For the trivial activation
+f = 0 the pressure is exactly 0, because the integral is the total
+mass of a probability measure. The formula reproduces this: the
+J_p - H_p terms and the Gaussian-limit terms combine to cancel.
+For a first reading, remember only this: J_p and H_p are volumes of
+spheres and Jacobians of linear maps. They are needed for
+bookkeeping, not because the activation does anything interesting.
+
+1.6 Unpacking the angular pressure
+----------------------------------
+
+The angular pressure P_p^f(a) is defined in Part 2 as the pressure of
+a Gaussian-reference model on fixed Haar subspaces of R^M of sizes
+p_j M. It has its OWN variational formula (given in Part 3 and 4).
+
+For now, the structure is:
+
+     F_{alpha,nu}(f)
+       =   SUP over (rho_i) of
+              [ Dirichlet entropy + alpha * (Angular pressure) ]
+
+and        Angular pressure  = (J_p - H_p(a)) + (Gaussian limit).
+
+So there are three "insides":
+  (i)   the Dirichlet entropy on rho,
+  (ii)  the J_p - H_p(a) term,
+  (iii) the Gaussian-limit term.
+
+The main theorem above says these three combined together give the
+right answer. The rest of the paper is really about computing (iii)
+rigorously.
+
+1.7 Why this is hard
+--------------------
+
+Three difficulties stand out.
+
+DIFFICULTY 1 - Fixed singular values make the matrix entries
+dependent.
+If A is Gaussian i.i.d. (the classical perceptron), then rows of A are
+independent and the covariance of every measurement is easy to
+compute. With fixed singular values and Haar angles, different rows
+are NOT independent. In particular, the covariance of row r with row
+s depends on which blocks they belong to. The "replica-symmetric"
+calculations of Gardner, Derrida, Shcherbina, Tirozzi etc. do not
+directly apply.
+
+DIFFICULTY 2 - The angular pressure is not a classical spin-glass
+formula.
+Classical spin-glass formulas (Parisi, Sherrington-Kirkpatrick,
+p-spin) are for Gaussian i.i.d. disorder. Our angular pressure is on
+FIXED orthogonal subspaces, and the disorder is a Haar matrix acting
+between them. Adapting "cascade" methods from parabolic to spherical
+constraints requires care.
+
+DIFFICULTY 3 - Bounded continuous activations, not just hard
+thresholds.
+The classic Gardner problem uses f = step function (hard constraint).
+General bounded continuous f needs a full variational analysis; even
+smoothness is not enough, because the pressure is a genuine
+limit-of-limits.
+
+The paper's technical contribution is to handle all three. In Part 4
+we sketch HOW.
+
+
+PART 2 - THE ANGULAR PRESSURE
+=============================
+
+In Part 1, the main theorem's radial formula (equation for F_{approx})
+reduces the whole problem to a single object:
+
+     P_p^f(a)      the ANGULAR PRESSURE.
+
+This is the pressure of a Haar-random model on fixed subspaces of
+R^M. It contains only the "directional" part of the sphere integral.
+This part defines P_p^f and states its explicit formula. Part 3
+provides the Gaussian engine that computes it. Part 4 sketches why
+that engine is correct.
+
+2.1 Splitting the sphere into blocks
+------------------------------------
+
+Suppose for now M = N. Any w in S^N can be written, block by block, as
+
+     w  =  sqrt(N rho_1) theta_1 + ... + sqrt(N rho_h) theta_h
+
+where:
+  - rho_j >= 0, sum_j rho_j = 1,   the fraction of squared norm in
+    block j;
+  - theta_j is a UNIT vector in the j-th block, so ||theta_j|| = 1.
+
+For a uniformly random w, the joint law of (rho_1, ..., rho_h) and
+(theta_1, ..., theta_h) has a product form:
+  - the theta_j are independent uniform unit vectors in their blocks;
+  - the vector rho is Dirichlet(n_1/2, ..., n_h/2), the standard
+    Dirichlet distribution from statistics. Its density on the simplex
+    is proportional to rho_1^{n_1/2 - 1} ... rho_h^{n_h/2 - 1}.
+
+Under this split, the measurement A w becomes
+
+     A w  =  G( sum_j sqrt(N rho_j) theta_j )
+          =  sum_j sqrt(N rho_j) G theta_j.
+
+Block j has image subspace E_j (a Haar random subspace of R^M of
+dimension n_j). So G theta_j is a vector in E_j, and we can write
+
+     y_j  =  s_j sqrt(N rho_j) G theta_j = sqrt(M a_j) u_j
+
+with a_j = s_j^2 rho_j / alpha and u_j a UNIT vector in E_j. So the
+measurement vector A w is exactly sum_j y_j with y_j in E_j and
+||y_j||^2 = M a_j.
+
+Crucially, the y_j are INDEPENDENT "directional" random variables once
+rhos are fixed. Because:
+  - the theta_j are independent uniform vectors;
+  - the Haar right rotation V^T acts on theta_j by turning it into a
+    uniform unit vector in E_j (by rotation invariance).
+
+So the directional integral factorizes block by block:
+
+     INT  exp( sum_r f( sum_j y_{j,r} ) )  prod_j d sigma_{E_j,M a_j}(y_j).
+
+This is EXACTLY the definition of the angular pressure below.
+
+2.2 The formal definition
+-------------------------
+
+Fix proportions p_1, ..., p_h > 0 with sum_j p_j = p in (0, 1]. Choose
+n_j such that n_j / M -> p_j.
+
+Let E_1, ..., E_h be MUTUALLY ORTHOGONAL HAAR subspaces of R^M with
+dim E_j = n_j. "Haar" means their joint law is uniform over all
+orthogonal flags of dimensions (n_1, ..., n_h).
+
+For a_j >= 0, let
+
+     sigma_{E_j, M a_j}
+
+be the uniform probability measure on the sphere {y in E_j : ||y||^2 = M a_j}.
+(When a_j = 0 this is the Dirac mass at y = 0.)
+
+The angular pressure is
+
+     P_M^f(a)  =  (1/M) * log( INT_{y_j in E_j, ||y_j||^2 = M a_j}
+                                 exp( sum_{r=1}^M f( sum_j y_{j,r} ) )
+                                 prod_j d sigma_{E_j, M a_j}(y_j) ).
+
+Symbols:
+  - y_j = sum_j y_{j,r} e_r is a vector in E_j of length M (the
+    "field in block j"). Only p M of its entries are nonzero, because
+    E_j sits inside a p M-dimensional subspace.
+  - sum_j y_{j,r} is the r-th measurement, summed over blocks.
+  - prod_j d sigma = product of independent sphere measures, one per
+    block.
+  - (1/M) log = per-output-coordinate pressure.
+
+The E_j are HELD FIXED inside the integral; their randomness is outside.
+So P_M^f(a) is a random variable. As N grows it concentrates.
+
+2.3 The angular theorem
+-----------------------
+
+THEOREM (Angular formula).
+
+Fix p_1, ..., p_h with sum p_j <= 1 and f in C_b(R). Then P_M^f(a)
+converges in probability, uniformly on compact sets of a in
+[0, infinity)^h, to a deterministic continuous function P_p^f(a).
+Its explicit value is (2.4)-(2.5) below.
+
+2.4 The angular formula
+-----------------------
+
+Set
+
+     s_a     =  sum_j a_j
+     H_p(a)  =  (1/2) sum_j p_j log( 2 pi e a_j / p_j )
+     J_p     =  (1/2) int_0^p log(1 - u) du
+
+Here e = 2.718... is Euler's number, pi = 3.1415... is the usual
+circle constant, log is the natural logarithm.
+
+The formula is
+
+     P_p^f(a)
+       =  J_p - H_p(a)
+          + lim_{lambda -> infinity}
+            lim_{B     -> infinity}
+            lim_{theta -> 0}
+            B_{p,a}(kappa, lambda, B, theta),
+
+where kappa is a positive "coefficient radius" (any large enough fixed
+value works; the formula is independent of kappa in the appropriate
+range) and B_{p,a} is defined in 2.5.
+
+The three limits are in the order theta -> 0, then B -> infinity, then
+lambda -> infinity. The point is that all three limits exist, and
+together with the J_p - H_p(a) term they reproduce the right angular
+pressure.
+
+2.5 The soft-coefficient pressure
+---------------------------------
+
+To define B_{p,a}(kappa, lambda, B, theta), let d_j = h - j + 1.
+
+For each j, let R_j be an upper-triangular d_j-by-d_j matrix with
+positive diagonal and column norms at most kappa.
+
+Let xi_j be a vector in R^{d_j}. (Picture xi_j as ONE sample of a
+d_j-dimensional row field.) Given R_1, ..., R_h and a row sample
+(xi_1, ..., xi_h), define two scalars:
+
+     y    =  sum_j (xi_j^T R_j)_{x,j}
+     u_i  =  sum_{j <= i} (xi_j^T R_j)_{z_i,j}   for i = 1, ..., h-1
+
+where:
+  - xi_j^T R_j is a row vector of length d_j.
+  - (xi_j^T R_j)_{x,j} means its FIRST entry. Call this the
+    "x-coordinate".
+  - (xi_j^T R_j)_{z_i,j} means its (i - j + 1)-th entry, for i >= j.
+    Call this the "z_i-coordinate".
+  - d_j = h - j + 1 gives exactly enough entries for one x plus
+    (h - j) z_i's, for i = j, ..., h-1.
+
+Define the ROW FUNCTIONS g and constants c by
+
+     g_1  =  y^2                             c_1  =  s_a
+     g_2  =  -min(y^2, B)                    c_2  =  -s_a
+     g_{i+2}  =  (y - u_i)^2  (i=1..h-1)     c_{i+2}  =  sum_{j>i} a_j
+
+So we have h+1 "row tests", each a scalar function of (y, u_1, ...,
+u_{h-1}).
+
+The B functional is
+
+     B_{p,a}(kappa, lambda, B, theta)
+       =  sup_{R_1, ..., R_h}
+          [  sum_j p_j * (  log( kappa * sqrt(2 pi e / p_j) )
+                          + log( R_j,11 / kappa )
+                          + theta * sum_{l=2}^{d_j} log( R_j,ll / kappa )  )
+           + theta * (  min_{0 <= t_l <= lambda/theta (each l)}
+                         [ t . c
+                           + G_{theta,p}( f(y)/theta - t . g )  ]
+                     )
+          ].
+
+How to read the terms:
+  - The FIRST COLUMN of R_j (index l = 1) has weight p_j (no theta
+    factor). This is the "outer" or "shared" coordinate.
+  - The REMAINING columns (l = 2, ..., d_j) have weight p_j * theta.
+    These are "inner" or "visit" coordinates; they shrink as theta -> 0.
+  - t = (t_1, ..., t_{h+1}) is a Lagrange multiplier vector with
+    entries in [0, lambda/theta].
+  - t . c  means  sum_l t_l c_l.
+  - t . g  means  sum_l t_l g_l  (applied per row).
+  - f(y)/theta - t . g  is the "penalized terminal" (one value per
+    row).
+  - G_{theta,p}(.) is the Gaussian functional, defined in Part 3.
+
+The B functional is a "soft" version of the constraint problem: we
+sup over coefficient matrices R_j (choice of frame) and min over soft
+penalties t_l (Lagrange multipliers for the row-average constraints
+g_l <= c_l). Sending lambda -> infinity forces the constraints to be
+hard; sending B -> infinity lets y be unbounded; sending theta -> 0
+kills the coefficients' entropy.
+
+2.6 The special case sum p_j = 1
+--------------------------------
+
+When sum_j p_j = 1 (the h blocks already exhaust the whole p-dimensional
+output space, so p = 1), the formula P_p^f(a) as stated above would
+diverge, because H_p(a) blows up as any a_j -> 0. The theorem handles
+this by a limit:
+
+     P_p^f(a)  =  lim_{eta -> 0}  P_{(1 - eta) p}^f(a)     (a fixed).
+
+That is: drop a tiny fraction of the output dimension to make sum p_j
+strictly less than 1, apply the formula, then let eta -> 0.
+
+2.7 What the formula says in words
+----------------------------------
+
+The formula converts a hard integral over Haar subspaces into a
+Gaussian problem with linear coordinate formulas and soft constraints.
+Every piece has a clean meaning:
+
+  - The outer sup over R_j is the entropy of the Haar-triangular
+    frame parameters. It is the same type of expression as the volume
+    of "how many frames fit in a ball of radius kappa".
+
+  - The inner min over t_l is the Lagrange dual of the constraints
+    g_l <= c_l (on average). The constraints encode:
+      * y^2 = s_a (the field has the right squared norm),
+      * -min(y^2, B) = -s_a (also: y^2 does not exceed s_a, as a
+        one-sided constraint),
+      * (y - u_i)^2 <= sum_{j>i} a_j for every i (the "witness"
+        u_i successfully certifies that y's projection into the tail
+        flag is small).
+
+  - The limits theta -> 0, B -> infinity, lambda -> infinity strip
+    away all the softness, recovering the EXACT hard Haar pressure.
+
+For a first reading, you can skip the details of B_{p,a} and just
+remember:
+     P_p^f(a) is a well-defined limit, computed via a Gaussian
+     reference model with projection witnesses.
+
+
+
+PART 3 - THE GAUSSIAN ENGINE
+============================
+
+3.1 Why Gaussian?
+-----------------
+
+The key fact is due to Mezzadri (2007): you can build Haar flags with Gaussian randomness.
+
+     GENERATE a rectangular Gaussian matrix G with i.i.d. N(0, 1/M)
+     entries, of size M x n where n = n_1 + n_2 + ... + n_h.
+
+     ORTHOGONALIZE the first n_1 columns (Gram-Schmidt) -> subspace E_1.
+
+     Continue with columns n_1+1, ..., n_1+n_2 -> subspace E_2.
+
+     And so on.
+
+The resulting (E_1, ..., E_h) has exactly the Haar uniform law.
+
+Why it helps: spheres in E_j become Gaussian vectors in the columns of G.
+Anything we can compute with Gaussians becomes accessible. In particular,
+the "row field" x -> A x becomes a Gaussian field.
+
+3.2 Two audiences
+-----------------
+
+A reader who wants the formula without the derivation can skip to
+Section 3.6. A reader who wants to see HOW the Gaussian model arises
+from the sphere geometry should read 3.3-3.5.
+
+3.3 The powered partition function
+----------------------------------
+
+The angular pressure P_M^f(a) is (1/M) log Z with Z a product of sphere
+integrals. The trick to smoothly turn this into a Gaussian problem is to
+use a FRACTIONAL power.
+
+Fix a positive exponent theta in (0, 1). Define
+
+     Z_{M, theta}(H)
+       =  [ INT_{X in Stiefel} ( INT_{A in inner-Stiefel}
+                                  e^{H(X, A)}
+                                  d mu_in(A) )
+             ^theta
+             d mu_out(X) ]
+         ^{1/theta}
+
+where:
+  - H is a Hamiltonian of the form sum_{r=1}^M (a terminal function
+    of the rows of (X, A));
+  - d mu_out is the uniform Stiefel measure on X (outer columns);
+  - d mu_in is the conditional uniform Stiefel law on A given X
+    (inner columns);
+  - The ^theta is on the inner integral; the ^{1/theta} is on the outer.
+
+The "natural tilted path law" is: first sample X with density
+proportional to (inner integral)^theta, then sample A from the tilted
+inner Stiefel law with weight e^H.
+
+Why theta? Three jobs:
+
+  1. It encodes the SHARED-COORDINATE structure. The first column of
+     X is shared at level theta; subsequent columns are visit
+     variables. The fractional power encodes exactly the L^theta
+     combination of outer and inner.
+
+  2. It SMOOTHS the theta -> 0 limit. Witness entropy vanishes as
+     theta -> 0, which is critical for the B functional's limit.
+
+  3. It AVOIDS ANALYTIC CONTINUATION. There is no "replica" whose
+     number is formally continued to a non-integer. The zeta_i (Section
+     3.4) are all in (0, 1]; the theta-entry is a specific grid point.
+     This is a genuine fractional-power argument.
+
+3.4 Matrix paths
+----------------
+
+Fix a grid
+
+     0 = zeta_0 < zeta_1 < ... < zeta_k = 1
+
+with zeta_m = theta for some m. Define a PATH in each block j:
+
+     0  <=  q_{j,0}  <=  q_{j,1}  <=  ...  <=  q_{j,k} = I_{d_j},
+
+a nested sequence of symmetric positive-semidefinite matrices, with
+the PINNING condition
+
+     q_{j,i} e_1 = e_1  whenever zeta_i >= theta,
+
+i.e., the first coordinate stays fixed at and above theta. ("Sharing"
+the outer coordinate across visits.)
+
+The active space F_{j,i} matches the "unshared / shared" split:
+
+     F_{j,i}  =  R^{d_j}  for zeta_i < theta,
+     F_{j,i}  =  e_1^perp  for zeta_i >= theta,
+     F_{j,k}  =  {0}.
+
+(Once zeta_i = theta, the first coordinate e_1 is pinned, so the
+"active" space can only vary in e_1^perp. At the very top, k, active
+space is trivial.)
+
+The susceptibility and precision are
+
+     K_{j,i}  =  sum_{r = i+1}^{k} zeta_r (q_{j,r} - q_{j,r-1})
+     P_{j,i}  =  (K_{j,i} |_{F_{j,i}})^{-1}
+
+We extend P_{j,i} by zero outside its active space. A path is ELIGIBLE if
+K_{j,i} |_{F_{j,i}} is positive definite on every nonempty F_{j,i}.
+
+Define also the "reference" path q_j^0 with q_{j,i}^0 = 0 on active
+coordinates and q_{j,i}^0 = I on shared coordinates, and the
+corresponding K_{j,i}^0, P_{j,i}^0.
+
+The ENTROPY of a path is
+
+     2 S_theta(q_j)
+       =  tr( P_{j,0} q_{j,0} )
+        +  sum_{i=1}^{k} (1/zeta_i) log(
+             (det K_{j,i-1} / det K_{j,i})
+           * (det K_{j,i}^0 / det K_{j,i-1}^0)
+           )
+
+where each determinant is taken on the active space at its own index.
+
+Intuition: S_theta is the "entropy cost" of the path, i.e., the
+log-volume of tilts q_{j,i} that the field can take. It comes from
+differentiating Gaussian densities at each cascade level and
+integrating. The determinant ratio at each level measures how much
+"volume" the tilt uses up.
+
+3.5 The Gaussian functional
+---------------------------
+
+Let D: R^{sum_j d_j} -> R be a terminal function satisfying
+
+     -C(1 + |z|^2) <= D(z) <= C   for some C < infinity.
+
+Let Z_0, ..., Z_k be independent centered Gaussian vectors with
+block-diagonal covariance matrices
+
+     cov(Z_i)  =  diag_j ( q_{j,i} - q_{j,i-1} ).
+
+So Z_i is a Gaussian "increment" at level i.
+
+Define the BACKWARDS RECURSION:
+
+     U_k(z)  =  D(z)
+     U_{i-1}(z)  =  (1/zeta_i) log E[ exp( zeta_i U_i(z + Z_i) ) ]
+                   for i = k, k-1, ..., 1.
+
+Here E[.] is the expectation over the Gaussian Z_i. Then
+
+     V_D(q)  =  E[ U_0(Z_0) ],
+
+the last expectation over the root Gaussian Z_0.
+
+The GAUSSIAN FUNCTIONAL is
+
+     G_{theta, p}(D)
+       =  inf_q  {  sum_j p_j S_theta(q_j)  +  V_D(q)  }
+
+over all eligible path families q = (q_1, ..., q_h).
+
+Intuition:
+  - sum_j p_j S_theta is total "path entropy", weighted by block
+    fractions p_j.
+  - V_D is the EXPECTED value of D along a recursive cascade: D is
+    the terminal, and each step "goes up" the cascade by adding a
+    Gaussian increment Z_i.
+  - The infimum over q chooses the best trade-off between path
+    entropy and terminal evaluation.
+
+3.6 The Gaussian theorem
+------------------------
+
+THEOREM (Gaussian formula and global penalties).
+
+Fix theta in (0, 1), column counts d_j, and n_j / M -> p_j > 0. Note
+that p_j can be any positive numbers; sum_j p_j need not be <= 1.
+
+Let D be bounded continuous, or the sum of a bounded continuous
+function and a NONPOSITIVE quadratic form.
+
+Then
+
+     (1/M) log Z_{M, theta}( sum_{r=1}^M D(xi_r) )
+       ->  G_{theta, p}(D)
+
+in probability and in expectation.
+
+More generally, let g_1, ..., g_s be bounded continuous or NONNEGATIVE
+quadratic forms, let gbar_l = (1/M) sum_r g_l(xi_r), and fix d > 0 and
+c in R^s. The pressure for the soft-penalized Hamiltonian
+
+     H  =  sum_r D(xi_r)  -  M d * sum_{l=1}^s (gbar_l - c_l)_+
+
+converges in probability to
+
+     min_{t in [0, d]^s}  {  t . c  +  G_{theta, p}( D - t . g )  }.
+
+There is NO restriction on sum_j p_j; the soft-penalty extension is
+exactly what the angular formula needs.
+
+3.7 About "bounded or nonpositive quadratic"
+--------------------------------------------
+
+The condition "-C(1 + |z|^2) <= D(z) <= C" covers plenty:
+
+  - Bounded continuous D (the base case).
+  - Bounded continuous plus a negative-definite quadratic form. This
+    is exactly what appears when enforcing "y has bounded squared
+    norm" via a soft penalty (a negative quadratic is a "shrink"
+    penalty).
+  - NOT a positive quadratic. The behavior at infinity matters: a
+    positive quadratic in D gives exponential growth that would break
+    the variational formula. The theorem is capturing the fact that
+    the terminal must pull probability IN, not let it grow.
+
+The extension in the second paragraph of 3.6 is exactly the form used
+by the angular formula: the row tests g_l in B_{p,a} are nonnegative
+quadratics (y^2 and (y-u_i)^2), and their negative contributions to
+the terminal are what the min over t handles.
+
+Taking an infimum with a nonpositive quadratic form gives "negative
+quadratic tails" that push probability OUT, without having exponential
+growth that would break the variational formula.
+
+In the specific angular setting, the terminal is
+
+     D  =  f(y)/theta  -  t . g
+
+which is bounded: f is bounded, g is a sum of quadratic and clipped
+terms, and t is in [0, lambda/theta]^s. The soft constraints bring
+their quadratic terms in with negative multipliers, so the overall
+terminal fits the "bounded or bounded-plus-negative-quadratic" pattern.
+
+3.8 What theta is doing, once more
+----------------------------------
+
+For a high-school reader, the exponent theta in Z_{M, theta} has three
+"jobs":
+
+  1. It encodes the shared-coordinate structure. At theta, the first
+     column of each Stiefel is "shared"; at later visits, it's fixed.
+     This lets us test the "projection onto the flag" with witnesses.
+
+  2. It makes the limit theta -> 0 smooth. The witness entropy
+     vanishes as theta -> 0, allowing us to strip witnesses away at
+     the end (as in the B functional in Part 2).
+
+  3. It sidesteps the usual "replica symmetry breaking" machinery:
+     no analytic continuation in the number of replicas is used. Only
+     a genuine fractional power at positive theta.
+
+This last point is a real conceptual simplification: the paper avoids
+replica-parity-like continuation. Instead of "n copies, analytically
+continued to non-integer n", it uses "one fractional root at positive
+theta". The mathematical object is a genuine L^theta norm, not a
+formal interpolation.
+
+PART 4 - HOW THE GAUSSIAN THEOREM IS PROVED
+===========================================
+
+The Gaussian theorem of Part 3 is nontrivial. This part gives the shape
+of the proof. No attempt is made to fill in all details; the goal is
+that a reader can follow WHAT is being shown and WHY each piece works.
+
+4.1 The two-sided plan
+----------------------
+
+The proof has two halves:
+
+  - UPPER BOUND: comparison with an "enriched" free energy. Adapt
+    Mourrat's supersolution method. Add extra Gaussian linear fields
+    and Poisson-count patterns, take a "contact-point" minimization,
+    and use the Ghirlanda-Guerra identities to build a cascade-shaped
+    bound.
+
+  - LOWER BOUND: cavity method. Use the Aizenman-Sims-Starr variational
+    approach. Restore patterns one at a time (or a large but bounded
+    chunk), compare the empirical overlaps of new spins to physical
+    overlaps of the enlarged system, and use a Gaussian computation
+    on a "thick shell" to match the two.
+
+  - SOFT DUALITY: once the unpenalized formula is proved, add soft
+    penalties via standard convex duality.
+
+4.2 Upper bound: comparison and contact point
+---------------------------------------------
+
+Fix a trial path family q. Enrich the pressure with independent linear
+Gaussian fields (with covariance levels tied to q). Also Poissonise the
+number of patterns: use Poisson(M r) patterns for r in [0, 1],
+interpolating between 0 patterns (no disorder) and M patterns (the real
+problem).
+
+Add small random perturbations of the pattern Hamiltonian (the
+"scalarization kernels") designed to enforce the Ghirlanda-Guerra
+identities in the limit.
+
+Then define a "contact-point functional"
+
+     A_M(r, b, u)  =  -E P_M(r, b, u)
+                     + entropy of q
+                     + r ( V_D(q) + delta )
+                     + penalty terms,
+
+where P_M is the (perturbed, enriched) pressure and "penalty terms"
+keep the perturbation parameters bounded.
+
+If the desired upper bound FAILS at the trial q, then:
+
+  - at r = 1 (all patterns), A_M(1, 0, u) is negative for large M;
+  - at r = 0 (no patterns), A_M(0, b, u) is nonnegative (no constraint
+    from missing patterns).
+
+So there is an interior minimum with r > 0.
+
+At the minimum:
+
+  - Differentiating in r gives minus the expected log-pressure of one
+    fresh pattern, bounded by -V_D(q) - delta. That is the UPPER bound
+    we want.
+  - Differentiating in b gives a "tail contact inequality" that, after
+    summation-by-parts and using the covariance comparison
+    V_D(q*) <= V_D(q), implies V_D(q*) <= V_D(q).
+
+Together these contradict failure of the upper bound. The heavy lifting
+is in proving the Ghirlanda-Guerra identities at the minimizing
+parameters; this uses concentration (the pressure concentrates on a
+bounded window of the perturbing variables). The scalarization kernels
+provide the "test functions" needed.
+
+The argument is closely related to Panchenko's vector-spin
+synchronization theory, adapted to the present nonlinear pattern
+Hamiltonian (matrix overlaps rather than scalar overlaps).
+
+4.3 Lower bound: cavity and thick shell
+---------------------------------------
+
+The lower bound compares the model with M patterns to the same model
+with M + ell patterns, where ell is a fixed "cavity size" (large but
+very small compared to M). The goal is to show the pressure increment
+is at least ell * G_{theta, p}(D), up to lower-order terms.
+
+Steps:
+
+  1. Fix an independent batch of ell fresh patterns. In the enlarged
+     model, the spin overlaps of new "block spins" should concentrate
+     around a "shell" where their empirical covariance is close to
+     the identity.
+
+  2. On the shell, the "new-coordinate overlaps" are related to the
+     "whole-overlap" quantities R_j^{12} (whole-vector overlaps). By
+     spatial rotation invariance, the empirical correlations between
+     residuals approximate the physical correlations.
+
+  3. Use a Gaussian computation on the shell to show that these
+     empirical overlaps also match the CANONICAL PATH q*_j from
+     Lemma 5.2 (the solution of the canonical duality equation).
+
+  4. Match physical and canonical predictions: on the same thick
+     shell, both the "physical overlap" prediction (from rotation
+     invariance) and the "canonical overlap" prediction (from
+     Gaussianity) refer to the same empirical quantity. Therefore q
+     (physical) must equal q* (canonical) on the thick shell.
+
+  5. Sum the pieces: the pressure increment equals ell times the
+     canonical value, which equals ell * V_D-path with entropy
+     accounted. This matches G_{theta, p}(D).
+
+Key technical device: a HAAR PROJECTION VARIANCE bound showing that
+physical and residual samples differ by O(ell^{-1/2}) in expectation
+when ell is the cavity size. This is why "thick shell" (large ell) is
+needed.
+
+4.4 Soft duality
+----------------
+
+The Gaussian theorem in 3.6 has a "soft-penalty" version: the pressure
+of
+
+     H  =  sum_r D(xi_r)  -  M d * sum_{l=1}^s (gbar_l - c_l)_+
+
+converges to
+
+     min_{t in [0, d]^s}  {  t . c  +  G_{theta, p}( D - t . g )  }.
+
+The proof is the standard convex-differential argument:
+
+  Step 1 - Introduce the Lagrange multiplier. By the convex dual of "x_+
+  is the sup over t >= 0 of t x", we can rewrite the soft penalty as
+
+       -M d * sum_l (gbar_l - c_l)_+
+       =  min_{0 <= t_l <= d}  M * (  t . c  -  t . gbar  ).
+
+  This is the standard trick: an infimum over t of an expression linear
+  in t with the "0 <= t <= d" bound.
+
+  Step 2 - Substitution into the terminal. The resulting Hamiltonian is
+  bounded (D is bounded), so the SOFT form of the Gaussian theorem
+  applies with terminal D - t . g. This yields the "min over t" formula.
+
+  Step 3 - Matching. Standard uniqueness of the minimizer at the
+  optimum ensures the two sides agree.
+
+4.5 The extra ingredient: weighted shell comparison
+---------------------------------------------------
+
+There is a subtle third step. Because we are replacing "sphere in
+E_j" by "Gaussian coefficients", we lose the exact "shell" structure
+of the sphere. The paper compensates with a weighted shell comparison
+lemma.
+
+Statement: Let b_j and a_j be nonnegative vectors with
+
+     sum_j b_j  =  sum_j a_j             (same total)
+     sum_{j<=i} b_j  >=  sum_{j<=i} a_j  for i=1, ..., h-1
+                                        (prefix dominance)
+
+after re-indexing so a_j/p_j is nonincreasing. Then the WEIGHTED shell
+volume of b is at most that of a. In other words, moving weight toward
+earlier blocks can only shrink the pressure.
+
+Proof sketch: randomly subdivide Haar subspaces to redistribute the
+mass (this is the transport equation of the original). A fixed vector
+in the b-shell then concentrates into a slightly enlarged a-shell, with
+a uniform failure bound per fixed vector. Using Fubini, this transfers
+the weighted volume, even when the weight is concentrated. The
+subdivision uses Dirichlet concentration of squared norms, which
+applies uniformly to a fixed vector (no need for a simultaneous
+concentration).
+
+This is what allows the one-sided projection tests to recover the
+angular pressure without needing a regular activation.
+
+4.6 Summary of the angular proof
+--------------------------------
+
+Collecting the four pieces:
+
+  - By Mezzadri, Haar subspaces <=> Gaussian matrix.
+  - By the coefficient integral, Haar pressure = Gaussian pressure
+    with explicit triangular frames.
+  - By the Gaussian theorem, the Gaussian pressure equals
+    G_{theta, p}(.) under soft constraints.
+  - By the soft-duality limit (lambda -> infinity), soft constraints
+    become hard.
+  - By the weighted shell comparison, the hard constraints recover
+    the correct sphere.
+  - By theta -> 0, B -> infinity, we recover P_p^f(a).
+
+Then, in a separate step, the radial decomposition (Section 1.4)
+converts the main theorem's F_{alpha, nu}(f) into an optimization over
+Dirichlet-distributed rho, with angular pressure P_p^f(a) as the
+"inside". Combining the two gives the main theorem.
+
+
+PART 5 - EXTENSIONS AND BOUNDARIES
+==================================
+
+The main theorem has some assumptions. Some can be relaxed; some are
+unavoidable. This part collects the extensions. Part 6 gives concrete
+examples showing why certain hypotheses cannot be dropped.
+
+5.1 Arbitrary dimension sequences
+---------------------------------
+
+The main theorem uses M = floor(alpha N). The proof works for any
+sequence (M_N, N_N) with M_N / N_N -> alpha in (0, infinity).
+
+The only interesting case is alpha = 1 with N > M and k = N - M = o(N).
+Here there are k "structural null input directions". These do not
+contribute to the output. The same radial formula holds, provided we
+use M (not N) in the denominators and let the "extra" null input space
+take a Dirichlet share.
+
+Idea of proof: compare the sphere in R^N to a BALL in R^M, using a
+radius parameter. The measured field at radius sqrt(N v) has squared
+norm approximately alpha s_N^2 v, uniform over the sphere. The two
+endpoints, v small and v near 1, contribute negligibly. An integration
+by parts over the ball radius then converts the sphere integral into a
+ball integral, which is handled by the same machinery as before.
+
+5.2 Edge intervals and sublinear outliers
+-----------------------------------------
+
+The assumption "every singular value stays in supp nu" (no outliers)
+can be weakened. What is actually needed is control on the two edges
+of the spectrum:
+
+     s_-  =  min supp nu
+     s_+  =  max supp nu
+
+and the requirement that all but sublinearly many singular values lie
+in [s_-, s_+]. That is, one needs:
+
+     max_{r <= min(M,N)} dist(s_{N,r}, [s_-, s_+])  -> 0 in probability.
+
+This is the edge-interval version of the main theorem.
+
+Why the edge interval is enough: use the "extra Haar direction" trick.
+If a sublinear number of singular values leak outside [s_-, s_+], one
+or two extra Haar directions act as "fake blocks". The leaked weight
+gets assigned to them, and the negative Dirichlet entropy
+(1/2) v_i log(rho_i / v_i) with v_i = o(1) absorbs the effect as
+rho_i -> 0.
+
+Extra provision for alpha < 1: the interval can be [0, s_+], because
+the structural null input space (of macroscopic dimension
+N - M = (1 - alpha) N) already provides a legitimate zero endpoint.
+At the other end, forced output zeros do NOT provide such an endpoint
+(see Example 6.1 for what goes wrong).
+
+Degenerate case: if both edges are zero (s_- = s_+ = 0), the operator
+norm goes to zero and the pressure converges to alpha * f(0). The
+formula handles this by specializing H_p(a) to its small-a behavior.
+
+5.3 Unbounded activations with subquadratic growth
+--------------------------------------------------
+
+The main theorem assumes f bounded. It can be relaxed:
+
+PROPOSITION (Activation extension, i).
+
+Let f be continuous and satisfy |f(z)| / (1 + z^2) -> 0 as |z| ->
+infinity. Then the pressure F_N(A_N, f) converges in probability to
+the "final bounded-cutoff limit" of the main formula: the limit of
+F_{alpha, nu}(f_R) as R -> infinity, where f_R = f * chi_R is a
+bounded cutoff equal to f on [-R, R] and supported in [-2R, 2R].
+
+If, in addition, the spectrum is uniformly bounded by a fixed
+deterministic constant, convergence in mean also holds.
+
+Idea of proof: take a bounded compactly-supported cutoff f_R and
+compare to f. The error at any input x is at most
+
+     (1/N) sum_r |f((Ax)_r) - f_R((Ax)_r)|
+   <= epsilon_R * ( M/N + ||A||_op^2 )
+
+where epsilon_R = sup_{|z| > R} |f(z)| / (1 + z^2) -> 0. On good
+spectral events ||A||_op is bounded, so the pressure difference is
+small. For mean convergence, a deterministic bound on ||A||_op is
+needed, which is what "spectrum uniformly bounded by a deterministic
+constant" provides.
+
+Note: continuity alone is NOT enough. Example 6.4 shows f = z^8 can
+diverge even with the spectrum converging to zero.
+
+5.4 Bounded Borel activations
+-----------------------------
+
+The main theorem assumes f continuous. It can be relaxed:
+
+PROPOSITION (Activation extension, ii).
+
+Let f be bounded Borel and let nu != delta_0 (so nu has some mass away
+from zero). Then the pressure F_N(A_N, f) converges in probability and
+in mean. The limit is the limit of F_{alpha, nu}(g_k) over bounded
+continuous g_k that approximate f in Lebesgue measure on compact
+intervals, with |g_k| <= ||f||_infty.
+
+Idea of proof: under nu != delta_0, good spectral events have
+||A||_op bounded AND at least a positive fraction of singular values
+bounded below by some s_* > 0. So the small-field set has
+exponentially small mass. Concretely, for any L > 0 there is a small
+lambda_0 > 0 such that:
+
+     sigma_N{ x : ||Ax|| < lambda_0 sqrt M }  <=  e^{-LM}
+
+for all large good spectra (this forces too much norm in the s_* >
+subspace, and a Beta tail bounds that probability).
+
+Conditional on input coefficients and singular values, Haar left
+rotation makes the field a uniformly random vector on the sphere of
+radius ||Ax|| sqrt M. Explicit densities for k small entries then
+give:
+
+     P( #{ r : (Ax)_r in B } >= k )  <=  binom(M, k) (C_0 delta / lambda_0)^k
+
+for any measurable B of Lebesgue measure at most delta and any
+k = ceil(gamma M) with 0 < gamma < 1/2.
+
+So a bounded Borel f can be approximated by continuous g, and the
+exceptional inputs where the approximation fails have exponentially
+small probability. This is enough for probability and mean
+convergence.
+
+Note: nu = delta_0 is problematic. Example 6.3 shows that even a
+simple indicator {z != 0} can jump between two different values along
+the sequence.
+
+5.5 Summary of Part 5
+---------------------
+
+The main theorem survives:
+  - arbitrary (M_N, N_N) with M_N / N_N -> alpha,
+  - sublinear spectral outliers in [s_-, s_+] (edge interval),
+  - continuous subquadratic activations (|f(z)| / (1 + z^2) -> 0),
+  - bounded Borel activations when nu != delta_0.
+
+It does NOT survive:
+  - sublinear outliers that hide in output zeros (5.2's edge interval
+    with s_- = 0 must come from an INPUT null, not an OUTPUT zero),
+  - unbounded spectral support with outliers,
+  - nu = delta_0 with discontinuous f,
+  - superquadratic continuous f with vanishing spectrum.
+
+Part 6 gives four worked examples, one for each failure mode.
+
+
+PART 6 - EXAMPLES SHOWING HYPOTHESES MATTER
+===========================================
+
+This part gives four worked examples. Each shows why one hypothesis
+in the main theorem is ESSENTIAL: without it, the pressure can fail to
+converge, or can converge to the wrong value.
+
+6.1 Forced output zeros can hide a small singular-value outlier
+---------------------------------------------------------------
+
+Setup. Let M = 1000 N, so alpha = 1000. On alternating values of N,
+choose the singular spectrum:
+
+     EVEN N:  all N singular values equal sqrt(alpha).
+     ODD  N:  same, but set ONE of the singular values to 0.
+
+Everything else (Haar orientations) is as in the theorem.
+
+Activation. Let f(z) = -c * min(z^2, 1), with c >= 1.
+
+Analysis on even N. Since all singular values equal sqrt(alpha) and
+orientations are Haar, A = sqrt(alpha) * U for U a Haar orthonormal
+M-by-N frame. For a unit input u, the measurement sum is
+
+     sum_r f((Au)_r)  =  -c sum_r min( M (Uu)_r^2, 1 )
+
+(the M^{-1/2} scale of U means each (Uu)_r is typically 1/sqrt(M),
+so M (Uu)_r^2 is typically of size 1). A spreading estimate (Gaussian
+tails plus a small net on the unit sphere) gives
+
+     P( inf_u (1/M) sum_r min(M (Uu)_r^2, 1) < 1/80 )  <=  e^{-M c_0}
+
+for a universal c_0 > 0. Therefore on even N,
+
+     pressure  <=  -c * alpha / 80  =  -12.5 c.
+
+Analysis on odd N. One input direction is "null": the image of A is
+only (N-1)-dim even though the input space is N-dim. Any unit u
+decomposes as
+
+     u  =  sqrt(V) * u_live + sqrt(1 - V) * u_null
+
+where u_live is a unit vector in R^{N-1}, u_null is a unit vector in
+the 1-dim null direction, and V is the squared norm fraction in the
+live direction. Because u is uniform, V ~ Beta((N-1)/2, 1/2).
+
+For fixed v in (0, 1), the event V <= v has log-probability per N
+tending to (1/2) log v. On this event, at most v of the field survives,
+so the energy is at least -c * v * M / M = -c v. Taking v = 1/160:
+
+     pressure  >=  -0.5 * log 160  -  6.25 c
+               ~  -2.5  -  6.25 c.
+
+Comparison. For c = 1:
+
+     even-N pressure  <=  -12.5
+     odd-N  pressure  >=  -8.75
+
+The limits differ. The theorem does NOT apply. But look at the
+spectra: on both parities, the RECTANGULAR singular-value measure
+(excluding the structural zeros) still tends to delta_{sqrt(alpha)}.
+So it seems the "no outlier" hypothesis is satisfied!
+
+The outlier HIDES in the output zero masses. The output eigenvalue
+measure of the odd-N models is
+
+     (1 - 1/alpha) delta_0  +  (1/alpha) delta_alpha,
+
+and every output eigenvalue is EXACTLY in the support of this limit.
+So support control on output eigenvalues is insufficient: the outlier
+"hides" in the zero masses at the output.
+
+Moral. No-outlier control must be on the RECTANGULAR SINGULAR SLOTS
+(s_{N,r} for r = 1, ..., min(M,N)), not on the output eigenvalues.
+
+6.2 Unbounded limiting spectrum
+-------------------------------
+
+Setup. Let d_k = exp(8^k) for k = 1, 2, ... and
+
+     nu = sum_{k=1}^infinity 2^{-k} delta_{d_k}
+
+so nu has total mass 1 but UNBOUNDED support (d_k -> infinity).
+
+For large N, choose K = floor(log_2 log N). Set multiplicities
+
+     n_j = floor(N 2^{-j})  for j < K,
+     r = n_K = N - sum_{j<K} n_j,
+
+so the top block is about N/2-dimensional (because
+2^{-K} N / 2 <= r <= N/2 for all large N). Use these multiplicities
+with Haar orientations. Every singular value is in nu's support.
+
+Activation. Let f be any continuous function in [0, 1] that equals
+c_K in {0, 1} on the ABSOLUTE-VALUE interval [d_K^{1/2}, d_K^2],
+alternating in c_K with K, and interpolates in the gaps. The
+intervals [d_k^{1/2}, d_k^2] are disjoint because
+d_{k+1}^{1/2} = d_k^4.
+
+Analysis. The top block, of dimension about N/2, has singular value
+d_K = exp(8^K). Its field values are typically of size d_K, so on the
+top block f evaluates to c_K almost surely. Smaller blocks contribute
+negligibly because their singular values are dwarfed by d_K.
+
+So the pressure, as N grows along the sub-K sequence, is:
+
+     K even -> pressure -> c_K in {0, 1},
+     K odd  -> pressure -> the other value in {0, 1}.
+
+The pressure oscillates between 0 and 1 and does NOT converge.
+
+Moral. Weak convergence to nu is not enough if nu has unbounded
+support. Compact support of nu is essential.
+
+6.3 Bounded Borel at zero spectrum
+----------------------------------
+
+Setup. Let M = N. Choose
+
+     EVEN N:  A_N = 0 (all singular values zero).
+     ODD  N:  A_N = s_N O_N, where s_N > 0, s_N -> 0, and O_N is Haar
+              orthogonal.
+
+Activation. Let f(z) = 1_{z != 0}, the indicator that z is nonzero.
+
+Analysis.
+
+     EVEN N:  A_N x = 0 for all x, so f(0) = 0 and sum_r f = 0.
+              Pressure = 0.
+
+     ODD  N:  for almost every x, A_N x has all coordinates nonzero
+              (it's a scalar multiple of O_N x). So f((A_N x)_r) = 1
+              for every r, and sum_r f = N. Pressure = 1.
+
+Both spectral sequences converge to delta_0 (the typical singular
+value is 0), with no outliers. So the main theorem's spectral
+hypothesis is satisfied. But f is not continuous: it has a jump at 0.
+
+Moral. Bounded Borel activations (with nu = delta_0) can fail. This is
+why the extension in Section 5.4 requires nu != delta_0.
+
+6.4 Continuous activation without a growth bound
+------------------------------------------------
+
+Setup. Let M = N. Choose
+
+     EVEN N:  A_N = 0.
+     ODD  N:  A_N = N^{-1/4} O_N, where O_N is Haar orthogonal.
+
+So on odd N, all singular values equal N^{-1/4} -> 0. On even N they
+are all exactly 0.
+
+Activation. Let f(z) = z^8.
+
+Analysis.
+
+     EVEN N:  A_N x = 0 for all x, so f(0) = 0 and sum_r f = 0.
+              Pressure = 0.
+
+     ODD  N:  ||A_N||_op = N^{-1/4}. Let OMEGA = O_N x, a uniform
+              vector of squared norm N. Then
+
+                   (A_N x)_r  =  N^{-1/4} OMEGA_r,
+                   sum_r (A_N x)_r^8  =  N^{-2} sum_r OMEGA_r^8.
+
+              If OMEGA_1^2 is in [N/4, N/2], then OMEGA_1^8 >= N^4/256,
+              so sum_r OMEGA_r^8 >= N^4/256 and hence
+
+                   sum_r (A_N x)_r^8  >=  N^2 / 256.
+
+              The probability of this coordinate event is at least
+              (1/8) 2^{-(N-3)/2}. So by taking expectations:
+
+                   pressure
+                     >= (1/N) [ N^2 / 256
+                                + log( (1/8) 2^{-(N-3)/2} ) ]
+
+                     =  N/256 - (1/2) log 2 - (3 log 2) / (2N)
+
+                     ->  +infinity.
+
+So the pressure DIVERGES on odd N, while it stays 0 on even N. The two
+spectral sequences both converge to delta_0.
+
+Moral. Continuity alone is not enough; even on a spectrum that
+converges to zero, a superquadratic f can make the pressure diverge.
+This is why the extension in Section 5.3 wants |f(z)| / (1 + z^2) -> 0.
+
+6.5 Summary of Part 6
+---------------------
+
+Four failures:
+
+  6.1  alpha = 1000 with one zero singular value -> outlier hides in
+       output zeros -> pressure jumps ~ -12.5 c to ~ -8.75 c (c=1).
+       Fixed by requiring rectangular singular slots to stay in
+       [s_-, s_+].
+
+  6.2  nu = sum 2^{-k} delta_{exp(8^k)} (unbounded support) ->
+       pressure oscillates 0 <-> 1. Fixed by requiring compact support.
+
+  6.3  nu = delta_0, f = 1_{z != 0} (bounded Borel) -> pressure
+       jumps 0 <-> 1. Fixed by requiring nu != delta_0 (Part 5.4).
+
+  6.4  nu = delta_0, f = z^8 (superquadratic continuous) -> pressure
+       jumps 0 <-> +infinity. Fixed by requiring |f|/(1+z^2) -> 0
+       (Part 5.3).
+
+
+PART 7 - GLOSSARY OF SYMBOLS
+============================
+
+Dimensions and the model
+------------------------
+  N              input dimension
+  M              output dimension (number of patterns)
+  alpha          lim M/N, in (0, infinity)
+  r_N            min(M, N), number of singular slots
+  A              M-by-N measurement matrix
+  A w            the M-vector of measurements
+  S^N            sphere of squared norm N
+  sigma_N        uniform probability measure on S^N
+  f              activation, bounded continuous on R by default
+  F_N(A, f)      pressure: (1/N) log INT exp(sum_r f((Aw)_r)) d sigma_N
+
+Singular values and spectrum
+----------------------------
+  s_{N,r}        r-th singular value of A
+  delta_a        Dirac mass at a
+  mu_A           empirical (1/r_N) sum delta_{s_{N,r}}
+  nu             limiting probability measure on [0,infinity),
+                 compact support, weak limit of mu_A
+  s_-, s_+       min supp nu, max supp nu
+  spectral hypot (a) mu_A -> nu weakly, (b) max_r dist(s_{N,r},
+                 supp nu) -> 0
+
+Block decomposition
+-------------------
+  h              number of spectral blocks
+  s_j            representative singular value in block j, j=1..h
+  n_j            output dimension of block j
+  p_j            n_j / M
+  v_j            alpha * p_j
+  v_0            1 - alpha (structural null input block, alpha < 1)
+  I              (1..h) if alpha >= 1, else (0, 1, ..., h)
+  E_j            Haar subspace of R^M with dim E_j = n_j
+  rho_i          squared-norm fraction in block i, sum = 1,
+                 Dirichlet(n_1/2, ..., n_h/2) under uniform sphere
+  a_j            s_j^2 * rho_j / alpha (per-coordinate squared norm)
+  F_{alpha,nu}   the deterministic limit of the pressure
+
+Angular pressure and B formula
+------------------------------
+  P_M^f(a)       angular pressure on the E_j
+  P_p^f(a)       limit of P_M^f(a)
+  J_p            (1/2) int_0^p log(1 - u) du
+  H_p(a)         (1/2) sum_j p_j log(2 pi e a_j / p_j)
+  kappa          coefficient radius (any large fixed positive value)
+  d_j            h - j + 1
+  R_j            upper-triangular d_j-by-d_j coefficient matrix
+                 in B_{p,a}, positive diagonal, column norms <= kappa
+  xi_j           row coefficient in R^{d_j}
+  y, u_i         scalar row functionals (i = 1..h-1)
+  g_l, c_l       row tests and targets (h+1 of each):
+                   g_1 = y^2                    c_1 = s_a
+                   g_2 = -min(y^2, B)           c_2 = -s_a
+                   g_{i+2} = (y - u_i)^2        c_{i+2} = sum_{j>i} a_j
+  B_{p,a}        sup over R_j, min over t_l <= lambda/theta, of
+                 t.c + G_{theta,p}(f(y)/theta - t.g)
+  lambda         soft-penalty multiplier cap (limit -> infinity)
+  B              bound in min(y^2, B) (limit -> infinity)
+  theta          fractional exponent in (0, 1) (limit -> 0)
+  eta            small dimension drop when sum p_j = 1 (limit -> 0)
+
+Gaussian engine
+---------------
+  St(n, d)       Stiefel manifold of n-by-d matrices X with X^T X = n I_d
+  X_j            outer column of block j (Stiefel point)
+  xi_{r,j}(X)    row field (X_j^T g_{r,j}) / sqrt(n_j); std. Gaussian
+  Z_{M,theta}    powered partition function
+                 [INT_X (INT_A e^H d mu_in)^theta d mu_out]^(1/theta)
+  zeta_i         cascade grid: 0 = zeta_0 < ... < zeta_k = 1,
+                 some zeta_m = theta
+  q_{j,i}        covariance path in block j (0 <= q <= I, pinning)
+  K_{j,i}        susceptibility: sum_{r>i} zeta_r (q_{j,r} - q_{j,r-1})
+  P_{j,i}        precision: K restricted to F_{j,i}, then inverted
+  F_{j,i}        active space: R^{d_j} before theta, e_1^perp after
+  S_theta(q_j)   half-entropy of the path
+  Z_i            Gaussian increment with cov diag_j (q_{j,i} - q_{j,i-1})
+  U_i            backwards recursion terminal
+  V_D(q)         E U_0(Z_0), expected root terminal
+  G_{theta,p}    Gaussian functional: inf_q sum p_j S_theta(q_j) + V_D(q)
+
+Conventions
+-----------
+  log = natural log. exp = exponential.
+  | . | = Euclidean norm; || . || = operator norm.
+  A <= B (matrices) means B - A is positive semidefinite (Loewner).
+  A^T = transpose of A.
+
+Methods (name-drop; details in Part 8 references)
+-------------------------------------------------
+  Mezzadri 2007      Haar from Gaussian
+  Mourrat 2021-2023  supersolution upper bound, vector spin
+  Aizenman-Sims-Starr 2003  cavity lower bound
+  Panchenko 2010-2023  ultrametricity, GG identities, cascades
+  Ruelle 1987        probability cascades
+  Ghirlanda-Guerra 1998  overlap identities
+  Hardy-Littlewood-Polya 1952  majorization
+
+
+PART 8 - WHERE TO LEARN MORE
+============================
+
+Prerequisites (high-school-friendly)
+------------------------------------
+  * Sheldon Axler, Linear Algebra Done Right.
+    Vectors, matrices, singular value decomposition.
+  * Rick Durrett, Probability: Theory and Examples.
+    Random variables, conditioning, Gaussian distributions, limits.
+  * Terence Tao, An Introduction to Measure Theory (or his blog).
+    Integrals, product measures, weak convergence.
+
+Immediate background of this paper
+----------------------------------
+  * Elizabeth Gardner, The space of interactions in neural network
+    models, J. Phys. A 21 (1988), 257-270.
+    Original computation of the spherical perceptron free energy.
+
+  * Elizabeth Gardner, Bernard Derrida, Optimal storage properties of
+    neural network models, J. Phys. A 21 (1988), 271-284.
+    The famous storage-capacity calculation.
+
+  * Mariya Shcherbina, Brunello Tirozzi, Rigorous solution of the
+    Gardner problem, Comm. Math. Phys. 234 (2003), 383-422.
+    The rigorous version for the hard-margin constraint.
+
+Spin glass theory (for the specific techniques)
+-----------------------------------------------
+  * Marc Mezard, Giorgio Parisi, Miguel Virasoro, Spin Glass Theory
+    and Beyond (World Scientific, 1987).
+    Classic textbook.
+
+  * Michel Talagrand, Spin Glasses: A Challenge for Mathematicians
+    (Springer, 2003).
+    Rigorous treatment.
+
+  * Dmitry Panchenko, The Sherrington-Kirkpatrick Model (Springer,
+    2013).
+    Modern rigorous account, ultrametricity, GG identities.
+
+Specific tools used in this paper
+---------------------------------
+  * F. Mezzadri, How to generate random matrices from the classical
+    compact groups, Notices AMS 54 (2007), 592-604.
+    The Gaussian-to-Haar construction of Part 3.
+
+  * M. Aizenman, R. Sims, S. L. Starr, Extended variational principle
+    for the Sherrington-Kirkpatrick spin-glass model, Phys. Rev. B 68
+    (2003), 214403.
+    The cavity lower bound of Part 4.3.
+
+  * J.-C. Mourrat, Nonconvex interactions in mean-field spin glasses,
+    Probab. Math. Phys. 2 (2021), 281-339.
+    The supersolution upper bound of Part 4.2.
+
+  * J.-C. Mourrat, Free energy upper bound for mean-field vector spin
+    glasses, Ann. Inst. Henri Poincare 59 (2023).
+    Extension to vector spins; direct ancestor of this paper's upper
+    bound.
+
+  * G. H. Hardy, J. E. Littlewood, G. Polya, Inequalities (CUP, 1952),
+    Chapter X.
+    Majorization background for Part 4.5 and the weighted shell
+    comparison.
+
+Companion material
+------------------
+  * Companion paper on the scalar spherical perceptron (same
+    repository).
+    Provides the scalar comparison and cavity, sharing the same
+    structure. No theorem from it is needed here, but it is useful as
+    a parallel treatment.
+
+Closing note
+------------
+
+The main theorem answers a natural question about spherical perceptrons
+with a broad class of disorder spectra: the pressure converges to an
+explicit variational formula. The formula factors into a Dirichlet
+entropy over how input norm splits between singular-value blocks, and
+an "angular pressure" that is itself given by a Gaussian variational
+problem with a shared-coordinate trick.
+
+The proof is a long sequence of approximations: Gaussianization of
+Haar spaces, a fractional-power trick, a supersolution upper bound,
+a variational cavity lower bound, and a weighted shell comparison to
+make the sphere structure exact.
+
+If you followed Parts 0 through 3 and Parts 5 through 6, you have seen
+the essential ideas. Part 4 and Part 8 provide the technical apparatus
+and a reading list.
+
+                              end of document
