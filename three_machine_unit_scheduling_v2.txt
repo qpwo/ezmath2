@@ -1,7 +1,9 @@
 A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling
 A patient high-school study guide
 
-How to read this file. This is a study guide to one research paper: the proof that scheduling unit-length precedence-constrained jobs on three identical machines has a polynomial-time exact algorithm. The technical name of the problem is P3 | prec, p_j = 1 | Cmax. The paper is "A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling", by OpenAI, dated 24 September 2026. Everything below is written for a patient high-school reader. Each block starts with "Exercise:", then a short question, then a self-contained answer. A "Proof:" sketch inside an answer can be skipped on a first pass and returned to later. Named results carry a short nickname in parentheses, e.g. "Lemma (Suffix Carry)"; search for the nickname to find the full statement. Symbols you will meet first: n (number of jobs); x <~ y (x must finish before y, "x precedes y"); DAG (directed acyclic graph); T (candidate deadline); Cmax (makespan, the finish time of the last job); Fam (family of describable sets); K (leaf bound on a description); F (a member of Fam, a Boolean formula); Q(K) (the qualifier set of a list K); lambda(x) (rank of x in a fixed linear extension); D_a, P_a (predecessor and successor cones of slot a); ^D_a, ^P_a (their weak closures).
+How to read this file. This is a study guide to one research paper: the proof that scheduling unit-length precedence-constrained jobs on three identical machines has a polynomial-time exact algorithm. The technical name of the problem is P3 | prec, p_j = 1 | Cmax. The paper is "A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling", by OpenAI, dated 24 September 2026. Everything below is written for a patient high-school reader. Each block starts with "Exercise:", then a short question, then a self-contained answer. The Proof paragraphs can be skipped on a first pass and returned to later. Three foundational structural lemmas - (Separator Description), (Any Ideal), and (Shared Cutoffs) - are stated and used freely but not re-proved here; their proofs appear in the original paper's "separators" section. Every other lemma, including the boundary and description lemmas, is proved in full. Named results carry a short nickname in parentheses, e.g. "Lemma (Suffix Carry)"; search for the nickname to find the full statement. Symbols you will meet first: n (number of jobs); x <~ y (x must finish before y, "x precedes y"); DAG (directed acyclic graph); T (candidate deadline); Cmax (makespan, the finish time of the last job); Fam (family of describable sets); K (leaf bound on a description); F (a member of Fam, a Boolean formula); Q(K) (the qualifier set of a list K); lambda(x) (rank of x in a fixed linear extension); D_a, P_a (predecessor and successor cones of slot a); ^D_a, ^P_a (their weak closures).
+
+Parts of this guide. Part A sets up the problem, the notation, and the "shape" of the proof (separators, cones, ranks, normalised sides). Part B is the structural theorem: every feasible schedule can be split at triple boundaries in a bounded-description way. Part C is the algorithm: dynamic programming over the bounded-description family. Part D is the step count. Parts E, F, G discuss assumptions, open problems, and how to read the original paper. Part H is a small Python prototype; Part I collects references.
 
 Exercise: The scheduling problem. What is P3 | prec, p_j = 1 | Cmax?
 The problem is: given n nonpreemptive jobs, each taking exactly 1 unit of time, and a DAG G = (V, E) of "u must finish before v starts" constraints, schedule them on 3 identical parallel machines minimizing the makespan (the finish time of the last job). Equivalently, decide for a given integer T whether all jobs can be scheduled in T slots, each slot running at most 3 jobs, respecting every precedence constraint. The standard shorthand is P3 | prec, p_j = 1 | Cmax, from the Graham-Lawler-Lenstra-Rinnooy-Kan notation. Nothing else is constrained: no release dates, no machine-specific jobs, no extra resources. All units are integer and identical.
@@ -74,8 +76,8 @@ Part B: The structural proof
 
 Exercise: What is a cutoff, and what is a separator?
 Fix a normalized schedule and a subset S of jobs within a node W that is "downward closed" in W (an ideal). A cutoff for S in W is the set of jobs of W that are in S, so S cuts W into "low" (in S) and "high" (W minus S). A slot a in W is a separator for the cutoff S if:
-  - every low job before a's slot is a strict predecessor of some job in a;
-  - every high job after a's slot is a strict successor of some job in a;
+  - every high job before a's slot is a strict predecessor of some job in a;
+  - every low job after a's slot is a strict successor of some job in a;
 and the slot itself belongs to neither side (the slot's jobs may be any mix of low/high as long as the two conditions hold). Intuition: a is a "clean breakpoint" where the low/high split becomes visible in the schedule. Lemma (Separator Description) shows that if a is a separator for S in W, the set of jobs of W that occur at or before a is exactly W intersect ^P_a, and the set of jobs that occur strictly after is W minus that. So the separator's earlier set is exactly a cone formula.
 
 Exercise: What is a normalized side?
@@ -106,7 +108,7 @@ Each node W carries a list K = (K_1, ..., K_l) of global upsets. Define the qual
 
 The three invariants (in the node's tag frame):
   (I1) O is contained in P_b, and W minus O is contained in D_a. (Boundary cones contain the correct side.)
-  (I2) Every global qualifier scheduled at or before a belongs to ^P_a. (Distantly-behind qualfiiers are properly accounted for.)
+  (I2) Every global qualifier scheduled at or before a belongs to ^P_a. (Distantly-behind qualifiers are properly accounted for.)
   (I3) After any feasible reordering of W in its existing slots, there is no feasible direct exchange between some x in W minus D_a and a qualifying job y at a with key_K(x) < key_K(y). (Boundary "anchor" survives reorderings.)
 
 Exercise: Why three invariants? What does each one buy us?
@@ -128,7 +130,17 @@ Then:
   - The qualifier set of carry_{d,r}(K) equals the set of old qualifiers whose old key is at least (d, r).
   - Among those jobs, the new list preserves the old key order.
   - Every entry of carry_{d,r}(K) is still a global upset.
-Proof sketch: a job j's largest old membership index is either > d (kept unconditionally), or = d (kept iff its rank is >= r), or < d (dropped). Reindexing shifts remaining indices up by a constant, which preserves order.
+Proof. Verify the three claims.
+
+(1) Membership. Let j be any global job. The set of indices i with j in K_i is a suffix {m, m+1, ..., l}, where m is the largest such index.
+- If m < d, j appears in no entry of the carry.
+- If m = d, j appears in the carry iff j is in K_d and lambda(j) >= r, i.e. iff the old key (d, lambda(j)) is at least (d, r).
+- If m > d, j is in K_m, which is an entry of the carry, so j appears unconditionally; and (m, lambda(j)) > (d, r) in the lexicographic order since m > d.
+These three exhaustive cases give exactly {j : old key(j) >= (d, r)}.
+
+(2) Order preservation. After dropping entries, a kept entry K_i (i >= d) moves to position i - d + 1 of the carry's own index. Both old and new keys record the same lambda(j); the first coordinate shifts by the constant d - 1. Lexicographic comparison between any two jobs is preserved.
+
+(3) Upsets. Each entry of the carry is K_i for some i (a global upset) or K_d intersect {lambda >= r} (an intersection of two upsets), so each is a global upset.
 
 Exercise: What is pruning?
 Pruning: after building a "fresh" list K^{fresh} for a child, drop any entry K_i with K_i intersect W' = empty, keeping the relative order of the remaining entries. Pruning never changes membership on W', because the dropped entry is empty there. The resulting (pruned) list is the child's K'.
@@ -147,14 +159,14 @@ Then concatenate these two and prune on W'. The resulting list again terminates 
 Exercise: Why does the list stay short? (the 5-entry bound)
 Lemma (List Length) says: every pruned list has at most five entries, and at most three of them are "injections from the current run" (the D_a-type entries added at left boundaries within the same frame run).
 
-Proof idea (capacity-three). Imagine tracking one run of same-direction edges from a starting node to the current node. Injections surviving into the current child are pairwise disjoint on the parent (they were introduced at different times and were disjoint on their introducing parents). Pick any pair of surviving injections K_i, K_j. By definition there is some job x_i in K_i intersect W' and some x_j in K_j intersect W'. Since these are high jobs, x_i is a predecessor of some z in the ending triple b'. Same for x_j: x_j <~ z'. Because the injections are upsets, they contain those z's. But b' has only three jobs, and x_i's z and x_j's z' must be different (otherwise K_i and K_j intersect at that z, contradicting disjointness). So distinct surviving injections must each contain a distinct element of b', and b' has at most three elements. Hence at most three surviving injections. Add the at most two inherited "base" entries of the run (the root's single entry, or the two entries in the switch pair) and get five.
+Proof (capacity-three). Imagine tracking one run of same-direction edges from a starting node to the current node. Injections surviving into the current child are pairwise disjoint on the parent (they were introduced at different times and were disjoint on their introducing parents). Pick any pair of surviving injections K_i, K_j. By definition there is some job x_i in K_i intersect W' and some x_j in K_j intersect W'. Since these are high jobs, x_i is a predecessor of some z in the ending triple b'. Same for x_j: x_j <~ z'. Because the injections are upsets, they contain those z's. But b' has only three jobs, and x_i's z and x_j's z' must be different (otherwise K_i and K_j intersect at that z, contradicting disjointness). So distinct surviving injections must each contain a distinct element of b', and b' has at most three elements. Hence at most three surviving injections. Add the at most two inherited "base" entries of the run (the root's single entry, or the two entries in the switch pair) and get five.
 
 Exercise: What is local flattening?
 The 5-entry bound needs every carry entry to be "simple" (a rank restriction of a base or an injection). But the first entry of a switch pair ("G intersect {lambda >= h}") can carry a complicated G predicate built from earlier data. Lemma (Local Flattening) gives a way to replace it with a simple union on the current node. Suppose a run began with a switch out of a parent Q_0, using left boundary a_0 in the resulting run frame, and starting with entries G_0 intersect {lambda >= h_0} and D_{a_0} where Q_0 minus D_{a_0} is contained in G_0. Let U be a later parent in the same run. If the entry derived from the first entry survives into an unpruned carry out of U, then the carried portion of the pair on U agrees with the simpler global upset D_{a_0} union {lambda >= k}, where k is the current effective threshold. Two facts make it work: the second entry D_{a_0} is never trimmed while the first survives (a trim at that later index would discard the first), so on U it still lies in D_{a_0}; and every job of U that is not in D_{a_0} lies in G_0 by hypothesis, so the first entry selects exactly the rank suffix beyond k.
 
 Exercise: What is the old-low extension?
 Lemma (Old-Low Extension): consider an already-constructed edge from a parent U to a child W, in its old working frame. Its low cutoff H_- is a subset of U (specifically, the "low" side of the edge's cutoff). Then H_- can be extended to a global downset H_-* that agrees with H_- on U, using at most 21 leaves.
-Proof sketch: two cases.
+Proof: two cases.
   - If the edge was switched, its low cutoff is a rank prefix of U minus D_a. So (J minus D_a) intersect {lambda <= r} is the required extension: 2 leaves.
   - If the edge was in the same direction, its low cutoff on U is P_b minus the carry union, plus (or minus) the new injection. The old list on U has at most five entries by (List Length). The carry entries are either simple (root base, injections, possibly rank-trimmed) or come from an earlier switch. If the earlier-switch entry is present, use (Local Flattening) to replace the switch pair by a simple union. Either way, the carry union is a union of at most five simple terms, each with at most 4 leaves, giving at most 20 leaves plus the boundary for 21 total.
 
@@ -167,20 +179,42 @@ Construct it as
 where a_-, b_- are the boundaries of the preceding edge in the reversed frame, v_- is its center, and H_-* is the short extension of the preceding edge's low set. Lemma (Switch Upset) proves that G has properties (i) and (ii): any x in W minus D_a was NOT high at the preceding edge (otherwise reversal would put it in D_a), so it lies in H_-; every job of H_- lies before the old right boundary b_-, i.e. in D_{a_-} in the new frame; and since a job at or before a cannot also be strictly after both a and v_-, the two ^P-exclusions together with the D_{a_-} localisation force the "at or before a" set to be empty.
 Exercise: Why does the "past" invariant (I2) survive an update?
 Lemma (Invariant Past): for a child W' built from a parent W, the invariant I2 holds at W'.
-Proof sketch. Consider a qualifier z of the child scheduled at or before a'.
-  - If a < time(z) <= a', then z is in the parent's open side E. By (Update Labels), z is high at the edge cutoff S. The local separator at a' puts it into P_{a'} if strictly earlier, or into ^P_{a'} if its time equals a'.
-  - If time(z) <= a, use the parent's I2 to find a boundary job y in a with z = y or z <~ y. Carrying through the walk and using parent I3 for boundary continuations, and local readiness + exchange for interior continuations, we eventually trace a descendant through the walk that forces z into ^P_{a'}.
-The tricky case is the very first advance off a, because the parent I3 must be applied at a "witness" x that may not be at a. The argument uses the fact that any job that would witness a failed exchange must have a strict successor by the target time, otherwise the exchange would be feasible, contradicting I3. Iterating successors along increasing times produces a carry descendant at a', reaching the conclusion.
+Proof. Consider a global qualifier z of the child scheduled at time <= a'. Show z in ^P_{a'}; do this before pruning (pruning only removes qualifiers).
+
+Case (i): a < time(z) <= a'. z lies in the parent's open side E. By (Update Labels), z is high at cutoff S. Separator Description at a' says: a high job strictly before a' is a strict pred of a'; a high job in a' is in a'. So z in P_{a'} or z in a' -- both give z in ^P_{a'}.
+
+Case (ii): time(z) <= a. Locate z in the child list:
+- Injection I = D_a intersect (J minus P_b): every injection job is a strict precedence successor of a's jobs, so at a slot strictly after a's. Contradicts time(z) <= a.
+- Switch entry G intersect {lambda >= h}: G is disjoint from jobs at or before a. Switch entry D_a: strict-successor set, so z not in D_a. Both excluded.
+- So z survives only via same-direction carry. Thus z is a global qualifier of the parent's K.
+By parent I2, some y in a has z = y or z <~ y. The carry being a global upset makes y a carry qualifier too.
+
+Subcase (a'=a): y in a' and z = y or z <~ y give z in ^P_{a'} directly.
+
+Subcase (a'>a): write a' = s_i (i >= 1) with edge cutoff S = S_i. Build a chain of carry descendants from y that ends at slot a'.
+Setup: first advance s_0 -> s_1. Let t = time(s_1) and x = earliest exception at t (the earliest job of W minus D_a whose promotion opened slot s_1).
+(A) Every global predecessor of x is strictly before a. Suppose pred p of x: p cannot be strictly after t (feasibility). If time(p) is in [time(a), t), then earliestness of the exception makes p descend from a; that forces x in D_a, a contradiction.
+(B) x in W minus D_a, so parent I1 puts x in O. Being promoted by stage i, x's old key is strictly below the least unpromoted key at S_i. By (Suffix Carry), y has old key at least that minimum. So key(x) < key(y).
+(C) Parent I3, applied after the current preparatory reorderings, prohibits exchanging x and y.
+(D) So y has a strict global successor at time <= t. If not, the exchange x <-> y is feasible: x moves to a's slot (its preds are all before a by (A), so fine; its succs are unaffected), and y moves to t (preds relax; succs are at time > t under the supposition). Contradiction with (C). So there is y_1 at time <= t.
+(E) y_1 lies in E and is a carry qualifier.
+(F) Same argument for any carry job strictly between a and t: each needs a successor at time <= t (else exchanging it with x within E would contradict its lexicographic normalization, Lemma Lex-Prefix).
+(G) At each subsequent advance s_j -> s_{j+1} (j = 1, ..., i-1), the local readiness-and-exchange argument of Lemma (Shared Cutoffs) applies entirely inside E. So each carry job at its starting slot has a carry descendant at its target.
+(H) Tracing from y_1 at s_1 through these advances yields a carry descendant y* at slot a'. Then y <~ y*, and z = y or z <~ y, so z in ^P_{a'}.
 
 Exercise: Why does the "swap" invariant (I3) survive an update?
 Lemma (Invariant Swap): for a child W' built from a parent W, the invariant I3 holds at W'.
-Proof sketch. Suppose for contradiction that x in W' minus D_{a'}, y is a qualifier at a', key(x) < key(y), and there is a feasible exchange of x and y in the complete schedule. Before pruning, key order is preserved (Prune Lemma), so the comparison also holds pre-pruning.
-  - If a' > a, both x and y lie in the parent's normalized side E and both are high at cutoff S (Update Labels). The pre-pruning key order agrees with the priority order used to normalize E. But child reordering only affects slots strictly after a', so the exchange would give a feasible full schedule of the same E with a better prefix at a'. Contradicts the lexicographic minimality of E (Lemma Lex-Prefix).
-  - If a' = a: on a "switch" edge there are no new qualifiers at a, so the case is vacuous. On a "same" edge, both x and y must be carry entries (not new injections). Their pre-pruning comparison uses only carry, so by (Carry Lemma) it implies the same old-key order in the parent's list. Parent I3 rules out the same exchange. Contradiction.
+Proof. Fix a feasible reordering of W' in its existing slots. Let K' be the pruned child list and K'_pre the pre-pruning one. Suppose for contradiction that x in W' minus D_{a'} has K'-key strictly below that of some qualifying y at a'.
+
+By (Prune), key_{K'_pre}(x) < key_{K'_pre}(y) also. So x is a K'_pre-qualifier, hence (Update Labels) x lies in W' minus S.
+
+Case (a' > a): both x and y lie in the parent's normalized side E and both are high at S. The pre-pruning key depends only on the priority order on E, so key(x) < key(y) means x has strictly better priority than y within E. By Lemma (Lex-Prefix), the current schedule of E is the lexicographically minimal feasible one. A feasible exchange of x and y inside E that moves a higher-priority job (x) later and a lower one (y) into a's slot would give a strictly better E-prefix schedule. Contradiction.
+
+Case (a' = a): if the predecessor edge was a switch in the working frame, no entry of K' selects any job at a (G is disjoint from jobs at or before a; D_a is a strict-successor set), so the case is vacuous. Otherwise the edge is same-direction. Then y is in the carry, not the new injection (injection jobs are strict precedence successors of a, and y sits at a); similarly x is not an injection (injection is a subset of D_a, while x lies in W' minus D_a). So the K'_pre-comparison uses only carry entries, and the carry is a suffix of the parent's K, hence preserves the parent's key order. Therefore key_K(x) < key_K(y). Parent I3, stated for W's own list K, rules out the same exchange within W; extending the W'-reordering to a W-reordering (fixed outside W') preserves the exchange, contradiction.
 
 Exercise: What is the entry leaf-size bound?
 Lemma (Entry Size): every entry constructed by the updates has fewer than 40 leaves. This bound survives any number of same-direction updates.
-Proof sketch. Base cases: root bases, injections, and second switch base D_a are simple (each at most 3 leaves: D_a with maybe a rank suffix, plus the sentinel). The complicated entry is the G in a new switch upset. By (Old-Low Extension), the H_-* factor in G has at most 21 leaves. The three other factors of G are simple (each 1-2 leaves), and the outer rank suffix on G adds 1 leaf. So a new first switch entry has at most 25 leaves. Further same-direction trimming only tightens that outer rank suffix; it does not append a new independent condition. Simple entries stay simple.
+Proof. Base cases: root bases, injections, and second switch base D_a are simple (each at most 3 leaves: D_a with maybe a rank suffix, plus the sentinel). The complicated entry is the G in a new switch upset. By (Old-Low Extension), the H_-* factor in G has at most 21 leaves. The three other factors of G are simple (each 1-2 leaves), and the outer rank suffix on G adds 1 leaf. So a new first switch entry has at most 25 leaves. Further same-direction trimming only tightens that outer rank suffix; it does not append a new independent condition. Simple entries stay simple.
 
 Exercise: What is the global child description?
 Lemma (Global Child): in a valid construction, let W' = (a', b') be a child of W = (a, b), with parent center v, edge cutoff S, new pruned list K', and cutoff predicate S-tilde that agrees with S on W. Then, in the edge's working frame:
@@ -203,7 +237,7 @@ The formulas are in the stated atomic language, and have fewer than 500 leaves.
 
 Exercise: What is the final leaf count?
 Lemma (Final Count): the predicates in (Global Child) and (Relative Splits) have fewer than 500 leaves.
-Proof sketch. A pruned list or carry has at most 5 entries with <40 leaves each, so its union has at most 195 leaves. Empty union = false constant (0 leaves).
+Proof. A pruned list or carry has at most 5 entries with <40 leaves each, so its union has at most 195 leaves. Empty union = false constant (0 leaves).
   - Same-direction cutoff S-tilde needs 195 + 1 (for P_b) = 196 leaves. Switch-direction needs 2 leaves.
   - Common loose allowance: 205 leaves.
   - High predicate: 195 + 2 = 197 leaves. Low predicate: 205 + 4 = 209.
@@ -284,7 +318,7 @@ Part D: How many steps does this take?
 
 Exercise: How large is the family Fam, as a function of N?
 Lemma (Family): the family Fam can be generated deterministically in polynomial time and represented as N-bit vectors.
-Proof sketch. There are O(N^3) atomic tests (each triple, in either frame, plus rank thresholds lambda <= k and lambda >= k, k = 0..N+1). The number of binary tree shapes with at most K leaves is a constant that depends only on K (in fact enormous but fixed). Assigning one of O(N^3) labeled atoms to each leaf gives at most O(N^{3K}) distinct formulas. Since K = 10000 is fixed, N^{3K} = N^{30000} is polynomial in N. Compute each formula's truth set from the precomputed reachability matrix, store as an N-bit vector, and deduplicate by comparing vectors pairwise. Deduplication is a quadratic scan over O(N^{3K}) formulas, still polynomial. QED.
+Proof. There are O(N^3) atomic tests (each triple, in either frame, plus rank thresholds lambda <= k and lambda >= k, k = 0..N+1). The number of binary tree shapes with at most K leaves is a constant that depends only on K (in fact enormous but fixed). Assigning one of O(N^3) labeled atoms to each leaf gives at most O(N^{3K}) distinct formulas. Since K = 10000 is fixed, N^{3K} = N^{30000} is polynomial in N. Compute each formula's truth set from the precomputed reachability matrix, store as an N-bit vector, and deduplicate by comparing vectors pairwise. Deduplication is a quadratic scan over O(N^{3K}) formulas, still polynomial. QED.
 
 Exercise: How many states does the DP have for a fixed set W?
 For a single W in Fam, a state is (L, Z, R) with:
