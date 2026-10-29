@@ -1,0 +1,1967 @@
+================================================================
+GENERALIZED STAR HEIGHT AT MOST THREE
+A self-contained proof
+================================================================
+
+PURPOSE OF THIS DOCUMENT
+
+A regular language is one that a finite machine can recognize. This
+note proves that every regular language can be described by a small
+expression: one built from letters using union, concatenation,
+complement and star, with the stars nested at most three deep.
+
+The proof is complete: every step is justified. It is written so that
+a careful reader who knows what "regular language" and "star" mean can
+follow it from start to end. Nothing is imported from another paper
+without proof; where a classical tool is used (a finite form of the
+Lovasz local lemma, and the periodicity of powers in a finite monoid) it is restated and
+proved for the case we need.
+
+Read the sections in order. Section 1 states the theorem. Section 2
+explains the whole strategy before any technical work begins. Sections
+3 onwards prove the pieces. Section 15 assembles them.
+
+================================================================
+1. EXPRESSIONS, HEIGHT, AND THE THEOREM
+================================================================
+
+Fix a finite alphabet Sigma (a finite set of "letters"). Write Sigma*
+for the set of all finite words over Sigma, including the empty word
+eps. A language is any subset of Sigma*.
+
+DEFINITION (generalized regular expression). Over Sigma we build
+expressions E by the rules:
+
+    0                     the empty language
+    1                     the language {eps}
+    a   (a in Sigma)      the language {a}
+    P U Q                 union
+    PQ                    concatenation
+    ~P                    complement, taken inside Sigma*
+    P*                    Kleene star (any finite repetition)
+
+The language L(E) of an expression is defined in the obvious way.
+
+DEFINITION (height). The height ht(E) is a nonnegative integer:
+
+    ht(0) = ht(1) = ht(a) = 0,
+    ht(P U Q) = ht(PQ) = max{ ht(P), ht(Q) },
+    ht(~P) = ht(P),
+    ht(P*) = 1 + ht(P).
+
+Complement does NOT raise height. Only the star does. For a regular
+language L let h_Sigma(L) be the least height of an expression over
+Sigma whose language is L.
+
+THEOREM 1.1 (main). For every finite alphabet Sigma and every regular
+language L contained in Sigma*, we have h_Sigma(L) <= 3.
+
+Two easy consequences we use constantly:
+
+  (a) Finite unions and intersections do not raise height. Union is
+      primitive; intersection is ~(~P U ~Q); both use complement,
+      which is height-preserving.
+  (b) Finite languages have height 0. A finite language is the finite
+      union of its words, and each word is a concatenation of letters.
+
+Remarks on scope. The expressions use the letters of Sigma itself.
+Their length and their finite parameters may depend on L. The theorem
+bounds the number of nested stars; it says nothing about expression
+size. It also does not settle the classical question whether height 1
+suffices; it only proves that height 3 always does.
+
+================================================================
+2. THE STRATEGY IN ONE PAGE
+================================================================
+
+Every regular language is recognized by a deterministic finite
+automaton. Read a letter as a map on states. The set of maps produced
+by all words is a finite monoid M, and there is a morphism
+
+                        T : Sigma*  ->  M
+
+sending a word to its map. A regular language is a finite union of
+fibers T^{-1}(m), so by (a) it is enough to express each fiber with
+height <= 3. Fix T : Sigma* -> M once and for all.
+
+The idea is to chop every word, canonically, into "episodes" followed
+by one leftover piece:
+
+    w  =  e_1 e_2 ... e_r  .  n ,    each e_i an episode, n a remainder.
+
+Episodes form a prefix code E: no member of E is a proper prefix of
+another. This makes the chop unique. The remainder n is a word that
+contains no complete episode as a prefix.
+
+Then two independent facts finish the job:
+
+  (i) On episode sequences E* we can compute the monoid value T(w)
+      by a height-3 expression. This is the hard part, sections 3-13.
+
+ (ii) On remainders the value can be computed by a height-1
+      expression (section 14.3).
+
+A word's value is the product of its episode block value and its
+remainder value, so a finite union over compatible pairs (d,f) with
+df = m expresses fiber T^{-1}(m) as a concatenation of a height-3
+and a height-1 language. Concatenation does not add height, so the
+answer is <= 3.
+
+Why does (i) need height 3 and no more? We make each episode act on a
+finite vector space V by an AFFINE map, i.e. a linear map plus a
+translation. To propagate a chosen input state x through an episode we
+CUT the episode: the prefix checks "input is x", the suffix checks
+"output is y". A single cut cannot read the product of the two sides,
+because the prefix cannot see the suffix and vice versa. We solve this
+with a SPLIT IDENTITY (section 4): if the prefix/suffix tests and the
+episode language have height <= 1, and the "skipped" episodes are
+already handled at height H, then all episode-sequence computations
+reach height max{2, 1+H}.
+
+We apply this twice:
+
+   Inner split   handles a sublanguage D of E with NO skipped episodes,
+                 so H = 0, giving height 2 on D*.
+   Outer split   handles all of E, skipping D, and uses the height-2
+                 computations on D* as its skips, so H = 2, giving
+                 height 3 on E*.
+
+After each split we strip off the affine translation by a Boolean
+trick (affine recovery, section 5), so the final object is the plain
+monoid value T(w). Three layers, never more. That is the whole shape
+of the proof; everything below is the engineering that makes the two
+cuts sound.
+
+================================================================
+3. MONOIDS, THE LINEARIZED ACTION, AND PERIODICITY
+================================================================
+
+3.1 Monoid values of words. Let M be a finite monoid with identity
+1_M. For an interval [a,b) of letter positions we write T_{a,b} for
+the monoid value of the letters in that interval, with T_{a,a}=1_M.
+Values multiply in reading order: T_{a,c} = T_{a,b} T_{b,c}.
+
+3.2 The linearized right action. Let V = F_2^M be the vector space
+over the two-element field with a basis vector e_m for each m in M.
+Let M act on the right linearly by e_m d = e_{m d}. This action is
+faithful: e_{1_M} d = e_d, so the linear map determines d. We write
+vectors on the LEFT of their linear maps (vL means apply L to v).
+
+We also need a one-dimensional thickener U = V + F_2 (direct sum).
+The extra coordinate turns affine maps into linear ones (section 5).
+
+3.3 Periodicity of powers. Put N_M = |M|! (factorial). Then for every
+c in M and every i >= |M|,
+
+        c^{i + N_M} = c^i .                                (3.1)
+
+Proof. Among the |M|+1 elements c^0, c^1, ..., c^{|M|} two coincide,
+say c^a = c^b with 0 <= a < b <= |M|. Then c^a c^k = c^b c^k says the
+sequence c^0, c^1, ... is periodic from index a with period d = b - a.
+Since d <= |M|, d divides N_M, and multiplying the relation by further
+powers extends the period to all i >= a. In particular (3.1) holds for
+all i >= |M|. (The case |M| = 1 is immediate.)
+
+This lemma is why "eventually the same product recurs" throughout: any
+long run of a fixed periodic pattern has an ultimately periodic monoid
+value, and we are free to advance by multiples of N_M without changing
+it.
+
+3.4 Prefix codes and episodes. A set E contained in Sigma^+ (no empty
+word) is a PREFIX CODE if no member of E is a proper prefix of another.
+
+LEMMA 3.5. If E is a prefix code then every word in E* factors
+uniquely as a product of members of E.
+
+Proof. Two factorizations e_1...e_r = f_1...f_s. The first factors e_1
+and f_1 are comparable under the prefix order (one is a prefix of the
+other, since both start at position 0). They cannot be proper prefixes
+of one another because both lie in E, a prefix code, so e_1 = f_1.
+Cancel and induct. The empty word has the empty factorization. []
+
+3.6 Graph languages. Fix a finite set S and, for each e in a subset
+D of E, a total deterministic map G_e : S -> S. For a word
+w = e_1...e_r in D* let G_w = G_{e_r} ... G_{e_1} (apply updates in
+reading order); G_eps is the identity. The GRAPH LANGUAGE from x to y
+on D* is
+
+        { w in D* : G_w(x) = y }.
+
+The update G_e depends only on the episode e, never on any choice made
+by an expression that tests a graph. This determinism is essential in
+section 4.
+
+================================================================
+4. THE SPLIT IDENTITY
+================================================================
+
+This is the engine of the whole proof. It turns "local" prefix and
+suffix tests into a "global" expression for episode-sequence graphs,
+paying at most one extra star.
+
+LEMMA 4.1 (split identity). Let E be a prefix code and D' contained in
+D contained in E. Each e in D carries a total map G_e : S -> S for a
+finite set S. Suppose languages P_x, Q_y (x,y in S) satisfy:
+
+ (i)  If w in D* has a prefix uv with u in P_x and v in Q_y, then w
+      has first episode e, uv = e, and G_e(x) = y.
+
+ (ii) For every e in D \ D' and every x in S, the single episode e
+      lies in P_x Q_{G_e(x)}.
+
+Let W_{x,y} be the graph languages for the SAME updates restricted to
+(D')*. Then the graph language from x to y on D* equals
+
+  D*  INTERSECT
+  [ W_{x,y}
+    U  ( UNION_i W_{x,i} P_i )
+       ( UNION_{j,i} Q_j W_{j,i} P_i )*
+       ( UNION_l Q_l W_{l,y} )  ] .                       (4.2)
+
+Height estimate. If D, all P_x and all Q_y have height <= 1, and all
+W_{x,y} have height <= H for some H >= 0, then the graph languages on
+D* have height <= max{ 2, 1 + H }.
+
+Proof of the language identity.
+
+(Soundness, right-to-left inclusion "RHS is inside the graph".) Take a
+word in the right side. Its membership in D* fixes the ambient episode
+factorization, but an interior factor of the expression is not yet
+known to respect that factorization; we prove alignment from the left.
+
+The first W-factor starts at a true boundary (position 0). Its words
+lie in (D')*, so its own first episode and the ambient first episode
+are prefix comparable. Both lie in the prefix code E, hence are equal.
+Repeating, the whole W-factor consumes complete ambient episodes and
+ends at a true boundary; its graph indices record the actual composite.
+
+Now pass to the middle part. The concatenation of the first P-factor
+and the following Q-factor begins at that true boundary. By (i) it is
+exactly the next episode and carries the indicated x to the indicated
+y. The next W-factor again starts at a true boundary and, by the same
+prefix-code argument, consumes whole episodes. Alternating P,Q with W
+through the middle star, and through the final Q_l W_{l,y} factor,
+aligns every boundary and propagates the state. Only this induction
+licenses the alignment; nothing is assumed about a general interior
+factor. A zero-fold middle star leaves one P,Q pair, handled by the
+same step. The first term W_{x,y} already records the composite on its
+whole domain.
+
+(Completeness, left-to-right inclusion "the graph is inside the RHS".)
+Take a word in D* and follow the actual computation. Use (ii) to split
+each episode outside D' into a P,Q pair, and group each intervening run
+of episodes from D' into a single W-factor with its actual endpoint
+states. This produces a word of the second term of (4.2). If there is
+no episode outside D', the whole word lies in W_{x,y}; this covers the
+empty word too.
+
+Height. Read directly from (4.2). D* has height 1 + ht(D) <= 2. Each
+factor Q_j W_{j,i} P_i has height max{1,H}, so the starred block has
+height 1 + max{1,H}. The outer unions, the concatenation, and the
+intersection with D* preserve the maximum of argument heights. Hence
+the bound is max{ 2, 1 + H }. []
+
+Two facts used later. When D' is empty, W_{x,y} is {eps} if x = y and
+the empty language otherwise; both have height 0, and (4.2) gives
+height max{2,1} = 2. Also, condition (i) forbids a successful pair on
+the empty word (an episode is nonempty), so the split never matches
+eps as a nonempty case.
+
+================================================================
+5. AFFINE MAPS: STRIPPING THE TRANSLATION
+================================================================
+
+5.1 Why we allow translations. In sections 8-10 each episode acts on
+V not by a linear map but by an AFFINE map G_e(v) = v L_e + b_e, where
+L_e is linear and b_e is a vector. We allow this because the cut between
+prefix and suffix sometimes cannot read one product, and we compensate
+by choosing a convenient translation. The next lemma shows this costs
+nothing: the underlying LINEAR parts can always be recovered by
+Boolean operations.
+
+LEMMA 5.1 (Boolean affine recovery). Let S be a finite vector space and
+let the updates on D (contained in E) be affine,
+G_e(v) = v L_e + b_e. If R_{x,z} are the graph languages of the
+composites on D*, then the graph language, from x to y, of the product
+of the linear parts is
+
+        UNION_{b in S}  ( R_{x, y+b}  INTERSECT  R_{0, b} ).   (5.2)
+
+A common height bound for the R_{x,z} is preserved.
+
+Proof. Composition in reading order obeys
+(v L + b) A + c = v L A + (b A + c). Induction from the identity on the
+empty word writes every word's composite as v -> v L + b, where L is
+exactly the product of its episode linear parts. For that word, the
+output at 0 is b, and the output at x is y + b exactly when x L = y.
+Requiring both facts on the SAME word is an intersection; taking the
+union over every possible translation b recovers all words with x L = y.
+These are finite Boolean operations, so they preserve height. []
+
+Note the point of the intersection: output on 0 pins the translation of
+the whole composite even when none of its linear factors is invertible,
+and the two tests must hold on the same word. This is why (5.2) is an
+intersection of two graph languages, not a product.
+
+LEMMA 5.3 (Homogeneous lift). For a finite vector space S over a field F,
+the affine map F(v) = v L + b has the LINEAR lift on S + F (one extra
+coordinate c),
+
+        Fhat(v, c) = ( v L + c b , c ).                         (5.4)
+
+Products of these lifts are the lifts of the corresponding affine
+composites in reading order. In particular, graph languages for
+products of lifts give those of the affine composites by using inputs
+(v, 1) and outputs (y, 1), with no increase in height.
+
+Proof. (5.4) is linear in (v, c). If F(v)=vL+b is followed by
+G(v)=vA+d, the two lifts compose to
+
+        (v, c)  |->  ( v L A + c ( b A + d ) , c ),
+
+the lift of the affine composite. Induction gives the product
+assertion; restricting to c = 1 gives the graph assertion. The empty
+product is the identity in both spaces. No invertibility is required. []
+
+We apply this with S = V, F = F_2, and S + F = U.
+
+================================================================
+6. THE SHIFT TABLE: HIDING ONE UNKNOWN ENTRY
+================================================================
+
+When we cut an episode, one block product crossing the cut is
+unreadable by either factor. We will replace "know that product" with a
+finite certificate that checks ALL of its possible values. To build the
+certificate we need a deterministic affine correction whose
+one-coordinate-line output is constant through every tuple, for every
+input state. The order of quantifiers matters and is stated precisely.
+
+LEMMA 6.1 (Shift table). For every nonempty finite set A and every
+finite vector space S there is an integer l >= 1, depending only on
+|A| and |S|, with the following property. For every function
+
+        f : A^l  ->  End_lin(S)
+
+there is a function beta_f : A^l -> S such that, for every tuple
+a = (a_1,...,a_l) in A^l and every x in S, there is an index
+i in {1,...,l} for which the map
+
+        b  |->  x f(a_1,...,a_{i-1}, b, a_{i+1},...,a_l)
+                 + beta_f(a_1,...,a_{i-1}, b, a_{i+1},...,a_l)      (6.2)
+
+is constant on A. The integer l is uniform over f, and beta_f is
+independent of x.
+
+Interpretation. The length l is chosen FIRST, for all tables f at
+once. Then a correction beta_f is fixed for each table. Only then may a
+tuple and an input state select a coordinate that can be omitted. So
+the omitted coordinate may depend on the tuple and on x, never on
+anything the reader of a single side of the cut cannot see.
+
+Proof. Put a = |A| and q = |S|. If a = 1 or q = 1, take l = 1 and
+beta_f = 0; every required map is constant. Assume a, q > 1.
+
+Choose independent uniform vectors beta(c) in S at all cells c in A^l
+(the cells themselves will be the correction; we only need that a good
+choice exists). Fix any table f. For x in S and a in A^l let B_{x,a}
+be the event that NONE of the l coordinate lines through a has the
+required constancy.
+
+Condition on the value of beta at the central cell a. For a specified
+line (varying one coordinate over A, holding the others fixed),
+constancy forces exactly one value of beta at each of its other a - 1
+cells, regardless of f. So that line succeeds with probability
+q^{1-a}. Different lines share only their central cell, so, given the
+central value, these successes are conditionally independent. The
+conditional failure probability does not depend on the central value;
+hence
+
+        Pr( B_{x,a} )  =  ( 1 - q^{1-a} )^l  =:  p_l .            (6.3)
+
+Dependency. The event B_{x,a} depends only on random values at cells at
+Hamming distance at most one from a. Events whose centers are at
+Hamming distance greater than two use disjoint sets of random
+variables. Therefore each event is independent of the joint family of
+all such distant events. A dependency neighborhood is contained in the
+cells at distance at most two from a, times the q choices of x:
+
+        D_l  :=  q ( 1 + l(a-1) + C(l,2)(a-1)^2 )  <=  q(1 + l a + l^2 a^2).
+                                                                    (6.4)
+
+The local lemma we need (a finite, self-contained form). Suppose a
+finite family of events each is independent of the joint family of its
+nonneighbors, has at most D neighbors, and has probability at most
+s(1-s)^D for some 0 < s < 1. Then the probability that ALL events fail
+is positive.
+
+Proof of the local lemma. Induct on the size of a set of other events
+being conditioned to fail. We prove two facts together: (positivity)
+conditioning on any set of failures has positive probability, and
+(bound) the conditional probability of any remaining event stays at
+most s. For the empty conditioning set this is the hypothesis.
+Positivity for a set of size k follows by deleting one event and using
+the bound for size k-1. For the bound: split the conditioning set into
+the neighbors J_1 and the nonneighbors J_0 of the event B. If J_1 is
+empty, joint independence gives the unconditional probability, at most
+s. Otherwise, writing C_i for "all events in J_i fail",
+
+        Pr(B | C_0 and C_1)
+          <= Pr(B | C_0) / Pr(C_1 | C_0)
+          <= Pr(B) / (1 - s)^{|J_1|}
+          <= s.
+
+The denominator is handled by exposing the events of J_1 one at a time;
+every conditioning set then has size at most k-1, so by induction each
+failure probability is at least 1-s. The numerator uses independence
+from J_0. This proves the induction and hence that simultaneous
+avoidance has positive probability. []
+
+Apply the local lemma with D = D_l and s = 1/(2(D_l+1)). Bernoulli's
+inequality gives (1-s)^{D_l} >= 1 - D_l s >= 1/2, hence
+s(1-s)^{D_l} >= 1 / (4(D_l+1)).
+
+Now the probability p_l decays exponentially in l, while D_l grows only
+quadratically. So we can choose l, depending only on a and q, so that
+
+        p_l  <=  1 / (4(D_l+1))  <=  s (1-s)^{D_l} .
+
+The local lemma then says that, for this single l, every table f has a
+correction beta_f with all events B_{x,a} failing simultaneously. That
+is exactly the constancy (6.2). Since a good beta_f exists for each of
+the finitely many f, fix one beta_f per f once and for all. []
+
+After this choice the affine map a |-> x f(a) + beta_f(a) is determined
+by the tuple and the table, BEFORE any splitting decision is made. A
+prefix can certify its output by checking every replacement of the
+omitted coordinate, and the lemma promises a usable coordinate for
+each actual input (not one coordinate good for all inputs). Nor does it
+restrict f to tables realizable by word prefixes; every total table is
+allowed. That unrestricted domain is exactly what section 10 needs,
+when a suffix computes hypothetical prefix values it cannot realize.
+
+================================================================
+7. THE ROBUST TAG CLOCK
+================================================================
+
+This section builds the algebraic device that lets two independent
+tests agree on a common "time" almost always, and pins down the unique
+exception when they do not. It is pure construction; its only role in
+the proof is to be available, in section 9, as a fixed object.
+
+Setup. Let T = R/Z be the circle and ||x||_T the distance to the
+nearest integer. For a finite coordinate set C, let T^C be the product
+torus with the maximum metric dist(u,v) = max_c ||u_c - v_c||_T.
+Addition and subtraction are coordinatewise. For subsets,
+I + J = { i + j }. All logarithms below are natural.
+
+LEMMA 7.1 (Robust tag clock). Let Lambda and R be finite nonempty sets,
+with m = |Lambda|. There exist a finite product torus T, sets
+I_alpha, J_alpha (alpha in Lambda) contained in T, a set W contained in
+T, points v_p in T (p in R), and constants rho, eta > 0 with:
+
+ (i)  For each z in T the edge set
+
+          E_z = { (alpha, lambda) in Lambda^2 :  z in I_alpha + J_lambda }
+
+      is either contained in the diagonal, or consists of exactly one
+      off-diagonal pair.
+
+ (ii) If z is NOT in W, then for every alpha the set
+      I_alpha  INTERSECT  ( z - J_alpha ) contains a ball of radius
+      rho. In particular (outside W) E_z is the FULL diagonal.
+
+(iii) For every perturbed roster (v~_p) with dist(v~_p, v_p) < eta for
+      all p, and every a in T,
+
+          #{ (p,p') : p =/= p',   a + v~_{p'} - v~_p  in W }
+              <=  c_cl * log(2m),   with  c_cl = 10^7.            (7.2)
+
+The constants rho, eta and the dimension may depend on Lambda and R,
+but c_cl is absolute.
+
+Proof. The construction has two independent concerns. First COORDINATES
+rule out every competing edge except reversal; TYPE batches rule out
+reversal; both also allow a diagonal decomposition away from an
+explicit obstruction set. Then ROSTER VALUES are placed so that, at any
+translation, only logarithmically many ordered pairs can meet the
+obstructions. We build the coordinates, define W, prove (i),(ii), then
+place the roster and prove (iii).
+
+Part A. Constants and partitions. Put
+a_0 = ceil(64 log(2m)),  b_0 = ceil(log_2 m),  F = 400.
+
+Choose a_0 left/right partitions of Lambda such that: for any two
+distinct tags alpha, lambda and any second pair {gamma,nu} different
+from {alpha,lambda}, some partition puts alpha on the left, lambda on
+the right, and gamma,nu on the same side. Such a partition family
+exists: assign each tag independently to a side with probability 1/2;
+a single constraint (with four tags, some possibly equal) is satisfied
+with probability at least 1/16, hence missed by all a_0 partitions
+with probability at most (15/16)^{a_0}; the expected number of missed
+constraints among the at most m^4 of them is at most
+m^4 (15/16)^{a_0} <= m^4 e^{-a_0/16} <= m^4 (2m)^{-4} = 1/16 < 1, so
+some family misses none. Give each partition one circle coordinate,
+called a FIRST coordinate.
+
+Also choose b_0 partitions of Lambda into "Type 1" and "Type 2" that
+separate every two distinct tags (assign distinct binary strings of
+length b_0). Each such partition gets a BATCH of coordinates. For every
+ordered list of F directed pairs (p,p') of distinct roster slots whose
+underlying undirected edges are distinct and form a forest, put one
+dedicated coordinate in the batch. The forest condition lets us realize
+arbitrary edge differences by walking the trees. Add spare coordinates
+so the batch has positive odd size. All these coordinates together form
+the coordinate set C of T.
+
+Part B. First coordinates. Enumerate R = {p_0,...,p_{r-1}}. In each
+first coordinate put v_{p_j} = theta * 2^j (mod 1), where theta > 0 is
+small enough that all these values lie in an arc of length < 1/8. A
+positive integer difference 2^j - 2^i = 2^i (2^{j-i}-1) determines i by
+its power of two and j by its odd factor; the sign distinguishes the
+reverse. So the ordered differences of distinct slots are nonzero and
+pairwise distinct on the circle (the small scale prevents collisions
+modulo one). Choose epsilon with 0 < epsilon < 1/100 so small that
+these differences are separated from each other and from 0 by more than
+12 epsilon, with strict margin. (If there are no distinct-slot pairs,
+any small positive epsilon works.)
+
+In the first coordinate attached to a left/right partition impose:
+
+          side of alpha     I_alpha         J_alpha
+          left              ||i|| <= eps    ||j|| >= 4 eps
+          right             ||i|| >= 4 eps  ||j|| <= eps
+
+An edge from a left tag to a right tag forces its total within 2 eps of
+zero; a same-side edge has one near and one far summand, so its total
+is at least 3 eps from zero. These are disjoint. Moreover every total z
+with ||z||_T > 6 eps has a diagonal decomposition here: assign 0 to the
+near summand and z to the far summand, and the same works after moving
+the first summand by at most eps/2 (move the second oppositely). So the
+diagonal decomposition has a uniform interior margin in this coordinate.
+
+Part C. Type 1 batches. In R/Z (= T) let
+C_I = {0,1,3}/6,  C_J = {2,4,5}/6.
+A Type-1 tag requires every coordinate of its I-vector within 1/16 of
+C_I and every coordinate of its J-vector within 1/16 of C_J. Their
+center sums cover all six multiples of 1/6. For an arbitrary total z in
+one coordinate, pick a center sum c_I + c_J with signed error delta of
+magnitude <= 1/12; the split z = (c_I + delta/2) + (c_J + delta/2) puts
+each summand within 1/24 of its center, leaving margin 1/48 inside the
+radius 1/16. This survives moving the first summand by up to 1/96 (move
+the second oppositely). Choices are independent across batch
+coordinates. Meanwhile the center sets are circularly at least 1/6
+apart, so every difference of two allowed Type-1 vectors satisfies, in
+each batch coordinate,
+
+          || i_c - j_c ||_T  >=  1/6 - 2/16  =  1/24.             (7.3)
+
+Part D. Type 2 batches. In a batch of 2s+1 coordinates a Type-2 tag
+requires, separately for its I- and J-vectors, at least s+1 coordinates
+at distance <= 1/100 from zero. Suppose a total z has one coordinate c0
+at distance <= 1/200 from zero. Put the first summand = z_{c0} and the
+second = 0 there; split the other 2s coordinates into two groups of s,
+in one group put the first summand 0, in the other put the second
+summand 0 (the remaining summand is determined by z). Each vector then
+has s+1 small coordinates, with margin at least 1/200 to the threshold
+1/100; moving the first vector by <= 1/400 (and the second oppositely)
+preserves both majority conditions. Conversely the small-coordinate sets
+of two allowed Type-2 vectors intersect in at least one coordinate, so
+
+          || i_c - j_c ||_T  <=  2/100                              (7.4)
+
+for some coordinate c. (This includes s = 0, a one-coordinate batch.)
+
+Part E. The graph and the interior condition. Define I_alpha, J_alpha
+by ALL their coordinate requirements. If an off-diagonal edge
+alpha -> lambda occurs, some left/right partition excludes every
+competitor (gamma,nu) with {gamma,nu} =/= {alpha,lambda}; only the
+reversal could remain. If both orientations occurred, the two equalities
+i_alpha + j_lambda = i_lambda + j_alpha give
+i_alpha - j_alpha = i_lambda - j_lambda. A Type partition separating
+alpha and lambda then forces this common difference to satisfy both
+(7.3) and (7.4), contradicting 2/100 < 1/24. Hence (i).
+
+Now define W as the union of two obstruction kinds for a total z:
+ (a) some first coordinate has distance <= 6 eps from zero;
+ (b) some Type batch has NO coordinate within 1/200 of zero.
+If z is not in W, all the diagonal decompositions above apply and
+combine across disjoint coordinate blocks. The common positive radius
+
+          rho = min{ eps/2, 1/96, 1/400 }                          (7.5)
+
+then gives, for every alpha, a ball inside I_alpha INTERSECT (z -
+J_alpha): a perturbation of the first vector in this ball produces the
+opposite perturbation of the second, and both stay allowed in every
+block. This is (ii). Since Lambda is nonempty, outside W the edge set is
+the full diagonal.
+
+Part F. Roster values in dedicated batch coordinates. In the coordinate
+dedicated to a directed forest list ((p_j,p'_j))_{j=0}^{F-1}, prescribe
+
+          v_{p'_j} - v_{p_j}  =  j / F   (mod 1).                  (7.6)
+
+Choose a root of each tree; starting from any root value, traverse the
+edges and assign the next vertex by the prescribed signed difference. A
+forest has no cycle, so no two assignments conflict. Give arbitrary
+values to isolated vertices and spare coordinates. This specifies all
+v_p in T. For any translate a_c, one of the equally spaced points j/F
+is within 1/(2F) = 1/800 of -a_c; if every roster point moves by less
+than eta, each prescribed difference moves by less than 2 eta. Choose
+eta > 0 so small that
+
+          1/800 + 2 eta  <  1/200,                                 (7.7)
+
+and so that all ordered distinct-slot differences in every first
+coordinate stay separated from each other and from zero by more than
+12 epsilon (possible by the strict margins of Part B). Then, uniformly
+in every translate and every permitted perturbation, each dedicated
+forest list contains a pair whose translated difference is within
+1/200 of zero in its dedicated coordinate.
+
+Part G. Counting obstructions (proving (iii)). Fix any permitted
+perturbation and any a in T.
+
+First coordinates: at most ONE ordered distinct-slot pair can have
+translated difference within 6 eps of zero in a fixed first coordinate,
+since two such differences would be within 12 eps of each other. So
+first coordinates cost at most a_0 pairs overall.
+
+One batch: consider the directed pairs whose translated differences
+have NO coordinate within 1/200 of zero in this batch. If their
+underlying simple graph contained a forest with F edges, order its edges
+and the dedicated coordinate would, by (7.7), bring one of them within
+1/200 of zero, a contradiction. So a spanning forest on the nonisolated
+vertices has fewer than F edges; with f edges, v vertices, t components,
+f = v - t and t <= v/2 give v <= 2f < 2F, hence fewer than 4F^2 directed
+pairs total involve these vertices. So the batch costs at most 4F^2
+pairs. (A roster too small to have a dedicated forest list is covered by
+the same bound.)
+
+Summing over coordinates and batches bounds the left side of (7.2) by
+a_0 + 4F^2 b_0. Since log 2 > 1/2,
+a_0 <= 66 log(2m),  b_0 <= log(2m)/log 2 <= 2 log(2m), hence
+
+        a_0 + 4F^2 b_0 <= (66 + 8*400^2) log(2m) < 10^7 log(2m).
+
+This is (7.2), with one tolerance eta good for all roster points, all
+translates and all coordinates. If the roster has one element there are
+no distinct-slot pairs and the estimate is vacuous; if m = 1 the Type
+batches are absent. All other assertions still hold. []
+
+How the clock is used. Take a periodic additive map phi : Z -> T. A
+prefix ending at position k can test phi(k - t) in I_alpha, and a suffix
+starting at k can independently test phi(q - k) in J_lambda. Once t, q,
+k refer to the SAME positions, the pair lies in E_{phi(q - t)}, and the
+graph alternative (i) gives either equality of tags or a unique unequal
+pair. The clock says nothing by itself about whether the suffix chose
+the correct anchor q; that is the job of the end guard in section 8.
+Finally, periodicity makes all clock membership tests finite tables on
+integer residues: the torus is used to CONSTRUCT those tables, not as an
+extra alphabet.
+
+================================================================
+8. LOCAL MARKERS AND PERIODIC RUNS
+================================================================
+
+The clock controls algebra; this section controls POSITIONS, arranging
+that tests can read enough on opposite sides of a cut. The mechanism is
+a local priority rule: a nearby marker gives a boundary; the absence of
+nearby markers forces a periodic block. Overlap makes many such blocks
+part of one common repetition. This is the finite-window form of
+Krieger's marker lemma.
+
+Conventions. Letter positions are integers. Intervals of possible marker
+positions are inclusive integer intervals; a block of letters on [a,b)
+has length b - a. A positive integer p is a PERIOD of a finite block if
+its letters at positions differing by p agree whenever both positions
+lie in the block.
+
+LEMMA 8.1 (Local markers). Fix a finite nonempty alphabet Sigma and
+integers d >= 2 and K > 3 d^2. There are an integer r >= K and a fixed
+rule assigning marker positions to every two-sided word in Sigma^Z such
+that:
+ (i)   distinct markers are at distance at least d;
+ (ii)  the decision at position x uses only the letters on [x-r, x+r),
+       and the rule commutes with all integer translations;
+ (iii) if [z-d, z+d] contains no marker, then the block [z, z+K) has a
+       positive period less than d.
+
+Proof. List the length-K words with NO period below d as v_1,...,v_N.
+At stage j place a marker at every start of v_j that is at distance at
+least d from every marker placed earlier, keeping all earlier markers.
+Two newly placed starts at distance a with 0 < a < d would be two
+overlapping copies of v_j, and agreement on the overlap says exactly
+that a is a period of v_j; this is excluded by the list. So both
+old-new and new-new pairs keep separation at every stage.
+
+The procedure has a finite inspection radius despite the infinite word.
+Take r_0 = K and r_j = K + j(d-1). To decide a marker at x at stage j,
+inspect its length-K block and the earlier marker status at the 2d-1
+positions from x-(d-1) to x+(d-1). Inductively these windows fit in
+[x-r_j, x+r_j). The final radius r = r_N works; if the list is empty,
+r = K works for the empty marker set. Every instruction is stated in
+relative positions, so it commutes with translations: (ii).
+
+For (iii): if the block beginning at z appeared in the list, its start
+either received a marker at its stage or was blocked by a marker within
+distance d; in either case such a marker remains in the final set.
+Absence throughout [z-d, z+d] therefore forces the block to be unlisted,
+i.e. to have a positive period below d. []
+
+A search may inspect several possible origins. It is not enough that
+each seed be periodic: they must describe the SAME continuation. The
+next estimate supplies that agreement and also turns a markerless
+interval into one periodic run.
+
+LEMMA 8.2 (Common periodic continuation). Two two-sided words with
+positive periods a, b that agree on ab consecutive letter positions
+agree everywhere. Consequently, for d >= 2 and K > 3 d^2:
+ (i)  a length-K block with a period below d determines a unique
+      two-sided periodic continuation, of some period below d;
+ (ii) any finite nonempty family of such blocks in one word, whose start
+      positions have diameter w with K - w >= d^2, determines one
+      common continuation, agreeing with the word on their union;
+ (iii) for the rule of Lemma 8.1, if the inclusive interval [z,y] is
+      markerless and y - z >= 2d, then the word agrees with one
+      two-sided word of period less than d throughout
+
+          [ z + d , y - d + K ).                                (8.3)
+
+The same assertions hold for a finite word when all stated blocks and
+marker inspection windows are present in it.
+
+Proof. The integer ab is a period of both two-sided words. Any position
+can be moved into an interval of ab consecutive positions by adding a
+multiple of ab, changing no letter; agreement there proves agreement
+everywhere. A finite block of period a < d extends to a unique two-sided
+periodic word with that period (repeat the first a letters outward). Any
+two choices of periods a,b < d give continuations agreeing on the block,
+whose length exceeds ab, so (i)'s continuation is unique. For (ii), any
+two blocks overlap in at least K - w >= d^2 > ab positions, so their
+continuations are equal; fixing one block identifies a common
+continuation for the whole family, and since w < K the union of the
+blocks is an interval.
+
+For (iii), each integer start x from z+d through y-d has
+[x-d, x+d] inside [z,y]; the marker rule therefore gives a period below
+d for its length-K block. Successive such blocks overlap in K-1 > d^2
+letters, so (i) identifies their continuations one after another, and
+their union is exactly (8.3). Finally, extend a finite word arbitrarily
+to a two-sided word (possible as Sigma is nonempty): internal inspection
+windows give the same marker decisions for every extension, so the
+conclusions about the finite word do not depend on the extension. []
+
+A fixed convention for finite arguments. A required marker inspection is
+performed only when its entire window lies inside that argument;
+otherwise the whole test REJECTS. In particular an unavailable window
+never removes an origin from a comparison or a uniqueness test. This is
+what lets the two-sided proofs above establish facts about the actual
+letters a prefix or suffix really reads.
+
+================================================================
+9. THE SCHEDULE: FIXING ALL FINITE PARAMETERS
+================================================================
+
+We now turn the three tools (split, shift table, clock, markers) into
+FIXED positions at which prefix and suffix may read. There are early
+cuts that encode metadata by prefix length, and later cuts that use the
+tag clock. Every set of cuts is finite and fixed using only M and Sigma,
+BEFORE any input word is read. The delicate point is the ORDER of
+choices; we follow it exactly.
+
+Recall V = F_2^M and U = V + F_2.
+
+9.1 Metadata and early positions. Apply Lemma 6.1 (shift table) with
+entry alphabet M and state spaces V and with U; let g and g' be the
+resulting tuple lengths. A KIND (for the inner split) is a tuple
+
+        ( j, x, y, d_{-j}, psi ),
+        1 <= j <= g',  x,y in U,  d_{-j} in M^{g'-1},
+        psi : M -> End_lin(U).                            (9.1)
+
+The list d_{-j} keeps all entries of a g'-tuple except position j; psi
+records how later letters turn the monoid value of the early region into
+a linear update on U. There is NO feasibility restriction: every total
+psi of that type occurs. Let kappa count these kinds, make mu
+distinguishable copies of each (mu fixed below), and call the resulting
+roster P; it has N = kappa * mu slots, ordered in consecutive blocks
+j = 1,...,g'. The copies let us lose some positions to false-origin
+ambiguity without losing any kind.
+
+Set
+
+        B = 20 (N+1)^3,   r_i = 4 N^2 i + i^2  (mod B),  1<=i<=N,(9.2)
+
+and reserve residue r_i for slot i. The ordered differences r_i - r_j
+(i =/= j) are nonzero and distinct modulo B: for i > j,
+(i-j) 4N^2 + (i-j)(i+j) has second summand strictly between 0 and
+2N^2, so division by 4N^2 recovers i-j and then i+j, hence i,j; positive
+differences are distinct, so are their negatives, all signed differences
+lie in an interval of length < B, and no positive equals a negative, so
+reduction mod B keeps them distinct and nonzero.
+
+9.2 The tag set. The clock uses a separate set Lambda. A MAIN tag is
+
+        ( j, u, A, C, d_{-j}, X, Y ),  1<=j<=g,  0<=u<B,
+        A,C in M, d_{-j} in M^{g-1}, X,Y in V.
+
+A PERIODIC tag is
+
+        ( j, u, m_p, X, Y ),  0<=j<=g, 0<=u<B, m_p in M, X,Y in V.
+
+The FORM is part of the tag. Fields X,Y of a tag alpha are X(alpha),
+Y(alpha). Clock period and marker radii are NOT tag fields. With
+m = |Lambda|,
+
+        m = B |V|^2 ( g |M|^{g+1} + (g+1)|M| ).             (9.3)
+
+Choose mu so large that
+
+        mu > 20 ( c_cl log(2m) + 4(g+1) ) + 10.             (9.4)
+
+This is not circular: kappa, g, g' and the spaces are fixed before mu;
+B is polynomial in mu and m a constant multiple of B, so the right side
+grows logarithmically while mu grows linearly. Fix one such mu. From now
+on the roster, all residues, and the whole tag set are fixed; no clock
+period or inspection radius is a tag field.
+
+9.3 Provisional clock. Apply Lemma 7.1 (clock) to Lambda and the roster.
+Write its torus T, sets I_alpha, J_alpha, W, roster targets v_p, and
+common ball radius rho > 0. Pick a provisional additive map
+phi^0 : Z -> T with speeds 1/n_i^0, distinct primes n_i^0 > B, and put
+R = prod_i n_i^0. The set { phi^0(aB) : 0<=a<R } is the full product
+grid with coordinate orders n_i^0, because multiplication by B is
+invertible mod each n_i^0 and the Chinese remainder theorem prescribes
+all residues independently; the same holds for any R consecutive
+representatives of a fixed residue class mod B. Choose the primes so
+large that this grid has covering radius < rho/3 and is fine enough to
+approximate each v_p strictly inside the clock's perturbation tolerance.
+
+Put w_0 = B R. Realize the ordered roster by increasing positive
+integers p_1 < ... < p_N with
+
+        p_i = r_i (mod B),   phi^0(p_i) within chosen tolerance of v_{p_i},
+        and all ordered nonzero differences p_i - p_j at distance
+        > 2 w_0 + 2 from each other and from 0.             (9.5)
+
+This is possible inductively: for each slot the grid supplies an
+admissible integer in its reserved class, and adding multiples of B R
+leaves both the class and the provisional clock value unchanged; place
+each new point so far right that all new positive differences exceed all
+old positive differences by more than 2 w_0 + 2 (differences of two new
+differences are differences of old points, already separated; negatives
+likewise). Leave an integer gap between successive blocks.
+
+From now on P denotes this set of integer offsets, each still carrying
+its kind and copy label. Write h = diam P. Choose fixed boundary offsets
+0 = beta_0 < beta_1 < ... < beta_{g'} so that every slot of block j lies
+strictly between beta_{j-1} and beta_j; the early boundaries for a word
+beginning at s are b'_j = s + beta_j, and the early candidate cuts are
+s + p, p in P.
+
+9.4 Inner marker rule and the final clock. The early positions are
+fixed. Choose
+
+        d > 10 ( 2h + 2 w_0 + 5 ),   K > 3 d^2,             (9.6)
+
+obtain an inner marker rule of radius r >= K from Lemma 8.1, and put
+N_M = |M|!. In each coordinate approximate 1/n_i^0 by a_i / n_i with the
+n_i distinct primes > d, N_M, B and 1 <= a_i < n_i (arbitrarily accurate
+by taking primes large and rounding n_i / n_i^0). Let phi be the
+resulting map and n = prod_i n_i. It factors through Z / nZ. Approximate
+closely enough on the already fixed finite sets P and { aB : 0<=a<R }
+that
+
+        #{ p =/= p' in P :  a + phi(p') - phi(p) in W }
+             <= c_cl log(2m)      for all a in T,           (9.7)
+        { phi(aB) : 0<=a<R } has covering radius < rho.    (9.8)
+
+For (9.7) keep each phi(p) within the clock's single perturbation
+tolerance of its target; for (9.8) keep each value at aB (0<=a<R)
+within the unused margin. Only finitely many arguments are involved, so
+one sufficiently accurate approximation satisfies both. Every translate
+of this net meets every clock ball of radius rho. The construction now
+has the two properties used separately: the clock period has no small
+prime factors, while the R-term net and w_0 = B R keep their sizes.
+
+9.5 Lag, widths, gaps. Choose positive integers L_lag, H_ext with
+
+        B | L_lag,  L_lag > r + (|M|+2) d,
+        H_ext > L_lag + n d N_M B + 2 d.                    (9.9)
+
+Choose positive widths H_u (0<=u<B), each divisible by B and > 2d, with
+
+        |H_u - H_v| > 2h + 2 max(H_ext, w_0) + 2  (u =/= v).(9.10)
+
+Finally choose a positive multiple G of 2B with
+
+        G > 10 ( max_u H_u + H_ext + r + K + d + w_0 + 1 ).  (9.11)
+
+All are successive lower bounds, so simultaneously satisfiable. An
+episode beginning at s has sampling origin t = s + L, with the fixed
+positive lag L chosen in section 10 after all bounded windows are known.
+For any integer origin t define inner searches
+
+   o_j = (j+1) G,  z_j(t) = t + o_j,
+   f_j^u(t) = first inner marker in [ z_j(t), z_j(t) + H_u ],  (9.12)
+
+for 0<=j<=g and 0<=u<B, value BOT (empty) if none. Equality of search
+values means equality of absolute positions, or that both are BOT.
+
+LEMMA 9.13 (inner cut schedules). For 1<=j<=g put c_j = (j + 1/2) G.
+The MAIN cuts of block j are k = t + c_j + aB, 0<=a<R. At any such cut,
+all inner searches through index j-1 (with their inspections) lie BEFORE
+k, and all searches from index j onward lie AFTER k, even when performed
+at any hypothesized origin k - c_j - a'B (0<=a'<R) and with any width
+index u. For 0<=j<=g and 0<=u<B the PERIODIC cuts are
+k = z_j(t) + H_u + L_lag + aB, 0<=a<n d N_M. The whole search for
+f_j^u(t), with its inspections, lies before every one of these cuts.
+Every offset k - t in either schedule is divisible by B.
+
+Proof. The rightmost inspection for a search through j-1 is at most
+t + jG + max_u H_u + r, strictly before t + (j+1/2)G by (9.11). For a
+search from j at tau = k - c_j - a'B, the leftmost inspection is at
+least tau + (j+1)G - r = k + G/2 - a'B - r > k, since a'B < w_0 and
+G/2 > w_0 + r. The periodic assertion follows from L_lag > r.
+Divisibility from 2B | G and B | H_u, L_lag. []
+
+Let HH be the full finite set of offsets k - t in the main and periodic
+cuts over all indices. Choose an integer
+
+        w > max( 2h, diam HH ) + 1.                         (9.14)
+
+The next observation records how the periodic schedule supplies clock
+choices when an inner search is absent.
+
+LEMMA 9.15 (periodic cuts with a fixed prefix product). Fix j, u and an
+origin t. Suppose [ z, z + H_u + H_ext ] (z = z_j(t)) contains no inner
+marker and all required inspections are available. There is a period
+d' < d such that, with k_0 = z + H_u + L_lag, the cuts
+k = k_0 + a d' N_M B (0<=a<n) belong to the periodic schedule. For a
+fixed beginning s <= z, T_{s,k} is constant along this progression.
+Moreover phi(k - t), as a varies, runs through a translate of the full
+image of phi, hence includes a translate of the net (9.8).
+
+Proof. Lemma 8.2 gives one periodic continuation, of some period d'<d,
+throughout [ z+d, z+H_u+H_ext-d+K ). The |M| periods just before k_0 lie
+in this interval ( k_0 - |M| d' > z+d by (9.9) ), and all cuts
+k_0 + a d' N_M B lie there too since L_lag + (n-1) d' N_M B < L_lag +
+n d N_M B < H_ext - 2d. They belong to the periodic schedule as
+a d' N_M < n d N_M. Let c in M be the product of one period in phase at
+k_0; among 1,c,...,c^{|M|} two powers agree, and as in section 3.3 this
+gives c^{i+N_M} = c^i for i >= |M|, whence every cut in the progression
+has T_{s,k} = T_{s,k_0 - |M|d'} c^{|M|+a N_M B} = T_{s,k_0-|M|d'} c^{|M|},
+independent of a. Finally every prime dividing n exceeds d, N_M, B, so
+gcd(d' N_M B, n) = 1 and the increments a d' N_M B (0<=a<n) run through
+all residues mod n; applying phi gives a translate of the full image.
+[]
+
+================================================================
+10. EPISODES AND A COMMON END FOR INDEPENDENT TESTS
+================================================================
+
+A correct clock calculation needs a COMMON clock anchor. A suffix may
+propose a different origin, or even a different role, than the prefix,
+so its own local description cannot be trusted to give that anchor. We
+therefore define episodes by a rule checkable from LATER letters, and
+require a guard comparing every possible outer origin. Two end searches
+do different jobs: a smaller search helps DEFINE the endpoint, a larger
+search supplies a BOUNDED clock anchor whenever possible. The split is
+what later lets a suffix evaluate false origins without hunting for a
+new mismatch past the real end.
+
+10.1 Two bounded end searches. Use Lemma 8.1 (independently of the
+inner markers) with integers
+
+        S_bullet > 4(h + w + 1),
+        d_bullet > 10 B S_bullet + 10(h + w + 1),
+        K_bullet > 3 d_bullet^2.                            (10.1)
+
+Call the markers END MARKERS; their inspection radius is r_bullet >=
+K_bullet. For 0<=u<B set
+
+        D_u^0 = d_bullet + u S_bullet,   D_u^1 = 3 d_bullet + u S_bullet.  (10.2)
+
+The end-search center is z_bullet(t) = t + o_bullet, with the fixed
+offset o_bullet placed below. At an integer origin t define eta(t)
+(sigma=0) and zeta(t) (sigma=1) by: return the LEFTMOST end marker m_e
+such that
+
+        |m_e - z_bullet(t)| <= D_u^sigma,  u = (m_e - z_bullet(t)) mod B,  (10.3)
+
+and return BOT if there is none. These are bounded searches: all of the
+inspection sits inside the interval obtained by enlarging
+[z_bullet - max_u D_u^sigma, z_bullet + max_u D_u^sigma] by r_bullet on
+each side.
+
+The eligible set for eta(t) is contained in that for zeta(t), but their
+returned markers may differ (the larger may find an earlier marker).
+What we need across nearby origins is
+
+        |t - t'| <= 2h  and  eta(t') =/= BOT  ==>  zeta(t) =/= BOT.  (10.4)
+
+Indeed the marker returned at t' is within max_u D_u^0 + 2h of
+z_bullet(t), whereas min_u D_u^1 = 3 d_bullet > d_bullet + (B-1)S_bullet
++ 2h = max_u D_u^0 + 2h; so it is eligible at t whatever its new
+residue. This is why two search sizes are used.
+
+If eta(t) = BOT, there is no end marker in [z_bullet - d_bullet,
+z_bullet + d_bullet]. The seed [ z_bullet(t), z_bullet(t) + K_bullet )
+then has a period below d_bullet by Lemma 8.1. Its two-sided
+continuation with period below d_bullet is unique: two such
+continuations agree on the seed, whose length exceeds the product of
+their periods, so Lemma 8.2 identifies them. We use this continuation
+only when eta(t) is absent.
+
+10.2 Margins and the episode rule. First list every bounded window that
+must stay inside a complete episode, so that a wrong origin or endpoint
+cannot make a required check vanish. Set
+
+        Delta = (HH - HH)  UNION  (P - P)  UNION  {0}.      (10.5)
+
+The first difference set contains every displacement of an outer suffix
+origin from the true origin at a genuine outer cut (even if the two
+factors pick different roles); the second contains all origin
+displacements used to decode an early cut.
+
+INNER data: allow every displacement in Delta followed by every shift in
+[-w_0, w_0]; include all indices 0<=u<B, all inner marker inspections,
+the extended searches through H_u + H_ext, the short-period blocks and
+finite portions of their continuations used in Lemma 9.15, and the
+finite cut schedules. This gives a bounded integer offset interval
+[A_in, B_in] relative to t. (For example it may contain every enlarged
+interval [o_j+delta-v-r, o_j+delta+v+H_u+H_ext+K+r] for delta in Delta,
+0<=v<=w_0, and every cut offset; enlarge if needed to contain the |M|
+periods before the base cuts of Lemma 9.15.) All finite, fixed now.
+
+END data: allow every delta in Delta and every shift in [-w,w]; include
+both end-search inspection windows, every seed, every possible bounded
+marker return, and the right endpoint of every seed, collected in a
+bounded integer interval [A_end, B_end] relative to z_bullet(t). It
+suffices to contain, over all delta in Delta and |v|<=w,
+
+        [ delta + v - max_u D_u^1 - r_bullet,
+          delta + v + max( max_u D_u^1 + r_bullet, K_bullet ) ].  (10.6)
+
+These cover full sweeps of the allowed shifts, not just nominal origins,
+and neither interval depends on the still-unchosen L, o_bullet, L_tail.
+
+Choose positive integers L, o_bullet, L_tail in this order so that
+
+        L + A_in > beta_{g'},
+        o_bullet + A_end > B_in,
+        L_tail > max{ 1, max_u D_u^0 + B_end }.             (10.7)
+
+Now fix t = s + L for a word beginning at s. Define the END ANCHOR q_0:
+if eta(t) is present, q_0 = eta(t); otherwise use the unique periodic
+continuation of the seed (10.5's seed) and let q_0 be the first letter
+position at or beyond the seed's right endpoint where the word differs
+from that continuation (no complete episode if this mismatch has not yet
+occurred). When q_0 exists the required endpoint is
+
+        b = q_0 + L_tail.                                   (10.8)
+
+All bounded end inspections and seed data, and the letters through b-1,
+must be available. A word is a COMPLETE EPISODE if its own endpoint is
+exactly this b. Let E be the language of such words, beginning normalized
+to s=0. For a complete episode the CLOCK ANCHOR is
+
+        q = zeta(t) if zeta(t) =/= BOT,   else q = q_0.      (10.9)
+
+The two anchors play different roles and may coincide. The endpoint is
+always q_0 + L_tail; the clock instead uses q, which is a bounded marker
+return whenever zeta is present. For example, eta may be absent while
+zeta is present: then the endpoint can occur arbitrarily late at a first
+mismatch while the clock anchor stays bounded, and no later argument
+identifies q with q_0 in that case.
+
+LEMMA 10.10 (internal data under all prescribed hypotheses). The choices
+above place every bounded inner window after b'_{g'}, every bounded end
+window after every outer cut, and all these windows strictly inside every
+complete episode, simultaneously for all origin displacements and shifts
+just specified.
+
+Proof. The first two claims are the first two inequalities of (10.7). In
+either branch of the episode rule q_0 >= z_bullet(t) - max_u D_u^0, so the
+last inequality gives b = q_0 + L_tail > z_bullet(t) + B_end, past every
+bounded end window, hence past all earlier windows. The first inequality
+also puts all these windows after the beginning s = b'_0. The same bounds
+apply on any continuation of the word. []
+
+LEMMA 10.11 (prefix code). E is a prefix code of nonempty words.
+
+Proof. Suppose a complete episode is read from its beginning inside a
+longer word. By Lemma 10.10 every bounded search and seed inspection
+lies inside the episode, so locality gives the same search values on the
+longer word. If eta is present it gives the same q_0; if eta is absent the
+seed gives the same continuation and the first mismatch already met stays
+first. Thus q_0, hence b, cannot change, so no complete episode is a
+proper prefix of another. Positivity from the strict ordering in Lemma
+10.10 and L_tail > 1. []
+
+10.3 Reading-side convention. For every prefix or suffix test below, the
+letters a check needs must be present in that test's own argument and on
+its own reading side; an unavailable inspection or an invalid product
+interval causes REJECTION, never silently removing an origin from a
+universal check. The unbounded parts of the episode rule are continuation
+tests up to a proposed end; they never move an unbounded window before a
+cut. A standalone prefix reads from s to its end k; a standalone suffix
+begins at k, and an origin given as an offset from k need not itself
+carry a visible letter there.
+
+10.4 The common end guard. At a proposed outer cut k, let the suffix test
+all origins
+
+        O_k = { k - a : a in HH }.                          (10.12)
+
+Choose a reference offset in HH once and for all. The COMMON END GUARD
+requires both eta and zeta to be CONSTANT across O_k (equal absolute
+positions, or both BOT), requires all associated bounded inspections and
+seed blocks, requires the suffix to end exactly where the episode rule at
+the reference origin prescribes, and uses the clock anchor (10.9) there.
+
+LEMMA 10.13 (shared end and clock anchor). Let a word in E* have first
+episode beginning at s, sampling origin t = s + L, endpoint b, clock
+anchor q. Let k = t + a be any genuine outer cut with a in HH. If a
+suffix starting at k satisfies the common end guard, then its consumed
+endpoint is exactly b and the clock anchor it uses is exactly q.
+Conversely, the actual suffix of that episode from k to b satisfies the
+guard whenever both end searches at t are unchanged under every shift
+divisible by B with absolute value at most w.
+
+Proof. Since k = t + a with a in HH, O_k contains t; the other origins
+differ from t by HH - HH. Lemma 10.10 puts their bounded end data inside
+the first episode and after k, so a proposed suffix supplies every window
+(if too short it rejects; otherwise it reads genuine letters even if its
+endpoint proposal is false).
+
+First suppose the common value of eta is a marker. Since t is among the
+origins, it is the episode's own q_0, and the reference end test demands
+q_0 + L_tail = b.
+
+Otherwise all smaller searches are absent. Let t_* be the reference
+origin. Its seed and the true seed start less than w < d_bullet apart and
+overlap in at least K_bullet - w > d_bullet^2 letters, so their
+short-period continuations are identical (Lemma 8.2), and the word
+agrees with that continuation on their union; if one seed ends earlier
+there is still agreement through the end of the later seed. Hence the
+first mismatch after either seed is one and the same position. An alleged
+earlier mismatch contradicts that agreement or the true-first-mismatch
+property; an alleged later one would pass the true mismatch. So the
+reference exact-end test again forces b, and the common value of zeta
+forces q (the true bounded return if present, else the common q_0).
+
+Conversely, every displacement from t to a member of O_k is divisible by
+B and has magnitude less than w, and the assumed stability makes each
+search constant on O_k; all windows are available in the actual suffix by
+Lemma 10.10. A common marker return fixes the true end immediately; in
+the absent case the seed argument fixes the common first mismatch. Thus
+the reference end test succeeds and supplies the true clock anchor. []
+
+The clock can now be used with genuinely independent prefix and suffix
+metadata: even if their proposed roles differ, the guard ensures the two
+clock arguments add to the true total phi(q - t).
+
+================================================================
+11. THE FIRST SPLIT (OUTER): TRANSMITTING A STATE WITH THE CLOCK
+================================================================
+
+We now build the first split on the episode code E. The update is defined
+BEFORE its tests, so successful choices cannot change which computation
+an episode performs. It is affine on V and always has the original monoid
+action as its linear part. Completeness is required only outside an
+intrinsic domain D contained in E; soundness is required for EVERY
+successful pair on E*.
+
+Throughout an episode is [s,b), t = s+L, anchors q_0, q as in section 10.
+The outer cut offsets form HH, a subset of B Z. All inspections obey the
+reading-side and rejection conventions of section 10.3.
+
+11.1 The exceptional domain. Define Z(t) to mean that at least one of
+eta, zeta is NOT constant on
+
+        { t + v : v in B Z,  |v| <= w }.                    (11.1)
+
+For a position Q let u = (Q - t) mod B (residues in {0,...,B-1}). Define
+A_*(t,Q) as the disjunction of:
+ (a) phi(Q - t) in W;
+ (b) for some 0<=j<=g and some integer v with |v| <= w_0,
+     f_j^u(t+v) =/= f_j^u(t)  (u held FIXED as t shifts);
+ (c) for some 0<=j<=g, f_j^u(t) = BOT, but the interval
+     [ z_j(t), z_j(t) + H_u + H_ext ] contains an inner marker.
+Search values are absolute positions, with BOT equal only to BOT. Set
+
+        D = { e in E :  Z(t)  OR  A_*(t,q) }.               (11.2)
+
+The episode determines both predicates without choosing a split, so D is
+a FIXED language; failure of a particular tag choice is not its
+definition. The same D must serve every input state and every pair of
+independently chosen tags.
+
+For A,C in M write
+
+        f_{A,C}(a_1,...,a_g) : v |-> v A a_1...a_g C,        (11.3)
+
+a map from M^g into End_lin(V). For every such map use the shift table
+beta_{f_{A,C}} fixed in Lemma 6.1 (with entry alphabet M, state space V).
+Define F_e : V -> V on EVERY complete episode, including every e in D:
+ 1. If E_{phi(q-t)} is the singleton off-diagonal edge {(alpha,lambda)},
+
+        F_e(v) = v T_{s,b} + Y(lambda) - X(alpha) T_{s,b}.  (11.4)
+
+ 2. Otherwise put u = (q - t) mod B. If at least one f_j^u(t) is BOT,
+
+        F_e(v) = v T_{s,b}.                                 (11.5)
+
+ 3. In the remaining case let l_j = f_j^u(t) for 0<=j<=g; their order is
+    l_0 < ... < l_g by the schedule. Set A = T_{s,l_0}, C = T_{l_g,b},
+    d_i = T_{l_{i-1},l_i} (1<=i<=g). Then
+
+        F_e(v) = v f_{A,C}(d) + beta_{f_{A,C}}(d).          (11.6)
+
+These three cases define exactly one map on every episode. The first is
+unambiguous by the clock alternative; the others cover all diagonal
+graphs, including the empty graph, with the actual residue and marker
+data. In case 3, A d_1...d_g C = T_{s,b}, so all three formulas share
+the prescribed linear part. Thus F_e is total and deterministic even on
+D, and no cancellation or inverse in M has entered.
+
+11.2 The two independently chosen tags. For x,y in V, define languages
+P_x, Q_y as finite unions over tags. A prefix factor is read on [s,k), a
+suffix factor on [k,b); these positions are described in each factor's
+own relative coordinates and give neither factor access to the other.
+
+EVERY prefix test chooses a tag alpha, requires x = X(alpha), chooses a
+cut of the form specified by that tag, and requires
+
+        phi(k - t) in I_alpha.                              (11.7)
+
+EVERY suffix test chooses an INDEPENDENT tag lambda, performs the common
+end guard of Lemma 10.13 (both eta, zeta constant over O_k, suffix ends
+exactly as prescribed at one fixed reference origin, all seed and
+inspection data present). Let q be the clock anchor so obtained. It
+requires
+
+        y = Y(lambda),  phi(q - k) in J_lambda,
+        u(lambda) = (q - k) mod B.                          (11.8)
+
+The field u(lambda) is part of the suffix tag.
+
+MAIN tags. A main tag has fields (j, u, A, C, d_{-j}, X, Y).
+ Prefix: chooses a cut k = t + c_j + aB, 0<=a<R. With the tag's fixed
+ index u, requires f_0^u(t),...,f_{j-1}^u(t) present; checks A and the
+ listed products d_i (i<j) against intervals on its side; and for every
+ a in M (writing d[j<-a] for the tuple with a inserted at position j)
+ checks the finite certificate
+
+        X f_{A,C}( d[j<-a] ) + beta_{f_{A,C}}( d[j<-a] ) = Y.  (11.9)
+
+ Suffix: requires all searches j,...,g with this u present and having
+ IDENTICAL absolute positions at every origin k - c_j - aB (0<=a<R);
+ using those common positions checks d_i (i>j) and C against the suffix.
+ Every inspection is required at every origin; an unavailable inspection
+ rejects the suffix rather than discarding an origin. The reading-side
+ separation of Lemma 9.13 keeps these suffix tests even when the tag is
+ not the one a paired prefix chose.
+
+PERIODIC tags. Fields (j, u, m_p, X, Y), 0<=j<=g.
+ Prefix: chooses a cut k = z_j(t) + H_u + L_lag + aB, 0<=a<n d N_M;
+ checks f_j^u(t) = BOT and m_p = T_{s,k}.
+ Suffix: requires Y = X m_p T_{k,b}, where b is its own exact endpoint
+ from the common end guard. It does not presume the paired prefix chose
+ the same tag.
+
+These rules completely specify P_x, Q_y. Every tag, cut offset, table
+entry and origin ranges over a previously fixed finite set; in
+particular (11.9) is a finite Boolean test.
+
+PROPOSITION 11.10 (first split). For the total updates F_e above and D
+from (11.2), the languages P_x, Q_y satisfy:
+ (1) On any word in E*, a match of P_x Q_y beginning at the beginning of
+     the word consumes exactly its first episode e and has F_e(x) = y.
+ (2) For every e in E \ D and every x in V, some cut of e gives a match
+     of P_x Q_{F_e(x)}.
+There is no match on the empty word.
+
+Proof.
+
+SOUNDNESS. Let independent tags alpha, lambda witness a successful pair
+at the beginning of a word in E*. The prescribed prefix length is positive
+and ends at an outer cut strictly inside the first episode; the empty word
+cannot match. The true origin is among the origins checked by the suffix,
+so Lemma 10.13 forces the true endpoint b and clock anchor q, even when
+the two tags differ. The clock tests add using actual positions:
+
+        phi(q - t) = phi(k - t) + phi(q - k)  in  I_alpha + J_lambda.
+
+If the graph is contained in the diagonal, this forces alpha = lambda;
+since k - t is divisible by B, the suffix residue field is the true
+u = (q - t) mod B.
+
+Main tag: the actual origin occurs among the role-specific hypotheses
+(those at k - c_j - aB). The prefix verifies boundaries through j-1, the
+suffix those from j onward, and together they verify A, C, and every
+listed interval product. Substituting the actual missing product into
+(11.9) gives F_e(x) = y under (11.6).
+
+Equal periodic tag: the prefix establishes absence of the actual search
+with the true index u, so the linear case (11.5) of F_e applies. Its
+verified m_p = T_{s,k} and the suffix certificate give
+y = x m_p T_{k,b} = x T_{s,b} = F_e(x).
+
+An empty clock graph yields neither case. If instead the graph is one
+off-diagonal edge, the successful pair must be exactly that edge; the
+separate state checks give x = X(alpha), y = Y(lambda), and (11.4) was
+defined to give F_e(x) = y with no agreement of other fields needed. This
+exhausts all successful pairs. SOUNDNESS holds.
+
+COMPLETENESS. Fix e in E \ D and any x in V. The negation of Z(t) gives
+the common end guard at every scheduled outer cut. Put u = (q-t) mod B.
+Since phi(q - t) is not in W, every tag alpha has a ball of radius rho in
+I_alpha INTERSECT (phi(q-t) - J_alpha), and the clock graph is the full
+diagonal. We must find a cut hitting the ball for a tag whose letter tests
+and certificate are correct.
+
+If all searches f_i^u(t) are present, take their true products A, C, d.
+The shift-table lemma supplies a coordinate j omittable for this tuple and
+input. Give the main tag those true fields and X = x, Y = F_e(x); its
+certificate (11.9) then holds. The clock values at its main cuts are
+phi(c_j) + phi(aB) (0<=a<R), a translate of the fixed net, so one cut
+meets its ball. At that cut every alternative role-specific origin is
+t + (a-a')B with displacement less than w_0; the stability part of
+not-A_*(t,q), with u fixed, makes the required future marker positions
+agree. The remaining tests are actual products on proper reading sides,
+so the main pair succeeds.
+
+If some f_j^u(t) is absent, write z = z_j(t). The last part of
+not-A_*(t,q) makes [z, z+H_u+H_ext] markerless. Lemma 9.15 gives a period
+d'<d and cuts k_a = k_0 + a d' N_M B (0<=a<n), k_0 = z + H_u + L_lag,
+whose prefix products share one value m_p. Choose the periodic tag with
+these j, u, m_p and X = x, Y = x T_{s,b} = F_e(x); it is a single tag for
+the whole progression, constancy of m_p following from periodicity of
+monoid powers without cancelling an earlier factor. The same lemma shows
+the clock values traverse a translate of the full clock image, hence
+include a translate of the fixed net, so one hits the ball for this tag.
+The marker-absence inspections are before the cut by the lag condition,
+and the suffix certificate Y = X m_p T_{k_a,b} follows from
+m_p T_{k_a,b} = T_{s,b}. The common end guard already holds. So the
+periodic pair succeeds for every input x. COMPLETENESS holds. []
+
+We now have the first split on all of E, with the same updates F_e for
+its skipped episodes. To compute on D* it remains to handle the skipped
+episodes. The defining exceptional predicate, an obstruction to the
+clock, will serve as a WITNESS to the origin at an early stencil cut;
+section 12 shows this witness is usually unique across the whole stencil.
+
+================================================================
+12. RECOVERING THE CUT ON EXCEPTIONAL EPISODES
+================================================================
+
+Every episode in D satisfies Z(t) or A_*(t,q). That is useful to a
+suffix: if its prefix ended at k = s + p, the true origin is one of the
+finitely many candidates k + L - p', p' in P. We use the exceptional
+predicate to identify it. Two issues need separate handling: false
+candidate origins must be sparse over ALL stencil slots (not just slots
+with plausible metadata), and a suffix proposing a wrong end must not
+make the true witness disappear. We count with actual episode data first,
+then give a suffix test that gathers exactly enough data before asking
+for uniqueness and checks the decoded end afterward.
+
+12.1 A bounded list of possible anchors. Fix a complete episode [s,b) and
+its actual origin t = s+L. For p,p' in P set delta = p - p', tau = t+delta.
+The distinct-slot differences are distinct as integers and modulo B, are
+separated from one another by more than 2 w_0 + 2, and satisfy
+|delta| <= h; the identical-slot pairs all give t. Evaluate the bounded
+larger search zeta(tau) on the actual episode.
+
+If one of these larger searches is absent, then every smaller search
+eta(tau) in this collection is absent. Indeed a marker eligible for a
+smaller search at one origin is within max_u D_u^0 + 2h of the center at
+any other; the inequality
+
+        max_u D_u^0 + 2h  <  min_u D_u^1 = 3 d_bullet            (12.1)
+
+makes it eligible for that larger search whatever its residue there, a
+contradiction. In this absence case the seeds at all these origins have
+short periods; their starts differ by at most 2h, and the seed length and
+marker separation give overlap at least d_bullet^2. Lemma 8.2 gives the
+same two-sided periodic continuation for all seeds; they agree with the
+episode on their union, so their first subsequent mismatch is one common
+position q_0, which is the actual episode's mismatch anchor (its own
+smaller search is absent). Define
+
+        Q_tau = zeta(tau) if zeta(tau) =/= BOT,  else Q_tau = q_0.   (12.2)
+
+The second case is used only when a larger search is absent, so q_0 is
+always defined; in particular Q_t = q.
+
+LEMMA 12.3 (number of possible anchors). For a fixed actual episode, the
+values Q_tau in (12.2), over all p,p' in P, belong to a set Qc of at most
+20 positions.
+
+Proof. Every present zeta(tau) is an end marker in
+[z_bullet(t) - h - max_u D_u^1, z_bullet(t) + h + max_u D_u^1]. Since
+max_u D_u^1 = 3 d_bullet + (B-1)S_bullet and
+d_bullet > 10 B S_bullet + 10(h+w+1), this interval has length strictly
+less than (31/5) d_bullet. End markers are at least d_bullet apart, so it
+contains at most seven. There is at most one additional value, the shared
+mismatch q_0. In particular the bound 20 holds. []
+
+12.2 Counting every false origin in the stencil. We now count ordered
+pairs p =/= p' whose translated origin satisfies the exceptional predicate.
+All marker decisions can be read in one common two-sided extension: the
+margin construction makes every inspection below internal to the episode,
+including the shifted searches.
+
+PROPOSITION 12.4 (whole-stencil sparsity). For each complete episode and
+the positions Q_tau of (12.2),
+
+        #{ (p,p') in P^2 : p =/= p',  Z(t + p - p')  OR
+              A_*(t + p - p', Q_{t+p-p'}) }  <  mu.          (12.5)
+
+This includes every ordered distinct-slot pair, whatever kinds its slots
+carry.
+
+Proof. Write delta = p - p', tau = t + delta. We count end-search
+instability and the three causes in A_* separately.
+
+End-search instability costs at most four pairs. If an end search changes
+when tau becomes tau + v (v in B Z, |v| <= w), the eligibility of some
+marker changes, else the eligible set, and its leftmost member or absence,
+would be unchanged. For that marker m_e the index u = (m_e - z_bullet(t)
+- delta) mod B is unchanged (v divisible by B), so for some sigma in
+{0,1} and one sign,
+
+        | m_e - ( z_bullet(t) + delta +- D_u^sigma ) |  <=  w.   (12.6)
+
+Fix sigma and sign. As delta in [-h,h] and u in {0,...,B-1} vary, all
+possible markers in (12.6) lie in an interval of diameter at most
+2h + (B-1)S_bullet + 2w < d_bullet, which contains at most one end
+marker. For this marker the indices u are distinct for distinct-slot
+differences (they are distinct mod B), and two target positions in (12.6)
+are separated by at least S_bullet - 2h > 2w. So at most one pair can
+satisfy (12.6) for this sigma and sign; the two searches and two signs
+contribute at most four pairs.
+
+Fixing an anchor makes the clock count uniform. For a fixed Q in Qc the
+clock part of A_*(tau,Q) is phi(Q - t) + phi(p') - phi(p) in W. Apply
+Lemma 7.1(iii) at the translate phi(Q - t) with realized roster values
+phi(p): at most c_cl log(2m) ordered distinct-slot pairs. Its uniformity
+in the translate applies for every actual Q, including an unbounded
+mismatch position. There are only |Qc| <= 20 applications.
+
+For each fixed anchor and label, inner-marker failures cost at most three
+pairs. Fix Q in Qc and j in {0,...,g}. For each delta write
+z = z_j(t) + delta, u = (Q - t - delta) mod B. In the stability part of
+A_* the index u is held fixed while z is shifted by at most w_0. The union
+of all possible left-endpoint positions has diameter 2h + 2 w_0 < d, so it
+contains at most one inner marker; the distinct differences delta are
+separated by more than 2 w_0 + 2, so at most one pair has its left
+endpoint within w_0 of that marker - charge that pair, if present, to the
+left endpoint.
+
+For any remaining pair no marker crosses the left endpoint during the
+allowed shifts, so the first marker on or after z, if any, is fixed
+during them. A change of the first-marker search can now occur only if
+this marker is within w_0 of the right endpoint z + H_u; also, if the
+search on [z, z+H_u] is absent but the extended interval contains a
+marker, its first marker lies in (z+H_u, z+H_u+H_ext]. So either failure
+puts the first marker on or after z within max(H_ext, w_0) of z + H_u. As
+z sweeps a range of diameter 2h < d, at most two positions can play this
+role (a marker within the sweep, and the first marker after it). For
+distinct-slot differences the indices u = (Q - t - delta) mod B are all
+distinct, and the width spacing (9.10) gives, for different differences,
+
+   | (z_j(t)+delta+H_u) - (z_j(t)+delta'+H_u') |
+       >= |H_u - H_u'| - |delta - delta'|  >  2 max(H_ext, w_0) + 2.  (12.7)
+
+Each of the two possible first markers accounts for at most one pair.
+With the possible left-endpoint pair, at most three pairs for fixed Q,j.
+
+Combining, the left side of (12.5) is at most
+
+        4 + 20 ( c_cl log(2m) + 3(g+1) )
+          < 20 ( c_cl log(2m) + 4(g+1) ) + 10  <  mu,          (12.8)
+
+the last inequality being exactly the multiplicity choice (9.4). Counting
+all pairs for each fixed Q (not only pairs assigned that Q) is an upper
+bound and keeps the clock and width estimates uniform; the union over the
+short list Qc completes the proof. []
+
+Two levels are at work. At a FIXED anchor Q, distinct displacement
+residues give distinct width indices, so right-end failures are sparse;
+the anchor list then permits at most twenty such counts. The estimate
+covers all ordered pairs; no knowledge of the correct kind is used.
+
+12.3 A decoder that also verifies its endpoint. Fix a suffix beginning at
+k. For each slot p' in P form the candidate origin
+
+        tau_{p'} = k + L - p'.                              (12.9)
+
+These are positions relative to the suffix; the origin itself need not be
+a visible letter. All following inspections, including every shifted
+search needed to evaluate Z and A_*, are MANDATORY; if a required window
+is missing from the suffix, the test rejects.
+
+First compute every zeta(tau_{p'}). If at least one is absent, require all
+eta(tau_{p'}) absent, read every candidate seed, and require the suffix to
+end exactly per the end rule at ONE fixed reference candidate: agreement
+with that reference seed's periodic continuation up to its first
+subsequent mismatch, and exactly L_tail letters from the mismatch to the
+proposed endpoint. Denote the verified mismatch position q_ref. For
+candidate origins with absent zeta, set Q_{tau_{p'}} = q_ref; for those
+with present zeta, always set Q_{tau_{p'}} = zeta(tau_{p'}). If ALL larger
+searches are present, no reference mismatch test is needed; all these Q
+are bounded search returns.
+
+Now require that EXACTLY ONE slot p' satisfy
+
+        Z(tau_{p'})  OR  A_*(tau_{p'}, Q_{tau_{p'}}).       (12.10)
+
+This is uniqueness over all slots, with no restriction to particular kinds
+or guessed table values. Finally, after decoding this slot, require exact
+consumption per the end rule at its candidate origin in ALL cases,
+including when all larger searches were present.
+
+LEMMA 12.11 (suffix decoder). Suppose the suffix test just described is
+paired with a genuine stencil prefix [s,k), k = s+p, of a first episode
+e in D in a word of D*. If the suffix test succeeds, it decodes the actual
+slot p and consumes exactly to the actual endpoint b. Conversely, on the
+actual suffixes of a fixed episode e in D, fewer than mu actual slots fail
+the decoder; in particular each kind has a copy at which decoding
+succeeds.
+
+Proof.
+
+The true witness survives before uniqueness. Pair the suffix with a
+genuine prefix cut k = s+p. Its candidates are exactly t + p - p',
+including t at p' = p. Every bounded inspection for these candidates lies
+inside the true first episode by Lemma 10.10 and is mandatory, so a suffix
+reaching the uniqueness test has read the genuine values of all those
+inspections, whether its proposed end is too early or too late.
+
+If one larger search is absent, the decoder requires absence of all
+smaller searches and reads every seed; the true seed is among them. The
+overlap argument makes their periodic continuations the same, agreeing on
+their union, so the reference exact-end check identifies the true first
+mismatch q_0 (an earlier claimed mismatch contradicts agreement before
+q_0; a later one fails to detect q_0). So the reference guard forces the
+true end in this branch, all tested anchors agree with (12.2), and at t
+the exceptional predicate is true.
+
+If instead all larger searches are present, every candidate anchor is a
+bounded return already read inside the true episode; in particular the
+true candidate uses Q_t = zeta(t) = q, with no assumption about the
+proposed end needed or made. Because the first episode is in D, the true
+candidate again satisfies (12.10). This branch need not have a bounded
+episode end (the true smaller search may be absent).
+
+Uniqueness and endpoint soundness. In either branch the actual slot is a
+witness before uniqueness, so a successful uniqueness test must choose
+that slot p. The final end check is then the end rule at the true origin
+and forces the actual endpoint b; this last check is imposed in both
+branches and cannot be omitted merely because all larger searches are
+present.
+
+Completeness at almost every slot. Use the actual suffix for each slot of
+a fixed e in D. Lemma 10.10 supplies every required window. When one
+larger search is absent, (12.1) makes all smaller searches absent and the
+common-seed argument makes the reference guard pass. For each actual slot
+p the computed anchors are the restriction of (12.2) to its candidates
+t + p - p' (a present zeta supplies its return, an absent one uses the
+common actual q_0). Thus the true witness and its final end check pass;
+only an ADDITIONAL witness can prevent success. For each unsuccessful
+actual slot p select one additional witnessing slot p' =/= p; then (p,p')
+is counted by (12.5), and different unsuccessful actual slots have
+different first coordinates, so the selection is injective. Fewer than mu
+slots therefore fail, and since every kind has mu copies, at least one
+copy of each kind succeeds. []
+
+Both end-search sizes are essential. If a false origin has an absent
+larger search, all smaller searches (including the true one) are absent
+and the shared mismatch already is the actual endpoint anchor. Otherwise
+every candidate clock anchor is bounded data. The decoder thus never
+searches for an unverified future mismatch past a short true episode just
+to decide a false origin's witness.
+
+================================================================
+13. THE SECOND SPLIT (INNER): TRANSMITTING A TABLE THROUGH THE STENCIL
+================================================================
+
+At a successful early cut the suffix now recovers the actual stencil slot,
+hence its metadata; that removes the problem of independently chosen
+kinds. But an interval crossing the cut is still unreadable. We handle it
+with the ARBITRARY-FUNCTION form of the shift-table lemma. The suffix
+first describes the later computation by a table indexed by the monoid
+value of the ENTIRE early region - including values no prefix realizes.
+Composing this table with the early block products gives a total function
+of the tuple; the shift-table lemma supplies a deterministic affine
+correction, and one block can then be omitted per input state.
+
+13.1 A total table computed from later letters. Write b'_* = b'_{g'}, the
+last fixed stencil boundary, and let e = [s,b) in D. The homogeneous lift
+of F_e is the linear map Fhat_e : U -> U, where U = V + F_2: if
+F_e(v) = v L_e + gamma_e then
+
+        Fhat_e(v, c) = ( v L_e + c gamma_e , c ).           (13.1)
+
+By Lemma 10.10 all marker searches, outer boundaries and end data occur
+after b'_*. Hence the suffix of the episode starting at b'_*, together
+with its origin and anchors, determines the following table for every
+m' in M.
+
+Set D_b = T_{b'_*,b} and m_b(m') = m' D_b. Define an affine map
+H_{e,m'} : V -> V by the same three cases as F_e:
+ 1. If the actual clock graph is the off-diagonal edge {(alpha,lambda)},
+
+        H_{e,m'}(v) = v m_b(m') + Y(lambda) - X(alpha) m_b(m').  (13.2)
+
+ 2. Otherwise use u = (q - t) mod B. If at least one actual f_j^u(t) is
+    BOT, H_{e,m'}(v) = v m_b(m').
+ 3. In the remaining case all searches are present; write their values
+    l_0 < ... < l_g, and put A(m') = m' T_{b'_*,l_0}, C = T_{l_g,b},
+    d_i = T_{l_{i-1},l_i}. With f_{A(m'),C} from (11.3),
+
+        H_{e,m'}(v) = v f_{A(m'),C}(d) + beta_{f_{A(m'),C}}(d).  (13.3)
+
+Define
+
+        psi_e : M -> End_lin(U),   psi_e(m') = Hhat_{e,m'},    (13.4)
+
+the homogeneous lift of H_{e,m'}. For every m', including an impossible
+prefix value, associativity in case 3 gives
+A(m') d_1...d_g C = m' T_{b'_*,l_0} T_{l_0,l_g} T_{l_g,b} = m' T_{b'_*,b}
+= m_b(m'). Thus the affine formula and its lift are defined for every
+entry. Only AFTER the table is defined do we substitute the actual early
+product, obtaining
+
+        psi_e( T_{s,b'_*} )  =  Fhat_e.                     (13.5)
+
+Every letter-dependent quantity here is read after b'_* (marker positions,
+anchor data, inter-boundary products, products from b'_* to later
+positions). The hypothetical value m' is a finite algebraic input; the
+calculation never searches for omitted prefix letters and never queries a
+graph language for a sequence of episodes. Apply the SAME formulas under a
+proposed suffix origin once its end rule and data are available; if a
+required interval is missing or reversed, reject the whole suffix (do not
+discard the origin, and do not discard individual m' from the table). This
+separates the availability of actual suffix letters from the total
+algebraic domain of psi_e.
+
+13.2 The affine update on the exceptional domain. For 1<=i<=g' put
+d'_i = T_{b'_{i-1}, b'_i}. For any table psi : M -> End_lin(U) define
+
+        f'_psi(a_1,...,a_{g'}) = psi( a_1 ... a_{g'} ).      (13.6)
+
+Use the fixed shift table beta_{f'_psi} from Lemma 6.1 with state space U
+and dimension g'. On every e in D define
+
+        G_e(x) = x f'_{psi_e}(d') + beta_{f'_{psi_e}}(d'),  x in U.  (13.7)
+
+This is a deterministic total affine map on U. Its linear part is Fhat_e,
+because d'_1...d'_{g'} = T_{s,b'_*} and (13.5) applies.
+
+The kinds (9.1) were chosen to contain all tuples (j, x, y, d'_{-j}, psi)
+with 1<=j<=g', x,y in U, d'_{-j} in M^{g'-1}, and psi : M ->
+End_lin(U) ARBITRARY. The mu copies of a kind have distinct cut offsets
+but the same fields. A cut of block j lies strictly inside
+(b'_{j-1}, b'_j), so all listed block products except the omitted jth can
+be checked on one side or the other.
+
+Inner prefix P~_x: chooses a slot p in P and has length exactly p,
+endpoint k = s + p. If the slot's kind is (j, x_p, y_p, a_{-j}, psi), it
+requires x_p = x and checks all listed earlier block products a_i = d'_i
+for i < j. For a in M write a[j<-a] for the tuple with a inserted at
+position j; the prefix also checks the finite certificate
+
+        x_p f'_psi( a[j<-a] ) + beta_{f'_psi}( a[j<-a] ) = y_p  for all a in M.
+                                                              (13.8)
+
+The prefix does not try to check later entries or the table psi against
+letters it cannot see.
+
+Inner suffix Q~_y: begins at k and performs the COMPLETE decoder of Lemma
+12.11 (including its reference end guard when called for, and its final
+decoded-origin end guard). Let p be its decoded slot and use its kind
+(j, x_p, y_p, a_{-j}, psi). At the decoded origin the suffix computes the
+actual searches, anchors and all entries of (13.4), requires the resulting
+table to EQUAL the slot's psi (on every input m' in M), checks a_i = d'_i
+for i > j, and requires y_p = y. Every required interval starts on or
+after the suffix's beginning: in particular the displacement of b'_* from
+k is the fixed positive offset (b'_* - s) - p, since every stencil slot
+precedes the last stencil boundary; Lemma 10.10 places all table data
+after that boundary.
+
+PROPOSITION 13.9 (second split). For the updates G_e on D, the languages
+P~_x, Q~_y satisfy:
+ (1) on a word in D*, every match of P~_x Q~_y from its beginning consumes
+     exactly the first episode e and has G_e(x) = y;
+ (2) every e in D admits such a split for every input x in U.
+Thus this split has EMPTY skip domain.
+
+Proof. SOUNDNESS. Let any successful pair begin a word of D*. The prefix
+selects a scheduled stencil length, so its endpoint k = s+p lies inside
+the first episode. The decoder lemma forces the suffix to select that very
+slot and to end at the actual episode endpoint. So both factors use ONE
+kind, though this was not assumed when the languages were defined. The
+prefix verifies every listed early block product and the suffix every
+listed later one; the suffix also compares its computed table with the
+kind's psi on ALL m' in M. Hence the listed products are the actual d'_i
+for i =/= j and the table is psi_e. The actual product d'_j of the
+interval crossing the cut is a member of M, so it is covered by the
+universal certificate (13.8); substituting it gives G_e(x) = y. The
+positive stencil length rules out a pair on the empty word.
+
+COMPLETENESS. Fix e in D and any input x in U. Apply Lemma 6.1 to the
+total function f'_{psi_e} at its actual tuple d'. A coordinate j exists on
+which the shifted output is constant, equal to G_e(x). Take the kind with
+that coordinate, the actual other products, the entire actual table
+psi_e, and fields x, G_e(x). It is in the roster because ALL total tables
+were included when kinds were chosen; its certificate holds for every
+possible missing value. The decoder lemma leaves at least one usable copy
+of this kind; at that copy all product checks concern actual readable
+intervals, the table comparison is exact, and the end checks pass. So the
+split exists for the chosen x. Repeating for each input proves the
+all-input claim; neither the omitted coordinate nor the chosen copy need
+be the same for different inputs. []
+
+We now have both split constructions with their full all-input
+guarantees. The inner updates G_e have linear part Fhat_e, and the outer
+updates F_e have linear part equal to the original monoid action. What
+remains is to express each component language at the claimed height over
+the original alphabet (section 14), then apply affine recovery and the
+split identity in order (section 15).
+
+================================================================
+14. HEIGHT-ONE EXPRESSIONS OVER THE ORIGINAL ALPHABET
+================================================================
+
+Both split interfaces are proved, including their universal soundness
+under independent guesses. We have not yet assigned a height to any
+component language. Finite-state decidability would give regularity but
+not the HEIGHT-ONE expressions the split identity needs. The needed
+restriction comes from each component's own END RULE: either a marker
+return gives a bounded end, or a fixed periodic seed is continued to its
+first mismatch and followed by a bounded tail. So there is only one
+unbounded repeated word, with finitely many choices of fixed surrounding
+words. We make this precise.
+
+14.1 Periodic templates and exact-end checks.
+
+LEMMA 14.1 (compilation on periodic templates). Fix a finite alphabet
+Sigma, a finite monoid M and a morphism T : Sigma* -> M. Consider
+finitely many templates
+
+        a c^i b,   i >= 0,   a,b,c in Sigma*,  c =/= eps.    (14.2)
+
+On each template suppose acceptance is a fixed finite calculation using:
+ (1) letters in finitely many bounded windows at fixed integer offsets
+     from the argument's beginning or end;
+ (2) order and availability of positions selected from fixed finite sets
+     of such offsets, with unavailable required data causing rejection;
+ (3) monoid products on available ordered intervals between these
+     positions, and lengths or differences modulo fixed positive integers;
+ (4) agreement of an interval between these positions with one of finitely
+     many fixed periodic continuations, together with any required
+     mismatch letter at its endpoint.
+Finite choices, universal tests, and uniqueness tests on fixed finite lists
+are allowed. Then the accepted words have a generalized expression of
+height at most one over Sigma. The same holds after adding finitely many
+exceptional words.
+
+Proof. Fix a template a c^i b. For large i the relative order and
+availability of every pair of bounded-offset positions is fixed; adding
+another full copy of c leaves each bounded window near either end
+unchanged, and products between endpoints near the same end are constant.
+Every interval product crossing the growing middle has the form
+u T(c)^{i-i_0} v for fixed u,v in M and an integer i_0. Powers in a finite
+monoid are ultimately periodic (section 3.3), so all these products and
+all fixed-modulus length data are ultimately periodic functions of i.
+
+For a comparison with a periodic continuation of period d_0, split i into
+the finitely many classes mod d_0. On a class the phase of every bounded
+endpoint is fixed, so bounded comparisons stabilize; the growing middle
+compares the repetition of c with the continuation in a fixed phase. If
+they disagree, a disagreement occurs within |c| d_0 consecutive positions
+(|c| d_0 is a common period of the two two-sided repetitions), so every
+sufficiently long middle then FAILS; if there is no disagreement in such
+a block the whole growing comparison agrees, leaving only the fixed
+beginning and end comparisons. A prescribed first mismatch is exactly an
+agreement test up to a specified endpoint plus a differing letter there,
+so it is covered too; bounded comparison intervals reduce to the window
+case.
+
+There are finitely many data and phase cases. Choose a threshold and a
+common period beyond which the whole array is periodic. Any fixed
+calculation on that finite array, including a universal or an exactly-one
+condition, has an ultimately periodic set of accepted exponents. Such a
+set is a finite set together with finitely many progressions i_1 + ell N
+(ell > 0). A progression is expressed by
+
+        a c^{i_1} ( c^ell )* b,                              (14.3)
+
+which has height one, since all its fixed powers are words over Sigma. A
+finite exceptional set contributes finitely many words. Finite unions over
+progressions and templates prove the assertion over Sigma. []
+
+An exact end check at a fixed candidate origin gives exactly this template
+cover. If the smaller end search eta returns a marker, that marker has a
+bounded offset and the end is bounded. Otherwise its seed is a fixed-length
+word at a fixed position with a short-period continuation: let a be the
+bounded word from the argument's own beginning to the seed's right
+endpoint; make finite choices of a, of the period, phase and tail of length
+L_tail starting at the first mismatch; put the fixed partial copy and tail
+into b in (14.2); and require the first tail letter to differ from the
+continuation. This yields a finite template cover, bounded cases separate.
+This is a statement about the SUFFIX LANGUAGE itself: its proposed origin
+is one of finitely many offsets from its own beginning, and its own end
+check gives the cover whether or not that origin could belong to a
+successful paired split. No ambient-episode assumption is used.
+
+Multiple end guards add no unbounded search. Every guard with a mismatch
+requires that mismatch at the proposed argument end minus L_tail; after
+choosing its seed and period in finite cases it tests agreement up to that
+position and disagreement there. The reference guard and the decoded-origin
+guard are thus among the comparisons of Lemma 14.1. A missing seed or
+window REJECTS, rather than making the template argument conditional.
+
+14.2 The individual component languages.
+
+PROPOSITION 14.4. The episode language E, its skipped sublanguage D, and
+every suffix language in the outer and inner splits have generalized star
+height at most one over Sigma. Every prefix language in these splits has
+height zero.
+
+Proof. All prefix lengths lie in fixed finite schedules, so each prefix
+language is finite, hence height zero.
+
+For the rest, first obtain a finite template cover from an exact end check.
+E and D use their episode end rule. An outer suffix uses the reference
+origin end check of its common guard. An inner suffix always checks the
+decoded origin's end and, when a larger search is absent, also its reference
+origin's end; separate the finitely many possible decoded origins into
+cases. Lemma 14.1 applies to each case, including standalone suffixes with
+incorrect hypotheses or inconsistent tag fields.
+
+It remains to verify the allowed data. Every schedule, origin hypothesis,
+translated origin in a stability check, and marker inspection radius is
+fixed and finite; the integers in a bounded shift range form a finite list;
+a bounded marker search selects a position from finitely many offsets from
+the argument's beginning, or returns absence. All comparisons of such
+searches, their first-marker choices, and all window-availability
+requirements are finite calculations from the bounded data. The clock
+anchor Q_tau is either a bounded larger-search return or the mismatch anchor
+supplied by an exact end check, in which case it is argument end minus
+L_tail; the residue (Q_tau - tau) mod B and phi(Q_tau - tau) use fixed
+moduli. So Z, A_*, and the universal and uniqueness checks in the decoder
+all use template data; where an absent larger search requires a reference
+end check, its periodic agreement requirement is covered by the last part
+of Lemma 14.1, and the additional decoded-end check likewise without
+searching past the proposed endpoint.
+
+The actual product intervals in the outer tests have endpoints at selected
+bounded positions, cuts, or the prescribed end. The inner stencil boundaries
+have fixed offsets under each origin hypothesis. Computing psi_e(m') for
+every m' in M uses products from its final stencil boundary to selected
+later boundaries or to the end, plus the same bounded marker and clock
+data. The defining formula accepts every hypothetical m'; it adds no test
+that a prefix realizing m' exists. All shift-table certificates range over
+fixed finite monoids and vector spaces, so they are finite calculations
+from the listed data; in particular no component calls a graph-language
+test for a sequence of episodes.
+
+Every allowed data source is checked, so Lemma 14.1 gives the claimed
+height-one expressions for these standalone languages. The finite tuple of
+tags, states and residues merely indexes finite operations on them. Every
+word inside a template, including c^ell under its single star, is a word
+over Sigma: no height-preserving alphabet substitution is assumed. []
+
+14.3 Words with no complete episode prefix. Define the final remainder
+
+        N_end = ~( E ~0 ) = ~( E Sigma* ).                   (14.5)
+
+Since ~0 = Sigma* has height zero, N_end has height at most one by
+Proposition 14.4. We also keep the monoid value on a remainder.
+
+LEMMA 14.6. For every m_0 in M, N_end INTERSECT T^{-1}(m_0) has height at
+most one over Sigma. Every word has a unique factorization into complete
+episodes followed by a word in N_end.
+
+Proof. Choose a fixed length threshold beyond every bounded decision
+window for an episode beginning at 0 and beyond every marker-present
+episode end. A longer word in N_end cannot have a present smaller end
+search: its prescribed complete episode would already be a prefix. So its
+available seed has a short-period continuation, and either this
+continuation has no mismatch before the word ends, or the first mismatch
+q_0 satisfies |w| - q_0 < L_tail (otherwise the prefix ending at
+q_0 + L_tail would be a complete episode). The margin construction keeps
+all required bounded data internal even when the mismatch is as early as
+the rule allows.
+
+In the first case, finite choices of the beginning through the seed,
+period, phase, and final partial period give templates (14.2); in the
+second, append a portion of length < L_tail from the mismatch, chosen from
+a finite set. Shorter words form a finite language. On each template the
+monoid-value test is ultimately periodic by Lemma 14.1; build the
+height-one expression for that value on the cover and intersect with
+N_end. The result is exactly N_end INTERSECT T^{-1}(m_0), same bound.
+
+Repeatedly remove an episode prefix whenever one exists. Episodes are
+nonempty, so the procedure terminates, leaving a word in N_end; the prefix
+code property makes each removed prefix unique. No other factorization can
+stop sooner, since its remainder would still begin with an episode. []
+
+================================================================
+15. ASSEMBLING THE MAIN THEOREM
+================================================================
+
+Proof of Theorem 1.1. The empty alphabet was handled in section 1: its only
+languages are 0 and 1, of height zero. For a nonempty alphabet, Proposition
+14.4 supplies all component bounds required by the split identity (Lemma
+4.1).
+
+Step 1 (inner split -> height 2 on D*). Apply Proposition 13.9 to D with
+NO skipped episodes. The graph languages of its empty skip domain are the
+identity tests on {eps}, of height zero. Lemma 4.1 then gives height at
+most max{2, 0+1} = 2 for every graph language of G_e on D*. The linear part
+of G_e is Fhat_e. Boolean affine recovery (Lemma 5.1) gives, at the same
+height 2, graph tests for products of these linear parts; restricting to
+the c = 1 slice recovers every graph language of F_e itself on D* (F_e is
+affine on V) at height 2.
+
+Step 2 (outer split -> height 3 on E*). Use these height-2 graph languages
+of F_e on D* as the SKIP graph languages W_{x,y} of the first split
+(Proposition 11.10), which uses the SAME deterministic updates F_e,
+including on the skipped episodes. Applying Lemma 4.1 a second time with
+H = 2 yields, on E*, height at most max{2, 1+2} = 3:
+
+        0  -->  2  -->  3.
+
+Boolean recovery (Lemma 5.1), now on V, removes the affine shifts of F_e;
+their linear parts are the right actions of the original episode products.
+The image of the identity basis vector e_{1_M} distinguishes each element
+of M (observe e_{1_M} T(w) = e_{T(w)}), so we obtain height-at-most-three
+tests
+
+        A_d = E*  INTERSECT  T^{-1}(d),   d in M.            (15.1)
+
+Step 3 (adjoin the remainder). Let B_f = N_end INTERSECT T^{-1}(f) be the
+height-one tests of Lemma 14.6. If T recognizes the target regular
+language with accepting subset J contained in M, the expression
+
+        UNION over (d,f) in M x M with df in J  of  A_d B_f  (15.2)
+
+defines that language. Completeness: every word factors uniquely as an
+episode block (in E*, value d) times a remainder (in N_end, value f), and
+membership depends only on df. Soundness: every accepted factorization has
+product df in J. Concatenation and finite union preserve the maximum
+height, which is 3. Every expression used is over the given alphabet
+Sigma, with complement taken relative to Sigma*.
+
+Since every regular L is a finite union of fibers T^{-1}(m) for the
+recognizing morphism T (with M finite), and finite unions preserve height,
+h_Sigma(L) <= 3. This proves Theorem 1.1.
+
+==============================================================
+END OF PROOF
+==============================================================
