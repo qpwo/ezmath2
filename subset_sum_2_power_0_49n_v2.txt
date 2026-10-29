@@ -1,0 +1,941 @@
+================================================================
+SUBSET SUM IN TIME O(2^(0.49n))
+A complete, self-contained proof
+================================================================
+
+READER'S GUIDE
+---------------
+Subset Sum is the question: given n positive whole numbers a_1,...,a_n
+and a target t, can we pick some of the numbers that add up exactly to t?
+
+The dumb way tries all 2^n subsets. That is hopeless for large n.
+The classic clever way (meet in the middle) does about 2^(n/2) work,
+so doubling n squares the time. For decades everyone believed ~2^(n/2)
+was the wall. This paper breaks the wall: it decides Subset Sum in time
+O(2^(0.49n)), i.e. with exponent strictly below 1/2, on every random
+run, worst case over the input.
+
+It is a randomized algorithm: it flips coins, and with probability at
+least 2/3 it answers correctly, for EVERY input. The running-time bound
+holds on EVERY run, even unlucky ones.
+
+The proof has two engines that must be understood separately, then bolted
+together:
+
+  ENGINE A ("isolate"): add tiny random noise to make some target have
+  exactly ONE solution, so that a "fingerprint" of size 1 can detect it.
+
+  ENGINE B ("checksum minus aliases"): estimate a fingerprint of all
+  solutions modulo a prime P, then subtract exactly the false positives
+  (the "aliases") created by taking things mod P.
+
+Everything else is bookkeeping (finite-precision arithmetic, bounded
+coin-flipping) and a numerical certificate that two specific circle
+integrals are small enough.
+
+Notation used throughout: [n] = {1,...,n}; for weights v_i and a subset I,
+write v(I) = sum_{i in I} v_i; the empty sum is 0. log means base 2
+unless it is ln (natural). "poly" means some fixed polynomial.
+
+
+================================================================
+1. THE PROBLEM AND THE MAIN THEOREM
+================================================================
+
+A Subset Sum instance, n >= 2, is positive integers a_1,...,a_n and a
+nonnegative integer t. The question: is there I subset of [n] with
+sum_{i in I} a_i = t? Equal inputs and the empty subset are allowed.
+
+We measure the exponent in n, the NUMBER of integers, not their bit size.
+
+Let b = max(1, ceil(log2(1 + max{t, a_1,...,a_n}))) be the bit length of
+the input. The machine is a word RAM with word length
+   w = ceil(4 (n + b + log2(n+2))).
+One word operation = read/write/add/subtract/multiply/divide/compare/
+bit-op/shift on w-bit words, or reading one fresh uniform random w-bit
+word. Bigger arithmetic is simulated word by word and charged. Randomness
+is one-way: a random word may be reused only if it was saved. No advice,
+no precomputed tables depending on n. All work counts.
+
+THEOREM 1 (main). There is one uniform randomized classical algorithm
+for Subset Sum with these properties in the word-RAM above.
+(a) For every input with n >= 2 it halts on every run and answers
+    correctly with probability at least 2/3.
+(b) For every fixed integer c > 0 there are constants C_c > 0 and
+    N_c >= 2 such that every input with n >= N_c and b <= n^c is
+    processed, on EVERY run, in at most C_c * 2^(0.49n) word operations.
+The program is not told c and does not depend on c.
+
+The intermediate bound we actually prove is 2^(0.489995n) * poly(n+b+2).
+The positive slack 0.49 - 0.489995 = 0.000005 absorbs any fixed poly,
+separately for each fixed c. That is exactly quantifier (b).
+
+
+================================================================
+2. THE PLAN IN FIVE STEPS
+================================================================
+  Step 1 (Section 3): ISOLATION. Randomly reweight so that, if a
+    solution exists, with high probability SOME target has exactly one
+    solution. Reduces "detect existence" to "detect an isolated bin".
+
+  Step 2 (Section 4): If a random half of the coordinates has few
+    distinct subset sums ("low deficiency"), a capped meet-in-the-middle
+    decides the instance outright. So we may assume we are in the
+    opposite regime, which is what alias extraction will need.
+
+  Step 3 (Sections 6,7): ESTIMATE A MODULAR FINGERPRINT. For a prime P
+    and random phases, estimate to small ABSOLUTE error the sum of the
+    phases of all subsets whose weight is congruent to a target mod P.
+
+  Step 4 (Section 8): LIST AND SUBTRACT ALIASES. Exactly list the false
+    positives (congruent but not equal over the integers) and subtract
+    their phases. What remains is the phase-sum of the true bin.
+
+  Step 5 (Section 9): ASSEMBLE. An exact empty bin gives 0; an isolated
+    bin gives one phase of modulus 1. Threshold at 1/2. Then finite
+    arithmetic, bounded sampling, and the running-time bookkeeping make
+    Theorem 1 literal.
+
+Appendix A certifies the two circle integrals that Section 7 leans on.
+
+
+================================================================
+3. STEP 1: ISOLATION
+================================================================
+
+Choose a power of two N_0 with 12n <= N_0 < 24n. Draw independent uniform
+tie weights u_i in {1,...,N_0}. Set
+   C = 1 + n*N_0,   c_i = C*a_i + u_i,   t_s = C*t + s  (0 <= s <= n*N_0).
+These are the transformed inputs. They have O(b + log n) bits, and there
+are n*N_0 + 1 = O(n^2) targets.
+
+LEMMA 2 (Isolation). For EVERY choice of tie weights: there is a subset I
+with a(I) = t if and only if there are s and I with c(I) = t_s. If the
+original instance has a solution, then with probability at least 11/12 at
+least one transformed target t_s has EXACTLY ONE representing subset.
+
+Proof. First, c(I) = t_s gives C(a(I) - t) = s - u(I). The left side is a
+multiple of C; the right side has absolute value at most n*N_0 < C. So
+both are 0: a(I) = t and u(I) = s. Conversely each solution represents
+the target indexed by s = u(I). That is the "if and only if".
+
+Now suppose a solution exists. Let F = {I : a(I) = t} be nonempty. Fix
+index i and all tie weights EXCEPT u_i. Among sets in F containing i, the
+minimum tie weight is A_i + u_i for a constant A_i; among sets NOT
+containing i it is a constant B_i (a missing family counts as +infinity).
+These two minima can coincide for at most one value of u_i in {1,...,N_0},
+so the chance they coincide is at most 1/N_0.
+
+If the minimum-weight set in F is not unique, two such sets differ at
+some index i, forcing the two minima above to coincide there. A union
+bound over i = 1,...,n bounds the chance the minimum is non-unique by
+n/N_0 <= n/(12n) = 1/12. So with probability >= 11/12 the minimum is
+unique; call its tie weight s. Then by the first part, the exact bin for
+t_s contains exactly that one subset. END OF PROOF.
+
+Consequence (the reason we isolate): on a NEGATIVE instance every exact
+transformed bin is empty. On a POSITIVE instance, with probability >=
+11/12, some exact bin holds exactly ONE subset. A "phase fingerprint"
+that equals 0 on an empty bin and a single unit-modulus complex number on
+a one-element bin therefore detects existence, as long as we can measure
+it to absolute error < 1/2. No "anti-concentration of a large sum of
+phases" is needed, because isolation keeps the bin tiny.
+
+
+================================================================
+4. STEP 2: DEFICIENCY AND THE PRELIMINARY MEET IN THE MIDDLE
+================================================================
+
+Fix the transformed weights c_i. For a subset V of [n] define the support
+and the DEFICIENCY
+   Sigma(V) = { c(I) : I subset of V },      d(V) = |V| - log2|Sigma(V)|.
+So |Sigma(V)| = 2^(|V| - d(V)); large deficiency means many subsets share
+a sum (so few distinct sums).
+
+LEMMA 3 (Deficiency properties). For any fixed integer weights:
+  d(empty)=0 and d(V) >= 0.
+  For i not in V:  0 <= d(V u {i}) - d(V) <= 1.
+  For disjoint U,V: d(U u V) >= d(U) + d(V).   (superadditive)
+  If V, V' have equal size and differ by swapping one index,
+  then |d(V) - d(V')| <= 1.
+
+Proof. There are at most 2^|V| subset sums and the empty sum is one, so
+0 <= d(V) <= |V|. Adding i gives Sigma(V) u (c_i + Sigma(V)), with size
+between |Sigma(V)| and 2|Sigma(V)| -- the increment bound. For disjoint
+U,V, Sigma(U u V) = Sigma(U) + Sigma(V) has size at most
+|Sigma(U)| |Sigma(V)| -- superadditivity. For the swap V = U u {i},
+V' = U u {j}, both deficiencies lie in [d(U), d(U)+1]. END.
+
+LEMMA 4 (Random restrictions). Let V_q be a uniformly random q-element
+subset of [n]. Then Var d(V_q) <= q, and E d(V_q) is nondecreasing in q.
+
+Proof. Expose an ordered sample X_1,...,X_q without replacement and let
+M_r = E[ d({X_1,...,X_q}) | X_1,...,X_r ]. Fix a prefix of length r-1 and
+two possible choices i, j for X_r. Couple the remaining samples by
+swapping i and j. The two final sets either coincide, or differ by the
+swap i<->j; by Lemma 3 their deficiencies differ by at most 1. So all
+possible conditional values of M_r lie in an interval of length <= 1;
+since M_{r-1} is their mean, |M_r - M_{r-1}| <= 1. Martingale differences
+are orthogonal, so Var d(V_q) = sum_r E(M_r - M_{r-1})^2 <= q. Monotonicity
+in q comes from nesting first q vs first q+1 entries of one permutation
+and Lemma 3. END.
+
+PROPOSITION 5 (Capped preliminary search). Given the transformed weights
+and targets, a randomized procedure either returns the correct decision
+for the original instance or returns CONTINUE. On every run it uses at
+most 2^(0.489985n) * poly(n+b+2) operations. If V is a uniform
+floor(n/2)-element set and E d(V) > 0.01004n, the probability of CONTINUE
+is O(1/n), uniformly in the fixed weights.
+
+Proof. Sample a uniform floor(n/2)-element set V (returning CONTINUE if
+the capped sampler fails). Build the two SORTED lists of DISTINCT subset
+sums on V and on [n]\V, one side at a time. Start from {0}; insert index
+i by merging the current list with its translate by c_i and dropping
+duplicates. Cap every list at B_n = 2^(ceil(0.489985n)). If a merge
+exceeds B_n distinct entries, stop and return CONTINUE. Otherwise, for
+every s, scan the two final lists for a pair summing to t_s (a linear
+scan each). Return YES iff such a pair exists. Lemma 2 gives correctness
+whenever the search finishes. Each merge is O(B_n) list steps before it
+completes or aborts, and there are only poly many merges and target scans;
+the bit lengths give the time bound. (Intermediate supports never exceed
+the final one, so a side completes iff its final support fits.)
+
+Sampling V: pick elements one at a time without replacement; with k left,
+use ceil(log k) fresh bits to propose an index, rejecting values >= k;
+allow n^2 proposals per choice, else CONTINUE. Conditional on success V is
+uniform because each choice's success chance depends only on k.
+
+Now suppose E d(V) > 0.01004n. By Lemma 4 both sides have expected
+deficiency > 0.01004n and variance <= n. Chebyshev gives, for either side
+U, Pr[d(U) < 0.010025n] <= n / (0.000015n)^2 = O(1/n). When neither side
+is exceptional, log|Sigma(U)| = |U| - d(U) <= 0.489975n + 1/2 <= 0.489985n
+for large n, so both lists fit under the cap and the search decides. A
+union bound including the sampler failure n*2^(-n^2) finishes. END.
+
+So for each fixed tie choice, EITHER the preliminary search decides with
+probability 1 - O(1/n), OR the expectation condition
+   E_{|V| = floor(n/2)} d(V) <= 0.01004n                       (*)
+holds. The alias engine will use (*). A CONTINUE outcome is NOT a
+certificate that (*) holds; it is just the opposite regime.
+
+
+================================================================
+5. THE PRIME COLLISION LEMMA
+================================================================
+This is the only number theory we need: a random prime rarely divides a
+fixed nonzero integer.
+
+LEMMA 6 (Random-prime collisions). There are absolute constants K, L_*
+such that: for L >= L_*, let p be uniform among primes in [2^L, 2^(L+1)).
+If D is a nonzero integer with |D| < 2^B, B >= 1, then
+   Pr[ D = 0 (mod p) ] <= K * B * L * 2^(-L).
+The same bound applies to two fixed unequal integers whose difference has
+absolute value < 2^B (apply it to the difference).
+
+Proof. The prime number theorem (with the explicit form of Rosser and
+Schoenfeld) gives at least c_0 * 2^L / L primes in the interval for an
+absolute c_0 > 0. The nonzero integer D has fewer than B distinct prime
+divisors (their product is at most |D| and each is >= 2). Dividing that
+count by the number of primes available gives the bound. END.
+
+
+================================================================
+6. THE ORGANIZING IDENTITY
+================================================================
+Write e_P(x) = exp(2 pi i x / P). Choose a prime P with about eta*n bits
+(eta = 0.51772; precise range below). Let b_i = c_i mod P. Fix random
+uniform PHASES phi_1,...,phi_n in Z/PZ and give each subset I the phase
+   chi(I) = e_P( sum_{i in I} phi_i ).
+For a target t_s define the total modular fingerprint and the alias set
+   V_s = sum_{sum_{i in I} c_i = t_s (mod P)} chi(I),
+   A_s(P) = { I : sum c_i = t_s (mod P)  but  sum c_i != t_s }.
+Then, trivially,
+   (phase-sum over the EXACT bin of t_s) = V_s - sum_{I in A_s(P)} chi(I).
+Call the left side B_s. Two facts:
+  * On a NEGATIVE instance every exact bin is empty, so every B_s = 0.
+  * On an ISOLATED positive bin (one subset), |B_s| = 1, for EVERY phase
+    choice.
+So if we can compute V_s up to absolute error < 1/8 and subtract the exact
+alias phases up to absolute error < 1/8, we know every B_s to within 1/4.
+Then: answer YES iff some |B_s| >= 1/2. An empty bin stays < 1/4 (answer
+NO), and an isolated bin is >= 3/4 (answer YES). That is the whole idea.
+
+Two jobs remain, and they are independent:
+  (a) estimate V_s to absolute error < 1/8, fast, with no assumption on
+      the input residues -- Section 7;
+  (b) list A_s(P) exactly, fast -- Section 8.
+
+
+================================================================
+7. THE FILTERING ENGINE  (fixed circle construction)
+================================================================
+We need scores for a two-sided test on pairs of "digit" vectors, tuned so
+that a certain M^2-weighted moment is small. Everything here is fixed in
+advance, independent of the input.
+
+Work on the circle T = R/(2 pi Z) with normalized measure (factor 1/(2pi)).
+Take one pair of coordinates y, z in T with difference x = y - z. A common
+uniform shift theta makes w = z - theta uniform and y - theta = x + w.
+Start from strictly positive continuous densities f, g on T. For fixed x,
+   Q(x) = int_T f(x+w) g(w) dw,     K_x(w) = f(x+w) g(w) / Q(x),
+so K_x is a probability density. Replace the uniform law of w by K_x
+(weight each shift by the product of the two density values). Use powers
+   kappa = 1.0315,   f_* = f^kappa / int f^kappa,   g_* = g^kappa / int g^kappa.
+Record three expected base-2 log quantities under K_x:
+   D(x) = int K_x log K_x            (cost of the change of law),
+   A(x) = int K_x log f_*(x+w)       (expected high-side score),
+   E(x) = int K_x log g_*(w)         (expected low-side score),
+   u(x) = A + E - D,   v(x) = 2D - A - E.
+Each of D, D-A, D-E is a relative entropy of K_x against a probability
+density, hence >= 0 (by concavity of ln: int p ln(q/p) <= ln int q = 0).
+
+Parameters:  eta = 0.51772,  tau = 0.48996,  Delta = eta - tau = 0.02776,
+Gamma = 2 tau - eta = 0.46220,  a = Delta/Gamma,  epsilon = 1e-8.
+Polynomials (the specific numbers are a certificate, see Appendix A):
+   r(x) = sum_{j=1}^{6} r_j cos(jx),  r = (.851,.466,.325,.253,.224,-.314)
+   s(x) = sum_{j=1}^{6} s_j cos(jx),  s = (1.281,-.938,.731,-.559,.391,.110)
+Set F = 2^r, G = 2^s, f = F/Z_f, g = G/Z_g with Z_f = int F, Z_g = int G,
+and M(x) = |1 + e^(ix)|.
+
+PROPOSITION 7 (filtering moments). The functions above satisfy
+   int_T M(x)^2 2^(8.5 (Delta - u(x))) dx  < 2^0.5168,
+   int_T M(x)^2 2^(8.3 (a v(x) - u(x))) dx < 2^0.5168.
+Proof: Appendix A, by a 64-point quadrature with explicit rational
+enclosures plus analytic (trapezoid / contour-shift) error bounds. END.
+
+The algorithm lives on a FINITE circle Z/PZ, replacing every integral by
+the average (1/P) sum over j = 0,...,P-1 (angles 2 pi j / P).
+
+LEMMA 8 (finite filtering data). There is an absolute P_0 such that for
+every P >= P_0 the finite functions satisfy D, D-A, D-E >= 0 and
+   (1/P) sum_x M(x)^2 2^(8.5 (Delta - u(x)))  < 2^0.5169,
+   (1/P) sum_x M(x)^2 2^(8.3 (a v(x) - u(x))) < 2^0.5169.
+There is an absolute bound on |D|,|A|,|E|,|u|,|v|,|log f_*|,|log g_*|,
+|log K_x|. For every fixed rational rho > 0, each of these is approximable
+to absolute error <= rho by ONE fixed deterministic rational procedure in
+time poly(log P) given the residues and P (without scanning P points).
+
+Proof. Nonnegativity is the same relative-entropy argument. For bounds,
+|r| <= 2.433 and |s| <= 4.010, so F, G, all normalizers, Q, K_x are
+bounded above and away from zero by absolute constants; hence logs and
+the defining averages are uniformly bounded. If H(x,w) is C^1 and
+periodic, replacing its w-integral by a P-point average errs by at most
+2 pi ||dH/dw||_inf / P, uniformly in x. Apply this to the normalizers and
+numerators of Q, K_x, D, A, E: the finite D,A,E,u,v converge UNIFORMLY
+(grid points) to the continuous ones, and one more such estimate on the
+outer integrands gives the 0.5169 bounds from the 0.5168 ones (strict
+slack). The effective version: pick a constant mesh and precision from
+rho and the displayed coefficients; evaluate mesh sums and elementary
+functions by rational Taylor series (arguments bounded, log arguments in a
+fixed compact subinterval of (0,inf), where ln y = 2 sum d^(2i+1)/(2i+1),
+d = (y-1)/(y+1), converges geometrically). Also approximate the angle
+2 pi j / P with fixed fractional bits in poly(log P) time. The mesh,
+precision, threshold depend only on rho, not P or the instance; so one
+deterministic procedure serves each rho, and repeated calls agree. END.
+
+
+================================================================
+8. STEP 3: ESTIMATING THE MODULAR FINGERPRINT
+================================================================
+Fix the input residues b_1,...,b_n in Z/PZ and random phases phi_i. For a
+target residue rho,
+   V_rho = sum_{sum c_i = rho (mod P)} e_P( sum_{i in I} phi_i ).
+We estimate V_rho to absolute error < 1/8 for all target residues in a
+list T of size at most n^d, using about 2^((tau+20 eps)n) * poly work.
+
+Character orthogonality gives the exact Fourier identity
+   V_rho = (1/P) sum_{k=0}^{P-1} J_rho(k),
+   J_rho(k) = e_P(-k rho) prod_{i=1}^n (1 + e_P(x_i(k))),
+   x_i(k) = phi_i + k b_i (mod P).
+Expanding the product leaves one term per subset. In particular the
+AMPLITUDE factors:
+   |J_rho(k)|^2 = prod_{i=1}^n M(x_i(k))^2.
+A naive uniform sample of k gives E_phi |J|^2 = 2^n, far too big. We must
+filter cleverly.
+
+Digit split. Fix a base B_pi = 2^(ceil((eta - H_pi) n)) and write each
+frequency k = h*B_pi + l uniquely with digit ranges
+   0 <= h < ceil(P / B_pi),   0 <= l < B_pi.
+Then, with y_i(h) = phi_i + h B_pi b_i  and  z_i(l) = -l b_i (mod P),
+we have y_i(h) - z_i(l) = x_i(k). So a frequency is a DIFFERENCE of a
+high-digit vector y(h) and a low-digit vector z(l). The high range has
+2^(H_pi n) values, the low 2^((eta - H_pi) n) values; together they cover
+all 2^(eta n) pairs (h,l). We build two short lists of "entries" and match
+them, instead of scanning P frequencies.
+
+Patterns and block tables. Partition [n] into q = Theta(sqrt n) blocks
+B_j of size d_j = Theta(sqrt n). For a frequency, its PATTERN pi records,
+per block, rational approximations D_j, A_j, E_j to the block averages of
+D, A, E at the coordinates x_i(k), each to error <= eps, rounded so that
+D_j >= 0, A_j <= D_j, E_j <= D_j (possible because of the true entropy
+inequalities). The set of all such grid triples has size
+Q_n = |patterns| = 2^(O(sqrt n)). We enumerate PATTERNS, not frequencies.
+
+Put D_pi = (1/n) sum_j d_j D_j, and likewise A_pi, E_pi, and
+U_pi = A_pi + E_pi - D_pi, W_pi = 2 D_pi - A_pi - E_pi. The digit range
+contributes H_pi; tables and score thresholds contribute alpha(D_pi - A_pi)
+on the high side and alpha(D_pi - E_pi) on the low side. Their sum is
+eta + alpha W_pi. To keep BOTH exponents <= tau, take the largest
+alpha in (0,1] with alpha W_pi <= Gamma = 2 tau - eta, and set the
+high-side exponent equal to tau:
+   alpha_pi = 1 if W_pi <= Gamma, else Gamma / W_pi,
+   H_pi = tau - alpha_pi (D_pi - A_pi),
+   (so Delta <= H_pi <= tau and eta - H_pi + alpha (D_pi - E_pi) <= tau).
+
+Random block tables. For each block B_j generate
+   R_j = 2^(ceil((alpha D_j + 4 eps) d_j))
+independent tables. In a table, at each coordinate independently put label
+* with probability 1 - alpha, else a uniform theta in Z/PZ with probability
+alpha. A non-* label theta assigns high score log f_*(y_i(h) - theta) and
+low score log g_*(z_i(l) - theta); a * label scores 0. A vector PASSES a
+block table if its average approximate score is >= alpha A_j - 3 eps (high
+side) or >= alpha E_j - 3 eps (low side). A WHOLE TABLE = one table index
+per block; a vector passes it if it passes every block table. A table
+ENTRY = a digit index plus a whole table it passes. A MATCH = a high entry
+and a low entry with the SAME whole table. Let L_pi be the match count.
+
+LEMMA 9 (coverage and sizes). For the construction above:
+ (i)  Conditional on any phases, the probability that some k < P has no
+      match in its own pattern is o(1), uniformly in phases and residues.
+ (ii) In a fixed pattern, the expected number of entries on either side
+      is <= 2^((tau + 8 eps) n + O(sqrt n)), and
+      E L_pi <= 2^((eta - alpha U_pi + 12 eps) n + O(sqrt n)).
+ (iii) With probability 1 - o(1), ALL frequencies are covered in their own
+      patterns AND in every pattern both entry counts <= 2^((tau+14eps)n)
+      and L_pi <= 2^((eta - alpha U_pi + 18 eps) n).
+
+Proof of (i). Fix phases, k, its pattern, one block. Temporarily change the
+label law: keep P(*), but on non-* labels give w = z_i - theta the density
+K_{x_i(k)} relative to the finite-circle uniform law. Under this law the
+expected high score, low score, and log-likelihood-ratio to the original
+law are exactly alpha A(x_i(k)), alpha E(x_i(k)), alpha D(x_i(k))
+(a non-* label has likelihood ratio K_x, and y_i - theta = x + w).
+Coordinates stay independent and bounded; Chebyshev plus a union bound
+shows all three block averages are within eps of their means with
+probability >= 1/2 for large blocks. Then the approximate score averages
+are >= alpha A_j - 3 eps and >= alpha E_j - 3 eps (each of mean, deviation,
+approximation costs <= eps), and the block's likelihood ratio is at most
+2^((alpha D_j + 2 eps) d_j). Changing back to the true law:
+   Pr[one block table accepts both digits] >= (1/2) 2^(-(alpha D_j + 2 eps) d_j).
+With R_j tables, the chance none accepts both is <= exp(-2^(2 eps d_j - 1)),
+and a union over q = Theta(sqrt n) blocks and P frequencies is o(1) because
+d_j = Theta(sqrt n). If every block has an accepting table, their tuple is
+a match. That is (i).
+
+Proof of (ii). Number of whole tables <= prod_j R_j <= 2^((alpha D_pi + 4 eps) n + q).
+Fix a vector and a whole-table index tuple; let S be its exact total score.
+Normalization of f_* or g_* plus independence of labels gives E 2^S = 1
+(including the * option). Passing needs S >= (alpha A_pi - 4 eps) n (high)
+or S >= (alpha E_pi - 4 eps) n (low). Markov plus digit counts plus the
+whole-table bound gives expected entries:
+   2^((H_pi + alpha(D_pi - A_pi) + 8 eps) n + O(sqrt n)) = 2^((tau + 8 eps) n + O(sqrt n)),
+   2^((eta - H_pi + alpha(D_pi - E_pi) + 8 eps) n + O(sqrt n)) <= 2^((tau + 8 eps) n + O(sqrt n)).
+No independence between distinct whole tables is used.
+
+For a fixed digit pair and table-index tuple, let S_h, S_l be the two total
+scores. Then E_{phi, tables} 2^(S_h + S_l) = 1: condition on labels; each
+non-* coordinate's independent uniform phase makes y_i - theta uniform, so
+averaging its f_* factor gives 1, and averaging the g_* factors over table
+shifts also gives 1. A match needs S_h + S_l >= (alpha(A_pi + E_pi) - 8 eps) n.
+Markov, the 2^(eta n) digit pairs, and the whole-table bound prove
+(ii). It is essential that ALL digit pairs are counted before checking
+their patterns; the phases in this joint moment keep their original
+independent uniform law.
+
+Proof of (iii). Each bound has a slack factor 2^(6 eps n - O(sqrt n)) over
+its expectation; Markov plus a union over Q_n = 2^(O(sqrt n)) patterns
+makes the size bounds simultaneous with probability 1 - o(1). Combine
+with (i). END.
+
+Constructing and sampling matches WITHOUT scanning all tables. Build the
+lists block by block: for each digit vector, test it against the R_j
+tables of each block, record its passing index sets, and emit the
+Cartesian product (with the digit index attached). Since sum_j R_j =
+2^(O(sqrt n)) poly(n), work per digit is 2^(O(sqrt n)) poly(n) plus
+emitted entries. Sort both entry lists by table-index tuple. If the high
+and low group lengths for a tuple nu are a_nu, b_nu, then
+   L_pi = sum_nu a_nu b_nu.
+Prefix sums of these products let us pick a uniformly random match in
+poly time: choose a uniform integer below L_pi, binary-search the group,
+then quotient/remainder to pick one entry each side. The multiplicity of a
+represented frequency k = h B_pi + l is
+   mu_pi(k) = prod_j |{ r in [R_j] : block table r accepts both y(h), z(l) }|,
+computed directly by retesting stored tables in 2^(O(sqrt n)) poly(n)
+time. The SAME deterministic score approximations are used in list
+building and in multiplicity; so mu is exact, and any sampled/enumerated
+match has mu > 0 even if coverage fails. Abort if either entry list
+exceeds C_n = 2^(ceil((tau + 20 eps) n)); then L_pi <= C_n^2 always, so
+match counts and prefix sums have O(n) bits (no giant enumerations).
+
+Direct summation vs importance sampling. Let G be the good event of
+Lemma 9(iii). For a pattern, its exact contribution is
+   v_{pi,rho} = (1/P) sum_{k < P, pattern(k) = pi} J_rho(k).
+If alpha U_pi >= Delta: ENUMERATE every match; keep a match only if k < P
+and its pattern is pi, contributing J_rho(k) / (P mu_pi(k)); on G every
+frequency of the pattern appears and its mu_pi(k) contributions sum to
+J_rho(k)/P, and L_pi <= 2^((tau + 18 eps) n); cap the enumeration at C_n.
+If alpha U_pi < Delta: draw N = 2^(ceil(tau n)) independent uniform matches
+with replacement (0 if L_pi = 0), and average
+   X_{pi,rho} = (L_pi / (P mu_pi(k))) J_rho(k)  if k < P and pattern(k)=pi, else 0.
+This inverse-multiplicity weighting is the standard "count each object once
+across overlapping representations" device. Conditional on phases and
+tables in G, a frequency of the pattern is sampled with probability
+mu_pi(k)/L_pi, so the mean is unbiased for v_{pi,rho} and the mean squared
+error is at most
+   (1/N) (L_pi / P^2) sum_{k<P, pattern(k)=pi} |J_rho(k)|^2.
+
+Bounding the error. The phases are now CONDITIONED in that display, so we
+must NOT treat them as independent under G. Instead bound the formula times
+1_G POINTWISE, then take expectation under the ORIGINAL phase law. For a
+frequency of pattern pi with coordinate averages u_bar, v_bar (of u,v at
+x_i(k)): the pattern errors give |U_pi - u_bar| <= 3 eps, |W_pi - v_bar| <=
+4 eps. Sampling branch has two cases:
+   W_pi <= Gamma: alpha = 1 and U_pi < Delta, so
+      -alpha U_pi <= -Delta + 8.5 (Delta - u_bar) + 30 eps.
+   W_pi > Gamma:  alpha a W_pi = Delta and a W_pi - U_pi > 0, so with
+      alpha <= 1 < 8.3,
+      -alpha U_pi = -Delta + alpha (a W_pi - U_pi)
+                  <= -Delta + 8.3 (a v_bar - u_bar) + 30 eps.
+Set R_1(x) = 8.5 (Delta - u(x)), R_2(x) = 8.3 (a v(x) - u(x)); let r be
+the case. Combining the match bound, the amplitude, and the case bound:
+   1_G 1_{pattern(k)=pi} L_pi |J_rho(k)|^2
+      <= 2^((eta - Delta + 48 eps) n) prod_i ( M(x_i(k))^2 2^(R_r(x_i(k))) ).
+The right side no longer restricts the pattern or G. At each fixed k the
+x_i(k) are independent uniform residues (whatever the b_i), so Lemma 8
+bounds the expected product by 2^(0.5169 n). Taking conditional expectation
+over the samples first, then this bound, the mean squared error of a
+pattern's ideal estimate obeys
+   E[ 1_G |E_{pi,rho}|^2 ] <= 2^((eta - Delta + 48 eps + 0.5169) n) / (N P)
+      = 2^((-tau - Delta + 0.5169 + 48 eps) n + O(1)] <= 2^(-0.0007 n)
+(exponent before O(1) is -0.00081952). Direct-summed patterns have zero
+error on G. Cauchy-Schwarz over the Q_n patterns:
+   E[ 1_G |sum_pi E_{pi,rho}|^2 ] <= Q_n^2 2^(-0.0007 n).
+Markov plus a union over T shows: with probability 1 - o(1), G holds and
+every total ideal estimate has absolute error <= 1/16. The subexponential
+number of patterns and polynomial number of targets are absorbed by the
+negative linear exponent. No independence between pattern or target errors
+is used.
+
+Resource and precision bounds. Each grid value has a fixed rational
+denominator, so weighted averages and alpha have O(log n)-bit numerators
+and denominators even for unattained patterns; ceilings in digit and table
+counts are exact rational arithmetic. Digit processing per pattern is
+2^(tau n + O(sqrt n)) poly(n) before emitted entries; sorting, prefix sums,
+random indexing are poly per entry/sample; each valid contribution needs at
+most 2^(O(sqrt n)) poly(n) for its multiplicity, times a poly factor for the
+target list. Tuple keys, match counts, multiplicities have O(n) bits (use
+L_pi <= C_n^2 for match counts). Multiplying by Q_n patterns gives the time
+bound. The coarse fixed approximations in pattern/acceptance tests define
+the lists themselves and need no refinement; the complex contributions need
+greater accuracy, done in Section 9 (finite arithmetic). Retained phases and
+block labels are ordinary writable data; no access to unstored randomness.
+
+THEOREM 10 (modular checksum estimator). Fix d > 0. There is a uniform
+randomized procedure: inputs are P with |log P - eta n| <= 2, arbitrary
+residues b_1,...,b_n mod P, and at most n^d target residues. It draws and
+retains phases phi_1,...,phi_n and either reports failure or returns
+estimates Vhat_rho with, with probability 1 - o(1) (uniform in P, residues,
+targets),
+   |Vhat_rho - V_rho| <= 1/8   for every rho in the list.
+On EVERY run it uses at most 2^((tau + 20 eps) n + O(sqrt n)) poly(n + |T|)
+word operations. No primality of P is needed.
+Proof: Sections above, with caps imposed on all histories; the ideal 1/16
+error, arithmetic 1/16 error (Section 9), and vanishing cap/sampling failure
+give the statement. END.
+
+
+================================================================
+9. STEP 4: EXTRACTING THE ALIASES
+================================================================
+The modular fingerprint V_s includes subsets whose integer sum is not t_s.
+We list exactly those. Assume throughout the input-length guard
+   b <= 2^(0.00001 n).                                              (**)
+(The final algorithm uses exact meet-in-the-middle when (**) fails.)
+
+Pick a prime P uniformly in [2^(floor(eta n)), 2^(1 + floor(eta n))) with
+eta = 0.51772; put b_i = c_i mod P. Aliases:
+   A_s(P) = { I : sum c_i = t_s (mod P)  and  sum c_i != t_s }.
+Each alias I of t_s has a carry q in {0,...,n} with sum_{i in I} b_i = T_{s,q}
+where T_{s,q} = (t_s mod P) + q*P.
+
+Representations. Set
+   m = 2 * floor(0.0567 n / 2)   (even),    gamma = 0.48925.
+Work with sufficiently large n so m > 0 and 17 m / 2 <= floor(n/2). Let
+h(x) = -x log x - (1-x) log(1-x) (binary entropy). Numerics used below:
+h(0.0567) + 0.0567 < 0.40 and h(1/4) < 0.81128 (certified by the log
+series, Appendix A).
+
+For each s and each q = 0,...,n do n^10 independent trials (conditional on
+P and the input). One trial picks a uniform m-element set M (the shared
+BLOCK) and an independent uniform subset F (the FLIP). Flipping is a
+BIJECTION, not a relaxation: with signed weights and translated targets
+   b_i^F = (-1)^(1_{i in F}) b_i,   c_i^F = (-1)^(1_{i in F}) c_i,
+   T^F = T_{s,q} - sum_{i in F} b_i,   t_s^F = t_s - sum_{i in F} c_i,
+for every I, sum over J = I xor F of b^F equals sum over I of b minus
+sum over F of b, and likewise for c. For a fixed I, J xor-flips to select
+exactly half of the block with inverse-polynomial probability (independent
+of |I|).
+
+For each k = 0,...,m/2, split the positions OUTSIDE M into ordinary left
+and right sets L, R of sizes l, r (l + r = n - m), choosing l (by exact
+integer comparisons) so that
+   N_L = 2^l C(m,k)   and   N_R = 2^r C(m, m/2 - k)
+are within a factor 2 (rounding l = (n - m + log C(m,m/2-k) - log C(m,k)) / 2).
+A LEFT record is (A, X): A subset of L, X subset of M with |X| = k. A
+RIGHT record is (B, Y): B subset of R, Y subset of M with |Y| = m/2 - k.
+Each record stores its signed REDUCED weight (via b^F) and signed UNREDUCED
+weight (via c^F). X and Y need not be disjoint yet; when they are, A u B u X u Y
+is a subset with exactly m/2 selected positions in M.
+
+For this k draw an independent small prime P' uniformly in
+[2^(floor(gamma m)), 2^(1 + floor(gamma m))) and a uniform residue j' mod P'.
+Keep left records whose reduced weight = j' (mod P') and right records whose
+reduced weight = T^F - j' (mod P'). Only these FILTERED records are kept.
+
+Generating a filtered list: split its ordinary coordinate set as evenly as
+possible, enumerate subsets of each part (with permitted masks in M) and
+sort the two lists by weight mod P'; binary searches emit matching pairs.
+Setup work per side <= poly(n+b+2) * 2^(m + ceil(max(l,r)/2)) <=
+poly(n+b+2) * 2^(0.3067 n + O(1)) (since max(l,r) <= n/2 + O(1)).
+
+THE EXACT-INTEGER EXCLUSION (the key trick). From the filtered lists,
+enumerate ONLY pairs whose signed REDUCED weights add to T^F as INTEGERS
+and whose signed UNREDUCED weights do NOT add to t_s^F as integers. Both
+sums count mask positions WITH multiplicity (a position in both masks twice).
+We need not generate the excluded pairs: group right records by reduced
+weight, within a group sort by unreduced weight; for a left record, binary-
+search the group with the required reduced weight, where the forbidden
+unreduced equality is ONE contiguous interval located by two binary
+searches; visit only records outside it. For each visited pair, test
+X ∩ Y = empty; if so, undo the flip on A u B u X u Y, verify the alias
+definition directly, and save it for target s. Deduplicate per s. Every
+saved record is a genuine alias even if coverage later fails.
+
+Why the visited lists and pairs are small (uncapped analysis; holds
+WITHOUT the low-deficiency assumption, averaged over P). Conditional on all
+else, a fixed record survives the j' filter with probability 1/P'. Entropy
+of binomials plus concavity of h give
+   log E[one filtered list length]
+     <= (n - m)/2 + (m/2)(h(k/m) + h(1/2 - k/m)) - gamma m + O(1)
+     <= n/2 + (h(1/4) - 1/2 - gamma) m + O(1) < 0.48992 n
+(the bound coefficient is 0.489909101, using h(1/4) < 0.81128).
+
+Visited pairs: fix s, q, k, M, F, and two RAW records (all fixed while P is
+averaged; q is fixed). Let mu_i in {0,1,2} be their combined multiplicity at
+i, and set
+   D = sum_i (-1)^(1_{i in F}) mu_i c_i - t_s + sum_{i in F} c_i.
+This is a fixed integer INDEPENDENT of P (no reduced weights, no carry).
+The exact-integer exclusion requires D != 0; the reduced-weight equality
+forces P | D (since T_{s,q} = t_s mod P and b_i = c_i mod P). D has
+O(b + log n) bits even when masks overlap, so Lemma 6 gives
+   Pr_P[both integer tests hold] <= poly(n) (b + log n) 2^(-eta n).
+(For D = 0 the pair is always excluded; contribution zero.) Conditional on
+P, P', M, F, raw records, the two smaller-modulus filters can both hold for
+at most one j', so probability <= 1/P' <= 2^(1 - gamma m) regardless of the
+reduced equality. Summing over the N_L N_R raw pairs:
+   E[visited pair count] <= poly(n)(b + log n) 2^(n + (2 h(1/4) - 1 - gamma) m - eta n)
+      < 2^(0.48988 n)
+(coefficient 0.489848677 before poly, using (**)). This is WHY we exclude
+exact equalities BEFORE testing mask disjointness: overlapping exact-equal
+pairs could have D = 0 and evade the divisor bound; the sorted-interval
+exclusion skips their cost entirely.
+
+Cap each filtered list and each visited-pair count at C_alias = 2^(ceil(tau n)).
+Abort before any cap is exceeded. Poly many choices of (s,q,trial,k);
+Markov plus the bounds above make a cap overflow probability o(1), uniformly
+over guarded inputs; on every run (even failing) all list generation,
+searches, mask checks, storage, dedup cost <= 2^(tau n) poly(n+b+2).
+
+Why every alias is recovered. Assume the low-deficiency condition (*), and
+fix a prime P satisfying the sparse-distinction property below.
+LEMMA 11 (Sparse distinctions). With probability 1 - o(1) over P, for every
+v in {-1,0,1}^n with at most m nonzero coordinates: if sum v_i c_i != 0 then
+sum v_i c_i != 0 (mod P). Error uniform under (**).
+Proof. There are at most sum_{j=0}^m C(n,j) 2^j <= 2^((h(0.0567)+0.0567)n + O(log n))
+< 2^(0.40 n) such v; each nonzero sum has O(b + log n) bits; Lemma 6 bounds
+P dividing any by poly(n)(b + log n) 2^(-eta n); union bound plus (**) gives
+poly(n) 2^(-(eta - 0.40 - 0.00001) n) = o(1). END.
+
+Consequently, for any block of <= m positions and any sign assignment,
+distinct integer subset sums of signed c_i stay distinct mod P, hence also
+distinct INTEGER subset sums of the corresponding signed b_i (differences
+have coefficients in {-1,0,1} on the block). The event covers all blocks
+and sign patterns at once, including the random ones.
+
+Fix s, alias I in A_s(P), its carry q. A block with many distinct sums. In
+a trial J = I xor F is a uniform subset independent of M, so
+   Pr[|J ∩ M| = m/2] = 2^(-m) C(m, m/2) >= 1/(m+1).
+Conditional on that, S = J ∩ M is uniform among m/2-subsets. Partition a
+uniform floor(n/2)-set into 17 sets of size m/2 plus a remainder; each has
+S's law; superadditivity and nonnegativity of deficiency give
+   17 E d(S) <= E_{|V|=floor(n/2)} d(V) <= 0.01004 n.
+Markov yields, for large n,
+   Pr[d(S) <= 0.0106 m | |J ∩ M| = m/2] >= 1 - 0.01004 n / (17 * 0.0106 m) > 0.005.
+On this event the c_i on S have >= 2^((0.5 - 0.0106) m) = 2^(0.4894 m)
+distinct subset sums; sign-flipping translates the support, and the sparse-
+distinction property preserves the count for signed reduced integer weights.
+Grouping subsets by cardinality, some k has at least
+   B >= 2^(0.4894 m) / (m + 1)
+distinct signed reduced weights.
+
+A random smaller modulus hits a representation. Let w_1,...,w_B be those
+distinct signed reduced weights (each difference has O(n) bits; the choice
+of k and these weights depends only on P, M, F, I, not on P', j'). For a
+fixed P' let z_a = |{ j : w_j = a (mod P') }|. Lemma 6 on each nonzero
+difference gives
+   E_{P'} sum_a z_a^2 <= B + K_0 n^2 B^2 2^(-gamma m)
+for an absolute K_0. Since 0.4894 > gamma = 0.48925, B >= 2^(gamma m) for
+large n, so the first term is absorbed by the second. With probability >=
+1/2 over P', Markov gives sum_a z_a^2 <= 2 K_0 n^2 B^2 2^(-gamma m); then
+Cauchy-Schwarz bounds the number of occupied residues by
+( sum_a z_a )^2 / sum_a z_a^2 >= 2^(gamma m) / (2 K_0 n^2). As
+P' < 2^(1 + gamma m), a uniform j' hits an occupied residue with probability
+>= 1/(4 K_0 n^2). When it does: the corresponding left record survives, its
+complementary right record survives (integer reduced weights sum to T^F),
+their unreduced weights sum to (sum_I c_i - sum_F c_i) != t_s^F (I is an
+alias), so the pair is NOT excluded, is visited, passes disjointness, and
+saves I.
+
+Combining, one trial recovers I with probability >=
+   (0.005 / (m+1)) * (1/2) * (1/(4 K_0 n^2)) >= n^(-4)
+for large n (the useful layer may depend on the alias and trial; all layers
+are tried with independent P', j', so no layer choice is needed). Conditional
+on P and the input, the n^10 trials are independent, so missing I in all is
+<= (1 - n^(-4))^(n^10) <= e^(-n^6). There are at most (n N_0 + 1) 2^n
+target-subset pairs; a union bound shows all aliases are recovered with
+conditional probability 1 - o(1), for EVERY prime satisfying Lemma 11.
+Finally couple the capped procedure to this uncapped experiment with the
+same random choices until a cap is exceeded (probability o(1) by the
+UNCONDITIONAL size estimates, not conditioned on a favorable prime).
+Adding the sparse-distinction, coverage, and cap failure probabilities gives
+simultaneous coverage of all A_s(P), and the every-run operation bound
+2^(tau n) poly(n+b+2) holds by the caps.
+
+THEOREM 12 (alias extraction). For all large n, a single randomized
+procedure takes the transformed integers c_i = C a_i + u_i and targets t_s
+with (**), chooses P uniform over primes in [2^(floor(eta n)), 2^(1+floor(eta n))),
+and returns failure or P plus a deduplicated genuine-alias list per t_s.
+If (*) holds, then with probability 1 - o(1) it does not fail and every list
+equals A_s(P) simultaneously. On EVERY run it stores/visits at most
+2^(ceil(tau n)) poly(n) records and takes 2^(tau n) poly(n+b+2) bit
+operations (apart from the bounded finite uniform draws of Section 9.2).
+
+
+================================================================
+10. ASSEMBLY: THE ALGORITHM, CORRECTNESS, RUNNING TIME
+================================================================
+10.1 The decision rule. Fix a large constant cutoff n_*. If n < n_* or
+(**) fails, run exact meet-in-the-middle on the ORIGINAL instance. Else
+choose tie weights, form c_i, t_s; run the preliminary search (Prop 5),
+return its answer if it decides (CONTINUE just means "keep going"). Run
+alias extraction (Thm 12) to get P and lists A_s (all genuine, even on an
+unsuccessful run). Draw and retain the phases; run the checksum (Thm 10) to
+get Vhat for every target residue. For each s form the finite-precision
+   Bhat_s = Vhat_{t_s mod P} - sum_{I in A_s} e_P( sum_{i in I} phi_i )
+(phases evaluated from the RETAINED integer residues, not resampled;
+dedup by the binary subset, per s). Output YES iff |Bhat_s| >= 1/2 for some
+s, else NO. (Real and imaginary parts are dyadic rationals, so this is done
+exactly by comparing real^2 + imag^2 with 1/4.) Any declared failure of a
+capped main procedure or sampler outputs NO.
+
+The cancellation is exact before rounding: when extraction is complete,
+   V_{t_s mod P} - sum_{I in A_s} e_P(sum_{i in I} phi_i) = B_s
+   := sum_{sum_I c_i = t_s} e_P( sum_{i in I} phi_i ).
+An empty exact bin gives B_s = 0; an isolated bin gives |B_s| = 1. So
+isolation, not an anti-concentration estimate, is what makes this decide.
+
+10.2 Finite arithmetic and bounded sampling.
+Integer data. Inputs, transformed sums, targets, signed weights have
+O(b + log(n+2)) bits; masks n bits; residues/indices/tuples poly(n) bits;
+all handled by multiword arithmetic (shift-add multiply, binary long
+division) at poly bit cost per operation. A stored list is separated from
+its implicit Cartesian products: with entry caps, on EVERY run
+   L_pi <= E^hi_pi E^lo_pi <= 2^(2 ceil((tau+20 eps)n)),
+so match sets are counted/indexed with O(n)-bit integers; group counts,
+prefix sums, and blockwise multiplicities need only poly arithmetic per
+operation, with no array indexed by all matches or all P residues. List
+generators emit one record at a time and check caps before writing; the
+alias exclusion uses binary searches, not scanning the forbidden interval;
+merge sorts use a constant multiple of stored records.
+
+Uniform draws. A fair bit = low bit of a fresh random word. Draw uniform
+from {0,...,q-1} by ceil(log q) bits, rejecting values >= q (accept prob
+> 1/2); stop with failure after n^3 rejections (failure prob
+2^(-n^3) per call before that). Uniform subsets of size k = first k of a
+permutation built by repeated uniform choices. For a prime in [2^h,
+2^(h+1)): draw uniform integers there, test primality (trial division up to
+the integer square root), stop at the first prime within n^3 candidates;
+conditional on success it is uniform among the interval's primes (accept
+prob >= c_0/n), so failure prob <= exp(-c_0 n^2). Couple to ideal samplers
+using the same bits until a cap; there are at most 2^(O(n)) ordinary calls
+and poly many prime calls on any capped run, so the chance finite and ideal
+ever differ is
+   2^(O(n)) 2^(-n^3) + poly(n) exp(-c_0 n^2) = o(1)
+(also for adaptively chosen calls). One-way randomness is fine: retain
+phases and block labels; discard other words after use.
+
+Complex evaluations. The fixed-accuracy tests use the same deterministic
+rational approximations at every occurrence, so comparisons (including ties
+at a threshold) are reproducible. For the accurate checksum: reduce each
+phase exponent mod P; compute each unit complex number to absolute error
+2^(-2 n^2) with dyadic parts (rational, poly bit complexity). (pi via
+pi/4 = arctan(1/2) + arctan(1/3); sine/cosine by Taylor with remainder
+<= 7^(r+1)/(r+1) < 2^(-q) for r a constant multiple of q+1; a few extra
+bits absorb angle and rounding error.) Error accounting: with delta =
+2^(-2 n^2), the checksum term has n factors of modulus <= 2 plus a leading
+unit phase; approximating each to delta errs by at most
+(n+1) delta (2+delta)^n = 2^(-2 n^2 + O(n)). The rational weights
+(including L_pi/(P mu_pi(k))) have O(n)-bit numerator and denominator and
+magnitude <= 2^(O(n)) on any execution reaching them. Round each weighted
+contribution to n^2 fractional bits on a common dyadic grid before adding;
+total evaluation and rounding error <= 2^(-n^2 + O(n)) = o(1). Choose n_*
+so this is <= 1/16 (the arithmetic allowance inside Thm 10's 1/8). The same
+construction applies to the direct alias sums; total retained aliases is
+2^(O(n)) even on a failing run; increase n_* so each direct alias sum errs
+by <= 1/16. With Thm 10's 1/8, we get
+   max_s |Bhat_s - B_s| < 1/4
+whenever extraction and checksum succeed.
+
+10.3 Correctness and the uniform running-time bound (proof of Thm 1).
+Consider an input above cutoff satisfying (**). Fix the tie weights (hence
+c_i, t_s). If E d(V) > 0.01004n, Prop 5 decides exactly except with prob
+o(1). If instead (*) holds, Thm 12 gives complete alias extraction with prob
+1 - o(1). Conditional on each fixed P and instance, Thm 10 gives all checksum
+estimates with prob 1 - o(1). The sampling loss is o(1). These do not
+condition on CONTINUE; equivalently, draw the main randomness even when the
+preliminary decides (unsafe only if the main procedure then fails to be
+successful, which is o(1)). So for each fixed tie choice, except with prob
+o(1) the algorithm either returns the preliminary exact answer or uses
+complete aliases and accurate checksums.
+  * NO instance: every transformed exact bin is empty (Lemma 2), and
+    |Bhat_s - B_s| < 1/4 forces every test to NO.
+  * YES instance: isolation fails with prob <= 1/12; when it succeeds some
+    exact bin has one subset, giving |Bhat_s| > 3/4, so the test returns YES.
+All o(1) bounds are uniform, so a single n_* makes their total <= 1/12; the
+success probability is >= 1 - 1/12 - 1/12 = 5/6 >= 2/3. The cutoff is
+effective and independent of b and c (explicit derivative bounds and
+denominator lower bounds give an effective Riemann-sum error bound).
+Every-run work. Preliminary cap exponent 0.489985; alias lists/pairs
+exponent tau = 0.48996 with poly repetitions; checksum
+2^((tau + 20 eps) n + O(sqrt n)) poly(n); the O(sqrt n) covers the number of
+patterns, block-table work, direct multiplicities. Bounded sampling and
+finite arithmetic multiply by a fixed poly(n+b+2). Trial division is at most
+2^(eta n / 2) poly = 2^(0.25886 n) poly (smaller). Since
+tau + 20 eps = 0.4899602 < 0.489995 and 0.489985 < 0.489995, a larger n_*
+gives constants K_0, K with total work, on EVERY guarded run,
+   <= K_0 2^(0.489995 n) (n + b + 2)^K.
+Input reads, fixed approximation meshes, sorting, storage writes, all random
+draws are included; no tables depending on n are supplied.
+Addressability. Allocate a word only when written; the number of allocated
+words is <= the above; its logarithm is <= 0.489995 n + K log(n+b+2) + O(1).
+For large n, uniformly in b, the last terms are <= n + b + 2 (since
+log x / x -> 0 for x >= n+3), which is < w = ceil(4(n + b + log(n+2)));
+every address fits in a word.
+Fallback and quantifiers. The program finds b by scanning and counting bits;
+the guard (**) is the integer comparison b^100000 <= 2^n, tested first. On a
+failed guard or n < n_*, split into halves, enumerate all subset sums, sort
+one list, and search complements (empty subsets included). Exact on every
+input, in 2^(n/2) poly(n+b+2) operations; each subset sum has <= b + ceil(log(n+1))
+bits (one word); two lists plus buffers need O(2^(ceil(n/2))) one-word
+records (a direct mergesort fits every n >= 2). No high-precision complex
+arithmetic in the fallback. So the program terminates and is correct even
+outside the asymptotic range.
+Finally fix c > 0. For large n every b <= n^c satisfies (**) and n >= n_*.
+   K_0 2^(0.489995 n)(n + n^c + 2)^K = O_c(2^(0.49 n)),
+because the gap 0.49 - 0.489995 = 0.000005 absorbs any fixed poly. The
+constants may depend on c; the program, cutoffs, coefficients, sampling
+rules do not. That is exactly the quantifier of Theorem 1. END.
+
+
+================================================================
+APPENDIX A. THE NUMERICAL CERTIFICATE FOR PROPOSITION 7
+================================================================
+We must prove the two circle inequalities of Proposition 7. All integrals
+are normalized circle integrals; all decimals denote the indicated exact
+rationals. Three error sources are controlled in order: finite rational
+interval arithmetic on a 64-point grid; inner quadrature (integrand at grid
+nodes vs true); outer quadrature (node average vs the circle integral).
+
+Reduction to two convolutions. With the continuous functions of Section 7,
+   P(x) = int F(x+w) G(w) dw,     Y(x) = int F(x+w) G(w) (r(x+w) + s(w)) dw,
+   L = log Q,  B = Y/P - log(Z_f Z_g),
+   H = log Z_{f,kappa} + log Z_{g,kappa} - kappa log(Z_f Z_g).
+Then substitution in the score definitions gives
+   D = B - L,   u = L + (kappa - 1) B - H,   v = (2 - kappa) B - 2 L + H.
+(Indeed B is the K_x-mean of log(f(x+.) g), and A + E = kappa B - H.) So
+computing D, u, v reduces to P, Y, and the normalizers.
+
+Finite arithmetic certificate. With x_j = 2 pi j / 64 and T_64(h) the
+64-point average, and a hat meaning each defining integral is replaced by
+T_64 (nonlinear ops after), the following enclosures suffice (first four rows
+error <= 5e-7, last two <= 5e-6):
+   Zhat_f = 1.1963625,  Zhat_g = 1.2877407,
+   Zhat_{f,kappa} = 1.2110790,  Zhat_{g,kappa} = 1.3038111,
+   T_64(2^(2 r_beta)) = 2.4901514,  T_64(2^(2 s_beta)) = 2.2607200,
+where beta = 0.19 and r_beta, s_beta multiply the jth cosine coefficient by
+cosh(beta j). The node table (33 columns for j = 0..32, symmetric under
+j -> 64-j) lists Phat_j, Yhat_j, Xhat_j, X'_j with errors <= 4e-6, 2e-5, 4e-4,
+4e-4. Averaging Xhat and X'hat with weight 1 at j = 0,32 else 2 gives
+   (1/64) sum Xhat_j < 1.4295,  (1/64) sum X'hat_j < 1.4295.
+Reproduction uses cos x_j for j = 0..16 within 3e-10 (cosine series through
+degree 24, remainder <= |t|^26/26!, and pi in (3.1415926535897,
+3.1415926535899) from pi/4 = arctan(1/2)+arctan(1/3) through degree 159;
+reflection and a half-turn give the rest). Exponentials via
+   exp(t) in sum_{i=0}^{45} t^i/i! + [-R, R], R = |t|^46 / (46! (1 - |t|/47)),
+valid for |t| <= 8. Logarithms via d = (y-1)/(y+1),
+   ln y in 2 sum_{i=0}^{15} d^(2i+1)/(2i+1) + [-R_log, R_log], R_log = 2|d|^33 / (33(1-d^2)),
+which also gives ln 2 in (0.693147180559, 0.693147180561). Powers of two are
+exp(t ln 2); cosh t = (e^t + e^(-t))/2. Applying interval add/mul/div to the
+finite sums and then to Lhat_j, Bhat_j (and Hhat) yields the enclosures.
+Decimals are final enclosures, not intermediate rounding instructions.
+
+Inner quadratures. Analytic trapezoid bound: if a 2 pi-periodic h is
+analytic and bounded by B_0 on the strip |Im z| <= sigma, then
+   |T_64(h) - int h| <= 2 B_0 / (e^(64 sigma) - 1).
+(Shifting contours bounds Fourier coefficients by B_0 e^(-|k| sigma); the
+64-node average keeps only multiples of 64.) With sigma = 0.45 and
+|cos(jz)| <= cosh(j sigma), the coefficient sums give
+   |r| < 6.50, |s| < 8.71, |2 r_beta| < 18.4, |2 s_beta| < 22.4.
+So the quadrature errors are: normalizers 4e-10; P(x_j) 3e-8; Y(x_j) 5e-7;
+int 2^(2 r_beta), int 2^(2 s_beta) 5e-6 (strip bounds 2^(kappa 8.71),
+2^(6.50+8.71), (6.50+8.71) 2^(6.50+8.71), 2^22.4). Propagating these through
+the score identities gives, at every node,
+   |L - Lhat| < 1e-7, |B - Bhat| < 2e-6, |H - Hhat| < 5e-9
+(division safe since Phat_j > 1.06789; |log x - log y| <= |x-y|/(min ln2)).
+So each true node integrand is at most 1.00001 times its hatted value
+(including x_32 = pi, where both are 0), giving
+   T_64(M^2 2^(8.5(Delta-u))) < 1.4295 * 1.00001,
+   T_64(M^2 2^(8.3(av-u))) < 1.4295 * 1.00001.
+
+Outer quadrature. From the first table and the inner errors,
+   int |f(w + i beta)|^2 dw = Z_f^(-2) int 2^(2 r_beta) < 1.761,
+   int |g(w + i beta)|^2 dw < 1.38,
+and the same bounds hold for |Im| <= beta (squared norms pair positive and
+negative Fourier coefficients into nonnegative cosh(2ky) multiples, so they
+are nondecreasing in |y|; shifted means stay 1). For z = x + iy with
+|y| <= 0.38 = 2 beta, contour shifting gives Q(z) = int f(x+w+iy/2) g(w-iy/2) dw;
+subtracting the shifted means and Cauchy-Schwarz gives
+   |Q(z) - 1| <= sqrt(0.761 * 0.38) < 0.54.
+So Q has no zeros on the strip; L = log Q = (ln Q)/ln 2 is analytic with
+-Re L <= -log 0.46 < 1.121. The numerator Q B is analytic; the same split
+contour gives, on the full strip,
+   |Q B| <= sqrt(1.761 * 1.38)(2.96 + 4.67 + log Z_f + log Z_g) < 13,
+   |B| < 13/0.46,   and H < 0.016.
+Hence
+   8.5 Re(Delta - u) <= 8.5 (0.02776 + 1.121 + 0.0315 * 13/0.46 + 0.016) < 17.6,
+and, using av - u = -(1+2a)L + (a(2-kappa) - (kappa-1))B + (1+a)H,
+   8.3 Re(av - u) < 17.6.
+Also |2 + 2 cos z| <= 2 + 2 cosh(0.38) < 4.16. So both outer integrands are
+analytic on |Im z| <= 0.38 and bounded below 2^20 there; the trapezoid bound
+gives outer error <= 2^21 / (e^(64 * 0.38) - 1) < 0.00007. Combining,
+   int M^2 2^(8.5(Delta-u)) < 1.4295 * 1.00001 + 0.00007
+                                = 1.429584295 < 2^0.5168,
+   int M^2 2^(8.3(av-u))       < 1.429584295 < 2^0.5168,
+the last comparison since 2^0.5168 > 1.4307781 (from the exp bound). This
+proves both filtering moments, hence Proposition 7. END OF APPENDIX.
+
+================================================================
+END OF PROOF. The result: Subset Sum is decidable in O(2^(0.49 n))
+randomized worst-case time with bounded two-sided error, on polynomial-bit
+inputs, in the stated word-RAM.
+================================================================
