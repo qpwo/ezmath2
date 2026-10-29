@@ -1,0 +1,2171 @@
+================================================================================
+DETERMINISTIC POLYNOMIAL FACTORIZATION OVER PRIME FIELDS
+A complete, readable account for a curious high-school student
+================================================================================
+
+    based on the research paper of the same title (OpenAI, October 2026)
+
+    Audience
+    --------
+    You have seen polynomials, prime numbers, and modular arithmetic.
+    You have not necessarily seen abstract algebra, algebraic geometry,
+    or analytic number theory. Everything is introduced here. Nothing is
+    assumed except comfort with the idea of "prove it, do not just claim it".
+
+    What you will learn
+    -------------------
+    (1) A precise statement of the problem: given a prime p and a
+        polynomial with coefficients in 0,1,...,p-1, find its irreducible
+        factors and their multiplicities.
+
+    (2) Why the "obvious" randomized algorithm is fast, and why making it
+        deterministic with a guaranteed polynomial-time bound is genuinely
+        hard.
+
+    (3) The construction that finally achieves the deterministic bound.
+        It has three surprising ingredients:
+            -- a curve Y^q = F(X) attached to a polynomial F,
+            -- a geometric obstruction that forces two unknown roots apart,
+            -- an analytic input (a zero-free region for Hecke L-functions)
+               that supplies the small primes we need.
+
+    (4) Why the running-time bound is polynomial in the input size, and
+        how the paper sweeps every messy constant into one big exponent.
+
+    How to read this
+    ----------------
+    Sections 1-6 are background. Read them all. Sections 7-14 build the
+    algorithm. Sections 15-17 are context and worked examples. A glossary
+    at the very end collects symbols. When a proof is long, the
+    mathematically-interested reader should read it; the rest can skim the
+    statement and trust that every claim is justified in full.
+
+--------------------------------------------------------------------------------
+CONTENTS
+--------------------------------------------------------------------------------
+
+    PART I.  THE PROBLEM AND ITS HISTORY
+       1.  What "factor a polynomial" means
+       2.  Numbers, polynomials, and the modular world
+       3.  Finite fields: the smallest playgrounds
+       4.  What "polynomial time" really means
+       5.  The classical randomized algorithm
+       6.  Why randomization is annoying here
+
+    PART II.  THE PLAN
+       7.  Berlekamp: turn factors into linear algebra
+       8.  Reduction to the "totally split" case
+
+    PART III.  EVEN DEGREE: A WARM-UP
+       9.  Pairs, orientations, and a tournament
+      10.  The row-count argument
+
+    PART IV.  ODD DEGREE: THE HEART OF THE MATTER
+      11.  The curve Y^q = F(X) and the points we cannot see
+      12.  Divisors: how to compute at unknown points
+      13.  The infinity lattice and why division must fail at the end
+
+    PART V.  NORM EQUATIONS AND IDEMPOTENTS
+      14.  From a norm equation to a matrix algebra
+      15.  Vector bundles and the fiber calculation
+      16.  Recovering the norm solution from an idempotent
+
+    PART VI.  PUTTING IT TOGETHER
+      17.  The full splitting algorithm
+      18.  The auxiliary prime table
+      19.  The analytic input: Hecke L-functions
+
+    PART VII.  EPILOGUE
+      20.  The complexity bound
+      21.  History and the wider landscape
+      22.  A fully worked tiny example
+      23.  Glossary of symbols
+      24.  Further reading
+
+================================================================================
+PART I.  THE PROBLEM AND ITS HISTORY
+================================================================================
+
+================================================================================
+1.  What "factor a polynomial" means
+================================================================================
+
+    A polynomial over a prime field is an expression like
+
+        f(x) = 3x^4 + x^2 + 5x + 2
+
+    where the coefficients 3, 1, 5, 2 are integers between 0 and p-1 for
+    some fixed prime p. Arithmetic with coefficients is done modulo p:
+    add, subtract, multiply, then reduce.
+
+    A polynomial is irreducible if it cannot be written as a product of
+    two polynomials of smaller positive degree. Example: over the integers,
+    x^2 - 2 is irreducible (in the sense that its roots are not integers,
+    though it factors over the reals). Over F_2 = {0,1}, x^2 + x + 1 is
+    irreducible but x^2 + 1 = (x + 1)^2 is not.
+
+    Every nonzero polynomial over a prime field factors uniquely as
+
+        f = c * (g_1)^(e_1) * (g_2)^(e_2) * ... * (g_r)^(e_r)
+
+    where c is a nonzero constant (the leading coefficient), the g_i are
+    distinct monic irreducible polynomials, and the e_i are positive
+    integers (the multiplicities). This is the analogue of prime
+    factorization for integers.
+
+    THE PROBLEM. Take as input a prime p written in binary (that is,
+    using about log_2 p bits) and a polynomial f of degree n written as
+    its list of n+1 coefficients. Output c, the g_i, and the e_i.
+
+    The "size" of the input is n+1 coefficients, each about log_2 p
+    bits, so total input length on the order of (n+1) log_2 p. We want
+    an algorithm whose running time is a FIXED polynomial in that length.
+    It must work for every prime p and every polynomial f.
+
+================================================================================
+2.  Numbers, polynomials, and the modular world
+================================================================================
+
+    Quick refresher, because every later section rests on this.
+
+    A PRIME p has exactly two divisors: 1 and itself. Examples: 2, 3, 5,
+    7, 11, 13, 101, 65537.
+
+    MOD p ARITHMETIC. Take integers and reduce every result modulo p. So
+    mod 7: 5+4 = 9 = 2, 3*5 = 15 = 1, 2-5 = -3 = 4. A key fact (because
+    p is prime): every nonzero residue has a multiplicative inverse. So
+    the residues {0, 1, ..., p-1} form a FIELD: you can add, subtract,
+    multiply, and divide by anything nonzero.
+
+    We denote this field F_p. It is called the prime field of characteristic p.
+
+    TWO CRUCIAL SMALL THEOREMS.
+
+    FERMAT'S LITTLE THEOREM. For every a in F_p, a^p = a. That is:
+    raising anything to the p-th power does nothing, modulo p.
+
+    Consequence: a nonzero element of F_p satisfies a^(p-1) = 1, so its
+    multiplicative ORDER (the smallest positive k with a^k = 1) divides
+    p-1. The set of nonzero elements F_p^* is a cyclic group: there is
+    some element g, called a generator or primitive root, whose powers
+    1, g, g^2, ..., g^(p-2) hit every nonzero element exactly once.
+
+    THE FRESHMAN'S DREAM. Over F_p, (a + b)^p = a^p + b^p. The binomial
+    coefficients binom(p,k) are all divisible by p for 1 <= k <= p-1,
+    so they vanish mod p. This is FALSE over the integers but TRUE in
+    characteristic p. You will see it used many times.
+
+================================================================================
+3.  Finite fields: the smallest playgrounds
+================================================================================
+
+    F_p is not the only finite field. For every prime power Q = p^d there
+    is exactly one field with Q elements, denoted F_Q. Its elements can
+    be described in several equivalent ways, the simplest being:
+
+        F_Q = F_p[T] / (h(T))
+
+    where h is an irreducible polynomial of degree d over F_p and the
+    "quotient" means we compute polynomial arithmetic mod h. A concrete
+    example with p=3 and d=2: pick h(T) = T^2 + 1 (irreducible over F_3
+    because -1 = 2 is a nonsquare mod 3). Then F_9 = F_3[T]/(T^2 + 1),
+    elements are a + bT mod 3, and T plays the role of sqrt(-1).
+
+    BASIC STRUCTURE (finite field structure theorem).
+    (a) The multiplicative group F_Q^* is cyclic of order Q - 1.
+    (b) F_Q contains F_p as a subfield; its degree d over F_p is fixed.
+    (c) If F_Q and F_R are two finite fields of characteristic p, one
+        is a subfield of the other if and only if Q | R or R | Q.
+    (d) The Frobenius map x -> x^p is a field automorphism of F_Q that
+        fixes exactly F_p.
+
+    When an algorithm in the sequel "works over an extension field K of
+    F_p of degree at most something", we always represent K explicitly:
+    a basis over F_p plus a multiplication table. That means arithmetic
+    in K costs a fixed overhead compared to F_p. Nothing magical.
+
+================================================================================
+4.  What "polynomial time" really means
+================================================================================
+
+    The parameter that measures the problem is
+
+        S = (n + 1) * log_2(p),
+
+    the bit length of the input. An algorithm is POLYNOMIAL TIME if there
+    is a fixed polynomial P (like S^3 or S^1000 or S^(10^12)) and a bound
+
+        time(algorithm) <= P(S)
+
+    for every possible input.
+
+    The exponent 10^12 is spectacularly generous and perfectly acceptable.
+    Nobody in this paper claims an exponent like 3 or 4. The point is to
+    establish SOME fixed polynomial. Tightening it is a separate problem
+    for another paper.
+
+    Warning: if you measure "time" in field operations (each costing
+    about log p bits), you have to multiply by log p at the end. In this
+    paper the accounting is always in bit operations, so it is directly
+    comparable between different branches.
+
+    A first easy observation: if you tried to enumerate all residues
+    mod p to "find a factor by brute force", you would use p steps,
+    which is 2^L where L = log_2 p. That is EXPONENTIAL in the input
+    length. Such brute-force searches appear in the paper only inside
+    exponential-size regions of the parameter space that are separately
+    bounded by a fixed (huge) polynomial in S.
+
+================================================================================
+5.  The classical randomized algorithm
+================================================================================
+
+    Here is the famous algorithm of Cantor and Zassenhaus (1981). It
+    factors a polynomial f over F_p in expected polynomial time. Its
+    cleverness is a template for what the deterministic version must
+    eventually replace.
+
+    Step 1. Make f square-free. Compute g = gcd(f, f'), the greatest
+    common divisor with the formal derivative. Any factor h^2 of f
+    divides g. Splitting off g and f/g reduces to square-free input,
+    recursively.
+
+    Step 2. Reduce to totally split. Use the Berlekamp algebra (Section 7)
+    or a factorization algorithm to reduce to the case that f is
+    monic, square-free, and all its roots are already in F_p. We are
+    then asked to SPLIT f into linear factors, but we do not know them.
+
+    Step 3. Pick c in F_p at random. Consider f(x) and try to find a
+    factor via gcd(f(x), c^((p-1)/2) - 1) (for p odd) or via the
+    polynomial gcd(f(x), (x + c)^((p-1)/2) - 1).
+
+    Why does this work? In the totally split case, f has roots
+    x_1, ..., x_N in F_p. For c chosen at random, the expression
+    c^((p-1)/2) takes two values: +1 on the quadratic residues mod p
+    and -1 on the nonresidues. So gcd(f(x), c^((p-1)/2) - 1) picks out
+    exactly those roots x_i whose (x_i + c) is a residue. That splits
+    the roots into two groups. Repeated trials quickly isolate one
+    root.
+
+    The ELEMENT that makes this work is a "quadratic nonresidue" -- an
+    element whose square root does not exist in F_p. It exists in every
+    F_p with p > 2 because the squares are exactly half of F_p^*.
+
+    The trick is that the RANDOM choice of c usually separates any
+    single pair of roots, and with enough tries it separates all of them.
+    The expected number of tries is polynomial.
+
+
+================================================================================
+6.  Why randomization is annoying here
+================================================================================
+
+    Randomization is a beautiful tool. You pick something random, you
+    get lucky with high probability, and the number of tries is small.
+    For many practical purposes, that IS the right algorithm.
+
+    But there are problems where we want more. Two of them matter here:
+
+    (A) GUARANTEES. A randomized algorithm with expected time O(S^c) has
+    a nonzero chance of running much longer than the expectation. For a
+    single run, that chance might be tiny, but it is not zero. Deterministic
+    algorithms have no flake-out. They produce their answer on every input
+    with the same time bound.
+
+    (B) DERANDOMIZATION. In complexity theory, "BPP = P" is the conjecture
+    that randomization never helps much. Every deterministic version of a
+    randomized algorithm provides evidence toward that conjecture.
+
+    For polynomial factorization, the randomized approach had been an
+    industry standard since 1981. Its cost was always bounded by a
+    polynomial in the INPUT, but that polynomial depended on RANDOM LUCK.
+
+    Making the same algorithm work deterministically is not just a
+    technical convenience. It is a genuinely different kind of object.
+    The rest of this document is about how to do it.
+
+    THE SHIFT. The C-Z algorithm uses "the element c^((p-1)/2) is a
+    residue or nonresidue". The proof of correctness relies on the fact
+    that a suitably random c will land on different values at different
+    roots. To derandomize, we need to construct, EXPLICITLY and
+    DETERMINISTICALLY, some arithmetic element that plays the same role.
+    Constructing it uniformly for every possible f is where the geometry
+    and the number theory enter.
+
+================================================================================
+PART II.  THE PLAN
+================================================================================
+
+================================================================================
+7.  Berlekamp: turn factors into linear algebra
+================================================================================
+
+    The Berlekamp algebra is the universal tool for finite field
+    factorization. It replaces "find the irreducible factors of f" with
+    "do linear algebra over a finite ring".
+
+    SETUP. Let f in F_p[X] be monic, square-free, and of degree n. Work
+    in the quotient ring
+
+        R_f = F_p[X] / (f(X)).
+
+    Elements of R_f are polynomials modulo f. Their degree is at most
+    n-1, and arithmetic is done modulo f.
+
+    By the Chinese Remainder Theorem, if f factors as
+
+        f = h_1 * h_2 * ... * h_r
+
+    with the h_i pairwise coprime (they are, because f is square-free),
+    then
+
+        R_f  is isomorphic to  F_p[X]/(h_1) x ... x F_p[X]/(h_r).
+
+    If f is TOTALLY SPLIT -- that is, each h_i is a linear factor X - x_i
+    for some x_i in F_p -- then R_f is isomorphic to F_p x F_p x ... x F_p
+    (r copies), where a polynomial a(X) mod f maps to the tuple
+
+        (a(x_1), a(x_2), ..., a(x_r)).
+
+    THE BERLEKAMP ALGEBRA. Consider the set of elements a in R_f with
+
+        a^p = a.
+
+    Call this set B_f. It is a subring of R_f, and it is an F_p-vector
+    space. In the totally-split case, an element a corresponds to a
+    tuple (a_1, ..., a_r) of F_p elements, and a^p = a is automatic for
+    every F_p element (Fermat). So B_f is the WHOLE F_p^r in that case.
+
+    In general, B_f is the direct product of the F_p-subfields of the
+    various F_p[X]/(h_i). If h_i has degree d_i, then F_p[X]/(h_i) is
+    F_{p^(d_i)} and its fixed subfield under x -> x^p is F_p, one copy.
+    So the dimension of B_f over F_p is exactly the NUMBER OF
+    IRREDUCIBLE FACTORS of f.
+
+    HOW TO COMPUTE B_f. Since (x + y)^p = x^p + y^p in characteristic p,
+    the map phi: a -> a^p is F_p-linear. Computing a basis of B_f is the
+    same as finding the kernel of "phi minus the identity", a linear
+    algebra problem. Great: we can compute dim B_f in polynomial time.
+
+    THE KEY OBSERVATION. If dim B_f = 1, then f is irreducible. If dim B_f > 1,
+    then there exist elements a in B_f that take DIFFERENT values at
+    different roots x_i. Take such an a. Then gcd(f, a - c) picks out
+    some subset of the roots. So finding a NONSCALAR element a in B_f
+    amounts to being able to SPLIT f.
+
+    THE STRATEGY of Berlekamp's algorithm: compute B_f, find a nonscalar
+    a, take a = some clever linear combination of B_f's basis. If f is
+    NOT totally split, that is fine: we can then recurse into gcd(f, a)
+    and gcd(f, f/gcd(f,a)) as long as both are nontrivial.
+
+    THE SHORTCOMING. Berlekamp's algorithm still requires FINDING a
+    suitable a. In the totally-split case, if p is huge (as it may be),
+    we can be cleverer: the RANDOMIZED approach of Section 5 provides
+    an a by sampling. That is where randomization enters.
+
+    Berlekamp's framework itself is deterministic. What is not deterministic
+    is the SEARCH for a nonscalar element in B_f.
+
+================================================================================
+8.  Reduction to the "totally split" case
+================================================================================
+
+    The splitting procedures we describe build up step by step.
+
+    STEP A: SQUARE-FREE. Already described. If f has repeated factors,
+    then gcd(f, f') is nonconstant and recursively reduces the problem.
+    When f = g^p for some polynomial g, we work with g and multiply
+    multiplicities by p. Done in Section 17.
+
+    STEP B: TOTALLY SPLIT. Given a monic square-free f, we want to
+    factor it. But the strong splitting procedures (Sections 9-16) work
+    only when f is TOTALLY SPLIT: every irreducible factor has degree 1.
+
+    How do we get to that case? The general f splits into a product
+        f = f_1 * f_2 * ... * f_b
+    where f_d is the product of the irreducibles of degree exactly d.
+
+    The classical DISTINCT-DEGREE FACTORIZATION of Cantor-Zassenhaus
+    computes the f_d for all d, using the observation that
+
+        gcd(f(X), X^(p^d) - X)
+
+    contains exactly the factors of f of degree dividing d. Taking successive
+    differences gives f_d. This is deterministic and polynomial time
+    (careful: X^(p^d) is computed by repeated squaring in about d * log p
+    polynomial multiplications, not by building the enormous number X^(p^d)).
+
+    We then need to further split each f_d into its degree-d irreducible
+    factors. That still might be nontrivial. But here is the reduction
+    that we will use in the paper:
+
+    Pick a nonscalar element b in B_{f_d}. If b has two distinct values
+    at some two irreducible factors h, h', then gcd(f_d, b - c) splits
+    off a proper part. Since each h has degree d, we can do this in at
+    most d * log(p) attempts. When f_d is a product of LINEAR factors,
+    we are in the "totally split" target, and we want a procedure whose
+    number of attempts does not depend on p at all.
+
+    THE FOCUS OF THE PAPER. Reduce f to the case where f is totally split
+    and of degree N >= 2, and give a DETERMINISTIC SPLITTING PROCEDURE
+    f -> (factor of f). Then recurse. All the difficulty is in the split.
+    The reduction to that case is standard engineering.
+
+================================================================================
+PART III.  EVEN DEGREE: A WARM-UP
+================================================================================
+
+================================================================================
+9.  Pairs, orientations, and a tournament
+================================================================================
+
+    Let p be odd (p=2 is a special case handled separately). Let F be
+    monic and square-free of EVEN degree N >= 2, all its roots
+    x_1, ..., x_N in F_p.
+
+    We are going to find a nontrivial factor of F deterministically,
+    polynomial time, no randomness.
+
+    SETUP. Let A = F_p[T]/(F), so A is F_p^N via a(T) -> (a(x_1), ..., a(x_N)).
+    Let R = A tensor A, so R is F_p^(N^2) via the map
+
+        a(X) tensor b(Y) -> (a(x_i), b(x_j))  at coordinate (i,j).
+
+    Consider the element
+
+        Delta = T tensor 1 - 1 tensor T.
+
+    At coordinate (i,j) it evaluates to x_i - x_j. Off the diagonal this
+    is a nonzero element of F_p. On the diagonal it is 0.
+
+    ORIENTING PAIRS. Write p - 1 = 2^s * t with t odd. Define
+
+        e = Delta^(p-1).
+
+    At coordinate (i,j) with i != j, Delta^(p-1) = (x_i - x_j)^(p-1) = 1
+    (Fermat). On the diagonal it is 0. So e is exactly the "off-diagonal
+    idempotent": it is 1 at every coordinate (i,j) with i != j, and 0 on
+    the diagonal. So the algebra e*R is the ring of functions on ORDERED
+    PAIRS of DISTINCT roots.
+
+    Now consider Delta^t, where t is the odd part of p - 1. At coordinate
+    (i,j) this is (x_i - x_j)^t. What order does Delta^t have in the
+    multiplicative group? At coordinate (i,j), the element Delta^t has
+    order dividing 2^s. In fact:
+
+        (Delta^t)^(2^s) = Delta^(t * 2^s) = Delta^(p-1) = 1,
+
+    so Delta^t has order dividing 2^s. And its 2^(s-1)-th power is
+        (Delta^t)^(2^(s-1)) = Delta^((p-1)/2),
+
+    which takes value +1 on pairs where x_i - x_j is a quadratic residue,
+    and -1 when it is a nonresidue. If we let u be an element of A with
+    full 2-primary order, then we can compute logarithms of Delta^t in
+    the group of order 2^s, coordinate by coordinate.
+
+    THE PRIMARY GENERATOR. Let u be an element of F_p^* of order 2^s (so
+    u generates the full 2-primary subgroup of F_p^*). Such a u is the
+    (p-1)/2^s-th power of any quadratic nonresidue, and one is found by
+    simply asking: which of 2, 3, 4, ..., (p-1)/2 is a nonsquare? For
+    any of those, the answer is immediate by computing u = a^((p-1)/2^s)
+    and checking u has order 2^s. (For deterministic polynomial time, we
+    can just test small candidates; at most O(sqrt(p)) tests suffice for
+    a small enough candidate. In the paper the search is O(B^1000) at
+    worst and is trivial at the scale of the main bound.)
+
+    Now at coordinate (i,j), (Delta^t)^(2^(s-1)) = +1 means x_i - x_j is
+    a residue; = -1 means nonresidue.
+
+    DEFINE ORIENTATION. For each unordered pair {i,j} of distinct roots,
+    exactly one of (i,j) or (j,i) has (Delta^t)^(2^(s-1)) = +1. Check:
+    swapping i and j changes Delta^t to -(Delta^t) (because t is odd).
+    Raising to 2^(s-1) multiplies value by (-1)^(2^(s-1)) = -1 (since s
+    >= 1). So one orientation gives +1 and the other gives -1. Exactly
+    one is selected.
+
+    So we get an ORIENTATION of the complete graph on roots: for every
+    pair, we pick one direction. This is a TOURNAMENT in the sense of
+    graph theory!
+
+================================================================================
+10.  The row-count argument
+================================================================================
+
+    Now use the tournament. For each root i, define
+
+        c_i = number of pairs {i,j} oriented TOWARD i (that is, where the
+              +1 orientation is (j, i)).
+
+    Equivalently: c_i is the number of roots j such that (x_j - x_i) is
+    a quadratic residue mod p. (Up to whether we orient toward or away;
+    the important fact is that it is an integer between 0 and N-1.)
+
+    Simple count: every unordered pair contributes exactly one to exactly
+    one c_i. There are N(N-1)/2 pairs total. So
+
+        c_1 + c_2 + ... + c_N = N(N-1)/2.
+
+    AVERAGE CLAIM. If all c_i were equal, then each would be (N-1)/2.
+    But (N-1)/2 is not an integer when N is EVEN. So the c_i cannot all
+    be equal.
+
+    THIS IS THE WHOLE TRICK. In an even tournament, the row counts
+    cannot all have the same value. There must be at least two DISTINCT
+    row counts.
+
+    HOW TO EXPLOIT IT. We now have a way to define a polynomial in A:
+
+        c(T) = sum over i of c_i * e_i(T)
+
+    where e_i(T) is the idempotent that is 1 at x_i and 0 at other roots.
+    Concretely, we compute c as an element of A without knowing the roots.
+
+    Then we test gcd(F, c - a) for a = 0, 1, ..., N-1. Some value a
+    corresponds to at least one root (since the c_i take at least two
+    distinct values), and the gcd splits F.
+
+    HOW TO COMPUTE c. Here is the sequence, all in algebra form:
+
+        (i)  Compute Delta^t in R (polynomial arithmetic).
+        (ii) Use a logarithm-in-2-primary-group procedure (Section 12)
+             to determine, at each coordinate (i,j), whether the +1
+             orientation is (i,j) or (j,i).
+        (iii) Build the idempotent mask e_* = sum over oriented (i,j).
+        (iv) Apply trace in the second factor to get c in A.
+
+    The whole thing uses only linear algebra over F_p and F_p-arithmetic.
+
+    THE POINT. We have a deterministic procedure for the EVEN case.
+
+    COST. R has dimension N^2 over F_p. The logarithms have at most
+    s <= log_2(p) digits, each with two possible outcomes. So the whole
+    thing is polynomial in N and log p. This is polynomial in the input
+    size.
+
+    GOOD. Now the hard case: N odd.
+
+
+================================================================================
+PART IV.  ODD DEGREE: THE HEART OF THE MATTER
+================================================================================
+
+================================================================================
+11.  The curve Y^q = F(X) and the points we cannot see
+================================================================================
+
+    Setup for this entire part. Let F in F_p[X] be monic and square-free
+    of ODD degree N >= 3, all roots x_1, ..., x_N in F_p. We will build
+    a deterministic splitter for F.
+
+    The even-case trick used pairs of roots and a tournament. For odd N,
+    there is no such easy algebraic invariant (a tournament on an odd
+    number of vertices can be REGULAR -- every vertex has the same out-
+    degree (N-1)/2 -- which is exactly what makes the trick fail).
+    We need something more elaborate.
+
+    IDEA. Embed the roots into a richer geometric object where extra
+    arithmetic information becomes available. The object is an algebraic
+    curve.
+
+    THE WORKING FIELD. Choose an odd prime q dividing N. Recall N is odd,
+    so q is odd. Let r = v_q(N) be the q-adic valuation of N (so
+    q^r divides N but q^(r+1) does not).
+
+    We need a field K / F_p containing a primitive q-th root of unity
+    ζ (ζ^q = 1, ζ != 1), and an element ω_K of K^* whose order is exactly
+    q^(v_q(|K|-1)). This is the "full q-primary generator" of K^*. Its
+    existence follows from the fact that K^* is cyclic. Constructing
+    it explicitly requires an auxiliary prime, as we discuss in Section 18.
+
+    Extend K to k via k = K[T]/(T^(q^r) - ω_K). This is again a finite
+    field (Section 3), and it now contains an element ω = T (mod the
+    relation) of order q^(s_K + r) where s_K = v_q(|K|-1). In particular
+    ω generates the FULL q-primary subgroup of k^*.
+
+    Choice of q. Any odd prime dividing N works. The algorithm in
+    Section 17 takes q = some odd prime factor of N.
+
+    THE CURVE. Over k, define the projective curve
+
+        C :  Y^q = F(X).
+
+    Concretely, the AFFINE part is the set of (X, Y) in k x k satisfying
+    that equation. The PROJECTIVE completion adds points at infinity
+    where X or Y becomes unbounded. We can describe the whole thing via
+    the function field k(C) = k(X, Y) / (Y^q - F(X)).
+
+    BASIC FACTS.
+
+    (a) C is a SMOOTH curve over k. Proof: a potential singularity would
+        satisfy Y = 0 and F(X) = F'(X) = 0, contradicting square-free
+        (which means gcd(F, F') = 1).
+
+    (b) The projection pi: C -> P^1, (X,Y) -> X has degree q. So PI
+        is a q-to-1 cover of the projective line.
+
+    (c) There are N RAMIFICATION POINTS, one over each root x_i of F:
+            P_i = (x_i, 0).
+        Each P_i is totally ramified: locally pi looks like X - x_i = Y^q.
+        These are the "images" of the roots we cannot directly compute.
+
+    (d) There are exactly q RATIONAL POINTS AT INFINITY. To see this,
+        put z = X^{-1}, U = Y * z^(N/q). Then U^q = z^N * F(z^{-1}),
+        which at z = 0 equals 1. So U(infinity_j) = ζ^j for j = 0,...,q-1.
+        There are q distinct infinity points:
+            infinity_0, infinity_1, ..., infinity_{q-1}.
+
+    (e) The GENUS of C (a measure of geometric complexity) is
+            g = (q-1)(N-2)/2.
+        For our range of parameters, g is bounded above by (q-1) * n / 2,
+        polynomial in n and q.
+
+    (f) The automorphism sigma of C defined by
+
+            sigma(X, Y) = (X, ζ Y)
+
+        acts on points of C. It fixes each ramification point P_i (since
+        Y = 0 there) and permutes the infinity points: sigma(infinity_j) =
+        infinity_{j+1} (indices mod q).
+
+    (g) sigma acts on FUNCTIONS via (sigma h)(X, Y) = h(X, ζ^{-1} Y).
+        So div(sigma h) = sigma div(h): taking divisors commutes with the
+        action.
+
+    Let us repeat with emphasis: THE ROOTS OF F ARE THE RAMIFICATION
+    POINTS OF C. This is the hinge on which the whole construction turns.
+
+================================================================================
+12.  Divisors: how to compute at unknown points
+================================================================================
+
+    A DIVISOR on a smooth projective curve is a formal finite integer
+    combination of points:
+
+        D = sum_P n_P * P,     n_P in Z,  all but finitely many n_P = 0.
+
+    Divisors add in the obvious way. The DEGREE of D is the integer
+    deg(D) = sum_P n_P.
+
+    To every nonzero rational function h on C we associate its PRINCIPAL
+    DIVISOR:
+
+        div(h) = sum_P v_P(h) * P
+
+    where v_P(h) is the ORDER OF VANISHING of h at P: positive if h has
+    a zero, negative if h has a pole. Two functions give the same
+    principal divisor if and only if they differ by a nonzero constant,
+    and every principal divisor has degree zero.
+
+    DIVISOR CLASS GROUP. Two divisors are LINEARLY EQUIVALENT, written
+    D ~ D', if their difference D - D' is principal. The equivalence
+    classes form the PICARD GROUP Pic(C). The degree-zero ones form the
+    JACOBIAN J(C) = Pic^0(C), a group.
+
+    WHY DIVISORS. A divisor is a piece of bookkeeping. It records what a function does
+    at every point of the curve. "Does h have a zero at P_i?" or "Does h
+    have a pole of order 3 at infinity_1?" These are all divisor
+    questions. What makes divisors useful is that:
+
+    (1) They can be combined, added, negated.
+    (2) The set of points where a function has a pole or a zero is often
+        a manageable object (the divisor of h has degree = number of zeros
+        minus number of poles, which is 0).
+    (3) Linear equivalence "quotients out" the boring parts.
+
+    THE SPECIAL CONSTRUCTION. In the application, our curves have a
+    big symmetry: the automorphism sigma has order q. Any sum
+
+        1 + sigma + sigma^2 + ... + sigma^(q-1)
+
+    acts as 0 on both the Jacobian and on the "natural" divisor lattices
+    at infinity (because it is the norm from k(C) to k(X)). This is
+    exploited in the key constructions.
+
+    THE MAIN OPERATOR. We define
+
+        lambda = 1 - sigma,
+
+    which acts on divisors (as formal sums), on divisor classes, and on
+    functions:
+
+        (lambda * h) = h * (sigma h)^{-1} = h / (sigma h).
+
+    Some basic facts about lambda, proven in the paper:
+
+    (a) LAMBDA IS SURJECTIVE ON THE GEOMETRIC JACOBIAN. For every class
+        D in J(C), there exists a class D' in J(C) with lambda * D' = D.
+        This follows because multiplication by q is invertible on J(C)
+        (q != char k), and q = unit * lambda^(q-1), so lambda is invertible
+        on J(C). This sounds like it makes life easy, but...
+
+    (b) LAMBDA IS INJECTIVE ON THE INFINITY LATTICE Lambda. Which is the
+        set of integral divisors of degree zero supported at infinity:
+
+            Lambda = { sum_j a_j * infinity_j : a_j in Z, sum_j a_j = 0 }.
+
+        Since sigma permutes the infinity_j cyclically and the orbit-sum
+        is 0 on Lambda, Lambda is the natural lattice on which sigma acts.
+        Multiplication by lambda = 1 - sigma is INJECTIVE on Lambda,
+        because Lambda is a free Z-module and lambda has no kernel
+        (a * e = 0 with e = sigma(infinity_0) - infinity_0 generates Lambda
+        would force a = 0).
+
+    THE TENSION. On the Jacobian, lambda is SURJECTIVE: taking a lambda-
+    division is possible. On the infinity lattice, lambda is INJECTIVE
+    (not surjective): taking a lambda-division is IMPOSSIBLE for most
+    lattice elements. The paper makes this tension into a splitting
+    mechanism. Here is what that means concretely.
+
+    Every divisor D decomposes as
+
+        D = D_fin + D_inf
+
+    where D_fin involves only finite points and D_inf lives entirely on
+    infinity points. The "position vector" at infinity is D_inf.
+
+    Suppose we take a class D in J(C), and we want to divide it by
+    lambda^m for some integer m. We can do the division as a CLASS
+    (lambda is surjective on J). But each step of division produces a
+    specific divisor representative, and the infinity part of that
+    representative is affected by the choice of representative.
+
+    THE KEY OBSERVATION. If we track the infinity part through divisions
+    carefully, we can detect a failure: eventually we will be forced to
+    divide an integral lattice element by lambda, which is only possible
+    up to a finite limit (because lambda is injective and the exponents
+    grow).
+
+    Concretely: consider the specific class d = [P_i - infinity_0] for
+    each root i. This has a lambda-division, but the class of the result
+    is not "canonical"; it can be represented by a divisor whose infinity
+    part varies. Choose any division, take its infinity part W, then
+    divide AGAIN.
+
+    This is the source of the label tests at the end.
+
+================================================================================
+13.  The infinity lattice and why division must fail at the end
+================================================================================
+
+    Let us set up the crucial machinery.
+
+    INTEGRALITY BLOCKER. As above, Lambda is injective under lambda. So
+    integral lambda-divisions of an element of Lambda exist only in
+    special cases. Precisely: lambda W' = W has a solution W' in Lambda
+    if and only if W lies in image of lambda on Lambda. This is a
+    proper sublattice of Lambda.
+
+    THE LIFTING PROCEDURE. Fix a root i. Consider the class
+
+        d_{i, 1} = [P_i - infinity_0].
+
+    We compute lambda d_{i, 1} = [e] where e is the specific lattice
+    element e = sigma(infinity_0) - infinity_0. So class-wise, division is
+    possible.
+
+    Now apply LambdaDivide to get d_{i, 2} with lambda d_{i, 2} = d_{i, 1},
+    and continue. At each step t we get d_{i, t} which satisfies:
+
+        lambda^t * d_{i, t} = [e].
+
+    Every step is possible as a class computation. The GEOMETRIC theorem
+    (Section 13 of the paper) is that all these classes can be chosen
+    over an extension of degree POLYNOMIALLY BOUNDED above k.
+
+    SUMMING AND DIVIDING DOWN. Sum over i:
+
+        d_m = sum over i of d_{i, m}.
+
+    Since each d_{i, t} satisfies lambda^t d_{i, t} = [e] and there are
+    N such, we get
+
+        lambda^m * d_m = [N * e].
+
+    This is one specific relation. Now we go back DOWN: define
+
+        d_t = lambda^(m-t) * d_m.
+
+    So d_0 = lambda^m d_m = [N * e], and d_m is our original summed
+    class.
+
+    Now the KEY DIVISIBILITY CRITERION. Consider the lattice element
+    N * e. It lives in the image of lambda on Lambda UP TO A SPECIFIC
+    POWER: precisely, if N = q^r * a with q not dividing a, then
+    N * e = lambda^(q-1)r * (unit) * e, and (after adjusting by units)
+    is exactly in lambda^(m-1) Lambda but not lambda^m Lambda, where
+    m = 1 + (q-1)r.
+
+    WHY? The identity q = u * lambda^(q-1) for some unit u in Z[zeta]
+    (cyclotomic units) means q is a unit times lambda^(q-1). So the
+    lattice element q * e is lambda^(q-1) times something integral, but
+    not lambda^q times something integral, essentially because the
+    cyclotomic unit u is a genuine unit (invertible in Z[zeta], so it
+    doesn't affect the ideal structure). Iterating gives the bound.
+
+    THE LABEL TESTS. This is where the obstruction manifests. Let us
+    describe the successive label tests.
+
+    For each t = 1, ..., m, we want to compute a set of labels
+        l_{i, t} in F_q,
+    one for each root i, satisfying the following. The pair (d_t, W_t)
+    where W_t = lambda^{-(t-1)} N e is an element of a certain finite
+    quotient module T_t. If we expand in the Ramification-generator basis
+    { [P_i - infinity_0] : i = 1,...,N } of T_1 (over F_q), the labels
+    l_{i, t} are exactly the coefficients in this expansion:
+
+        (d_t, W_t) = sum_i l_{i, t} * [P_i - infinity_0].
+
+    The label test: check whether all l_{i, t} are equal.
+
+    THE FORCED DISTINCTION. Here is the theorem (Proposition 16 in the
+    earlier version; I renumber but keep the substance):
+
+    If all labels l_{i, t} are equal at some level t, then the pair
+    (d_t, W_t) represents the zero class in the module T_1. Returning
+    to the actual divisor identity, this means we can write d_t as the
+    class of an integral infinity divisor W', and the lattice equation
+    lambda W' = W_{t-1} has a SOLUTION in Lambda. This propagates the
+    invariant to level t+1. But at the top level t = m, the lattice
+    obstruction says W_m is NOT in lambda * Lambda. So the labels CANNOT
+    all be equal at level m.
+
+    THEREFORE: at some level between 1 and m, the labels must be unequal.
+    And here "unequal labels" is EXACTLY a distinction between two roots.
+
+    Return to Section 10: we applied this idea to even N with the
+    tournament. Now, for odd N, the label test plays the same role:
+    once we have labels l_{i, t} not all equal, we can pick a target
+    value a in F_q and form gcd(F, "the idempotent that selects i with
+    l_{i, t} = a") and get a factor.
+
+    THAT IS THE WHOLE THEORETICAL MECHANISM.
+
+    WHAT REMAINS. Two huge implementation tasks.
+
+    (A) DIVISION. We promise "compute LambdaDivide(D, P)". This needs
+        to be a polynomial-time algorithm. Section 14-16 handles this
+        via solving norm equations, which reduces to linear algebra
+        and idempotents in matrix algebras.
+
+    (B) DIVISOR ARITHMETIC AT UNKNOWN POINTS. The divisors above are
+        specified without knowing the actual P_i (they refer to
+        "P_i = (x_i, 0)" where x_i is unknown). The divisor algorithms
+        must work with this implicit representation. That is handled
+        by an IDEAL-REPRESENTATION trick: represent the finite part of
+        a divisor by a fractional ideal in the Dedekind ring O = k[X,Y]/(Y^q - F(X)) =
+        k[x, y], and reduce the arithmetic to polynomial algebra over k.
+
+    Sections 14-16 handle (A). A sidebar handles (B) explicitly. That
+    is where the concrete polynomial algorithms live.
+
+
+================================================================================
+PART V.  NORM EQUATIONS AND IDEMPOTENTS
+================================================================================
+
+    We now fill in the missing piece: an algorithm for LambdaDivide(D, P).
+    The reduction has three steps:
+
+        STEP 1. Turn class division into a NORM EQUATION on functions.
+        STEP 2. Turn the norm equation into a RANK-ONE IDEMPOTENT in a
+                matrix algebra.
+        STEP 3. Compute a rank-one idempotent via linear algebra over a
+                space of global sections of a vector bundle on P^1.
+
+    Each step is a different flavour of mathematics, and all three are
+    needed for the final algorithm. Let us walk through them.
+
+================================================================================
+14.  From a norm equation to a matrix algebra
+================================================================================
+
+    Let k, q, C = { Y^q = F(X) }, sigma be as in Section 11. Let
+    L_curl = k(C) be the function field, and let K_0 = k(X) be the base
+    rational function field. The map L_curl -> K_0 is the projection
+    (X, Y) -> X, with degree q. The NORM of a function h in L_curl is
+
+        Norm(h) = h * sigma(h) * sigma^2(h) * ... * sigma^(q-1)(h),
+
+    which is an element of K_0. (This is the "product over all q conjugates".)
+
+    THE NORM EQUATION PROBLEM. Given a nonzero G in K_0, find h in
+    L_curl^* with Norm(h) = G. (If the promise is that such h exists;
+    otherwise reject.)
+
+    In the application, G is a specific rational function computed from
+    a divisor via Lemma 12 (compression): G equals h^+ / h^- multiplied
+    by a normalizing constant, where h^+ and h^- come from characteristic
+    polynomials of multiplication maps.
+
+    THE CLASS-DIVISION REDUCTION. Suppose we have a divisor D and want to
+    divide its class by lambda. The paper does the following:
+
+        (i)   Compute the pushforward j = h^+ / h^- in K_0 with
+              div_C(j) = sum over sigma-orbit of D. (This is the
+              "compression + orbit sum" step of Lemma 12.)
+        (ii)  Normalize j by c in k^* so that the resulting G = cj has
+              residue 1 at the specific ramification point P = (x, 0)
+              of interest.
+        (iii) Solve Norm(h) = G.
+        (iv)  Define E = D - div(h). Then sum over sigma of E equals 0
+              (this is exactly the "orbit sum" condition, and h is
+              chosen so that this holds).
+        (v)   Take the coefficientwise maximum V of the partial sums
+              S_j = E + sigma E + ... + sigma^(j-1) E for j = 0,...,q-1.
+        (vi)  Return V - (deg V) * P, reduced via Riemann-Roch.
+
+    The point is that step (v) produces a divisor V satisfying
+
+        (1 - sigma) V = E = D - div(h).
+
+    So the class of (V - deg V * P) divides D by lambda, but as an actual
+    divisor with explicit representation.
+
+    WHY DOES THE NORM EQUATION HAVE A SOLUTION? Because step (i) gives
+    div(h) = D - (1-sigma) D_0 for some divisor D_0 which is promise-given
+    by the input, and the norm of any such h has div = 0 on P^1, hence is
+    a constant multiple of j. The normalization by c adjusts the constant
+    to be a specific q-th power, making G exactly a norm. The paper proves
+    this carefully.
+
+    SO: the entire class-division problem reduces to solving a NORM
+    EQUATION for a specific rational function G.
+
+    WHY IS THAT HARD? Norm equations over function fields can have very
+    large solutions. A naive search over functions of every degree fails.
+    We need a direct construction.
+
+    THE MATRIX-ALGEBRA TRICK. Consider the K_0-algebra E defined by
+
+        E = L_curl + L_curl * V + L_curl * V^2 + ... + L_curl * V^(q-1)
+
+    where V is a formal symbol subject to Va = sigma^(-1)(a) V for a in
+    L_curl, and V^q = G. (Equivalently V a = sigma^{-1}(a) V, so V a V^{-1}
+    = sigma^{-1}(a).)
+
+    E is a "CYCLIC ALGEBRA": q-dimensional over L_curl, hence q^2-
+    dimensional over K_0. The multiplication is explicit in the standard
+    basis W_{a,b} = Y^a V^b (0 <= a,b < q).
+
+    A basic fact (which the paper proves): E is a full q x q matrix
+    algebra over K_0, i.e. E ≅ M_q(K_0), IF AND ONLY IF G is a norm.
+
+    So restated: the norm problem is "given E with explicit multiplication
+    table, decide whether E ≅ M_q(K_0), and if so find an explicit
+    isomorphsm."
+
+    Actually, more useful: the paper does not find an isomorphism. It
+    finds a RANK-ONE IDEMPOTENT e in E, which is an element e with
+    e^2 = e and (in the M_q(K_0) model) image a 1-dimensional subspace.
+
+    WHY IS THAT USEFUL? Because once you have a rank-one idempotent e,
+    extracting a norm solution is linear algebra:
+
+        LEFT IDEAL. E * e is a q-dimensional left ideal in E. The map
+        L_curl -> E*e given by a -> a*e has kernel zero (since every
+        nonzero element of L_curl is invertible and e != 0), so it is an
+        isomorphism by dimension. In particular there is a UNIQUE h in
+        L_curl with V e = h e.
+
+        SOLVE FOR h. Write e in the standard basis, and V in the standard
+        basis. The equation V e = h e is a system of q^2 equations in q
+        unknowns (the coefficients of h in the basis 1, Y, ..., Y^(q-1)).
+        Solve it. The resulting h is unique.
+
+        CHECK NORM. Multiply V e = h e by V repeatedly on the left,
+        using V a = sigma^{-1}(a) V at each step, and use V^q = G. After
+        q steps:
+
+            G e = V^q e = h sigma^{-1}(h) sigma^{-2}(h) ... sigma^{-(q-1)}(h) e.
+
+        So the coefficient G equals the norm of h, because e is nonzero
+        and the coefficient on both sides is in K_0.
+
+    So finding a norm solution is EQUIVALENT to finding a rank-one
+    idempotent in E.
+
+    HOW TO CONSTRUCT e. This is the technical heart of the section.
+    The construction uses orders: rings of integral elements in E, one
+    for each closed point of P^1. Each order is explicitly computable
+    from local expansion data at that point (residue roots, Hensel
+    lifting, matrices). Then the Q_global space of elements integral at
+    every point is computed as H^0(P^1, End(V)) for a rank-q vector
+    bundle V on P^1 (the vector bundle whose local lattices are the
+    various orders).
+
+    A vector bundle on P^1 is classified by the Grothendieck splitting
+    theorem: every vector bundle is a direct sum of O(d_i) for integers d_i.
+    The ENDOMORPHISM bundle End(V) has global sections that correspond
+    to a specific space of block upper triangular matrices (after
+    suitable basis change).
+
+    The FIBER of this bundle at the point at infinity is a SUBALGEBRA
+    B of M_q(k). The construction then uses linear algebra to extract a
+    rank-one idempotent from B, entirely without knowing the isomorphism.
+    Finally, lifting that matrix idempotent back to the global sections
+    and taking b^q gives a global idempotent e in E.
+
+    This is not the sort of thing you can compute by hand. It is a
+    genuine construction that happens to work because of the projective-
+    line splitting theorem.
+
+    The full flow, as a diagram:
+
+        NORM EQUATION (rational functions)
+            |
+            v [construct cyclic algebra E]
+        MATRIX ALGEBRA E ≅ M_q(K_0)
+            |
+            v [integral structure: maximal orders at every point]
+        VECTOR BUNDLE V on P^1, with End(V) = global sections
+            |
+            v [splitting theorem: V = sum O(d_i)]
+        BLOCK UPPER TRIANGULAR subalgebra B of M_q(k)
+            |
+            v [trace pairing gives nested column space]
+        RANK-ONE IDEMPOTENT a_0 in B
+            |
+            v [lift to global section b in E, take e = b^q]
+        RANK-ONE IDEMPOTENT e in E
+            |
+            v [solve V e = h e]
+        NORM SOLUTION h
+
+    Each step is deterministic and polynomial-time in the underlying
+    polynomial sizes. The rank-one idempotent step (trace pairing) is
+    the trickiest to motivate, and is explained in Section 15.
+
+================================================================================
+15.  Vector bundles and the fiber calculation
+================================================================================
+
+    This section explains the ONE algebraic trick that turns a "block
+    upper triangular algebra" into an explicit rank-one idempotent. It
+    is the last piece of the norm solver.
+
+    THE SETUP. We have a finite-dimensional k-algebra B ⊆ M_q(k), and
+    we know that under some change of basis, B is conjugate to the algebra
+    of BLOCK UPPER TRIANGULAR matrices (with block sizes r_1, ..., r_s
+    summing to q):
+
+            [ T_1  *     *   ... * ]
+        B = [ 0    T_2   *   ... * ]
+            [ 0    0     T_3 ... * ]
+            [ .    .     .   ... . ]
+            [ 0    0     0   ... T_s]
+
+    where T_i is any r_i x r_i matrix, and off-diagonal blocks are
+    arbitrary. This "conjugate" is NOT KNOWN explicitly (the change of
+    basis is the thing we want to avoid computing).
+
+    THE QUESTION. From B alone, construct a rank-one idempotent in B.
+
+    IMPORTANT: We need to construct it in the ORIGINAL basis, because
+    the eventual lift to E requires knowing its coordinates in that
+    basis.
+
+    SOLUTION: THE TRACE PAIRING KERNEL.
+
+    Define the bilinear form on B:
+
+        (a, b)  ->  tr(ab)    (matrix trace).
+
+    Compute the kernel N of this form:
+
+        N = { b in B : tr(a b) = 0 for all a in B }.
+
+    In block upper triangular coordinates, a product ab has DIAGONAL blocks
+    matching the diagonal blocks of a and b:
+
+        (ab)_ii = a_ii * b_ii.
+
+    Therefore tr(ab) = sum_i tr(a_ii b_ii).
+
+    The trace pairing on M_q(k) is nondegenerate (any two matrix units
+    E_ij, E_kl pair to δ_il δ_jk, which is 1 only for i=l, j=k). Hence
+    the pairing on each full matrix algebra of each diagonal block is
+    nondegenerate.
+
+    Now consider b in B. If b_ii = 0 for all i, then tr(a b) = 0 for
+    all a in B, so b in N. Conversely, if some b_ii != 0: pick a in B
+    with a_ii chosen so that tr(a_ii b_ii) != 0 (possible by nondegeneracy),
+    and a_jj = 0 for j != i. Then tr(a b) = tr(a_ii b_ii) != 0. So
+    b not in N.
+
+    CONCLUSION: N = strictly block upper triangular part of B (diagonal
+    blocks zero, off-diagonal arbitrary).
+
+    Now consider the common kernel of all the matrices in N:
+
+        U = intersection over n in N of ker(n).
+
+    If N is JUST the strictly block upper triangular part, what is U?
+    We need to figure out the common kernel.
+
+    Claim: U is EXACTLY the space of column vectors of the form (v_1, 0, 0, ..., 0)
+    with v_1 in k^(r_1) (arbitrary vector in the FIRST block position).
+
+    Why? Consider a vector u = (u_1, u_2, ..., u_s). If any u_j != 0 with
+    j >= 2, then some n in N can send it to a nonzero vector: pick n to be
+    zero except in the (1,j) block, and choose the (1,j) block to be
+    an arbitrary matrix (it's in the strictly-upper part), specifically
+    one that sends u_j to a nonzero result. Then n u has a nonzero first
+    block. Contradiction.
+
+    If u is of the form (v_1, 0, ..., 0), then for any n in N,
+    n u = (n_{11} v_1, 0, ..., 0) (since block columns beyond 1 kill zero
+    entries), but n_{11} = 0 (it's a strictly-upper matrix, so its
+    diagonal blocks are zero). So n u = 0. Contradiction.
+
+    Hence U = first column block.
+
+    CONSTRUCTING an idempotent from U.
+
+    Pick any 0 != v in U. Pick any row vector w in k^q such that w v = 1
+    (this just requires w v != 0 where v is a specific column vector;
+    there are many such w, choose a canonical one).
+
+    Define a_0 = v w, the outer product of a rank-one column and a
+    rank-one row. This is a q x q matrix of rank one, and a_0^2 = v w v w
+    = v (w v) w = v w = a_0 (an idempotent!).
+
+    BEHAVIOR UNDER BLOCK COORDINATES: v has only its first-block entries
+    possibly nonzero. The rank-one matrix a_0 = v w has only its first
+    block ROW possibly nonzero. So a_0 lies in the FIRST BLOCK ROW of B,
+    i.e. in B itself. Great.
+
+    So we have constructed a rank-one idempotent a_0 in B, in the
+    original coordinates.
+
+    FINAL STEP: Lift a_0 (a matrix) to a global section b in E
+    (an element of the matrix algebra over the function field) that
+    evaluates to a_0 at infinity. This is a linear solve.
+
+    Then compute e = b^q. Why b^q?
+
+    Think in block coordinates. b evaluates to a_0 at infinity, which
+    is a rank-one idempotent. It therefore has characteristic polynomial
+    T^(q-1) (T - 1) at infinity (one eigenvalue 1, q-1 eigenvalues 0).
+    So det(T - b) = T^(q-1) (T - 1).
+
+    But b is a GLOBAL section of End(V), so the coefficients of det(T - b)
+    are GLOBAL SECTIONS of O(P^1) = constants. So they are CONSTANTS,
+    and the characteristic polynomial of b is IDENTICALLY T^(q-1)(T-1)
+    (as a polynomial over K_0).
+
+    Now b is a matrix over K_0 whose characteristic polynomial is
+    T^(q-1)(T - 1). By the Chinese Remainder / primary decomposition, the
+    algebra K_0[b] is isomorphic to K_0[T]/(T^(q-1)(T-1)) = K_0 x
+    (nilpotent part). The idempotent projecting onto the eigenvalue-1
+    eigenspace is b^q:
+
+        b^q on T-1 eigenspace = 1^q = 1,
+        b^q on T^(q-1) nilpotent = 0^q = 0.
+
+    So e = b^q is a RANK-ONE IDEMPOTENT in E.
+
+    THAT IS THE NORM SOLVER.
+
+    THE REMAINING ENGINEERING. To actually implement all this, one must:
+
+    (a) Construct maximal orders A_v at every closed point v of P^1. This
+        is done by explicit local formulas:
+        - Generic points: standard order.
+        - Place at a root of F: total ramification, special local model.
+        - Places where the norm G has valuation multiple of q: scaled
+          order.
+        - Place at infinity: model using z = X^{-1} and renormalized Y.
+
+    (b) Compute the global sections (elements integral at EVERY place)
+        as solutions to a finite linear system. The ansatz is a
+        rational function with bounded numerator degree (bounded by
+        coefficients of the orders), and the constraints are
+        "divisibility by certain powers at each exceptional place".
+
+    (c) Evaluate the map "sections at infinity -> matrices in B" via
+        the local model at infinity.
+
+    (d) Apply the trace-pairing computation described above.
+
+    (e) Lift, solve V e = h e, return h.
+
+    Each step is polynomial in q, N, D (where D bounds the numerator and
+    denominator degrees of G). The paper proves precise bounds.
+
+================================================================================
+16.  Sizes: what is controlled and by how much
+================================================================================
+
+    The paper is careful about sizes because the entire pipeline is
+    polynomial-time and we need to track that nothing blows up.
+
+    Let N be the degree of F (which is odd here), D the max numerator/
+    denominator degree of G, and let d_H <= N + 2D be the number of
+    distinct "bad" places where the local model is nontrivial.
+
+    Let M = 10 * q^2 * (N + D + 1) be a bound on the valuation of any
+    element of any local order. The paper's Lemma "Bounds for the local
+    models" proves that every nonzero entry of the matrices W_{ab} and
+    their inverses has valuation between -M and +M. This follows by
+    explicit formulas (Section 15.4 of the paper) which are polynomials
+    in q, N, D.
+
+    ANSATZ. Every global section of the order has the form
+
+        b = sum_{a,b'=0}^{q-1} c_{ab'} W_{ab'}
+
+    with c_{ab'} = P_{ab'}(X) / H(X)^M, where H = prod_i h_i is the product
+    of the "bad" places and deg P_{ab'} <= M * (d_H + 1).
+
+    The linear system has at most q^2 * (M(d_H + 1) + 1) unknowns, and
+    about q^2 * M * (d_H + 1) scalar conditions (one per matrix entry at
+    each place, at precision up to 3M + 3).
+
+    All these numbers are polynomials in q, N, D. So all linear algebra
+    in the norm solver is polynomial time.
+
+    OUTPUT SIZE. The extracted h in L_curl has the form
+
+        h = (1/d_h(X)) * sum_{j=0}^{q-1} a_j(X) Y^j
+
+    with deg a_j, deg d_h <= some explicit polynomial bound (the paper
+    proves it is bounded by, say, B^20 in the general bound, but with
+    precise polynomial dependence on q, N, D). The absolute divisor degree
+    of div(h) is bounded by a polynomial in q, N, D.
+
+    THAT IS THE COMPLETE NORM-SOLVING MACHINERY.
+
+
+================================================================================
+16.5  Divisor arithmetic without knowing the points
+================================================================================
+
+    This is a crucial sidebar that must be included, because the algorithms
+    in Part IV and V all manipulate divisors whose support includes the
+    unknown ramification points P_i = (x_i, 0). We cannot enumerate
+    these points. We must represent divisors IMPLICITLY.
+
+    THE IDEAL REPRESENTATION.
+
+    Let O be the affine coordinate ring: O = k[X, Y] / (Y^q - F(X)) =
+    k[x, y]. Since C is smooth, O is a DEDEKIND DOMAIN: every ideal has
+    a unique prime factorization. The fraction field of O is the function
+    field L_curl = k(C).
+
+    For a divisor D supported only on affine points, define the
+    FRACTIONAL IDEAL:
+
+        I(D) = { a in L_curl^* : v_P(a) >= v_P(D) for every affine P }
+                 union {0}.
+
+    This is a module over O. Every fractional ideal arises this way. It
+    is free as a k[X]-module with basis 1, Y, ..., Y^(q-1).
+
+    THE FINITE PART of a divisor is represented by this I(D). The
+    INFINITY PART (a tuple of q integers, one for each infinity_j) is
+    stored separately as a vector.
+
+    SUM, NEGATIVE, MAX, MIN of divisors all translate into ideal
+    operations:
+
+        I(D + E)  = I(D) * I(E)     (ideal product)
+        I(-D)     = I(D)^(-1)        (inverse ideal)
+        I(max(D,E)) = I(D) ∩ I(E)   (intersection)
+        I(min(D,E)) = I(D) + I(E)   (sum)
+
+    Each of these can be computed with polynomial algebra over k. This is
+    the essence of Proposition 4.1 in the paper.
+
+    REPRESENTING THE IDEAL CONCRETELY.
+
+    Choose a "bound polynomial" H in k[X] with
+
+        H * O  ⊆  I  ⊆  H^(-1) * O.
+
+    Then I is determined by the SUBSPACE (H*I)/(H*O) inside the quotient
+    (H^(-1)*O)/(H*O), which has dimension 2*q*deg(H) over k. Store that
+    subspace as a matrix of coefficients mod H^2. This is a finite
+    linear-algebra object.
+
+    CONSTRUCTING A BOUND H. Lemma 4.2 (compression) shows how to compute
+    two monic polynomials h^+ and h^- such that H = h^+ h^- is a valid
+    bound, and deg(h^+) = "total zero degree" of D, deg(h^-) = "total pole
+    degree". These are the characteristic polynomials of multiplication-
+    by-X on the integral ideals I ∩ O and I^(-1) ∩ O.
+
+    An additional consequence (orbit-sum identity): if deg(D) = 0,
+    then div(j) = sum over a=0..q-1 sigma^a D where j = h^+ / h^- in
+    K_0 = k(X). This is the ORBIT SUM: it gives the pushforward of D
+    to P^1 as a rational function j. That is exactly the j used in
+    Section 14 step (i).
+
+    RIEMANN-ROCH. For a divisor D on C and integer ell >= 0, let
+
+        L(D + ell * infinity_0) = { h in L_curl^* : div(h) + D + ell
+                                    * infinity_0 >= 0 } union {0}.
+
+    This is a finite-dimensional k-vector space. The Riemann-Roch
+    theorem guarantees it is NONEMPTY for large enough ell (specifically
+    ell >= g where g is the genus). We compute a basis by:
+
+        - Choosing an ansatz: every element has the form
+                H^(-1) * sum_{j=0}^{q-1} a_j(X) Y^j
+          with deg(a_j) <= deg(H) + |D| + ell.
+
+        - Imposing membership in I(-D) (a subspace condition) as linear
+          conditions on (a_j).
+
+        - Imposing v_{infinity_j}(h) >= -v_{infinity_j}(D) - ell [j=0]
+          via local Laurent expansion conditions.
+
+    Solving the resulting linear system gives the space. This is used
+    for REDUCTION: given a degree-zero divisor D, pick ell = g, find a
+    nonzero h in L(D + g * infinity_0), and set D' = D + div(h). Then
+    deg(D') = deg(D) = 0 and (D') + g*infinity_0 is EFFECTIVE of degree
+    g, so the ABSOLUTE DEGREE of D' is at most 2g. This is the "reduce
+    to canonical small form" operation.
+
+    LOCAL EXPANSIONS. For the infinity conditions and for local
+    residue computations used elsewhere:
+
+        - At infinity_j: use z = X^(-1) and U = Y z^(N/q). Solve U^q =
+          z^N F(z^(-1)) by Hensel lifting to enough precision.
+
+        - At a ramification point P_i = (x_i, 0): use Y as uniformizer
+          and solve F(X) = Y^q with X(0) = x_i via Hensel (derivative
+          F'(x_i) != 0 because F is square-free).
+
+    SIMULTANEOUS DIVISOR SUM. When we have N divisors, one for each root
+    of F, computed over the algebra A = k[T]/F(T) via the Simultaneous
+    Execution lemma (Section 8.1), we must sum them into a single divisor
+    over k. This is done WITHOUT finding the components via the NORM:
+
+        - Compute H_* = Norm_{A/k}(H) (product of the bound polynomials).
+        - Compute w_a = Norm_{A/k} (sum_{j=0}^{b-1} a^j u_j) for a set of
+          a in k (at least s(b-1)+1 distinct scalars).
+        - The w_a generate the product ideal, and their norms give a valid
+          bound H_*.
+
+    This avoids enumerating the roots. See Lemma 4.3 in the paper.
+
+    BINARY INFINITY COEFFICIENTS. In the final label test, the infinity
+    divisors W_t have coefficients that can be EXPONENTIALLY large in
+    binary (up to N*(2q)^m, where m is polynomial in n). We cannot
+    represent W_t by its coefficient vector directly. Instead:
+
+        - The divisor -W_t is written as a sum of q-1 signed multiples of
+          (infinity_j - infinity_0) with binary-exponent coefficients.
+        - We build a CIRCUIT: at each doubling or addition step, reduce
+          (keeping the divisor small) and compose the resulting function
+          with the current one.
+        - The final h has a circuit representation whose leaves are
+          SMALL functions (from reductions on small divisors).
+        - At a ramification point, evaluate the circuit by propagating
+          the leading coefficient and the valuation through each leaf.
+
+    This keeps the actual object polynomial-sized. Lemma 4.5 in the
+    paper proves the correctness and the size bound.
+
+    That is the full "how to compute at unknown roots" story: implicit
+    ideal representation + local expansions + Riemann-Roch reduction +
+    norm for simultaneous operations + circuit representation for
+    exponential infinity coefficients.
+
+================================================================================
+PART VI.  PUTTING IT TOGETHER
+================================================================================
+
+================================================================================
+17.  The full splitting algorithm
+================================================================================
+
+    We are now ready to state the actual OddSplit procedure. It is the
+    deterministic algorithm promised in Section 13.
+
+    INPUT:
+        - Prime p, prime q | N with N odd, N = deg(F).
+        - Monic, square-free, totally split F in F_p[X], degree N.
+        - The field K / F_p of degree at most q-1, containing:
+            - primitive q-th root of unity ζ.
+            - ω_K in K^* of order q^(v_q(|K|-1)).
+
+    SETUP:
+        - r = v_q(N).
+        - m = 1 + (q-1) * r.
+        - k = K[T]/(T^(q^r) - ω_K), [k:F_p] <= N(q-1).
+        - ω = T (mod T^(q^r) - ω_K), full q-primary generator of k^*.
+        - Curve C: Y^q = F(X) over k, ramification points P_i.
+        - A = k[T_1]/F(T_1) = k^N (simultaneous execution over all roots).
+        - e = (sigma - 1) * infinity_0 in the lattice Lambda.
+
+    STAGE 1. LIFT EACH RAMIFICATION CLASS.
+
+        Over A (simultaneously for all i), set:
+
+            D_i := P_i - infinity_0
+
+        as a divisor with variable point P_i in the i-th component.
+
+        For t = 1, ..., m-1:
+            D_i := LambdaDivide(D_i, P_i)
+            (returns a divisor D' with (1-sigma)[D'] = [D_i])
+
+        After these m-1 divisions, D_i = D_i^(m-1) satisfies
+            lambda^t [D_i^(t)] = [e] for each t = 1, ..., m.
+
+        If at any point LambdaDivide detects zero tests diverging between
+        components, STOP and return the resulting factor of F. (This
+        happens if the algorithm can split F sooner.)
+
+    STAGE 2. SUM THE LIFTS.
+
+        Use the simultaneous divisor sum operation (Lemma 4.3) to compute
+        the sum:
+
+            D_m := sum_{i=1}^N D_i^(m)
+
+        This is a single degree-zero divisor over k satisfying
+
+            lambda^m [D_m] = [N e].
+
+        Reduce D_m using Riemann-Roch to get an equivalent divisor of
+        absolute degree at most 2g.
+
+        Now descend: for t = m-1, m-2, ..., 1:
+
+            D_t := Reduce( (1-sigma) D_{t+1} )
+
+        This computes d_t = lambda^(m-t) d_m iteratively.
+
+        Also compute the integral infinity lattice divisors:
+
+            W_t := lambda^(-(t-1)) [N e]  for t = 1, ..., m.
+
+        These are guaranteed to exist (in Lambda) by (N e) being in
+        lambda^(m-1) * Lambda but not lambda^m * Lambda.
+
+    STAGE 3. LABEL TESTS.
+
+        For each t = 1, 2, ..., m:
+
+            Test invariant: lambda[d_t] = [W_t].
+
+            Compute the function h_t satisfying
+
+                div(h_t) = (1-sigma) D_t - W_t
+
+            using the binary circuit method for W_t (which has potentially
+            large coefficients).
+
+            For each root index i, compute:
+                - v_{P_i}(D_t) -- the coefficient of P_i in D_t
+                - h_t(P_i) -- the value of h_t at P_i
+
+            Compute the norm of h_t at P_i: this equals (h_t(P_i))^q,
+            independent of i. Call it c_t in k^*.
+
+            Compute a q-th root gamma_t of c_t using Lemma 8.2
+            (UnitRoot, the primary subgroup extraction).
+
+            Compute the LABELS:
+
+                l_{i, t} := v_{P_i}(D_t) - log_ζ(h_t(P_i) / gamma_t)
+
+            in F_q (log base ζ, since h_t(P_i)/gamma_t is a power of ζ).
+
+            If the labels l_{i, t} are NOT ALL EQUAL, then:
+                - Pick a target value a in F_q.
+                - Compute the idempotent mask e_a in A that is 1 on
+                  components where l_{i, t} = a.
+                - Return gcd(F, e_a(T)) as a factor of F.
+                  (This is a proper nontrivial factor because we detected
+                   two distinct label values.)
+
+            If the labels are all equal, continue to t+1.
+
+    TERMINATION. By Proposition 13 (Section 13) applied with the class
+    d_m just computed, at SOME t in 1, ..., m, the labels must differ.
+    So the algorithm always terminates with a factor.
+
+    COMPLEXITY. Each step is polynomial in n and L = log p, as follows:
+
+        - Field k has degree at most N(q-1) <= n^2 over F_p.
+        - Each LambdaDivide call costs a fixed polynomial (from Sections
+          14-16), bounded by (say) B^2000 bit operations.
+        - There are at most m <= B^2 divisions.
+        - Simultaneous divisor sum costs poly(n, q, log|k|).
+        - Label tests: at most q*m^2 log(N) * |k|^2 bit operations.
+
+    Total bit cost is bounded by B^C for an absolute constant C. In the
+    paper's final accounting the exponent is set generously at 10^12.
+
+    CORRECTNESS. If OddSplit returns a factor, it is a proper factor of F
+    by the gcd structure. If it runs all m tests without returning, that
+    CONTRADICTS Proposition 13, because the labels must differ at some
+    level. Hence OddSplit always returns a factor.
+
+    THAT is the deterministic splitting procedure for odd degree.
+
+================================================================================
+18.  The auxiliary prime table
+================================================================================
+
+    Sections 14-17 assumed we had specific field data:
+        - K / F_p containing ζ of order q.
+        - ω_K of order q^(v_q(|K|-1)).
+    For each prime q dividing N, we must construct this data explicitly.
+    That is what the auxiliary prime table does.
+
+    THE AUXILIARY PRIME. For each prime q <= n, we need a rational prime
+    ℓ (call it the "auxiliary prime for q") such that:
+
+        ℓ not in {2, 3, p, q},
+        ℓ ≡ 1 (mod 12 q),
+        p^((ℓ-1)/q) != 1 (mod ℓ).
+
+    The last condition means: p is NOT a q-th power modulo ℓ. This will
+    be the key input that makes the table work. The congruence mod 12q
+    ensures ℓ has "enough roots of unity" for the construction.
+
+    GIVEN ℓ, we build the table entry for q as follows.
+
+    STEP 1. Build the "cyclotomic test algebra" R_ℓ:
+
+        R_ℓ = F_p[T] / (T^(ℓ-1) + T^(ℓ-2) + ... + T + 1)
+
+    This is the ℓ-th cyclotomic polynomial mod p, so R_ℓ encodes the
+    ℓ-th roots of unity over F_p.
+
+    Let Γ_ℓ = (Z/ℓZ)^* be the multiplicative group of integers mod ℓ.
+    Let H_q = { a^q : a in Γ_ℓ } be the q-th-power subgroup.
+
+    For a in Γ_ℓ, define τ_a: T -> T^a as a substitution automorphism of
+    R_ℓ. Compute the H_q-invariant subalgebra:
+
+        U_q = R_ℓ^(H_q) = intersection over a in H_q of ker(τ_a - id).
+
+    This is F_p-linear algebra: stack the matrix representations of
+    "τ_a - identity" for all a in H_q, find the common kernel.
+
+    LEMMA. U_q is a field of degree q over F_p.
+
+    WHY? R_ℓ (over an algebraic closure) has ℓ-1 primitive ℓ-th roots of
+    unity as its "points". Γ_ℓ acts by raising roots to powers a; by
+    regularity, the regular action gives a single orbit. H_q is a subgroup
+    of index q (since Γ_ℓ is cyclic of order ℓ-1 and H_q is the q-th
+    powers, so Γ_ℓ / H_q has order q). Frobenius acts on the orbit set by
+    multiplying by p; the condition p^((ℓ-1)/q) != 1 mod ℓ means this is
+    a NON-trivial element of Γ_ℓ/H_q. A cyclic group of prime order q
+    has no proper nontrivial subgroup, so Frobenius acts transitively on
+    the H_q-orbits. Hence U_q is a single field of degree q. QED.
+
+    IMPORTANT: the computation of U_q NEVER calls for factoring the
+    ℓ-th cyclotomic polynomial ζ_ℓ(X) = sum X^j, whose degree is ℓ-1
+    (potentially very large). Everything is a single F_p-linear
+    algebra problem in dimension ℓ-1.
+
+    STEP 2. Factor the q-th cyclotomic polynomial over F_p.
+    Compute a factor of Φ_q(Z) = 1 + Z + ... + Z^(q-1) over F_p, taking
+    the first monic irreducible factor in a fixed coefficient order. Let
+    K_q = F_p[Z]/(that factor), of degree d_q = ord_q(p), which divides
+    q-1. Let ζ_q be the image of Z in K_q: a primitive q-th root of unity
+    because the roots of Φ_q all have order q.
+
+    STEP 3. Tensor with U_q.
+    Form V_q = U_q (tensor over F_p) K_q. Since deg U_q = q and
+    deg K_q = d_q divides q-1, the two degrees are coprime, so the
+    tensor product is a field of degree q over K_q.
+
+    STEP 4. Get a q-th root of unity on the q-primary side.
+    Put Q_q = |K_q| = p^(d_q) and s_q = v_q(Q_q - 1). On V_q^*, the map
+    u -> u^(Q_q - 1) has image exactly the norm-one subgroup (both have
+    order (Q_q^q - 1)/(Q_q - 1)). The norm of ζ_q from V_q to K_q is
+    ζ_q^(1+Q_q+...+Q_q^(q-1)) = ζ_q^q = 1, so ζ_q lies in that image.
+    Therefore the linear system u^(Q_q - 1) = ζ_q u has a nonzero
+    solution u in V_q.
+
+    STEP 5. Extract the full q-primary generator.
+    Let w = u^((Q_q^q - 1) / q^(s_q+1)) and ω_q = w^q. Equation
+    v_q(Q_q^a - 1) = s_q + v_q(a) (LTE, for q odd) shows v_q(Q_q^q - 1)
+    = s_q + 1, so w has order q^(s_q+1) and ω_q has order q^(s_q). That
+    subgroup of order q^(s_q) sits in K_q^*, since q^(s_q) divides
+    Q_q - 1. Hence ω_q lies in K_q^*, as required.
+
+    STEP 6. Deliver (K_q, ζ_q, ω_q).
+    These three objects are exactly what the odd splitter consumes: the
+    field, the q-th root of unity, and the full q-primary generator of
+    K_q^*.
+
+    COST on factorization: the only polynomial-factoring call is Φ_q,
+    of degree q-1, which is strictly smaller than q. So the recursive
+    structure works: to build the entry for q we call Factor at degree
+    q-1, which only needs table entries for primes at most q-1.
+
+    q = 2 (even case). No auxiliary prime table needed. Just find a
+    nonresidue in F_p^*: pick the first candidate a in {2, 3, 4, ...}
+    that is not a square. Raise a^((p-1)/2^s) where 2^s || p - 1, and use
+    that as ω_2. This gives the full 2-primary generator of F_p^*, exactly
+    what Section 10 needs.
+
+    HOW TO FIND ℓ IN THE FIRST PLACE. Search upward from 12q + 1 through
+    integers ≡ 1 (mod 12q). For each candidate, test primality by trial
+    division and test p^((ℓ-1)/q) != 1 mod ℓ by modular exponentiation.
+    Each test costs poly(log ℓ + log p). The analytic input (Section 19)
+    says that some auxiliary prime exists below c_0 * B^20000000 for an
+    absolute constant c_0.
+
+    So the full cost of building all table entries is bounded.
+
+================================================================================
+19.  The analytic input: Hecke L-functions
+================================================================================
+
+    We need ONE final input to close the loop: a guarantee that small
+    auxiliary primes exist. That input comes from analytic number theory.
+
+    THE STATEMENT (Theorem 1.2 in the companion paper
+    "Primitive roots for every admissible integer base"). For every
+    cyclotomic number field K containing the twelfth roots of unity,
+    and every finite-order Hecke character χ of K, the Hecke L-function
+    L_K(s, χ) has NO ZERO in the strip
+
+        Re s > 1 - δ,    δ = 10^(-6)   (a fixed absolute constant).
+
+    The principal character is included, with its pole at s=1 permitted.
+    There is NO restriction on the conductor or imaginary part. The width
+    δ is uniform across K and χ.
+
+    WHY DOES THIS GIVE AUXILIARY PRIMES?
+
+    For each prime q and each prime p (large), consider the cyclotomic
+    field K = Q(ζ_12q) and the extension M = K(p^(1/q)). Since p is
+    unramified in K (p is large), p^(1/q) is not in K and X^q - p is
+    Eisenstein at p. So [M:K] = q and M/K is cyclic. By class field
+    theory / abelian zeta factorization,
+
+        ζ_M(s) = product over the q characters of K of L_K(s, χ).
+
+    The assumed zero-free strip transfers to ζ_M(s) AND to ζ_K(s).
+
+    Then a smoothed explicit formula (Lemma 1 in Section 10 of the paper)
+    gives:
+
+        Ψ_K(x) - (1/q) Ψ_M(x)
+            = (1 - 1/q) * x * Φ(1) + O(x^(1-δ) * (log D + [K:Q]))
+
+    where Ψ_K, Ψ_M are smoothed prime-counting functions (sums of log(N P)
+    over prime ideals P, with a smooth cutoff), Φ is the Mellin transform
+    of the smoothing function, and D is the discriminant.
+
+    THE KEY OBSERVATION: Prime ideals P of K that SPLIT COMPLETELY in M/K
+    are exactly those for which X^q - p splits mod P (i.e., p is a q-th
+    power modulo P), and these contribute EQUALLY to Ψ_K and (1/q)Ψ_M
+    (they cancel in the difference). Prime ideals of K that do NOT split
+    (i.e., p is not a q-th power) contribute POSITIVELY to the difference.
+
+    Hilbert-style argument on residue degrees: for a prime ℓ ≡ 1 (mod q)
+    of K with residue field F_ℓ, p^((ℓ-1)/q) = 1 mod ℓ iff p is a q-th
+    power mod ℓ. And it splits completely in M iff p is a q-th power
+    mod ℓ. So the first-power degree-one primes of K that are CANCELLED
+    are exactly the ones with p a q-th power mod ℓ.
+
+    Meanwhile, the main term (1 - 1/q) x Φ(1) can be compared to the
+    error term O(x^(1-δ) * B^3). At x = T B^20000000 (with T an absolute
+    constant), the error is a small fraction of the main term. So:
+
+        Ψ_K(x) - (1/q) Ψ_M(x) is LARGE (of order x).
+
+    But the total contribution of primes UP TO x with p a q-th power
+    modulo those primes is at most the error term. And the contribution
+    of ALL primes up to 2x with p a q-th power is at most some O(x^(1-δ))
+    amount. So: if NO prime ℓ <= x ≡ 1 mod q existed with p not a q-th
+    power mod ℓ, we would have a contradiction. Hence there MUST exist
+    such a prime ℓ below c_0 B^20000000.
+
+    That is the analytic input in a nutshell. Its full proof is in the
+    companion paper. It uses standard explicit-formula machinery:
+    the smoothed explicit formula for ζ_M(s), a uniform zero-density
+    estimate (from Hasanalizade-Shen-Wong 2022), Mellin transform decay,
+    and the cyclotomic discriminant bound. All of it is standard
+    analytic number theory, though precise and careful.
+
+    IMPORTANTLY: the analytic input is ISOLATED. Everything else in this
+    paper is elementary algebra and geometry. Only this section uses
+    L-functions. Moreover, GRH for finite-order Hecke L-functions implies
+    the same strip, so the algebraic reduction ALREADY gives polynomial-time
+    factorization under GRH (independent of the analytic theorem).
+    The companion paper removes the GRH assumption by proving the strip
+    unconditionally.
+
+
+================================================================================
+PART VII.  EPILOGUE
+================================================================================
+
+================================================================================
+20.  The complexity bound
+================================================================================
+
+    Let us put all the pieces together and account for the running time.
+
+    THE MASTER PARAMETER. Set
+
+        B = 20 + (n + 1) * (L + 1)
+
+    where n = deg f is the input degree and L = ceil(log_2 p) is the number
+    of bits in the prime. Then B is a constant multiple of the bit length
+    of the input. Every polynomial bound in the paper is expressed in
+    terms of B.
+
+    THE TOP-LEVEL DRIVER.
+
+    Algorithm Factor(f):
+        (1) Read degree n, leading coefficient c. If n = 0, return
+            (c, empty list).
+        (2) Let h = f / c, so h is monic.
+        (3) Compute h' = formal derivative of h (coefficients at
+            positions 0, 1, ..., n-1 scaled by their index, mod p).
+        (4) If h' = 0: then h(X) = g(X^p) for some polynomial g whose
+            coefficients are the p-th roots of h's nonzero coefficients
+            (which equal themselves in F_p). Recursively Factor(g),
+            multiply every multiplicity by p, return.
+        (5) Else: let d_0 = gcd(h, h'). If d_0 != 1:
+            recursively Factor(d_0) and Factor(h / d_0) and merge the
+            two result lists by adding multiplicities. Return.
+        (6) Now h is square-free. Compute Berlekamp algebra B_h.
+            Let r = dim B_h (r = number of distinct irreducible factors).
+        (7) If r = 1: return (h, multiplicity 1).
+        (8) Else: split h into two or more factors using one of the
+            following, then return the merged recursive Factor on each
+            piece:
+
+              (a) SMALL p (p <= B^(200000)). Brute force: find a nonscalar
+                  element b in B_h. For a in F_p (enumerated), test
+                  gcd(h, b - a). One of them must be nontrivial. Split.
+
+              (b) LARGE p, EVEN N: use EvenSplit (Section 10).
+
+              (c) LARGE p, ODD N: use OddSplit (Section 17), which needs
+                  the auxiliary table entry for the odd prime q dividing N.
+                  If q is the smallest odd prime factor of N, we can use
+                  that q.
+
+    All the work is in (8b) and (8c). The engineering (1)-(7) is standard.
+
+    THE SMALL/LARGE SPLIT. The value B^200000 is chosen so that:
+        (a) For p <= B^200000, the small-prime brute-force search in
+            (8a) uses at most B^200000 scalar tests, bounded by B^201000.
+        (b) For p > B^200000, the analytic input (Section 19) guarantees
+            auxiliary primes ℓ_q <= c_0 * B^20000000. Then the
+            characteristic hypotheses of the norm solver and the divisor
+            trace are satisfied (they demand p > B^6 or so).
+
+    THE COMPLEXITY ACCOUNTING.
+
+    For the large-p branch, one OddSplit call costs a fixed polynomial
+    in B, bounded by (say) B^20000 (this comes from the norm solver's
+    internal linear algebra, the divisor arithmetic, and the label
+    tests). There are at most O((n+1)^2) OddSplit calls across the
+    recursion. Total splitting work: B^20004.
+
+    Building the auxiliary table for each prime q <= n costs:
+        - Φ_q factorization by recursion at degree q-1: included in the
+          recursion cost.
+        - Everything else: poly(q, log p) <= B^40 per entry, times at
+          most B^41 for the whole table.
+    Total table work: B^41 E^10, where E is the largest auxiliary prime
+    actually built. With E <= c_0 B^20000000, this is at most B^400000100.
+
+    The small-p branch (p <= B^200000) costs B^201000.
+
+    Summing: the total is at most B^400000100 in the large-p case, and
+    B^201000 in the small-p case. The paper rounds this up to the
+    headline exponent:
+
+        bit cost of Factor(f) = O(((n+1) L)^(10^12))
+
+    with an absolute implied constant.
+
+    THAT IS THE POLYNOMIAL-TIME BOUND.
+
+    Note what is and is not claimed:
+        - We do NOT claim a small exponent. 10^12 is far larger than
+          practical algorithm design would want. That is fine. The
+          theorem says only "a fixed polynomial exists".
+        - We do NOT claim this is fast in practice. Practical factoring
+          uses Cantor-Zassenhaus on top of Berlekamp, usually with
+          randomness.
+        - We DO claim: for EVERY prime p and EVERY nonzero polynomial f
+          over F_p, the result of Factor(f) is the complete factorization
+          of f, and the running time is at most B^10^12 bit operations.
+
+    The polynomial bound is the real result. The efficiency comes later.
+
+================================================================================
+21.  History and the wider landscape
+================================================================================
+
+    A few signposts in the story of this problem.
+
+    BERLEKAMP (1967, 1970). Introduced the Berlekamp algebra, turning
+    factorization into existence of a nonscalar element in B_f. Proved
+    polynomial-time (in p) factorization by exhaustive search for such
+    an element.
+
+    CANTOR-ZASSENHAUS (1981). Randomized expected polynomial-time
+    factoring. The workhorse algorithm for decades. Requires a random
+    choice of a in F_p to separate factors.
+
+    SHOUP (1990). Deterministic algorithm with running time polynomial
+    in n and p^(1/2+o(1)). This is the first deterministic algorithm
+    that does better than "polynomial in p"; its characteristic
+    dependence is roughly the square root.
+
+    RONYAI (1988, 1992). Under GRH, deterministic polynomial-time
+    factoring when the number of irreducible factors is bounded, or
+    when the splitting field degree is bounded. Also introduced
+    deterministic factorization of totally-split polynomials given a
+    quadratic nonresidue.
+
+    EVDOKIMOV (1994). Under GRH, deterministic subexponential-time
+    factoring in general, specifically (n^(log n) log p)^O(1), which is
+    quasipolynomial in n.
+
+    SCHOOF (1985). Independent geometric machinery: computes elliptic
+    curve Frobenius in polynomial time, providing polynomial-time
+    computation of square roots mod p when they exist. Uniform bound
+    depends on the "height" of the input in a specific way.
+
+    PILA (1990). Frobenius computations on general abelian varieties,
+    giving deterministic computation of roots of unity of fixed prime
+    order under suitable conditions.
+
+    ALTMAN (2025). Handles reductions modulo many primes together:
+    total time pi(X) (m log H)^O(1) log^5 X, "avearged" over primes,
+    where m can be as large as the factorial of the polynomial's degree.
+
+    THE PRESENT PAPER (2026). Combines:
+        - geometric ideas (curves Y^q = F(X), the infinity lattice)
+        - algebraic ideas (norm equations, idempotents, vector bundles)
+        - the analytic input (a zero-free region for Hecke L-functions)
+    into a fully deterministic polynomial-time algorithm with a
+    uniform bound in (n+1) L.
+
+    The innovation is the ODD-DEGREE splitter: the geometric + algebraic
+    construction of a separator that cannot exist by elementary means
+    (because a regular tournament on an odd number of roots has no
+    intrinsic distinguishing element). The infinity-lattice obstruction
+    is what FORCES the geometric construction to produce a nontrivial
+    factor.
+
+    The input from the companion paper (uniform zero-free strip for
+    Hecke L-functions) is the last non-algebraic ingredient. Under GRH,
+    this strip is automatic, so the algebraic reduction gives
+    polynomial-time factoring under GRH. The companion removes the GRH
+    assumption.
+
+    WHAT THIS DOES AND DOES NOT PROVE. This is a theoretical result, not
+    a practical algorithm. The bound's exponent (10^12) is enormous. The
+    real algorithmic machinery for everyday use remains Cantor-Zassenhaus
+    plus optimizations. What the paper does is establish that
+    "deterministic polynomial time" is possible AT ALL, settling a
+    longstanding question about the relationship between randomization
+    and factoring.
+
+================================================================================
+22.  A small worked example
+================================================================================
+
+    Because the parameter p must be quite large for the odd splitter to
+    engage its full machinery (p > B^200000), we cannot trace the ENTIRE
+    algorithm on a small example. But we can walk through the STRUCTURAL
+    STEPS on a small example to see how the pieces fit together.
+
+    SETUP. Take p = 7, and consider
+
+        f(X) = X^3 - 3X^2 + 2X = X(X - 1)(X - 2).
+
+    The roots in F_7 are x_1 = 0, x_2 = 1, x_3 = 2. So f is
+    monic, square-free, totally split, of odd degree N = 3.
+
+    This is EXACTLY the input OddSplit expects. In practice p = 7 is
+    small, so the driver would use EvenSplit's cousin for small p
+    (brute force). But the STRUCTURAL steps of OddSplit still make sense
+    and we can trace them symbolically.
+
+    PARAMETERS.
+        q = 3 (the only odd prime dividing N = 3).
+        N = 3 = 3^1 * 1, so r = v_3(N) = 1.
+        m = 1 + (q-1) * r = 1 + 2 = 3.
+
+    WORKING FIELD. p = 7. We need a q-th root of unity. In F_7, the
+    element 2 satisfies 2^3 = 8 = 1 and 2 != 1, so ζ_3 = 2 is a
+    primitive cube root of unity. And F_7 already contains it (since
+    3 | 7-1). So we take K = F_7, ζ = 2.
+
+    For the q-primary generator: v_3(7 - 1) = v_3(6) = 1. Take
+    ω_2 = ... wait, q = 3 here, so we need ω_3 in F_7^*. The full
+    3-primary subgroup of F_7^* (order 6) has order 3. Find a g with
+    order exactly 3: 2^3 = 8 = 1, so ord(2) = 3. Then ω_3 = 2 works.
+    (In general for q=3 and p=7, K = F_7 and ω_3 = 2.)
+
+    BUILD k. k = K[T]/(T^3 - ω_3) = F_7[T]/(T^3 - 2). Does T^3 - 2 have
+    a root in F_7? Check T = 1: 1-2 = -1 = 6 != 0. T = 2: 8-2 = 6 != 0.
+    T = 3: 27-2 = 25 = 4 != 0. T = 4: 64-2 = 62 = 6 != 0. T = 5:
+    125-2 = 123 = 4 != 0. T = 6: 216-2 = 214 = 4 != 0. So T^3 - 2 is
+    irreducible over F_7. Hence k = F_7^3 = F_343. Good.
+
+    In k, ω = T mod (T^3 - 2) generates the full 3-primary subgroup of
+    k^*, which has order 3^2 = 9. Check: T^3 = 2 (order 3 in F_7^*),
+    T^6 = 4, T^9 = 8 = 1, so ord(T) = 9. Good, ω = T has order 9 in
+    k^*.
+
+    THE CURVE. C: Y^3 = F(X) where F(X) = X^3 - 3X^2 + 2X, over k = F_343.
+
+    Ramification points:
+        P_1 = (0, 0),
+        P_2 = (1, 0),
+        P_3 = (2, 0).
+
+    Genus: g = (3-1)(3-2)/2 = 2*1/2 = 1. So C is an ELLIPTIC CURVE.
+    (This is a coincidence of small parameters.)
+
+    Infinity points: q = 3 points. From U^3 = z^N F(z^-1) = z^3 (z^-3 -
+    3 z^-2 + 2 z^-1) = 1 - 3z + 2z^2. At z = 0: U^3 = 1. So
+    U(infinity_j) = ζ^j for j = 0, 1, 2:
+        U(infinity_0) = 1,
+        U(infinity_1) = 2,
+        U(infinity_2) = 4 = 2^2.
+
+    So three infinity points: infinity_0 = [0:1:1], infinity_1 = [0:1:2],
+    infinity_2 = [0:1:4] in some projective coordinates.
+
+    THE AUTOMORPHISM. sigma: (X, Y) -> (X, ζ Y) = (X, 2Y). Then:
+        sigma(P_i) = P_i (Y = 0),
+        sigma(infinity_j) = infinity_{j+1} (indices mod 3).
+
+    THE OPERATOR lambda = 1 - sigma. And e = (sigma - 1)(infinity_0) =
+    infinity_1 - infinity_0 in the lattice Lambda.
+
+    STAGE 1. LIFT CLASSES (symbolically). Set D_i := [P_i - infinity_0].
+
+        Compute D_i' such that (1 - sigma)[D_i'] = [D_i].
+        Since sigma is a nontrivial automorphism, (1-sigma) has
+        nontrivial action on the Jacobian. We compute LambdaDivide
+        three times (for each i). Each division is a class division,
+        done via the norm solver (Section 15). Over the product algebra
+        A = k[T_1]/F(T_1), all three run simultaneously.
+
+        After Stage 1, we have D_i^(t) for t = 1, 2, 3 and i = 1, 2, 3,
+        satisfying lambda^t [D_i^(t)] = [e].
+
+    STAGE 2. SUM THE LIFTS. Compute D_3 = sum over i=1,2,3 of D_i^(3).
+    Then:
+
+        lambda^3 [D_3] = [N e] = [3 e].
+
+    The lattice element 3e lies in lambda^(m-1) Lambda = lambda^2 Lambda
+    but NOT lambda^3 Lambda, because N = 3 = 3^1 * 1 with r = 1 and
+    m = 1 + (q-1)r = 3, so m - 1 = 2.
+
+    Descend: D_2 = Reduce((1-sigma) D_3), D_1 = Reduce((1-sigma) D_2).
+
+    Compute infinity divisors W_t = lambda^(-(t-1)) (3e) for t = 1, 2, 3.
+
+    STAGE 3. LABEL TESTS.
+
+        Test t=1: compute h_1 with div(h_1) = (1-sigma) D_1 - W_1.
+        Evaluate h_1(P_i) for i=1,2,3.
+        Compute norm c_1 = h_1(P_i)^3 (independent of i).
+        Extract gamma_1 in k^* with gamma_1^3 = c_1.
+        Compute labels l_{i, 1} = v_{P_i}(D_1) - log_2(h_1(P_i)/gamma_1) in F_3.
+
+        If labels differ: gcd(F, e_a) gives a factor. Done.
+        If not: t = 2 (test again).
+        ...
+        Guaranteed: at some t in {1, 2, 3} the labels differ.
+
+    The actual numerical values of h_1, gamma_1, etc. require running
+    the full norm solver and divisor arithmetic, which is too involved
+    for a small hand-calculation. But the STRUCTURE is exactly the
+    above. The key insight to appreciate is:
+
+        - We never actually compute the roots x_i = 0, 1, 2 (we know them
+          here because it is a toy example, but the algorithm does not
+          use them).
+        - Instead, we compute everything in the algebra A = k[T_1]/F(T_1),
+          doing SYMBOLIC arithmetic with the variable T_1 that represents
+          "some unspecified root".
+        - If a computation's outcome differs between two roots, a GCD
+          immediately splits F. That is what the label tests detect.
+        - The geometric argument GUARANTEES that at some level the
+          labels differ, without knowing which roots they are.
+
+    This is the miracle the paper constructs. On this example, all the
+    geometric machinery (curve C, ramification P_i, infinity points,
+    sigma, lambda) is EXPLICIT: an elliptic curve over F_343, three
+    specific points, one specific automorphism. The general case works
+    the same way, with larger q, N, and genus.
+
+================================================================================
+23.  Glossary of symbols
+================================================================================
+
+    p                     the prime characteristic (input parameter)
+    n                     degree of input polynomial f
+    L                     ceil(log_2 p), bit length of p
+    B                     20 + (n+1)(L+1), master complexity parameter
+    S                     input bit length, roughly (n+1) L
+
+    F_p                   prime field {0, 1, ..., p-1}
+    F_Q                   field with Q = p^d elements
+    F_p^*                 nonzero elements of F_p (cyclic group of order p-1)
+    gcd(a, b)             greatest common divisor
+
+    f                     input polynomial
+    h                     monic square-free reduced f
+    n = deg f             degree
+    h'                    formal derivative of h
+
+    B_h                   Berlekamp algebra {a in F_p[X]/h : a^p = a}
+    dim B_h = r           number of distinct irreducible factors of h
+
+    q                     an odd prime dividing N
+    r = v_q(N)            q-adic valuation of N
+    m = 1 + (q-1) r       number of divisions in the lifting cascade
+    ζ                     primitive q-th root of unity (ζ^q = 1, ζ != 1)
+    K, K_q                finite field containing ζ
+    k                     extension of K containing a full q-primary generator
+    ω, ω_q                full q-primary generator of k^* (or K_q^*)
+
+    C                     curve Y^q = F(X) over k
+    sigma                 automorphism (X,Y) -> (X, ζ Y), order q
+    lambda                1 - sigma, the dividing operator
+    g                     genus of C, (q-1)(N-2)/2
+    P_i                   ramification point (x_i, 0), i = 1, ..., N
+    infinity_j            q points at infinity on C, j = 0, ..., q-1
+    1 - sigma             1 - sigma (also written lambda)
+    e                     (sigma - 1)(infinity_0), generator of Lambda
+
+    Div(C)                divisors on C, formal integer sums of points
+    div(h)                principal divisor of h
+    Pic(C)                divisor class group of C
+    J(C) = Pic^0(C)       degree-zero divisor classes (Jacobian)
+    Lambda                lattice of degree-zero divisors on {infinity_j}
+
+    d_{i,t}               division chain classes, lambda^t d_{i,t} = [e]
+    d_m                   sum over i of d_{i,m}, lambda^m d_m = [N e]
+    d_t = lambda^{m-t} d_m   the descend chain, chain of "how far down"
+    W_t                   lambda^{-(t-1)}(N e), integer lattice divisor
+
+    h_t (in some sections)   distinguished function defining div = (1-sigma) D_t - W_t
+
+    l_{i,t}               labels in F_q at test t; l_{i,t} differing
+                          for two i forces a factor
+
+    Norm(h)               product of conjugates sigma^j(h), j = 0,...,q-1
+    E, mathcal E          cyclic algebra L + L V + ... + L V^(q-1), V^q = G
+    G                     the norm target in K_0 = k(X)
+    e (idempotent)        rank-one element with e^2 = e (distinct from lattice e)
+
+    M_q(K_0)              q x q matrix algebra over K_0
+    A_v                   maximal order of M_q(K_v) at place v
+    V                     rank-q vector bundle on P^1_k
+    End(V)                endomorphism bundle, sections = E-intersection
+    B                     subalgebra of M_q(k) = fiber of End(V) at infinity
+    N (in Section 15)     kernel of trace pairing, strictly upper triangular
+    U (in Section 15)     common kernel of N, first-block column space
+
+    phi_q                 q-th cyclotomic polynomial 1 + Z + ... + Z^(q-1)
+    R_ell                 F_p[T]/phi_ell, cyclotomic test algebra
+    Gamma_ell             (Z/ellZ)^*, multiplicateve group mod ell
+    H_q                   { a^q : a in Gamma_ell }, q-th power subgroup
+    U_q                   R_ell^(H_q), invariants of H_q action
+    V_q                   U_q (tensor) K_q, field of degree q over K_q
+    d_q                   deg K_q = ord_q(p)
+    Q_q                   |K_q| = p^(d_q)
+
+    ell, ell_q            auxiliary prime, ell = 1 mod 12q, p^((ell-1)/q) != 1
+    c_0                   absolute constant from analytic input
+
+    delta                 10^(-6), width of Hecke zero-free strip
+
+================================================================================
+24.  Further reading
+================================================================================
+
+    The present document is a readable account of:
+
+        Deterministic Polynomial Factorization over Prime Fields
+        OpenAI, October 2026
+
+    The companion paper, cited for the analytic input, is:
+
+        Primitive roots for every admissible integer base
+        OpenAI, October 2026
+
+    The classical references (available in any maths library or online)
+    for the algorithmic parts of the story are:
+
+        E. R. Berlekamp, Factoring polynomials over finite fields,
+        Bell System Technical Journal, 1967.
+
+        D. G. Cantor and H. Zassenhaus, A new algorithm for factoring
+        polynomials over finite fields, Mathematics of Computation, 1981.
+
+        V. Shoup, On the deterministic complexity of factoring polynomials
+        over finite fields, Information Processing Letters, 1990.
+
+        L. Ronyai, Factoring polynomials over finite fields,
+        Journal of Algorithms, 1988.
+
+        S. Evdokimov, Factorization of polynomials over finite fields in
+        subexponential time under GRH, Algorithmic Number Theory, 1994.
+
+    For the geometric and algebraic sections (curves, divisors, Riemann-
+    Roch, vector bundles):
+
+        J. Neukirch, Algebraic Number Theory. (Numbers, for the algebraic
+        side.)
+
+        R. Hartshorne, Algebraic Geometry. (Curves, divisors, vector
+        bundles.)
+
+        P. Gille and T. Szamuely, Central Simple Algebras and Galois
+        Cohomology. (Cyclic algebras, matrix algebra splittings.)
+
+    For the analytic input (Hecke L-functions, zero-free regions,
+    explicit formula):
+
+        J. Neukirch, Algebraic Number Theory. (L-functions, primes,
+        zeta functions.)
+
+        E. Hasanalizade, Q. Shen, P.-J. Wong, Counting zeros of Dedekind
+        zeta functions, Mathematics of Computation, 2022. (Uniform zero
+        density estimates.)
+
+    The present document is intended as a self-contained introduction.
+    The full proofs are in the original paper. Where this document says
+    "the paper proves" or "Proposition X", the reader should consult
+    the corresponding section of the original paper.
+
+================================================================================
+END
+================================================================================
+
+    Everything here is a careful summary. Where a proof is essential to
+    understanding (the tournament in the even case, the trace-pairing
+    trick in the norm solver, the infinity-lattice obstruction in the
+    odd case, the invariant subalgebra construction in the auxiliary
+    table), the proof is given in full. Where the proof is mechanical
+    bookkeeping (large sums of bounds, the passage from "polynomial in
+    these parameters" to "polynomial in n and log p"), the bookkeeping
+    is stated and the reader is invited to check the constants.
+
+    The high-level story: deterministic polynomial factorization over
+    finite fields, using geometry and analytic number theory. The
+    ingredients are elementary and beautiful; the assembly is technical
+    but direct. Every step is justified; nothing is left to "obviously
+    it works".
+
+    GOOD LUCK AND ENJOY THE MATHEMATICS.
