@@ -1,35 +1,4 @@
-==============================================================================
-POSTERIOR REPLICAS AND CONDITIONAL INFORMATION IN GAUSSIAN REGRESSION
-a complete proof in plain language, with one quoted estimate
-==============================================================================
-
-Read this like a story.  If a line looks technical, the sentence after it
-says what it means.
-
-One estimate is quoted rather than re-derived.  It is the density comparison
-for a general bounded prior, in Part 10.6.  It is flagged where it occurs,
-and again in Remark 5 of Part 12.  Everything else in these twelve parts is
-proved from the beginning.
-
-CONTENTS
-
-  Part 0    the question and the answer
-  Part 1    the learner, written down exactly
-  Part 2    information: entropy, divergence, and four tools
-  Part 3    geometry of the sphere: caps, tubes, residual spheres
-  Part 4    the endpoint: an accurate state must hold many bits
-  Part 5    the clock: an early stop cannot beat the endpoint
-  Part 6    replicas: turning one message into many signals
-  Part 7    exact labels: the equal-label measure
-  Part 8    the replica likelihood
-  Part 9    everything is integrable
-  Part 10   the one-block bound
-  Part 11   assembling the stream
-  Part 12   the theorem
-
-NOTATION, ONCE AND FOR ALL
-
-  d         the dimension, an integer.  All estimates assume d >= 64.
+d         the dimension, an integer.  All estimates assume d >= 64.
   S^{d-1}   the unit sphere {u in R^d : |u| = 1}
   sigma_d   uniform probability on S^{d-1}
   |v|       Euclidean norm
@@ -41,36 +10,18 @@ NOTATION, ONCE AND FOR ALL
   A => B    "A implies B"
 
 
-==============================================================================
-PART 0.  THE QUESTION AND THE ANSWER
-==============================================================================
+The signal is an unknown unit vector s in R^d.  At each step j, nature
+draws a fresh row X_j ~ N(0, I_d) and reveals the exact label
+Y_j = <X_j, s>.  With all d rows kept, s = A^{-1} Y almost surely.  A
+machine with 2^M states (M bits) reads (X_j, Y_j) each step, updates its
+state, stops by a pre-agreed horizon T, and outputs a unit vector s-hat
+from its final state and fresh randomness.
 
-The signal is an unknown unit vector s in R^d.  We never see it.
+When s is uniform on the sphere, how large must T be for
+s-hat to be within angle eps of s with probability at least 2/3, if M is
+far smaller than d^2?
 
-At step j = 1, 2, 3, ... nature draws a fresh random row
-
-      X_j ~ N(0, I_d)
-
-and hands us the single exact real number
-
-      Y_j = <X_j, s>.
-
-No noise.  No rounding.  One number per step.
-
-If we could keep all the rows, d steps would be enough: the d rows almost
-surely form an invertible matrix, and then s = A^{-1} Y exactly.
-
-But the machine has a state with at most 2^M values, that is M bits.  At
-each step it may look at its state and at the new pair (X_j, Y_j), think
-as long as it likes, and write a new state.  It may stop.  It must stop by
-a pre-agreed step T.  Then it outputs a unit vector s-hat, computed from
-its final state and from fresh private randomness.
-
-QUESTION.  If M is far smaller than d^2, how large must T be so that
-s-hat is within angle eps of s with probability at least 2/3, when s is
-uniform on the sphere?
-
-ANSWER, proved in Part 12.
+ANSWER, proved below.
 
       If M = o(d^2) and 0 < eps <= 1/10, then for all large enough d
 
@@ -82,22 +33,31 @@ ANSWER, proved in Part 12.
 depend on d, eps, M, or on how clever the machine is.  The phrase "large
 enough d" hides a threshold that may depend on how fast M/d^2 goes to 0.
 
-WHY THE ANSWER IS PLAUSIBLE.  Give a friendly analyst one extra
-projection of s, namely B s, where B is an independent random matrix with
-about d/2 rows.  The machine never gets B.  If the machine's final state
-still says a lot about s even after the analyst learns B s, then the state
-must encode something about s that no d/2 dimensional shadow reveals.
-Exact observations make that encoding expensive, and a machine with far
-fewer than d^2 bits cannot afford it.  This paper is a careful accounting
-of that expense.
+Memory-sample tradeoffs are known in restricted models.  Steinhardt and
+Duchi proved minimax lower bounds for memory-bounded sparse linear
+regression.  Raz proved that learning a parity over a finite field
+requires quadratic memory or exponentially many samples.  Sharan,
+Sidford, and Valiant obtained an Omega(d log(1/eps)) lower bound for
+Gaussian regression with d^2/4 bits and bounded noise.  Dagan, Kur, and
+Shamir proved quadratic-space lower bounds for approximate null vectors
+and for stable solutions of random linear systems.  The present argument
+concerns exact labels, o(d^2) memory, and unrestricted computation per
+step.
 
-THE STRATEGY, IN ONE SENTENCE.  Prove a bound for one block of fresh
-rows, then add the per-block bounds along the stream.
+./steinhardt-duchi-2015.pdf
+./raz-2016.pdf
+./raz-2017.pdf
+./ssv-2019.pdf
+./dagan-kur-shamir-2019.pdf
 
+Give the analyst one extra random projection B s (B independent, about
+d/2 rows), unseen by the machine.  If the machine's state still carries
+much information about s after B s is revealed, it encodes something no
+d/2-dimensional shadow shows.  Exact observations make that encoding
+expensive.
 
-==============================================================================
-PART 1.  THE LEARNER, WRITTEN DOWN EXACTLY
-==============================================================================
+The strategy is one sentence: prove a bound for one block of fresh rows, then add the per-block bounds along the stream.
+
 
 DEFINITION 1 (finite-state learner).  Fix d and eps.  A learner is:
 
@@ -113,7 +73,7 @@ The stopping time tau is the first step at which the learner stops, and
 tau <= T always.  The output uses only the state held at time tau, the
 index tau, and fresh randomness.
 
-FIVE REMARKS THAT ARE USED LATER.
+Five remarks are used repeatedly.
 
   (1) Computation inside a rule is free.  Only states cost bits.  The
       machine may do any amount of clever processing in one step, and the
@@ -122,42 +82,41 @@ FIVE REMARKS THAT ARE USED LATER.
   (2) The machine cannot choose X_j and cannot revisit a row.  Anything
       it wants later must be inside the state now.
 
-  (3) A shared random seed is allowed, chosen once and independent of
-      everything.  We condition on the seed and average at the end.
+  (3) A shared random seed may be chosen once, independent of
+      everything.  Conditioning on the seed precedes averaging at the end.
 
-  (4) We may replace a randomized rule by a fixed one by drawing all of
+  (4) A randomized rule may be replaced by a fixed one by drawing all of
       its coins in advance.  The joint law of (state path, tau, output)
       does not change, so the success probability does not change.
       Iterating over finitely many rules, some fixed realization of all
       the coins still succeeds with probability at least p - delta for
-      any delta > 0.  This is how we pass from a randomized learner to a
+      any delta > 0.  This is how to pass from a randomized learner to a
       deterministic one.
 
   (5) A learner that stops early may idle: keep drawing fresh rows and
       ignore them.  So "stops by T" and "runs for exactly T steps" are
-      interchangeable for us, at the cost of a few extra states used to
+      interchangeable, at the cost of a few extra states used to
       remember where it stopped.
 
-SUCCESS CONDITION.  With s uniform on the sphere,
+With s uniform on the sphere,
 
       P{ arccos(<s-hat, s>) <= eps }  >=  2/3,
 
 the probability taken over s, the rows, and the learner's randomness.
 
-A NOTE ON WORST CASE VERSUS AVERAGE.  Success at least 2/3 for every
+Success at least 2/3 for every
 fixed s implies success at least 2/3 on average over s, by integrating.
 So a lower bound proved under the average hypothesis also rules out
-worst-case learners.  We prove the average case, which is stronger.
+worst-case learners.  The average case is proved, which is stronger.
 
-
-==============================================================================
-PART 2.  INFORMATION
-==============================================================================
 
 The proof never looks inside the machine.  It only counts bits.  The
-currency is information, measured in nats (natural-log units).
+currency is information, measured in nats (natural-log units).  Entropy
+in nats and mutual information follow Shannon (1948).
 
-2.1  ENTROPY.  If W takes finitely many values with probabilities p(w),
+./shannon-1948.pdf
+
+If W takes finitely many values with probabilities p(w),
 
       H(W) = - sum_w p(w) log p(w).
 
@@ -170,14 +129,14 @@ Facts.
        This is the cross-entropy inequality, and it is just Jensen
        applied to the concave log.
 
-THE PADDED STATE.  Suppose the learner stops at some index tau in
-{0,1,...,T} and we keep the pair (tau, state at tau).  There are at most
+Suppose the learner stops at some index tau in
+{0,1,...,T} and the pair (tau, state at tau) is kept.  There are at most
 T+1 possible indices and at most 2^M states, so at most (T+2) 2^M values.
 By (E2), every padded state satisfies
 
       H  <=  h_T := M log 2 + log(T + 2).                        (2.1)
 
-2.2  RELATIVE ENTROPY.  For probability laws P and Q on the same space,
+For probability laws P and Q on the same space,
 with P absolutely continuous with respect to Q,
 
       D(P || Q) = E_P log (dP/dQ),
@@ -185,7 +144,7 @@ with P absolutely continuous with respect to Q,
 and D(P||Q) = +infinity otherwise.  Always D(P||Q) >= 0, with equality
 exactly when P = Q.
 
-2.3  MUTUAL INFORMATION.  For jointly distributed S and W, with W finite,
+For jointly distributed S and W, with W finite,
 
       I(S; W) = D( P_{S,W} || P_S x P_W ),
 
@@ -201,9 +160,8 @@ Two facts used without comment.
 
   (I1) Symmetry: I(S;W) = I(W;S).
   (I2) I(S;W) is the expected number of nats by which knowing W reduces
-       our uncertainty about S.
+       the uncertainty about S.
 
-2.4  FOUR TOOLS.
 
 TOOL A (chain rule).
       I(S; (Z, W)) = I(S; Z) + I(S; W | Z).
@@ -239,7 +197,7 @@ Proof.  Apply (2.3) to the test (1+F)/2, whose R-expectation is at most
 one.  This gives E_Q log((1+F)/2) <= D(Q||R), and
 log((1+F)/2) = log(1+F) - log 2.
 
-2.5  A TWO-OUTCOME ESTIMATE.  Let 0 <= a, c <= 1, and write Bern(p) for
+  Let 0 <= a, c <= 1, and write Bern(p) for
 the law of a coin with heads probability p.  Then
 
       D( Bern(a) || Bern(c) )  >=  a log(1/c) - log 2.           (2.5)
@@ -255,14 +213,9 @@ because the middle term is nonnegative and the bracket is minus the
 entropy of a coin, which is at least -log 2.
 
 
-==============================================================================
-PART 3.  GEOMETRY OF THE SPHERE
-==============================================================================
-
 Write sigma_q for uniform probability on S^{q-1}, the unit sphere in R^q.
 There are three facts, and each one is proved.
 
-3.1  CAPS ARE SMALL.
 
 LEMMA 1 (spherical caps).  Let q >= 2.  For every z in S^{q-1} and every
 r > 0,
@@ -281,7 +234,7 @@ pole (0, ..., 0, 1).  Two ingredients.
 
             |u - z|^2 = 2 - 2 u_q <= r^2,   so   u_q >= 1 - r^2/2 >= 1/2.
 
-      On the part of the sphere where u_q >= 1/2 we may write the sphere
+      On the part of the sphere where u_q >= 1/2, the sphere may be written
       as a graph over the first q-1 coordinates.  The area element of
       that graph is 1/u_q <= 2.  So the cap has area at most twice the
       volume of its shadow.  The shadow lies in the ball of radius r in
@@ -299,7 +252,6 @@ pole (0, ..., 0, 1).  Two ingredients.
 
 Divide and use rotational invariance of sigma_q.  Done.
 
-3.2  TUBES AROUND AFFINE SUBSPACES ARE SMALL.
 
 LEMMA 2 (affine tubes).  Let V be an affine subspace of R^d of dimension
 j.  For 0 < r <= 1,
@@ -329,7 +281,6 @@ Lemma 1 gives measure at most
 Absorb 3^{d-1} and C^j into C^d, using j <= d.  When this exceeds 1, use
 the trivial bound 1 and enlarge C.  Done.
 
-3.3  CONDITIONING ON A PROJECTION LEAVES A SPHERE.
 
 LEMMA 3 (residual spheres).  Let S ~ sigma_d, and let G be an independent
 b x d matrix of independent standard normal entries, with 0 <= b <= d-2.
@@ -376,7 +327,7 @@ kernel part is uniform on its sphere of radius R.  That is the stated
 description, and rotational invariance of the normal law gives the
 uniformity.
 
-For (3.5), note that 1 - R^2 has mean b/d and is nonnegative, so Markov's
+For (3.5), 1 - R^2 has mean b/d and is nonnegative, so Markov's
 inequality gives
 
       P{ R < r0 }  =  P{ 1 - R^2 > 1 - r0^2 }
@@ -399,7 +350,6 @@ while |Z|^2 has mean d and variance 2d.  Hence
 
 Outside both events, R^2 >= (d/3)/(4d/3) = 1/4.  Sum.  Done.
 
-3.4  AN ACCURATE ANSWER INSIDE A FIBER NEEDS MANY BITS.
 
 This is the heart of the whole argument.  The analyst learns the projection
 GS.  Inside the remaining sphere, an accurate answer still needs a lot of
@@ -419,7 +369,7 @@ Let 2 eps < r0 <= 1.  If alpha := p - P{ R < r0 } is positive, then
 
 Proof.  Put Z = (G, GS) and compare two joint laws of (S, V, Z).
 
-  The true law: the one we live in.
+  The true law: the actual one.
 
   The comparison law: first draw Z with its true law, then draw S and V
   independently from their true conditional laws given Z.
@@ -452,13 +402,8 @@ with c = (2 eps / r0)^{d-b-1}.  This is (3.7).  When c = 0 there is
 nothing to prove, because alpha <= 1.  Done.
 
 
-==============================================================================
-PART 4.  THE ENDPOINT: AN ACCURATE STATE MUST HOLD MANY BITS
-==============================================================================
-
-Lemma 4 has a constant alpha, a radius r0 and a dimension b in it.  We now
-commit to one set of numbers, the ones the proof of the theorem uses, and
-write the result out.
+Lemma 4 has a constant alpha, a radius r0 and a dimension b.  One set of numbers is fixed now, the ones the proof of the theorem
+uses, and the result is written out.
 
 COROLLARY 5 (the endpoint, in numbers).  Suppose
 
@@ -479,14 +424,14 @@ P{ R < 1/2 } <= 8/(d+2), so
 
 Next convert a chordal radius into an angular radius.  On a unit sphere a
 chordal ball of radius r is contained in an angular cap of radius
-2 arcsin(r/2).  Here r = 2 eps/r0 = 4 eps, so the angular radius is
+2 arcsin(r/2).  With r = 2 eps/r0 = 4 eps, the angular radius is
 
       2 arcsin(2 eps)  <=  5 eps        for 0 < eps <= 1/10,
 
 because arcsin(x) <= 1.02 x for 0 <= x <= 0.2.  By Lemma 1 the cap has
 mass at most (5 eps)^{d-b-1}.  Put this into (3.7) and use alpha >= 1/2.
 
-A useful size check.  Since b <= d/2 we have d-b-1 >= d/2 - 1, and since
+A useful size check.  Since b <= d/2, d-b-1 >= d/2 - 1, and since
 eps <= 1/10,
 
       log(1/(5 eps)) = log(1/eps) - log 5
@@ -538,10 +483,6 @@ d-b-1 >= d/2 - 1 >= 1, and 5 eps <= 1/2, so the second term is at most
 for all large d.  Done.
 
 
-==============================================================================
-PART 5.  THE CLOCK: AN EARLY STOP CANNOT BEAT THE ENDPOINT
-==============================================================================
-
 Corollary 5 says the final state must contain about d log(1/eps) nats of
 information about S, even after the analyst is told GS.  This part says
 that stopping early cannot buy that information for free.
@@ -554,7 +495,7 @@ memory M.  Then
 
 Proof.  Condition on the shared seed, if there is one, and work in the
 conditional experiment.  There are at most T+1 possible stopping indices
-and at most 2^M states, so at most (T+1) 2^M pairs (j, v) of "we stopped
+and at most 2^M states, so at most (T+1) 2^M pairs (j, v) of "stopped
 at index j in state v".
 
 Fix such a pair.  Let nu_{j,v} be the law of the output it produces, and
@@ -602,17 +543,13 @@ Then T <= d beta = o(d^2), and
 
 Done.  The point of (5.2) is this: on the branch where the theorem is not
 already proved, every padded state has far fewer than d^2 bits of
-entropy, so the block bound of Part 10 will apply with room to spare.
+entropy, so the block bound below will apply with room to spare.
 
-
-==============================================================================
-PART 6.  REPLICAS
-==============================================================================
 
 Everything so far was about one signal.  Information bounds need many
 signals at once, tied together by the same observations.
 
-THE BLOCK EXPERIMENT.  Fix a probability density p = f sigma_d relative to
+Fix a probability density p = f sigma_d relative to
 the uniform sphere, with 0 <= f <= L < infinity.  Fix integers k >= 1,
 t >= 2 and ell >= 1.  Draw:
 
@@ -623,10 +560,10 @@ t >= 2 and ell >= 1.  Draw:
         conditionally independent of S given (A,Y),
       B an ell x d standard Gaussian matrix, independent of everything.
 
-B is the analyst's projection.  The machine never sees B.  We measure
+B is the analyst's projection.  The machine never sees B.  What is measured is
 information about S in W after the analyst has learned B S.
 
-POSTERIOR REPLICAS.  Given the data (A,Y), draw t independent signals
+Given the data (A,Y), draw t independent signals
 S_1, ..., S_t from the conditional law of S given (A,Y).  Draw them
 independently of W.  Call them replicas.
 
@@ -648,7 +585,7 @@ one property the inequality of Lemma 9 needs.  (It is often called the
 Nishimori identity: resampling from the posterior leaves the joint law of
 data and signal untouched.)
 
-TWO MEASURES OF DEPENDENCE.  Let Q be the joint law of the tuple
+Let Q be the joint law of the tuple
 (S_1, ..., S_t).  Let p be its one-signal marginal, which is the same for
 every coordinate.
 
@@ -664,6 +601,11 @@ phi_B(S_i).  Define
 
 where Q_{U|B} is the conditional law of (U_1,...,U_t) given B.  K' is the
 dependence that survives after the analyst's projection.
+
+Total correlation D(Q || p x ... x p) was introduced by Watanabe
+(1960); its measure-theoretic chain rules are in Austin's survey.
+
+./austin-2020.pdf
 
 LEMMA 9 (replica information inequality).  Let t >= 1.  Let (S_1,...,S_t)
 have joint law Q, all coordinates with the same marginal p, and suppose
@@ -754,29 +696,23 @@ same law as (S, W), and B is independent of the tuple and of W.  The left
 side of (6.1) is the left side of (6.6) because (B,S) and (B,S_1) have the
 same law.
 
-The rest of the proof is now a single task.  Bound K - K'.  Part 9 shows
-that K is finite, so that (6.6) is meaningful; Part 10 bounds the loss of
+The rest of the proof is now a single task.  Bound K - K'.  Finiteness of K, so that (6.6) is meaningful, comes first; the loss of
 correlation for the specific dimensions k = 2 floor(d/16), t = k+1,
 ell = 4k.
 
 
-==============================================================================
-PART 7.  EXACT LABELS: THE EQUAL-LABEL MEASURE
-==============================================================================
-
 This is the geometric heart.  Exact labels mean that the several replicas
-satisfy A S_1 = ... = A S_t exactly.  We need the exact law of that event,
+satisfy A S_1 = ... = A S_t exactly.  The exact law of that event is needed,
 with its normalization, because a normalization error of even one power of
 d would destroy the whole argument.
 
-We work only with the spherical base.  Write
+Only the spherical base is used.  Write
 
       sigma_d   uniform probability on S^{d-1},
       nu = f sigma_d   with 0 <= f <= L < infinity, a finite measure.
 
-It is convenient not to require nu to be a probability until Part 8.
+It is convenient not to require nu to be a probability until the probability division below.
 
-7.1  THE PROJECTION AND THE FIBER.
 
 Fix k with 1 <= k <= d-2 and let A be a k x d matrix of full row rank.
 Put
@@ -794,7 +730,7 @@ d-k-1 lying in the affine space A^{-1}y, with centre A^T Sigma^{-1} y and
 radius sqrt(1 - q(A^T Sigma^{-1} y)).  Write sigma_{A,y} for uniform
 probability on it.
 
-THE PROJECTED DENSITY.  The pushforward of sigma_d under A has a Lebesgue
+The pushforward of sigma_d under A has a Lebesgue
 density on R^k, supported on the closed ellipsoid closure of E_A, and on
 E_A it equals
 
@@ -813,7 +749,7 @@ the two are independent.  Also |Z|^2 = w^T Sigma^{-1} w + r^2, so
 
       Y := A S = w / sqrt( w^T Sigma^{-1} w + r^2 ).
 
-Eliminate r: from Y = w/|Z| we get |Z| = r / s with s := sqrt(1 - q_A(Y)),
+Eliminate r: from Y = w/|Z| follows |Z| = r / s with s := sqrt(1 - q_A(Y)),
 and hence w = r Y / s.  For fixed r the map Y -> w is a change of
 variables, and its Jacobian is not simply a power of r/s, because s depends
 on Y.  Compute it.  Let B = dw/dY.  Then
@@ -860,7 +796,7 @@ fiber {s in S^{d-1} : As = y}
       j_A(s) = det( Sigma )^{1/2} * sqrt(1 - q(s))  =  det( Sigma )^{1/2} *
                (distance from s to the row space of A).
 
-Here dvol_{d-k-1} is the induced surface measure on the fiber.  Two things
+dvol_{d-k-1} is the induced surface measure on the fiber.  Two things
 about lambda_{A,y}.
 
       Normalization.  lambda_{A,y}(S^{d-1}) = p_A(y), where
@@ -889,7 +825,6 @@ sigma_d measure.  Hence for every nonnegative measurable h,
 Equation (7.2) is the coarea identity in this setting, and it already
 contains (7.1): take h = 1 to recover p_A.
 
-7.2  SIMPLEX HEIGHTS.
 
 Let t >= 2 and m = t-1.  For a tuple u = (u_1,...,u_t) of points in R^d
 write
@@ -938,7 +873,7 @@ X <= 2,
               <= 1 + k C^d int_0^1 r^{d-i+1-k-1} dr.
 
 The integral is finite exactly when d - i + 1 > k, that is, i < d - k + 1.
-Since i <= t = m+1 and k + m <= d-2, we have i <= d-1-k < d+1-k.  So every
+Since i <= t = m+1 and k + m <= d-2, i <= d-1-k < d+1-k.  So every
 factor has a finite k-th inverse moment, uniformly in the preceding points.
 Multiply the conditional bounds together, integrating the last point first
 and working backwards.  This proves (7.5).  Replace k by k+1 for the last
@@ -948,12 +883,10 @@ As a byproduct, J > 0 sigma_d^{otimes t}-almost surely, so the tuple is
 affinely independent almost surely.  There is no need for a separate proof:
 a zero J would make the expectation infinite.
 
-7.3  THE THEOREM.
 
 THEOREM 12 (the equal-label finite measure).  Let k >= 1, m >= 1,
 t = m+1, and k + m <= d-2.  Let nu = f sigma_d with 0 <= f <= L < infinity.
-Let p^0_A, p_A, sigma_{A,y} and mu_{A,y} be as in 7.1, and D_u, F_u, J as
-in 7.2.  For every nonnegative Borel function H = H(A, y, u_1,...,u_t),
+Let p^0_A, p_A, sigma_{A,y} and mu_{A,y} be as previously, and D_u, F_u, J as before.  For every nonnegative Borel function H = H(A, y, u_1,...,u_t),
 
       int gamma_{k,d}(dA) int_{R^k} p_A(y)^t
             int H(A, y, u) mu_{A,y}^{otimes t}(du) dy
@@ -961,11 +894,11 @@ in 7.2.  For every nonnegative Borel function H = H(A, y, u_1,...,u_t),
    =  (2pi)^{-km/2} int J(u)^{-k} nu^{otimes t}(du)
             int H(A, A u_1, u) gamma_{k,d}^{F_u}(dA).                 (7.6)
 
-Here gamma_{k,d}^{F} is the law of a k x d matrix whose rows are
+gamma_{k,d}^{F} is the law of a k x d matrix whose rows are
 independent standard Gaussians inside F^perp, the orthogonal complement
 of F = F_u.
 
-READING (7.6).  The left side picks a matrix A and a common label y, with
+The left side picks a matrix A and a common label y, with
 the label weighted by p_A(y)^t, and then picks the t signals independently
 from the posterior mu_{A,y}.  The right side picks the t signals first and
 then picks a Gaussian matrix that annihilates all their differences, with
@@ -973,19 +906,17 @@ the inverse-volume weight (7.4).
 
 Both sides are finite measures in (A,y,u), not normalized probabilities.
 Their total masses agree, and the identity says they agree as measures.
-The next parts prove it, and Part 8 extracts the probability statement.
+The arguments below prove it, and extract the probability statement.
 
 
-7.4  PROOF OF THEOREM 12: THE FIRST INTEGRAL ORDER.
-
-We first prove (7.6) in the base case nu = sigma_d.  The general nu = f
+First (7.6) is proved in the base case nu = sigma_d.  The general nu = f
 sigma_d then follows by multiplying both sides by a nonnegative function,
-which is the last step of 7.6.
+which completes the argument.
 
-AN APPROXIMATE IDENTITY.  The identity we want is a statement about the
+The desired identity is a statement about the
 exact constraint A u_1 = ... = A u_t.  Such a constraint cannot be inserted
-directly; it has zero measure under gamma_{k,d}.  So we relax it to
-"approximately equal" and then pass to the limit.
+directly; it has zero measure under gamma_{k,d}.  So it is relaxed to
+"approximately equal" and then passed to the limit.
 
 Fix a nonnegative auxiliary function phi on R^k with total integral 1,
 supported in the unit ball, and put phi_eta(z) = eta^{-k} phi(z/eta).  The
@@ -1000,11 +931,11 @@ matrices.  For eta > 0 define
 
 The test is H evaluated at the pinned label A u_1, not an arbitrary
 function of (u,A).  That choice is what will let the label y appear freely
-on the left of (7.6) while it stays pinned to A u_1 on the right.  Our
+on the left of (7.6) while it stays pinned to A u_1 on the right.  The
 plan is to compute the limit of I_eta as eta -> 0 in two ways; the two
 limits must agree, and that agreement is (7.6) for this test H.
 
-THE FIRST ORDER.  Fix A of full row rank.  By (7.2), applied to each
+Fix A of full row rank.  By (7.2), applied to each
 coordinate separately,
 
       sigma_d(du_i)  =  p^0_A(y_i) sigma_{A,y_i}(du_i) dy_i ,
@@ -1024,7 +955,7 @@ For fixed A and fixed first label y_1, this is an average over y_2,...,y_t
 with respect to an approximate identity centred at y_1.  As eta -> 0, each
 y_i with i >= 2 tends to y_1, so p^0_A(y_i) -> p^0_A(y_1) and the measure
 sigma_{A,y_i} tends weakly to sigma_{A,y_1}.  This uses exactly the two
-properties proved at the end of 7.1: p^0_A is continuous on the open
+properties proved earlier: p^0_A is continuous on the open
 ellipsoid, and the fibre law depends continuously on the label.  The
 contribution from labels outside the ellipsoid is handled by the
 convention p^0_A = 0 there, so it drops out.
@@ -1037,7 +968,7 @@ Hence
 The label y_1 has become the common label y in the limit, and H is
 continuous, so this is legitimate.
 
-THE DOMINATION NEEDED FOR (7.8).  Fix a compact set K of full-row-rank
+Fix a compact set K of full-row-rank
 matrices on which H is supported.  On K,
 
       M  :=  sup_{A in K} sup_{y} p^0_A(y)  <  infinity,
@@ -1052,11 +983,10 @@ which is integrable over y_1 because p^0_A has total integral 1.  So
 dominated convergence applies, and no quantity in the argument depends on
 eta.
 
-7.5  PROOF OF THEOREM 12: THE SECOND INTEGRAL ORDER.
 
 Now compute the same I_eta by fixing the tuple first.
 
-FIX THE TUPLE.  Take u = (u_1,...,u_t) affinely independent, so rank D_u
+Take u = (u_1,...,u_t) affinely independent, so rank D_u
 = m; by Lemma 11 this holds for sigma_d^{otimes t}-almost every u.  Put
 F = F_u and D = D_u for short.
 
@@ -1074,7 +1004,7 @@ The second factor is at most 1, so
 
 and the total integral of rho_u over R^{k x m} is 1.
 
-A CHANGE OF VARIABLES.  Given Z, the matrix
+Given Z, the matrix
 
       A  =  A_0  +  Z (D^T D)^{-1} D^T
 
@@ -1101,7 +1031,7 @@ where
 
 Because H is continuous and bounded, also Psi_eta(Z) -> Psi_0 as Z -> 0.
 
-THE LIMIT.  Define
+Define
 
       Phi_eta(u)  =  int rho_u(Z) product_{i=2}^{t} phi_eta(Z_{:,i-1})
                                              Psi_eta(Z) dZ.
@@ -1127,8 +1057,8 @@ convergence in u applies, and
 
 The right side is finite by Lemma 11, applied with the given k and m.
 
-EQUATING THE TWO LIMITS.  The limit of a sequence of numbers does not
-depend on how we compute it, so (7.8) and (7.11) have the same value.
+The limit of a sequence of numbers does not
+depend on how it is computed, so (7.8) and (7.11) have the same value.
 For every bounded continuous H supported on full-row-rank matrices,
 
       int gamma_{k,d}(dA) int_{R^k} (p^0_A(y))^t
@@ -1139,12 +1069,11 @@ For every bounded continuous H supported on full-row-rank matrices,
 
 This is (7.6) with nu = sigma_d, restricted to such tests H.
 
-7.6  PROOF OF THEOREM 12: FINITENESS, EXTENSION, AND THE PRIOR DENSITY.
 
 Now that (7.12) is proved for bounded continuous tests, three steps
 complete the theorem.
 
-STEP 1: BOTH SIDES ARE FINITE MEASURES.  Read (7.12) as a statement about
+Both sides of (7.12) are finite measures.  Read (7.12) as a statement about
 two nonnegative Borel measures on the open set of full-row-rank matrices,
 times R^k for the label, times (S^{d-1})^t for the tuple:
 
@@ -1178,7 +1107,7 @@ monotone class argument: the class of H for which the identity holds
 contains bounded continuous functions and is closed under increasing
 limits.)
 
-STEP 2: MULTIPLY BY THE PRIOR DENSITY.  Let nu = f sigma_d with
+For the prior density, let nu = f sigma_d with
 0 <= f <= L < infinity.  The function (u_1,...,u_t) -> product_i f(u_i) is
 nonnegative and measurable, so multiplying the identity of measures L = R
 by it preserves the identity.
@@ -1199,7 +1128,7 @@ into
 On the right the same multiplication by product_i f(u_i) turns
 sigma_d^{otimes t}(du) into nu^{otimes t}(du).
 
-A CONVENTION FOR ZERO FIBRES.  Where h_A(y) = 0 the quotient defining
+Where h_A(y) = 0 the quotient defining
 mu_{A,y} does not exist.  Handle this once and for all by declaring the
 left side to be
 
@@ -1212,9 +1141,9 @@ has total mass zero.  So (7.13) is unambiguous, and (7.6) holds with it.
 
 This is (7.6), and Theorem 12 is proved.
 
-STEP 3 (what we still owe).  The identity (7.6) is a statement about finite
-measures.  To get a probability statement we must divide by p_A(y)^m, which
-is legitimate only where p_A(y) > 0.  Part 8 does that with truncated
+STEP 3 (what is still owed).  The identity (7.6) is a statement about finite
+measures.  To get a probability statement, division by p_A(y)^m is required, which
+is legitimate only where p_A(y) > 0.  The probability division does that with truncated
 divisions and monotone convergence, and the finiteness of the left side of
 (7.6) then forces p_A(A u_1) > 0 for almost every (A,u) under the reference
 measure R.  Nothing extra has to be proved about density versions: a zero
@@ -1222,15 +1151,9 @@ would make the right side infinite and would contradict the finite left
 side.
 
 
-==============================================================================
-PART 8.  THE REPLICA LIKELIHOOD
-==============================================================================
-
-8.1  DIVIDING BY p_A(y)^m, WITH TRUNCATIONS.
-
 Theorem 12 is an identity of finite measures.  To read it as a statement
-about probabilities we must divide both sides by p_A(y)^m.  That is legal
-only where p_A(y) > 0, so we truncate and then let the truncation go.
+about probabilities, both sides are divided by p_A(y)^m.  That is legal
+only where p_A(y) > 0, so the equation is truncated and the truncation is released.
 
 Let nu = f sigma_d be a probability, with 0 <= f <= L < infinity.  Let
 H >= 0 be Borel.  For an integer n >= 1 put
@@ -1275,7 +1198,6 @@ allowing the value +infinity.  Since (8.2) is an equality for every n and
 the left side converges to the finite number E_Q[H], the right side
 converges to a finite number as well.
 
-8.2  THE PROJECTED DENSITY IS POSITIVE AT THE ACTUAL LABEL.
 
 Take H = 1.  Then
 
@@ -1292,14 +1214,14 @@ This is the only place where positivity of the projected density at the
 actual label is used, and it is a consequence, not an assumption.  No
 density-version lemma is required anywhere.
 
-Combining (8.3L) and (8.3R) and dropping the truncation, we have for every
+Combining (8.3L) and (8.3R) and dropping the truncation gives, for every
 nonnegative Borel H
 
       E_Q[H]  =  (2pi)^{-km/2} int J(u)^{-k} nu^{otimes t}(du)
                     int H(A, A u_1, u) p_A(A u_1)^{-m}
                         gamma_{k,d}^{F_u}(dA).                        (8.3)
 
-For later use, here is the same identity with every integral written out:
+For later use, the same identity with every integral written out is:
 
       int gamma_{k,d}(dA) int_{R^k} p_A(y)
             int H(A,y,u) mu_{A,y}^{otimes t}(du) dy
@@ -1326,14 +1248,14 @@ Taking H = 1 in (8.5) gives the normalizing identity
 
       1  =  (2pi)^{-km/2} E_R [ J(U)^{-k} p_A(A U_1)^{-m} ].          (8.7)
 
-This is the probability statement we were after: not a statement about
+This is the probability statement sought: not a statement about
 measures with arbitrary total mass, but an exact identity for the Laplace
 transform of the inverse simplex volume against the actual projected prior
 density at the actual label.
 
 COROLLARY 13 (replica likelihood, and the correlation it controls).  Let
 nu = f sigma_d be a probability with 0 <= f <= L < infinity, let k >= 1,
-m >= 1, t = m+1 and k+m <= d-2, and let Q be the replica law of 6.1.  Put
+m >= 1, t = m+1 and k+m <= d-2, and let Q be the posterior replica law as in Lemma 9.  Put
 
       K  =  D( Q || nu^{otimes t} ),
 
@@ -1354,18 +1276,17 @@ Now use the definition of relative entropy and (8.6):
 
 Substituting gives (8.8).  Done.
 
-WHY (8.8) IS THE RIGHT SHAPE.  The term -k E log J is the one we know how
-to cancel: Part 10 builds an observable test whose logarithm produces
+The term -k E log J is the one that cancels: the block bound builds an observable test whose logarithm produces
 +k log J against the projected data, and the two annihilate.  The term
--m E log p_A(A Y) is the awkward one; Part 10's density comparison handles
+-m E log p_A(A Y) is the awkward one; the density comparison below handles
 it.  Reading (8.8) alone, one might worry that E log p_A could be very
 negative, making the bound vacuous.  It cannot: p_A is a probability
 density on R^k, so E_{Y ~ p_A} log p_A(Y) = -h(p_A) and the entropy h(p_A)
 is at most the entropy of the ellipsoid's volume, so the term is bounded by
-a constant times k log d.  We record this properly in Part 9, where all the
+a constant times k log d.  This is recorded properly below, where all the
 logarithms are shown to be integrable.
 
-THE INTERPRETATION.  The replica law Q and the reference law R make exactly
+The replica law Q and the reference law R make exactly
 the same statement about the tuple, in two different orders.  Q says: draw
 first the labels, then the signals on the fiber.  R says: draw first the
 signals, then a matrix that makes the labels equal.  The density (8.6) is
@@ -1373,20 +1294,15 @@ the exact exchange rate between those two descriptions, and it is finite
 and positive almost surely.
 
 
-==============================================================================
-PART 9.  THE LOGARITHMS ARE INTEGRABLE
-==============================================================================
-
 Corollary 13 bounds K by an expression containing log J and log p_A(A Y).
 A bound containing the logarithm of something that can be zero or infinite
-is worthless, so before using it we check that both terms behave.
+is worthless, so both terms are checked before use.
 
-The reason to check this now rather than later: Part 10 takes logarithms of
+The reason to check this now rather than later: the block bound takes logarithms of
 a test function and adds and subtracts these quantities.  That algebra is
 legitimate only if every term has a finite expectation.  Once that is known
-here, Part 10 can compute expectations freely.
+expectations can be computed freely.
 
-9.1  TWO FACTS ABOUT ENTROPY AND SUPPORT.
 
 Fact E1.  Let f be a probability density on R^k whose support has Lebesgue
 measure V.  Then its differential entropy h(f) = -int f log f satisfies
@@ -1420,10 +1336,7 @@ degrees of freedom is integrable in both directions: near zero because
       int_0^{a} |log x| x^{nu/2 - 1} dx < infinity     for nu > 0,
 
 and near infinity because log x <= x.  Summing over the k factors proves
-integrability.  This is the same computation as Edelman and Rao,
-Section 5.
-
-9.2  log J IS INTEGRABLE.
+integrability.  This is a standard Wishart Gram-Schmidt computation.
 
 The tuple is u = (u_1,...,u_t) with t = m+1 points on the sphere, so each
 simplex height in (7.3) is at most 2 and
@@ -1449,8 +1362,6 @@ which is finite by Lemma 11.  Combining (9.3) and (9.4),
 
       E_Q |log J(U)|  <  infinity.                                    (9.5)
 
-9.3  log p_A(A Y) IS INTEGRABLE.
-
 Under the replica law Q, the label Y has density p_A on R^k.  Hence the
 two signs are the entropy of p_A:
 
@@ -1475,9 +1386,8 @@ f with 0 <= f <= L, because p_A <= L p^0_A keeps 1/p_A bounded below only
 where it is already positive, and where p_A is positive the support is
 still the ellipsoid.
 
-9.4  THE WISHART DETERMINANT.
 
-Part 10 uses a standard Gaussian G with ell rows and m columns, with
+The block bound uses a standard Gaussian G with ell rows and m columns, with
 ell > m.  Gram-Schmidt writes
 
       det(G^T G)  =  V_1 V_2 ... V_m ,      V_i ~ chi^2_{ell - i + 1},
@@ -1493,7 +1403,7 @@ First, for an even integer k with ell - m + 1 > k,
 
 The product formula comes from E V^{-1} = 1/(nu - 2) for V ~ chi^2_nu with
 nu > 2, applied k/2 times; the displays are all elementary integrations
-of the chi-square density.  With ell = 4k and m = k, we get ell - m + 1 =
+of the chi-square density.  With ell = 4k and m = k, ell - m + 1 =
 3k + 1 > k, so all the denominators in (9.11) are at least 1.  In
 particular Z_{k,m} is finite and positive.
 
@@ -1504,13 +1414,12 @@ Second, by Jensen applied to log,
 Indeed, det(G^TG)^{1/m} <= tr(G^TG)/m and E tr(G^TG) = ell m, so
 E log det(G^TG) <= m log(ell m / m) = m log ell.
 
-9.5  SUMMARY.
 
-Put the estimates together.
+The estimates are put together.
 
 LEMMA 14 (everything is finite).  Let nu = f sigma_d be a probability with
 0 <= f <= L < infinity, and let k, m, t = m+1 satisfy k + m <= d-2.  Under
-the replica law Q of Part 6 and the reference law R of Part 8:
+the replica law Q and the reference law R:
 
   (i)   E_Q log J(U) is finite.
   (ii)  E_Q log p_A(A Y) is finite, and it equals -h(p_A).
@@ -1524,37 +1433,31 @@ one and two are finite by (i), and term three is finite by (ii).  So the
 bound is a genuine real number.  For (iv), (9.6) and the right-hand
 inequality in (9.8).  Done.
 
-A WORD OF WARNING ABOUT SIGNS.  In (8.8) the last term is
+In (8.8) the last term is
 -m E_Q log p_A(A Y) and E_Q log p_A <= 0, so that term is nonnegative:
-it makes the bound on K worse, not better.  In Part 10 the comparison with
+it makes the bound on K worse, not better.  In the block-bound argument, the comparison with
 an observable test produces the same term with the opposite sign, and the
 two cancel.  That cancellation is the heart of the Gaussian block bound.
 
-
-==============================================================================
-PART 10.  THE ONE-BLOCK BOUND
-==============================================================================
-
-10.1  THE DIMENSIONS.
 
 For the rest of the proof fix
 
       k  =  2 floor(d/16),     m = k,     t = m + 1,     ell = 4k.     (10.1)
 
-For d >= 64 we have k >= 8 and k >= d/32.  The hypotheses of Parts 6 to 9
+For d >= 64, k >= 8 and k >= d/32.  The hypotheses used below
 hold, with room to spare:
 
       k + m  =  2k  <=  d/8  <=  d - 2,
       ell - m  =  3k  >=  k        (room for the selector below),
       ell - m + 1  =  3k + 1  >  k  (so Z_{k,m} is finite).
 
-The block experiment is the one from Part 6.  Let nu = f sigma_d be a
+The block experiment is the one already fixed.  Let nu = f sigma_d be a
 probability with 0 <= f <= L < infinity.  Draw S ~ nu, a k x d standard
 Gaussian matrix A, the label Y = A S, a finite-valued message W from a
 kernel of (A,Y) that is conditionally independent of S given (A,Y), and an
 ell x d standard Gaussian matrix B independent of everything.
 
-THEOTARGET.  The claim is
+The claim is
 
       t I(S;W | B, B S)  <=  H(W)  +  C k m  +  m ( C k + C log(2 + log L) ),
                                                                       (10.2)
@@ -1566,7 +1469,6 @@ which after dividing by t = m+1 reads
 Everything on the right is small: H(W) <= M log 2 where M is the number of
 memory bits, and Ck + C log(2 + log L) is linear in d.
 
-10.2  THE OBSERVABLE MATRIX.
 
 Draw the replicas and write U_i = B S_i for the projected signals.  The
 analyst, seeing only (B, U_1,...,U_t), can compute
@@ -1605,7 +1507,6 @@ common label C_0 U_1 for the t replicas.  That is exactly the structure the
 equal-label theorem describes, except that the matrix is observable rather
 than the true one.
 
-10.3  THE TEST.
 
 Let G be an ell x m standard Gaussian matrix and let Z_{k,m} be the
 constant of (9.11).  Put
@@ -1617,7 +1518,7 @@ constant of (9.11).  Put
 Every factor is a function of (B, U_1,...,U_t) alone.  So Lambda is
 observable.
 
-TWO REWRITINGS.  Let E = D_u (D_u^T D_u)^{-1/2}, an orthonormal basis of
+Let E = D_u (D_u^T D_u)^{-1/2}, an orthonormal basis of
 F_u, and let G = B E.  Then B D_u = (B E)(D_u^T D_u)^{1/2}, so
 
       det( (B D_u)^T (B D_u) )  =  det( D_u^T D_u ) * det( G^T G )
@@ -1654,14 +1555,13 @@ with (8.7), is exactly one.  Indeed (8.7) reads
 which is the same statement.  So E[Lambda | B] = 1.  Done.
 
 LEMMA 16 (the conditional law of the observable matrix).  This statement is
-used inside the proof of Lemma 15 and is recorded here, just after that use,
+used inside the proof of Lemma 15 and recorded just after that use,
 so that the preceding argument reads in one pass.  Conditionally on (B, U):
  (a) A_tilde has law gamma^F_{k,d};
  (b) A_tilde is independent of G = B E.
 
 These are the two facts just used.
 
-10.4  THE VARIATIONAL STEP.
 
 Fix B.  Let Q_B be the conditional law of the projected tuple U given B
 under the replica experiment, and let R_B = p_B^{otimes t} be the product
@@ -1678,10 +1578,9 @@ Average over B:
 
       K'  >=  E log Lambda.                                          (10.7)
 
-All the logarithms here are integrable by Lemma 14 and by (9.11), (9.12),
+All such logarithms are integrable by Lemma 14 and by (9.11), (9.12),
 so this is a legitimate inequality between real numbers.
 
-10.5  THE EXACT CANCELLATION OF log J.
 
 Take logarithms in (10.4), using (10.5) and (10.6):
 
@@ -1723,11 +1622,10 @@ densities, each evaluated at the label produced by its own matrix acting on
 a signal drawn from nu.  In the first case the matrix is the observable
 A_tilde = C_0 B; in the second it is the true A.
 
-Everything up to here was exact.  Part 10.6 bounds Delta.
+Everything up to that point was exact.  The dyadic argument above bounds Delta.
 
-10.6  THE DENSITY COMPARISON.
 
-We must bound Delta from (10.13).  Start with the uniform base f = 1, where
+Delta from (10.13) must be bounded.  Start with the uniform base f = 1, where
 everything is explicit, and then add the prior density.
 
 THE EXACT ENTROPY OF A UNIFORM-BASE PROJECTION.  Fix a full-row-rank k x d
@@ -1766,7 +1664,7 @@ where K(d,k) is the same number for every M.  This is the whole content of
 the entropy computation: for the uniform base, the only way the matrix
 enters the entropy of its projected density is through log det Sigma.
 
-DELTA FOR THE UNIFORM BASE.  With nu = sigma_d, the two terms of Delta are
+With nu = sigma_d, the two terms of Delta are
 
       E_Q log p_A(A S_1)  =  - h(p^0_A)  =  -K(d,k) - (1/2) log det Sigma_A ,
       E log p_{A_tilde}(A_tilde S_1)  =  - E h(p^0_{A_tilde})
@@ -1777,7 +1675,7 @@ log-determinants:
 
       Delta  =  (1/2) ( E log det Sigma_A  -  E log det Sigma_{A_tilde} ).   (10.17)
 
-COMPUTING THE DIFFERENCE.  By Gram-Schmidt,
+By Gram-Schmidt,
 
       E log det Sigma_A          =  sum_{i=1}^{k} [ psi((d-i+1)/2) + log 2 ],
       E log det Sigma_{A_tilde}  =  sum_{i=1}^{k} [ psi((d-m-i+1)/2) + log 2 ],
@@ -1802,54 +1700,102 @@ least 3d/4, so
 
 This is of order d, not d log d.  That is what the argument needs.
 
-WHAT THE PRIOR DENSITY f CHANGES.  With general 0 <= f <= L, entries of
-the entropy acquire two extra terms, both fiber averages of f:
+The prior density f enters Delta only through the label law.  Handle this
+once and for all by a dyadic decomposition of the distance from S_1 to the
+affine subspace S_1 + F_u that both A and A_tilde annihilate.
 
-      - int p_M log p^0_M    gains   - ((d-k-2)/2) ( W_M - W^0_M ),
-      - int p_M log h_M      is      G_M  :=  E_{S ~ nu} [ - log h_M(M S) ],
+Fix the tuple U = (S_1,...,S_t) and the actual label Y = A S_1.  Write
 
-with W_M = E_{S ~ nu}[ log |P_{ker M} S|^2 ] and G_M the expected negative
-logarithm of the fiber average of f.  So
+      delta(s')  =  |P_{F^perp}(s' - S_1)|.
 
-      Delta  =  (1/2)( E log det Sigma_A - E log det Sigma_{A_tilde} )
-                - ((d-k-2)/2)( W_A - W_{A_tilde} )
-                + ( G_A - G_{A_tilde} ).                             (10.21)
+Conditional on the tuple, the observable A_tilde has law gamma^F_{k,d}.  The
+ball-average version of Theorem 12 at the label A_tilde S_1 gives
 
-Both extra differences compare the same functional at two matrices with
-the same rank k whose kernels differ by containing the tuple plane F_u.
-The first difference is O(k^2/d) by the same digamma estimate, because
-|P_{ker M}S|^2 is close to (d-k)/d |S|^2 = (d-k)/d for both matrices and
-the f-tilt affects both in the same way.  The second difference is where
-the prior bound L enters, and it enters only logarithmically twice: h_M
-is a conditional average of f, so it is at most L, and the inequality
-t log(1/t) <= 1/e for 0 < t <= 1 gives
+      E_{A_tilde}[p_{A_tilde}(A_tilde S_1)]
+        <= (2 pi)^{-k/2} int delta(s')^{-k} p(ds').                  (10.23a)
 
-      E_{Y ~ p_M} [ - log h_M(Y) ]  <=  1/e  +  log(2 + log L) .      (10.22)
+Indeed, on a radius-rho ball of centres the coordinates of A_tilde(s'-S_1)
+are centered Gaussian with variance delta(s')^2, so the ball mass under
+A_tilde_* p is at most v_k rho^k (2 pi)^{-k/2} delta(s')^{-k}; taking
+rho = 1/j and applying Fatou gives the displayed inequality.
 
-HONEST STATUS OF THIS STEP.  Equation (10.20) is proved.  Equation (10.22)
-is proved.  Passing between them, that is bounding (W_A - W_{A_tilde}) and
-(G_A - G_{A_tilde}) simultaneously for a general bounded f, is the one
-estimate in this writeup that we quote rather than re-derive.  The original
-argument performs it by a dyadic decomposition of the radii of ball
-averages of p_A together with a weak maximal estimate.  The conclusion,
-which is what (10.3) needs, is
+The affine subspace S_1 + F_u has dimension m, so the tube estimate gives
 
-      Delta  <=  C k  +  C log(2 + log L) .                           (10.23)
+      p{delta <= rho}  <=  L C^d rho^{d - 1 - m},      0 < rho <= 1.   (10.23b)
 
-A reader who wants only the uniform prior, or any prior with a density
-bounded above and below by constants, gets (10.23) with the logarithm
-dropped, directly from (10.20).  A reader who wants to reconstruct the
-missing step should prove: for 0 <= f <= L with int f dsigma_d = 1, the
-quantities W_M and G_M of (10.21) differ between two rank-k matrices M, M'
-whose kernels both have dimension d-k by at most Ck^2/d + C log(2+log L).
+Since k and m are proportional to d/16, the exponent d - 1 - m - k is
+bounded below by c d for some absolute c > 0.  Fix the integer
 
-10.7  THE BLOCK BOUND.
+      J_0  =  1 + ceiling((log_2 L + C_1 d)/(d - 1 - m - k))          (10.23c)
+
+with C_1 large enough that the small-distance tail estimate below holds.
+The small-distance part of the integral in (10.23a) is controlled by
+(10.23b): the sum
+
+    (2 pi)^{-k/2} sum_{j >= J_0} 2^{(j+1) k} L C^d 2^{-j (d - 1 - m)} <= 1   (10.23d)
+
+follows from the cutoff in (10.23c).  For the remaining distances, split
+delta(s') into dyadic bins (r/2, r] with r in {2, 1, ..., 2^{-J_0+1}}.
+Since A annihilates F,
+
+      |A s' - Y|  <=  |A|_op  delta(s')                              (10.23e)
+
+for every s' in a bin.  If pbar_A^a(Y) is the average of p_A over the
+radius-a ball centered at Y, the bin contributes at most
+
+      (2/r)^k p{delta <= r}  <=  2^k v_k |A|_op^k pbar_A^{|A|_op r}(Y).   (10.23f)
+
+The prefactor 2^k v_k comes from the ratio of ball volumes.  Since
+v_k <= (2 pi e/k)^{k/2}, summing (10.23f) over the bins gives
+
+      E_{A_tilde}[p_{A_tilde}(A_tilde S_1)]
+        <= 1 + (C |A|_op / sqrt(k))^k sum_r pbar_A^{|A|_op r}(Y).    (10.23g)
+
+The 1 is the small-distance contribution (10.23d); the sum is over at most
+J_0 + 2 bins.
+
+Divide (10.23g) by p_A(Y) and apply Jensen:
+
+  E[log p_{A_tilde}(A_tilde S_1) - log p_A(Y) | A, Y, U]
+    <= log(1 + (C|A|_op/sqrt(k))^k sum_r pbar_A^{|A|_op r}(Y)/p_A(Y)).   (10.23h)
+
+Averaging over Y | A with law p_A(y) dy gives two elementary bounds:
+
+      E_{Y|A}[pbar_A^a(Y)/p_A(Y)]  <=  1                              (10.23i)
+
+for every radius a fixed by A, and
+
+   E_{Y|A}[1/p_A(Y)]  <=  v_k |A|_op^k  <=  (2 pi e/k)^{k/2} |A|_op^k.   (10.23j)
+
+The first is a ball average of a probability density over {p_A > 0}; the
+second is the ellipsoid's Lebesgue volume.  Jensen again, over Y, bounds
+(10.23h) by
+
+      k log(C (1 + |A|_op / sqrt(k))) + log(J_0 + 2).                  (10.23k)
+
+Two estimates complete the bound.  A 1/4-net argument on the unit spheres
+in R^d and R^k shows E|A|_op <= C sqrt(d), and since the logarithm is
+concave, k >= d/32 gives
+
+      E[k log(C (1 + |A|_op / sqrt(k)))]  <=  C k.                    (10.23l)
+
+The cutoff in (10.23c) with d - 1 - m - k >= c d gives
+
+      log(J_0 + 2)  <=  C log(2 + log L).                             (10.23m)
+
+Combining (10.23l) and (10.23m) and taking the outer expectation over A:
+
+      Delta  <=  C k + C log(2 + log L).                              (10.23)
+
+Every step is proved.  The uniform-prior bound (10.20) is the special case
+L = 1, for which (10.23m) is absorbed into Ck.
+
 
 Combine (10.12) with (10.23):
 
       K - K'  <=  C k m  +  m ( C k + C log(2 + log L) ).             (10.24)
 
-Insert into Lemma 9 of Part 6, which says
+Insert into Lemma 9, which says
 t I(S;W|B,BS) <= H(W) + K - K':
 
       t I(S;W | B, B S)  <=  H(W) + C k m + m ( C k + C log(2 + log L) ).
@@ -1866,7 +1812,7 @@ message W from a kernel of (A,Y) that is conditionally independent of S,
 and an ell x d standard Gaussian B independent of everything.  Then, for
 all d >= 64, (10.26) holds with an absolute constant C.
 
-READING (10.26).  Three things are being said at once.
+Three things are being said at once.
 
   The message entropy is divided by t = m+1 ~ d/16.  A message with M bits
   contributes at most M log 2 / t, which is 16 M log 2 / d.
@@ -1876,23 +1822,18 @@ READING (10.26).  Three things are being said at once.
 
   The prior enters only through log(2 + log L).  Conditioning on an event
   of probability a makes L = 1/a, so the cost is log(2 + log(1/a)): doubly
-  logarithmic in the rarity.  This is exactly what lets Part 11 average
+  logarithmic in the rarity.  This is exactly what lets the block averaging
   over rare states without paying a large penalty.
 
 
-==============================================================================
-PART 11.  ASSEMBLING THE STREAM
-==============================================================================
-
-We now put the blocks together.  From this point on eps and T and M are
-functions of d; we write eps, T, M for short, and
+Now the blocks are put together.  From this point on eps and T and M are
+functions of d; eps, T, M is written for short, and
 
       beta  =  log(1/eps),        0 < eps <= 1/10,        beta >= 2.      (11.1)
 
-The learner is the one of Part 1: finite state, at most 2^M values, exact
+The learner is the one fixed at the outset: finite state, at most 2^M values, exact
 labels, deterministic horizon T, and uniform-prior success at least 2/3.
 
-11.1  REDUCING TO A DETERMINISTIC LEARNER.
 
 Let xi denote the entire collection of the learner's random variables: the
 shared seed, and every fresh transition coin and output coin.  Given a
@@ -1915,7 +1856,6 @@ per-seed kernels are not needed for the bound; they only matter if one
 wants a deterministic learner whose state path is Borel measurable in the
 data.
 
-11.2  PADDING THE STREAM.
 
 The learner may stop early.  Pad it:
 
@@ -1946,7 +1886,6 @@ Let V_i be the padded state at the end of block i, and V_0 the initial
 padded state.  Then V_0 is a constant: it is the initial state together
 with the tag "index 0", and both are fixed by xi_0.
 
-11.3  THE BRANCH SPLIT.
 
 If T >= d beta, the theorem is already proved with constant 1, because
 beta = log(1/eps).  So assume
@@ -1954,7 +1893,7 @@ beta = log(1/eps).  So assume
       T  <=  d beta .                                                (11.4)
 
 On this branch, Lemma 8 applies (its only hypothesis is a fixed positive
-success probability, and we have 2/3).  It gives
+success probability, and 2/3 is available).  It gives
 
       beta = o(d),     T = o(d^2),     h_T = o(d^2).                  (11.5)
 
@@ -1966,7 +1905,6 @@ one that keeps every raw row, so
 
 for all large d, using k < d/8.
 
-11.4  THE BLOCK STEP.
 
 Fix i with 1 <= i <= n.  Condition on the padded history V_{i-1} = h, a
 value with probability p_h > 0.  Under this conditioning:
@@ -1985,7 +1923,7 @@ value with probability p_h > 0.  Under this conditioning:
   of at most K values by (11.2).
 
   Draw a fresh ell x d standard Gaussian matrix B, independent of the whole
-  learner experiment.  It is used only here, for the analysis.
+  learner experiment.  It is used only for the analysis.
 
 All the hypotheses of Theorem 17 hold, with k, m = k, t = m+1, ell = 4k,
 prior density f_h and message V_i.  Therefore
@@ -2016,7 +1954,6 @@ So, after averaging,
       I( S ; V_i | V_{i-1}, B, B S )
             <=  h_T / t  +  C k  +  C log( 2 + (i-1) h_T ).          (11.10)
 
-11.5  SUMMING OVER THE BLOCKS.
 
 Chain rule, then data processing.  For any 1 <= j <= n,
 
@@ -2048,7 +1985,6 @@ for all large d.  Also t = m+1 >= k >= d/32, so h_T/t = o(d^2)/(d/32)
 That is the information the final padded state carries about the signal
 once the analyst knows B S.  The bound is linear in d per block.
 
-11.6  THE MATCHING LOWER BOUND.
 
 The output S-hat is a function of V_n together with randomness already
 fixed, so it is a function of V_n.  By data processing in the conditional
@@ -2056,7 +1992,7 @@ experiment (condition on B, B S),
 
       I( S ; S-hat | B, B S )  <=  I( S ; V_n | B, B S ).            (11.15)
 
-For the left side, apply Corollary 5 with the b x d matrix being our
+For the left side, apply Corollary 5 with the b x d matrix being the
 ell x d matrix B, so b = ell.  Two hypotheses must be checked.
 
       ell = 4k = 8 floor(d/16) <= d/2,
@@ -2067,9 +2003,8 @@ and the success probability is at least 2/3 >= 3/5.  So for all large d,
             >=  (1/2)(d - ell - 1) log( 1/(5 eps) )  -  log 2
             >=  c_1 d beta ,                                         (11.16)
 
-where we used d - ell - 1 >= d/2 - 1 and log(1/(5eps)) >= 0.3 beta.
+using d - ell - 1 >= d/2 - 1 and log(1/(5eps)) >= 0.3 beta.
 
-11.7  SOLVING FOR T.
 
 Combine (11.14), (11.15) and (11.16):
 
@@ -2101,14 +2036,7 @@ d, and with the threshold allowed to depend on the sequence M = M(d),
 with an absolute c > 0.
 
 
-==============================================================================
-PART 12.  THE THEOREM
-==============================================================================
-
-12.1  THE STATEMENT.
-
-This is Theorem 1 of the paper, and the only result this writeup sets out
-to prove.
+This is Theorem 1, the sole conclusion of the argument.
 
 THEOREM 19 (memory-precision tradeoff).  Let M(d) be a nonnegative
 integer-valued sequence with M(d) = o(d^2), meaning M(d)/d^2 -> 0.  Let
@@ -2144,59 +2072,13 @@ memory sequence, on how the learner is built, on the number of rows T, or
 on the accuracy.  A bound whose constant shrinks as M grows would be
 vacuous in exactly the regime that matters.
 
-12.2  THE PROOF.
 
-Apply Part 11.1: fix the learner's randomness once and for all, obtaining a
+Apply the padding lemma: fix the learner's randomness once and for all, obtaining a
 deterministic learner of the same memory and horizon with uniform-prior
 success still at least 2/3.  The deterministic learner satisfies every
-hypothesis of Lemma 18 of Part 11, whose conclusion is exactly (12.1).  That
+hypothesis of Lemma 18, whose conclusion is exactly (12.1).  That
 is the whole proof.
 
-12.3  WHAT EACH PART DID.
-
-  Part 2     set up entropy, relative entropy, mutual information, the
-             chain rule, data processing, and the variational bound.
-
-  Part 3     proved three geometric estimates: spherical caps are small,
-             tubes around affine subspaces are small, and conditioning on
-             a random Gaussian projection leaves the signal uniform on an
-             affine sphere of random radius.
-
-  Part 4     deduced the endpoint: a state that identifies S to accuracy
-             eps while the analyst knows an independent projection B S of
-             rank b <= d/2 must contain at least ~(1/2)(d-b-1)log(1/eps)
-             nats about S.
-
-  Part 5     showed that stopping early cannot help: a learner that stops
-             by d log(1/eps) has at most o(d^2) bits and must have
-             log(1/eps) = o(d).
-
-  Part 6     introduced posterior replicas and proved the replica
-             information inequality: t times the desired information is at
-             most the message entropy plus the loss of correlation caused
-             by the projection B.
-
-  Part 7     proved the equal-label finite measure identity, which is the
-             exact exchange rate between drawing labels first and drawing
-             signals first.
-
-  Part 8     divided that identity by p_A(y)^m to get the replica
-             likelihood, and derived the resulting bound on the total
-             correlation K.
-
-  Part 9     checked that every logarithm in sight has a finite
-             expectation, so the algebra in Parts 10 and 11 is legitimate.
-
-  Part 10    built an observable test from the projected replicas, whose
-             logarithm contains +k log J.  That term cancels the -k log J
-             in the correlation bound exactly.  What survives is bounded by
-             O(d) per block.
-
-  Part 11    divided the stream into blocks of k rows, applied Part 10 to
-             each block against the conditional prior given the history,
-             summed, and matched the result against the endpoint of Part 4.
-
-12.4  REMARKS.
 
 REMARK 1 (why exact labels matter for the statement, not just the proof).
 Suppose a learner is promised only noisy labels, Y_j = <X_j,s> + noise with
@@ -2219,36 +2101,30 @@ compare.
 REMARK 3 (why 2/3 and not 1/2).  Two thresholds are used.  The endpoint
 needs success at least 3/5, to survive the loss from the event that the
 residual radius is small; the raw-data bound needs at least 3/5 for the
-same reason.  The factor 2/3 leaves room.  Nothing here is sharp in the
+same reason.  The factor 2/3 leaves room.  The bound is not sharp in the
 constant; the statement is asymptotic in d.
 
 REMARK 4 (the memory threshold).  The hypothesis is M = o(d^2).  The proof
 uses it twice: to force log(1/eps) = o(d) on the branch (11.4), and to keep
-the padded state entropy h_T subquadratic.  Nothing here says what happens
+the padded state entropy h_T subquadratic.  Nothing established says what happens
 when M is a positive fraction of d^2.  A matrix of d rows has d^2 entries,
 so quadratic memory is the natural scale at which the whole problem
-changes, and this writeup does not address that regime.
+changes, and that regime is not treated.
 
-REMARK 5 (what is quoted).  Part 10.6 proves the density comparison for
-the uniform prior, and for priors bounded above and below by constants,
-with no quoted estimate: the bound (10.20) is Delta <= Ck.  For a general
-bounded prior density the same step produces two fiber averages of the
-prior, and bounding their difference by Ck + C log(2 + log L) is the one
-estimate taken from the original argument rather than re-derived here.
-Everything else in these twelve parts is proved from the beginning.
+REMARK 5 (density comparison).  The dyadic argument proves it for a
+general bounded prior with no quoted estimate.  The uniform-prior case
+reduces to a difference of log-determinants (10.20); the general case is
+controlled by (10.23).  Every step is derived from the definitions.
 
-REMARK 6 (what a reader should be able to redo).  The two computations
-really worth doing by hand are: the entropy formula (10.16), which shows
+REMARK 6 (the two hand computations).  The two key computations are: the entropy formula (10.16), which shows
 that for the uniform prior the whole density comparison collapses to a
 difference of expected log-determinants; and the normalization (8.7),
 which is where the constant (2 pi)^{-km/2} comes from and where the
-identity of Part 7 turns into a probability statement.
+equal-label identity turns into a probability statement.
 
-12.5  THE SHAPE OF THE ANSWER.
 
-Put numbers in (12.1).  To reach accuracy eps = 10^{-3} in dimension
-d = 1000 with a state of, say, 10^5 bits, which is far below d^2/4 =
-250000, the theorem requires about d log(1/eps) = 1000 * 6.9 = 6900 rows,
+A concrete instance: with eps = 10^{-3}, d = 1000, and a state of
+10^5 bits (far below d^2/4 = 250000), the theorem requires about d log(1/eps) = 1000 * 6.9 = 6900 rows,
 times an absolute constant.  A learner keeping all rows would need 1000.
 The extra factor is the price of the state being small: information about
 the residual sphere has to be paid for one block at a time, and each block
@@ -2263,4 +2139,4 @@ amount, which is of order log(1/eps).
 
 That is the whole argument, in four lines.
 
-END OF THE PROOF.
+
