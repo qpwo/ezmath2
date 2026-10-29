@@ -1,0 +1,655 @@
+SIMULATING ONE-TAPE TIME IN TWO-FIFTHS-POWER SPACE
+A complete, plain-language walkthrough
+============================================================
+Based on the paper "Simulating One-Tape Time in Two-Fifths-Power Space"
+(OpenAI, September 2026). This version is written to be read start to
+finish by a curious high-school reader who knows a little algebra and is
+willing to think carefully. The ideas and the main statements are all
+here; nothing the proof really depends on is dropped.
+
+HOW TO READ THIS
+- Part 1 is the question, and why anyone cares.
+- Part 2 is the exact machine we simulate and the exact promise.
+- Part 3 is the main theorem, said plainly.
+- Part 4 is the four tools the proof is built from.
+- Part 5 assembles the tools into the full simulation.
+- Part 6 is the multitape comparison.
+- Part 7 is the consequences (separations of complexity classes).
+- Part 8 is what the theorem does NOT say, and why the exponent stops.
+- Part 9 is a glossary and a worked mini-example.
+If you read only two things, read Part 1 and Part 3.
+
+
+PART 1. THE QUESTION: HOW MUCH MEMORY TO REPLAY A COMPUTATION?
+--------------------------------------------------------------
+
+A Turing machine is the simplest model of a computer.
+- It has a TAPE: an endless strip of cells, each holding one symbol
+  (think 0, 1, or blank).
+- It has a HEAD that sits on one cell and can read it, write it, and move
+  one cell left or right per step.
+- It has a STATE from a finite list; this is its memory of where it is in
+  the program.
+- A table of rules says: given (state, symbol under head), what to write,
+  which way to move, and which state to go to next.
+
+Run it. Each step is one rule application. Two numbers describe a run:
+- TIME = number of steps taken. We call the cap T.
+- SPACE = number of tape cells (or bits) the machine actually uses while
+  running. A machine that wanders over T cells has used T-space; one that
+  stays inside a small window uses little space.
+
+THE SIMULATION QUESTION.
+Suppose a machine runs for up to T steps and we want to know only one
+thing: does it halt, and in which state? We are allowed to use a second,
+smarter machine, and we do not care how LONG that second machine takes.
+We care only how much MEMORY (work space) it needs.
+
+Storing the whole tape costs about T cells. Can we do better? Yes. The
+classic result (Hopcroft and Ullman) is that a one-tape machine running T
+steps can be simulated using about sqrt(T) cells. In 2025 Ryan Williams
+proved that for machines with MANY tapes this can be pushed to about
+sqrt(T * log T) cells (essentially sqrt(T)). He then asked a sharp
+question: can the old sqrt(T) for ONE-tape machines be beaten?
+
+THIS PAPER'S ANSWER: yes. One writable tape (plus any fixed number of
+read-only input heads) can be simulated in about T^(2/5) = T^0.4 cells.
+Because 2/5 = 0.4 is less than 1/2 = 0.5, this is strictly better than
+the classical sqrt(T). In fact every exponent above 2/5 works: for any
+fixed amount delta with 0 < delta < 1/10 we get O(T^(1/2 - delta)).
+
+WHY THIS MATTERS. Time and space are two fundamental resources. Results
+like replaying a time-T computation needs at least this much space are
+called TIME-SPACE TRADEOFFS. They connect to the famous open question of
+whether polynomial-time machines (P) can do everything that polynomial-
+space machines (PSPACE) can. Every real improvement in an exponent is a
+genuine, publishable step; going from 1/2 down to 2/5 is exactly such a
+step for one-tape machines.
+
+
+PART 2. THE EXACT MACHINE AND THE EXACT PROMISE
+------------------------------------------------
+
+The paper simulates a very specific kind of machine. Fixing the details
+matters, because the space savings only apply when these promises hold.
+
+THE MACHINE.
+- It is deterministic: no choices, one run per input.
+- It has ONE writable tape (read and write) with ONE head. Each step,
+  that head moves by at most one cell.
+- It has a fixed number of extra READ-ONLY input heads. Each may move by
+  at most one cell per step. They cannot change the input.
+- All heads start at fixed origins (position zero, so to speak).
+- The writable tape initially holds the input in a fixed encoding, or is
+  blank and the input lives on the read-only tape.
+State set and alphabet are finite and fixed. The at-most-one-cell-per-step
+rule is what later makes the CONFINEMENT argument true: after s steps a
+head is at most s cells from where it started.
+
+THE CAP AND THE SYMBOL ACCESSOR.
+The simulator is handed, along with the input x, a binary number T >= 2
+called the CAP. It must report the machine's outcome after at most T
+steps. (If the machine halts sooner, that is the outcome; otherwise the
+outcome is a timeout.)
+
+So that the input is never stored as work space, the simulator gets an
+ACCESSOR: a small helper program Sym. Asked for the symbol at
+displacement q from origin h, for cap T, it returns that symbol. The
+promise (the ACCESS CONDITION) is: for every tag h and every |q| <= T,
+Sym(x,h,T,q) halts using at most C0 * log^(C1)(T+2) work-space bits, for
+fixed constants C0, C1. The accessor's code and constants do not depend
+on x or T. Ordinary reading of a tape satisfies this by rescanning to the
+position, which costs only a counter of about log(T+2) bits.
+
+THE OUTPUT AND WHAT IS CHARGED.
+The simulator outputs only the finite-control state and the halting flag
+after T steps (halting states are made absorbing). It does NOT have to
+write down the final tape. Work space is counted in bits and EXCLUDES
+storing the read-only input. Constants may depend on the fixed machine
+and the accessor.
+
+SOFT-O NOTATION.
+We write softO(f(T)) for O(f(T) * log^C(T+2)), for a fixed constant C.
+The log factors are never the interesting part; the exponent is. So
+softO(T^(2/5)) means T to the two-fifths, times some power of log T.
+
+A no-cap promise: if the machine actually halts on x after t steps, and
+the access condition holds at every cap T >= 2, then the outcome can be
+computed without being told t, in softO((t+2)^(2/5)) bits. The trick is
+to try caps 2, 4, 8, 16, ... and stop at the first real halt.
+
+
+PART 3. THE MAIN THEOREM, SAID PLAINLY
+--------------------------------------
+
+Theorem (main). Fix a deterministic machine of the kind in Part 2: one
+writable tape and head, a fixed number of read-only input heads, unit
+movement, fixed origins, cap-independent symbol functions, and a fixed
+accessor. For every public input x and every supplied binary cap T >= 2
+for which the access condition holds, the machine's finite-control and
+halting outcome by time T can be computed in
+
+    softO( T^(2/5) )   work-space bits,
+
+leaving out storage for the read-only input. Simulation time is
+unlimited, and the final tape need not be produced.
+
+If the access condition holds on x for every T >= 2, and the machine
+halts after t steps without being told t, the same outcome can be
+computed in softO( (t+2)^(2/5) ) bits.
+
+The exponents at a glance:
+- Classical one-tape simulation:   T^(1/2).
+- This theorem:                    T^(2/5) = T^(1/2 - 1/10).
+- So for every fixed delta with 0 < delta < 1/10 you get
+  O(T^(1/2 - delta)).
+- There is NO claim of a clean T^(2/5)-without-logs bound; the logs stay.
+
+Scope: this is a statement about ONE writable head. Extra read-only input
+heads are free (they are part of the promise, not the cost). It is not a
+two-fifths bound for machines with several writable tapes. Part 6 handles
+the multitape case separately and only gets back to sqrt(T).
+
+
+PART 4. THE FOUR TOOLS THE PROOF IS BUILT FROM
+----------------------------------------------
+
+The proof is a stack of four reusable ideas. Take them one at a time.
+
+TOOL 1. BLOCKS AND VISITS (why one moving head is cheap).
+Cut the writable tape into blocks of width b, but cut at an OFFSET a with
+0 <= a < b: block v covers the cells [a+vb, a+(v+1)b-1]. The offset is
+just a shift from the left edge; there are b possible offsets.
+
+A VISIT is one stretch of running until the writable head leaves its
+current block, or the machine halts, or the cap is hit. (The step that
+leaves a block still belongs to the old block: it writes before moving,
+and does not read the next cell until the next visit.) Between visits the
+head is jumping from one block to another.
+
+Counting crossings. Each step moves the head at most one cell, so it
+crosses at most one block edge, and that edge is a block boundary for
+exactly ONE of the b offsets. Summed over all b offsets, the total number
+of boundary crossings in T steps is at most T. So the AVERAGE offset sees
+at most T/b crossings. Therefore SOME offset has at most T/b crossings,
+i.e. at most R = ceil(1 + T/b) visits. That offset is the good one; the
+simulator tries all offsets and keeps one that finishes.
+
+What travels between blocks is tiny. The only thing the outside world
+needs to describe where the machine is between visits is a short
+CONTROLLER: the state, all head positions, the elapsed time, and a couple
+of flags. That is c = O(log(T+2)) bits at fixed width. Everything else
+lives inside a block and is not copied around.
+
+Confinement (a key safety check). If a head sits at distance q0 at time
+tau, then after at most s more unit steps it is at distance at most
+|q0| + s <= tau + s <= T. So a visit never needs a cell beyond distance
+T, which means the accessor is only ever asked for |q| <= T, exactly its
+promise. The interior of every block is enough; nothing outside is read.
+
+TOOL 2. GUESS THE CONTROLLERS, THEN REPLAY (why consistency splits).
+We do not know the real sequence of controllers z0, z1, z2, ... ahead of
+time. So GUESS the whole list of them, then CHECK the guess.
+The check splits over blocks. Each block i can be replayed on its own:
+start from block i's own initial contents, walk the guessed list, and
+whenever a controller says it is working on block i, apply exactly that
+visit to block i and check that the outgoing controller matches the
+guess. A block that never disagrees vouches for its part. All blocks
+agreeing is exactly the same as the guessed list being the real list.
+
+Crucially, replaying block i needs only the controller list plus block
+i's own contents, not the other blocks. That is what keeps memory small:
+we never hold the whole tape at once.
+
+TOOL 3. THE ALGEBRA: EVALUATE A LOOKUP WITHOUT STORING THE TABLE.
+-----------------------------------------------------------------
+Later, some big Boolean functions must be evaluated on inputs with d
+bits. A truth table would have 2^d rows and would not fit. The trick is
+to turn a lookup into a POLYNOMIAL and evaluate that instead.
+
+A FIELD OF CHARACTERISTIC TWO is arithmetic where 1 + 1 = 0 (and so
+-x = x, since x + x = 0). We need a field F bigger than any degree that
+appears (the degrees are at most some polynomial Delta in T). Build it by
+starting from GF(2) and repeatedly adjoining a root of an irreducible
+quadratic X^2 + X + a, which DOUBLES the field each time, until |F| >
+Delta. Every element of F is O(log T) bits; adding, multiplying,
+inverting, and listing the elements all take polylog(T) space. No time
+bound is needed. (This is the uniform-fields lemma.)
+
+AUGMENTED VECTORS. For a Boolean word v = (v1,...,vd), write
+aug(v) = (v1,...,vd,1): add a final coordinate equal to 1. That final 1
+is essential; it is how constants get represented in the algebra.
+
+THE DELTA POLYNOMIAL. For a Boolean word u and a field vector z whose
+last coordinate is called zlast, define
+
+    B_u(z) = (product over l = 1..d of)
+             ( z_l          if u_l = 1
+               zlast - z_l  if u_l = 0 ).
+
+At z = aug(v) we have zlast = 1 and z_l = v_l, so each factor is 1
+exactly when v_l = u_l and 0 otherwise. Hence B_u(aug(v)) = 1 if u = v,
+and 0 if u != v. It is a delta: it picks out one word.
+
+HOMOGENEOUS LOOKUP (how a Boolean function becomes a polynomial). For a
+Boolean function f on a words, define
+
+    f~(z^1,...,z^a) =
+        sum over all u^1,...,u^a in {0,1}^d of
+            f(u^1,...,u^a) * (product over j of B_{u^j}(z^j)).
+
+At Boolean inputs z^j = aug(v^j) exactly one term survives (the one where
+u^j = v^j for all j), so f~(aug v^1,...,aug v^a) = f(v^1,...,v^a). The
+polynomial AGREES with f on Boolean points. It is also HOMOGENEOUS OF
+DEGREE d in each argument (every term has total degree d per variable),
+which is what the extraction trick below needs.
+
+A warning that matters. Summing B_u(z) over all u gives
+zlast * zlast * ... * zlast = zlast^d, not 1. So the extension of the
+constant-one function is zlast^d, not the literal number 1. Augmenting
+correctly is the whole game; forget it and the constants go wrong.
+
+TOP-COEFFICIENT EXTRACTION (how to read off Q(v) from easier samples).
+Take any L+1 distinct field elements S_L, and for s in S_L set
+omega_L(s) = 1 / (product over t in S_L, t != s of (s - t)). Then for any
+univariate polynomial p of degree at most L,
+
+    [X^L] p(X) = sum over s in S_L of omega_L(s) * p(s).
+
+Here [X^L]p means the coefficient of X^L. If Q is HOMOGENEOUS of degree
+L, then plugging a + X v into Q and taking the X^L coefficient gives
+exactly Q(v). Combining the two,
+
+    Q(v) = sum over s in S_L of omega_L(s) * Q(a + s v).
+
+So to learn Q(v) we never expand Q. We evaluate Q at L+1 easy shifted
+points a + s v and take a weighted sum. This is the engine that lets the
+evaluator slide a register along v and fold the answers back together. It
+works in characteristic two even when L is bigger than 2. Lagrange
+weights, no factorials, no derivatives.
+
+TOOL 4. THE REGISTER-POOL EVALUATOR (one small pool does everything).
+--------------------------------------------------------------------
+This is the reusable engine at the heart of the paper. Forget tape for a
+moment; think of a giant DEPENDENCY GRAPH of words.
+
+The graph. There are polynomially many word identifiers, each O(log T)
+bits. Every word V has one true value v(V) in {0,1}^d, fixed by the
+input and immutable parameters (not by any scratch register). Each node
+is one of three types:
+- BASE: its bits are computed locally (a fixed controller bit, or a
+  symbol from the accessor, or the filler symbol).
+- ORDINARY: v(V) = f_V(v(U1),...,v(Ua)) for a total Boolean function f_V
+  and at most r children (r is a fixed constant).
+- HISTORY: a special factored shape
+      aug(v(V)) = sum over guesses Y of
+                    aug(G_Y(v(H))) * (product over i of P_{Y,i}(...)),
+  where H is a distinguished history child and A_1..A_N are array
+  children. Exactly one guess Y makes all the predicates P_{Y,i} equal
+  to 1, and its output is v(V). (This shape is used in Part 5.)
+
+The graph is ACYCLIC, so all recursive calls terminate.
+
+The subroutine. For every word V, scalar lambda, and register index t,
+there is a procedure Add(V, lambda, t) with this contract, for EVERY
+starting assignment to the entire register pool:
+
+    on exit:  register t  +=  lambda * aug(v(V)),
+              every other register is left EXACTLY as it was.
+
+The result is an ADDITION of a scaled true word to one register, and full
+restoration of the rest. The scratch that computes v(V) is thrown away.
+
+Why that contract is the whole trick. Because Add restores every register
+it is not asked to touch, a child procedure may BORROW the caller's
+registers (even the caller's half-finished output) and hand them back
+untouched. So a SINGLE FIXED POOL of p = max(3, r+1) registers, each a
+vector in F^(d+1) (about O(d log T) bits), serves the entire recursion.
+There is no private vector saved at each level.
+
+The space cost. It is charged by WEIGHTED PATHS. Give ordinary dependency
+edges weight 1; at a history node, the edge to H weight 1, and each edge
+to an array child A_i weight g+1 (g is the number of bits in a round
+guess). Let W(V) be the maximum total edge weight of any dependency path
+from V down to a base word. Then Add(V,...) runs in
+
+    O( (d + W(V) + 1) * polylog(T) )   work-space bits,
+
+including the pool and all suspended storage. To get the value v(V)
+itself, zero a register and call Add(V, 1, t).
+
+The three cases, briefly:
+- BASE. Generate each bit locally; add lambda*bit to the matching
+  coordinate of register t, and add lambda to its extra coordinate. No
+  recursive word call. (Local generation uses O(d polylog T) scratch.)
+- ORDINARY. Nest interpolation loops. At level j, for each sample s_j in
+  S_d: Add(U_j, s_j, q_j) into a scratch slot, recurse to the next level,
+  then Add(U_j, -s_j, q_j) to shift the slot back. The forward and
+  reverse shifts slide slot q_j along s_j * aug(v(U_j)) and undo it.
+  At the innermost level, evaluate the polynomial f~_V at the shifted
+  slots one coordinate at a time, and add lambda * (each weight) * that
+  to register t. By the extraction trick, the shifts plus the weighted
+  sum collapse to exactly lambda * aug(v(V)). Constant depth (r), so only
+  O(log T) bookkeeping is saved on each ordinary edge.
+- HISTORY. The expensive one. The polynomial
+      F(h;a_1..a_N) = sum over Y of G~_Y(h) * prod_i P~_{Y,i}(h,a_i)
+  is homogeneous of degree D = (N+1)*d in h and degree d in each a_i.
+  Sample h along s in S_D: Add(H, s, q_H); for each coordinate z and each
+  guess Y evaluate u = G~_{Y,z}(q_H) locally (no word call); then for each
+  array i, run an inner interpolation over s' in S_d on a_i, accumulating
+  a factor b_i; multiply u by b_i; add lambda * omega_D(s) * u to the
+  target coordinate. Finally Add(H, -s, q_H). Both calls to H sit OUTSIDE
+  the coordinate and Y loops, so on the history-to-H edge only a short
+  frame survives. The array calls happen INSIDE, and each one keeps a
+  round guess of g bits (plus indices and one accumulator) alive across a
+  recursive call, which is exactly why that edge is charged g+1.
+
+Why the weights match the stack. At any instant the active calls form a
+dependency path. Summing the suspended frame sizes along that path gives
+O(W(V) polylog T) bits. The history-to-array edges are the only ones that
+retain an in-progress guess, and the g+1 charge pays for exactly that.
+Add the fixed pool, the field description, one reusable local Boolean
+scratch area (discarded before every word call, so it is charged once,
+not per level), and the current frame, and you get the bound above.
+
+
+PART 5. ASSEMBLING THE SIMULATION
+---------------------------------
+
+Now we plug the tape into the evaluator. Everything runs for a fixed
+offset a (the good one from Tool 1); we try all offsets and keep one that
+finishes. Throughout, choose
+
+    k = ceil(T^(1/5)),   b = k^2,   R = ceil(1 + T/b),
+    E = ceil(R / b)   epochs of b visits each,
+    d = max(1, b*ell, (b+1)*c)    (the common word width),
+
+where ell is the fixed bits per writable symbol and c is the controller
+width from Tool 1. Each epoch of b visits is split into k ROUNDS of k
+visits each. Note d is O((b+1) log(T+2)), i.e. about b times some logs.
+
+The words (the whole data structure).
+- A_{e,i}  = the contents of block i, padded to width d, just after eb
+  visits (a CHECKPOINT). A_{0,i} is a base word (read the initial block).
+- H_{e,j}  = the controllers of epoch e so far: its incoming controller,
+  plus the outgoing controllers of its first jk visits (0 <= j <= k),
+  padded to width d. H_{0,0} is a base word; H_{e,0} for e>0 just copies
+  the final controller slice of H_{e-1,k} (an extraction, fan-in 1).
+- The final target word is H_{E-1,k}; its last controller gives the state
+  and the halt/timeout flag.
+
+The checkpoint rule (fan-in 2). To get block i's state after an epoch,
+REPLAY that epoch's controllers (stored in H_{e,k}) against block i,
+starting from A_{e,i}:
+
+    A_{e+1,i}  =  Replay_i( H_{e,k} , A_{e,i} ).
+
+By Tools 1 and 2, on real data this is exactly the true next checkpoint;
+on garbage inputs Replay is still a total function (it keeps scanning
+after a mismatch), so nothing breaks.
+
+The factored rule for rounds. Guess the k next controllers Y (a round
+guess: g = k*c bits). Then
+
+    aug(H_{e,j+1}) =
+        sum over Y of
+            aug(G_Y(H_{e,j})) * (product over i of P_{Y,i}(H_{e,j}, A_{e,i}))
+
+where G_Y builds the new history by appending Y, and each P_{Y,i} is the
+does-block-i-still-vouch-for-this-guess flag. Exactly one guess makes
+every P_{Y,i} equal to 1: the real next k controllers. This is precisely
+the history shape that Tool 4 consumes. This is the factored-history
+lemma. The guess is validated BLOCK BY BLOCK, which is why it factors.
+
+The weighted path, and the exponent. Inside one epoch, a path can walk at
+most k cheap history-to-history edges (weight 1 each). Then it may jump to
+an array child A_{e,i}, paying the fat edge weight kc+1 (this pays for the
+one round guess kept alive across the array call). From A_{e,i} every
+child belongs to the PREVIOUS epoch, so a path cannot retain a second
+round guess inside the same epoch. So
+
+    W = O( E * (k + kc + 1) ) = O( Ek log(T+2) ).
+
+Tool 4 then gives total work space
+
+    softO( d + Ek ).
+
+Plug in the parameters: d is about b = k^2 = T^(2/5). And E is about
+T/b^2 = T/k^4 = T^(1/5) = k, so Ek is about k^2 = T^(2/5). Both terms land
+on T^(2/5). That is the whole theorem:
+
+    softO( T^(2/5) )   work-space bits.
+
+Balance, in one line. Let block width be B and epoch length be L visits,
+splitting each epoch into rounds of q visits. Materializing a word costs
+B + L. The stack costs (number of epochs) * (rounds per epoch) plus a
+retained guess per epoch:
+
+    T/(B L) * (L/q + q) = T/(B q) + T q/(B L).
+
+At the best round size q ~ sqrt(L) this is 2T/(B sqrt L). If both B and L
+are at most a storage budget S, that is at least 2T/S^(3/2). Setting
+S = 2T/S^(3/2) gives S^(5/2) = T, i.e. S = T^(2/5). Any attempt to change
+the three scales B, L, q alone cannot push below this, because the bound
+above is tight for THIS estimate. That is why the exponent is two-fifths,
+and also why the paper makes no claim beyond two-fifths.
+
+
+PART 6. THE MULTITAPE COMPARISON (why 2/5 does NOT transfer)
+------------------------------------------------------------
+
+The main theorem is about ONE writable tape. Real machines have several.
+What happens with a fixed number m of writable tapes (still fixed, still
+unit movement, plus the read-only heads)? The paper proves a companion
+result, and it is honest about being only as good as the old square root.
+
+Proposition (multitape). Fix a deterministic machine with a fixed number
+of ordinary writable tapes and read-only input heads, unit movement, fixed
+origins, cap-independent symbols, and a fixed accessor. For every input x
+and cap T >= 2 satisfying the access condition, its finite-control and
+halting outcome can be simulated in
+
+    softO( sqrt(T) )   work-space bits,
+
+leaving out the read-only input. Simulation time is unlimited.
+
+How the proof goes (and where the old sqrt(T) comes from).
+- Put blocks of width b on EVERY writable tape, with one COMMON offset a.
+- A JOINT VISIT now runs until ANY writable head leaves its block (or halt
+  or cap). Between joint visits, the controller has to describe all m
+  heads at once.
+- Averaging over offsets: total crossings summed over all offsets is at
+  most m*T, so some offset has at most m*T/b crossings, i.e. at most
+  R = ceil(1 + m*T/b) joint visits.
+- Guess the whole list of R+1 controllers, hold it once in one global
+  buffer of O(R log(T+2)) bits, and CHECK it. Each produced block word Q
+  depends on at most m incoming blocks (the blocks a joint visit reads),
+  and the which-earlier-visit-last-wrote-this-block index is found by
+  scanning the retained list. All dependencies go to earlier visits, so
+  resolution depth is O(R).
+- This is an ORDINARY-RULE computation, so Tool 4 applies with word width
+  O(b), fixed fan-in, and weighted-path length O(R). Storage is
+  softO(b + R) = softO(sqrt(T)) when b ~ sqrt(T). That matches the
+  classical square root.
+
+Why we do NOT get two-fifths here. The two-fifths came from the FACTORED
+round rule: a guess was validated one single block at a time, so the check
+split into independent per-block predicates P_{Y,i}. With several tapes a
+joint visit reads SEVERAL independently supplied blocks at once, and the
+transition can depend on them jointly. A concrete obstruction: two blocks
+whose bits must be EQUAL (pairs 00 and 11), which cannot be written as a
+product of a predicate on the first block times a predicate on the second.
+So the per-block factorization collapses, the factored-history trick is
+unavailable, and only the ordinary evaluator survives, hence sqrt(T), not
+2/5.
+
+Two honest footnotes.
+1. Williams's multitape bound is a bit sharper (a sqrt(log) factor better).
+   This proposition matches the plain sqrt(T) exponent but not that log
+   improvement.
+2. Converting a multitape machine into a one-tape machine squares its
+   running time (T becomes T^2). Feeding that to the one-tape two-fifths
+   theorem would give softO(T^(4/5)) in the ORIGINAL time parameter,
+   worse than sqrt(T). So neither the conversion nor the factorization
+   gives a new general-multitape exponent. The two-fifths result is
+   genuinely about one writable head.
+
+
+PART 7. WHAT THIS BUYS IN COMPLEXITY THEORY
+-------------------------------------------
+
+The theorem is not just a curiosity; it separates complexity classes that
+were not known to be separate before. Two definitions first.
+
+- DSPACE(s(n)) = the set of problems solvable by some machine using at
+  most s(n) bits of work tape on inputs of length n.
+- TIME_{1w,ro}(t(n)) = the set of problems solvable in O(t(n)) steps by
+  the one-writable-tape model of Part 2 (extra read-only heads allowed).
+
+The SPACE HIERARCHY THEOREM says that strictly more space buys strictly
+more power: DSPACE(s) is properly contained in DSPACE(r) whenever the
+larger bound s >= n is space-constructible and r is much smaller
+(r = o(s)). It is proved by diagonalization, like the more famous time
+hierarchy. Intuition: a machine with more memory can simulate the smaller
+machine and then do one thing the smaller machine provably cannot.
+
+Corollary 1 (one-writable-tape separation). For every space-constructible
+s(n) >= n and every fixed 0 < eps < 5/2,
+
+    DSPACE(s(n))  is NOT contained in  TIME_{1w,ro}( s(n)^(5/2 - eps) ).
+
+In words: even giving one-writable-tape machines time roughly s to the
+power 5/2 - eps is not enough to solve everything that fits in s bits of
+space. The exponent 5/2 is exactly 1 / (2/5), the reciprocal of our space
+exponent, and that is no accident.
+
+Why it follows. Suppose a one-tape machine solved every problem in
+DSPACE(s) in time O(s^a) with a = 5/2 - eps. Run it under a doubling-cap
+loop. The two-fifths theorem turns its time s^a into space roughly
+(s^a)^(2/5) = s^(2 a / 5). For a = 5/2 - eps this is
+    s^(2*(5/2 - eps)/5) = s^(1 - 2 eps/5),
+which is strictly less than s. That would put all of DSPACE(s) inside
+DSPACE(s^q) for some q < 1, contradicting the space hierarchy. So the
+containment is impossible. (The writeup sets beta = (2/5)*max{1,a} < 1
+and runs the capped trials with a log-space counter; the logs get absorbed
+into s^q.)
+
+Corollary 2 (a concrete hard language). Fix a standard binary encoding of
+one-writable-tape machines M. Let H be the set of encodings
+    <M, x, 1^k>
+such that |M| <= k and M(x) halts after visiting at most k work cells.
+(Malformed codes are simply outside H.) Then:
+- H is COMPLETE for DSPACE(n) under log-space reductions of linear output
+  length, so H is a canonical hardest linear-space problem.
+- If N is its input length, then for every fixed 0 < eps < 5/2,
+
+    H  is NOT in  TIME_{1w,ro}( N^(5/2 - eps) ).
+
+Proof idea for the second bullet. Membership in H is decidable in linear
+space by simulating M with a counter on the number of bounded
+configurations (at most 2^(K_1(N+1)) of them, so the counter is O(N)
+bits). For the lower bound, feed a one-writable-tape decider for H the
+encoding of a machine that decides an arbitrary DSPACE(n) language; apply
+the two-fifths simulation; the same reciprocal-exponent argument again
+forces a contradiction with the space hierarchy unless the decider needs
+time at least about N^(5/2).
+
+These are CLASS NONMEMBERSHIP statements: this whole class cannot be
+contained in that one. They are not per-input lower bounds, and they say
+nothing about general multitape or random-access machines. They also stop
+short of the logarithmic endpoint; there is no claim about exponent 2/5
+exactly.
+
+
+PART 8. WHAT THE THEOREM DOES NOT SAY
+-------------------------------------
+
+Good science is clear about its edges. This result has several.
+
+1. It bounds SPACE, not time. The simulator may run as long as it likes;
+   it just may not use much memory. So you cannot iterate the theorem to
+   get a faster algorithm, because iteration would need a control on TIME,
+   which is absent.
+
+2. It is not a lower bound. It says you CAN do it in T^(2/5) bits. It does
+   not say you CANNOT do better. Some other method might reach, say,
+   T^(1/3). The paper makes no optimality claim.
+
+3. It is not a general multitape improvement. As Part 6 explains, the
+   factorization that buys the extra 1/10 depends on single-block access,
+   which multiple writable tapes destroy. For m writable tapes you only
+   recover sqrt(T).
+
+4. It has no log-free endpoint. The clean statement is softO(T^(2/5)),
+   with some fixed power of log T along for the ride. There is no claim
+   that plain O(T^(2/5)) (no logs) is achievable.
+
+5. Changing the three scales (block B, epoch L, round q) alone cannot push
+   the exponent below 2/5. The balance identity in Part 5,
+   T/(B q) + T q/(B L) >= 2T/S^(3/2), is tight for THIS accounting. A
+   better exponent would need a genuinely different transcript, a
+   different evaluator, or a different factorization, not a reshuffling of
+   these three numbers.
+
+6. The unknown-time version only applies when the access condition holds
+   at every cap, so its doubling-cap loop is legitimate. It computes the
+   OUTCOME, never materializes the final tape, and never learns the running
+   time t; it discovers a cap that is at most twice t and stops.
+
+
+PART 9. GLOSSARY AND A WORKED MINI-EXAMPLE
+------------------------------------------
+
+GLOSSARY (symbols used above).
+T      the time cap; we simulate at most T steps.
+c      controller width, O(log(T+2)) bits (state, heads, time, flags).
+b      block width on the writable tape.
+k      round length in visits, ceil(T^(1/5)); also b = k^2.
+R      visits that finish the computation for the good offset,
+       ceil(1 + T/b).
+E      number of epochs, ceil(R/b), each b visits.
+d      common word width, max(1, b*ell, (b+1)*c), about b up to logs.
+ell    fixed bits per writable symbol.
+g      round-guess length, k*c bits.
+N      the number of array (block) children at a history node.
+m      number of writable tapes (only in the multitape part; m = 1 in
+       the main theorem).
+p      pool size, max(3, r+1) registers; r is max ordinary fan-in.
+F      a field of characteristic two (1+1=0), bigger than any degree used.
+aug(v) the augmented vector (v1,...,vd,1); the trailing 1 matters.
+W(V)   max total edge weight of a dependency path from word V to a base
+       word. Space is O((d + W + 1) polylog T).
+softO  O( f * log^C(T+2) ) for a fixed power C.
+TIME_{1w,ro}(t)  one-writable-tape, extra read-only heads, time O(t).
+DSPACE(s)        deterministic work space O(s) bits.
+H      a canonical DSPACE(n)-complete bounded-halting language.
+
+A WORKED MINI-EXAMPLE (the arithmetic, at T = 32).
+Pick T = 32. Then
+    k = ceil(32^(1/5)) = ceil(2) = 2,
+    b = k^2 = 4,                   (blocks of width 4 cells)
+    R = ceil(1 + 32/4) = 9,        (at most 9 visits at the good offset)
+    E = ceil(9/4) = 3,             (3 epochs of 4 visits each)
+    d is about 4 (times some logs),
+and the target space T^(2/5) = 32^(2/5) = (2^5)^(2/5) = 2^2 = 4 (times
+logs). So a 32-step budget is replayed with a handful of active blocks, a
+tiny pool of registers, and 3 epochs of 2 rounds: the numbers line up
+with the T^(2/5) exponent.
+
+Read it again with the small numbers:
+- We slide blocks of width 4, pick the offset whose head crosses fewest
+  boundaries, and get at most 9 visits.
+- We guess the visiting controllers, check them one width-4 block at a
+  time (they factor, because each visit touches one block).
+- We group the 4 visits of an epoch into 2 rounds of 2, guess a round, and
+  validate it block by block.
+- The evaluator adds up the pieces with one small register pool, charging
+  the stack by weighted paths, and reads the final controller.
+
+THE END.
+Summary in one sentence: a one-writable-tape machine's capped outcome can
+be replayed in about T to the two-fifths bits of memory (up to logs),
+beating the classical square root, by sliding blocks of the tape, guessing
+and locally checking the transition controllers, and evaluating the result
+with a shared register pool, at the price that the two-fifths factor is
+special to a single writable head.
