@@ -1,0 +1,1352 @@
+% =====================================================================
+% weisfeiler_leman_parity_lifts_v2.txt
+%
+% Self-contained rewrite of the parity-lift reduction from finite-domain
+% choice systems to k-dimensional Weisfeiler-Leman (WL) equivalence,
+% together with the ETH and uniform subexponential corollaries.
+%
+% The proof is complete: every lemma used by the argument is proven
+% here, with no black-box invocation. Reading prerequisites are:
+%   (i)   knowing what a graph and a homomorphism are;
+%   (ii)  linear algebra over the two-element field F_2 = {0,1},
+%         recalled in Section 3;
+%   (iii) basic set notation.
+%
+% The two WL conventions (joint and separate) are defined in
+% Section 1.2 and used in parallel throughout.
+%
+% All graphs are finite, simple, undirected, uncolored.
+% =====================================================================
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{enumitem}
+\usepackage[numbers,square,sort&compress]{natbib}
+\let\hom\relax
+\DeclareMathOperator{\hom}{hom}
+\newcommand{\FF}{\mathbb{F}_2}
+\newcommand{\ind}[1]{\mathbf{1}_{\{#1\}}}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Parity lifts and bounded-treewidth witnesses\\
+       for Weisfeiler--Leman equivalence}
+\author{}
+\date{2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+For $k \ge 4$, we construct two uncolored graphs that are
+$k$-dimensional Weisfeiler--Leman equivalent if and only if a
+prescribed finite-domain choice system has no compatible choice. The
+system uses $k+1$ domains under joint refinement and $k$ under
+separate-coordinate refinement. A successful choice is detected
+after two joint rounds or one separate round. Applied to sparse
+satisfiability, the reduction gives fixed-dimension $n^{\Omega(k)}$
+time lower bounds under positive-rate ETH, even when the algorithm
+is only required to decide equality of these early histograms.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+\subsection{Purpose}
+
+Weisfeiler--Leman (WL) is a family of polynomial-time graph
+invariants. Its $k$-dimensional version colors $k$-tuples of vertices
+and refines the colors by a fixed local rule. Two graphs that cannot
+be told apart are called $k$-WL equivalent. This note presents an
+explicit reduction: any finite-domain simultaneous-choice problem
+becomes a pair of uncolored graphs $X_0$ and $X_\star$ such that
+\[
+X_0 \equiv_k X_\star
+\;\;\Longleftrightarrow\;\;
+\text{no successful choice exists}.
+\]
+Both graphs are built vertex by vertex from the input; no existential
+theorem is invoked. The common order is
+$\mathrm{poly}(\#\text{domain elements})\cdot f(k)$ for an explicit
+$f(k)$ written down in Theorem~\ref{thm:main}.
+
+\subsection{WL refinement: two conventions}\label{sec:wl-def}
+
+Fix $k \ge 4$ and a finite simple graph $X$. For an ordered tuple
+$x = (x_1, \dots, x_k) \in V(X)^k$, the \emph{atomic type} is the
+complete list of equalities among coordinates and of adjacencies
+between distinct equal coordinates. Every tuple starts at round $0$
+with its atomic type as color. If $C_r$ is the color assigned at
+round $r$ to every $k$-tuple, write $x[i \leftarrow y]$ for the
+tuple in which position $i$ holds $y$ and every other position is
+unchanged.
+
+Two refinement rules are in use.
+
+\textbf{Convention J (joint).}
+\[
+C_{r+1}(x) = \Bigl( C_r(x), \;
+\bigl\{\!\bigl\{\,
+( C_r(x[1\leftarrow y]), \dots, C_r(x[k\leftarrow y]) ) :
+y \in V(X) \,\bigr\}\!\bigr\} \Bigr).
+\]
+Every possible $y$ contributes one whole vector of replacement
+colors; the multiset of all such vectors is recorded.
+
+\textbf{Convention S (separate).}
+\[
+C_{r+1}(x) = \Bigl( C_r(x), \;
+\{\!\{ C_r(x[1\leftarrow y]) : y \in V(X) \}\!\}, \;\dots,\;
+\{\!\{ C_r(x[k\leftarrow y]) : y \in V(X) \}\!\} \Bigr).
+\]
+Every possible $y$ contributes one color to each of $k$ separate
+multisets.
+
+In both cases $C_{r+1}(x)$ contains $C_r(x)$, so the tuple partition
+only refines; it stabilizes after finitely many rounds. Two graphs
+$X_0, X_1$ are \emph{$k$-WL equivalent} if, refining the disjoint
+union $X_0 \sqcup X_1$, the pure histograms on $V(X_0)^k$ and
+$V(X_1)^k$ match at every round.
+
+The compatibility parameter is
+\[
+t = \begin{cases} k+1, & \text{(J)},\\ k, & \text{(S)}. \end{cases}
+\]
+The whole construction is written in terms of $t$; readers only have
+to check at the end of Section~\ref{sec:wl-tests} which convention
+gives which $t$.
+
+\subsection{Choice systems}\label{sec:choice}
+
+\begin{definition}[Choice system]\label{def:choice}
+A \emph{choice system of arity $t$} consists of finite domains
+$D_1, \dots, D_t$ (possibly empty), finite label sets $L_{ij}$ for
+$1 \le i < j \le t$, and maps
+\[
+\lambda_{ij}^{i} \colon D_i \to L_{ij}, \qquad
+\lambda_{ij}^{j} \colon D_j \to L_{ij}.
+\]
+A \emph{successful choice} is a tuple
+$(d_1, \dots, d_t) \in \prod_{i=1}^{t} D_i$ with
+$\lambda_{ij}^i(d_i) = \lambda_{ij}^j(d_j)$ for all $i<j$.
+\end{definition}
+
+The prototype: each $D_i$ is a set of finite Boolean functions on a
+variable scope $V_i$, and both pair maps are restriction to
+$V_i \cap V_j$. Then a successful choice is exactly a family of local
+assignments that glues into one global assignment, so identifying a
+successful choice is a finite constraint satisfaction problem.
+
+\subsection{Main theorem}\label{sec:main-thm}
+
+\begin{theorem}[Parity reduction]\label{thm:main}
+Fix $k \ge 4$ and either convention, with $t$ as above. From every
+choice system of arity $t$ one can explicitly construct two uncolored
+simple graphs $X_0$, $X_\star$ of equal order such that
+\[
+X_0 \equiv_k X_\star
+\;\;\Longleftrightarrow\;\;
+\text{no successful choice exists}.
+\]
+The construction satisfies both of the following.
+\begin{itemize}[nosep]
+\item Equivalence holds separately under common color names on the two
+  graphs and under pure-tuple comparison in the disjoint union
+  $X_0 \sqcup X_\star$.
+\item If every domain and label set has size at most $A$, the common
+  order is at most $A M_t$ with
+\[
+M_t = t\,2^{\,t-2+3\binom{t-1}{2}} + 12\binom{t}{3}.
+\]
+\end{itemize}
+When a successful choice exists, the histograms already differ after
+at most two joint rounds, or after one separate round.
+\end{theorem}
+
+The order bound is on the actual output as uncolored graphs; the
+decider receives no distinguished fibers and no residual colors.
+
+\subsection{Where this sits}
+
+WL was introduced by Weisfeiler and Leman (1968) for graph
+canonicalization. The Cai--F\"urer--Immerman pairs (1992) are
+nonisomorphic vertex-colored bounded-degree graphs of arbitrarily
+large required WL dimension. Encoding local solutions to binary
+constraints as graph vertices also appears in
+Atserias--Man\v{c}inska--Roberson--\v{S}\'amal--Severini--
+Varvitsiotis (2019); Roberson (2026) introduces parity graphs and
+oddomorphisms, of which our lift is a typed adaptation. The
+homomorphism-count interface to WL is from Dvo\v{r}\'ak (2010) and
+Dell--Grohe--Rattan (2018). Our contribution is the explicit
+reduction from a concrete combinatorial input (a choice system) with
+an extraction lemma that works for arbitrary small-bag tests via a
+tree-decomposition separator argument. Section~\ref{sec:complexity}
+records the ETH consequences for the equivalence relation itself.
+Section~\ref{sec:complexity} relies on no companion paper; every step
+is derived from the main theorem.
+
+\subsection{Construction, three layers}\label{sec:layers}
+
+The graphs are built in three stages; the layers correspond to
+Sections~\ref{sec:wl-tests}, \ref{sec:lifts}, \ref{sec:separator}.
+
+\textbf{Template.} Let $T = T_t$ have main vertices
+$[t] = \{1,\dots,t\}$ forming a clique, plus helpers
+$h_{ij;\ell}$ for each $i<j$ and $\ell\notin\{i,j\}$, each $h_{ij;\ell}$
+adjacent exactly to $i, j, \ell$. Its bags
+$\{i,j,\ell,h_{ij;\ell}\}$ give bag size $t$ (so treewidth $t-1$).
+It has
+\[
+|V(T)| = t + 3\binom{t}{3},\qquad
+\deg_T(i) = t - 1 + 3\binom{t-1}{2},\qquad
+\deg_T(h_{ij;\ell}) = 3.
+\]
+In particular every vertex of $T$ has positive degree and $T$ is
+connected.
+
+\textbf{Base graph.} Build $G$ on type-labeled vertices
+\[
+\{(i,d) : i \in [t], \, d \in D_i\}
+\;\cup\;
+\{(h_{ij;\ell}, q) : 1 \le i < j \le t,\, \ell\notin\{i,j\},\, q \in L_{ij}\}.
+\]
+Type map $\tau \colon V(G) \to V(T)$ sends the $i$-layer to main
+type $i$ and the $(h_{ij;\ell},\cdot)$-layer to helper $h_{ij;\ell}$.
+
+Edges of $G$:
+\begin{itemize}[nosep]
+\item $(i,d) \sim (j,e)$ iff $\lambda_{ij}^i(d) = \lambda_{ij}^j(e)$;
+\item $(h_{ij;\ell}, q) \sim (i,d)$ iff $q = \lambda_{ij}^i(d)$;
+\item $(h_{ij;\ell}, q) \sim (j,e)$ iff $q = \lambda_{ij}^j(e)$;
+\item $(h_{ij;\ell}, q) \sim (\ell,f)$ for every $f \in D_\ell$ (no
+  condition).
+\end{itemize}
+Then $G$ is simple and $\tau$ is a graph homomorphism $G \to T$.
+
+\textbf{Parity lift.} For $b \colon V(T) \to \FF$, the graph
+$X_b$ has vertices $(u, z)$ with $u \in V(G)$ and
+$z \colon N_T(\tau(u)) \to \FF$ satisfying $\sum z = b(\tau(u))$.
+Two vertices $(u,z)$ and $(v,w)$ are adjacent iff $uv \in E(G)$ and
+$z(\tau(v)) = w(\tau(u))$. Set $X_0 := X_b$ with $b \equiv 0$ and
+$X_\star := X_b$ with $b = e_1$, the unit vector at main type 1.
+
+The rest of the proof has two directions, each of which occupies its
+own section.
+\begin{itemize}[nosep]
+\item Section~\ref{sec:wl-tests}: WL equivalence is the same as
+  agreement on homomorphism counts from all sources of bag size
+  $\le t$ (Lemma~\ref{lem:hom-implies-wl}), and the template $T$
+  alone is a sufficient detector (Lemma~\ref{lem:test-detected}).
+\item Section~\ref{sec:lifts}: $\hom(F,X_0) \ge \hom(F,X_\star)$ for
+  every source $F$, with strict inequality iff a primal-dual
+  certificate exists; a successful choice produces such a certificate
+  (Lemmas~\ref{lem:lift-dual} and \ref{lem:choice-witness}).
+\item Section~\ref{sec:separator}: a certificate for a bag-$\le t$
+  source forces a successful choice. Contrapositive: no successful
+  choice implies identical counts from every small-bag source,
+  hence WL equivalence of $X_0$ and $X_\star$.
+\end{itemize}
+
+\subsection{Reader's map}
+
+For a first pass read \S\ref{sec:wl-def} (both conventions),
+\S\ref{sec:lifts} (parity lift definition and the choice-witness
+lemma), and \S\ref{sec:separator} (the extraction lemma). The other
+subsections fill in the two-sided proof. Section~\ref{sec:complexity}
+is only needed for the complexity claims; it is independent of
+Sections~\ref{sec:wl-tests}--\ref{sec:separator} apart from
+Theorem~\ref{thm:main}.
+
+\section{Weisfeiler--Leman and homomorphism counts}\label{sec:wl-tests}
+
+The main result has two halves. One is a statement of WL equivalence in
+the language of homomorphism counts from small-treewidth sources. The
+other is a detection claim: a single template $T$ suffices to see any
+count difference in two joint rounds (or one separate round). We prove
+both here.
+
+Throughout $k \ge 4$ and $t$ is as in Section~\ref{sec:wl-def}.
+
+\subsection{Bag size and the $k$-WL characterization}
+
+Fix a graph $F$. A \emph{tree decomposition} of $F$ consists of a
+finite tree $D$ and a function bag $\colon V(D) \to 2^{V(F)}$ with:
+\begin{itemize}[nosep]
+\item for every $x \in V(F)$, the set $\{c : x \in \text{bag}(c)\}$
+  is a nonempty subtree of $D$;
+\item for every edge $xy \in E(F)$, some bag contains both $x$ and $y$.
+\end{itemize}
+The \emph{bag size} is the maximum bag cardinality over $c \in V(D)$.
+Equivalently, the treewidth of $F$ is bag size minus one.
+
+We use $\hom(F, X)$ for the number of graph homomorphisms
+$\phi \colon V(F) \to V(X)$, i.e. vertex maps sending every edge of
+$F$ to an edge of $X$; nonedges may be mapped to edges or nonedges.
+
+\begin{lemma}\label{lem:hom-implies-wl}
+If $\hom(F, X_0) = \hom(F, X_1)$ for every finite simple graph $F$
+with a tree decomposition of bag size at most $t$, then $X_0$ and
+$X_1$ are $k$-WL equivalent in the corresponding convention
+(J: $t = k+1$; S: $t = k$). The assertion also holds when WL is run
+on the disjoint union $X_0 \sqcup X_1$ and only the two pure-tuple
+histograms are compared.
+\end{lemma}
+
+The proof is a self-contained adaptation of the rooted-count argument
+of Dvo\v{r}\'ak (2010) and Dell--Grohe--Rattan (2018). We spell it out
+because we also need the disjoint-union version.
+
+\begin{proof}
+For each finite graph $F$, each list of $k$ (not necessarily distinct)
+roots $\boldsymbol\ell = (\ell_1, \dots, \ell_k) \in V(F)^k$, and each
+target graph $X$, define
+\[
+h_F(X; \mathbf x) \;=\; \#\{\phi \colon V(F) \to V(X) : \phi \text{ homomorphism, } \phi(\ell_i) = x_i\}.
+\]
+This is a function $V(X)^k \to \mathbb{N}$. Fix a finite set
+$\mathcal F_t$ of bag-$\le t$ graphs together with root lists of
+length $k$ whose roots are jointly inside one bag. Let
+$\mathcal A_t$ be the rational span of the corresponding functions
+$\{ h_F(\cdot; \mathbf x) : F \in \mathcal F_t \}$ on the two
+fixed targets $X_0, X_1$.
+We prove two facts about $\mathcal A_t$.
+
+\textbf{(A1) $\mathcal A_t$ contains every atomic-type indicator on
+$X_j$-tuples.} Three elementary sources:
+\begin{itemize}[nosep]
+\item distinct isolated roots give the constant $1$;
+\item two equal roots give the indicator of the equality $x_i = x_k$;
+\item joining two roots by an edge of $F$ gives the indicator of
+  adjacency $x_i x_k$. Other adjacencies are recovered from these by
+  products and complements.
+\end{itemize}
+Products and complements stay in $\mathcal A_t$: any two rooted
+sources can be glued by identifying corresponding roots (formal
+central bag of size $k$; never exceeds $t$ when $t \ge k$) and the
+result has bag size at most $\max(\text{bag}_1, \text{bag}_2, k) \le t$.
+
+\textbf{(A2) $\mathcal A_t$ is closed under both refinement operations.}
+Consider a tuple $(f_1, \dots, f_k)$ of elements of $\mathcal A_t$,
+each represented by some rooted source. Define
+\[
+\Phi_{\mathrm J} (f_1, \dots, f_k)(X; \mathbf x)
+  = \sum_{y \in V(X)} \, \prod_{i=1}^k f_i(X; \mathbf x[i \leftarrow y]).
+\]
+We produce a rooted source for this: take a formal central bag
+$\{u_1, \dots, u_k, y\}$ of size $k+1 = t$. Attach operand source
+$i$ at its root list, sending $\ell_j \mapsto u_j$ for $j \ne i$ and
+$\ell_i \mapsto y$. The identifications force repeated roots to
+become single vertices. A homomorphism out of the glued source
+uniquely picks $y$'s image once and then independently a
+homomorphism from each operand, restricted to reproduce
+$\mathbf x[i \leftarrow y]$ on the appropriate side. Multilinearity
+gives the general case.
+For convention S, use instead two adjacent bags
+$O = \{u_1, \dots, u_k\}$ and $R = \{y, u_j : j \ne i\}$, each of
+size $k = t$; attach operand $i$'s root bag to $R$. A check at a
+merged vertex shows the resulting function is
+\[
+\Phi_{\mathrm S}^i (f)(X; \mathbf x)
+  = \sum_{y \in V(X)} f(X; \mathbf x[i \leftarrow y]).
+\]
+
+\textbf{Induction.} Fix $r \ge 0$. Suppose that, in the round-$r$
+refinement, each color $C_r(\mathbf x)$ restricted to tuples of each
+fixed $X_j$ is an element of $\mathcal A_t$ (for convention J the
+"color" is understood as the whole hash value, which we think of as a
+tuple of independent atomic-type indicators plus the recursively
+produced higher-level indicators).
+
+If a color multiplicity $M$ has previously attained values
+$S \subset \mathbb{N}$ on the two targets, then the indicator of
+"$M = q$" for any $q \in S$ is the polynomial
+\[
+\mathbf{1}_{M = q} \;=\; \prod_{s \in S \setminus \{q\}} \frac{M - s}{q - s},
+\]
+which involves only the values $s \in S$. These coefficients are
+identical for $X_0$ and $X_1$. Now, the $(r+1)$-st color of $\mathbf x$
+records:
+- in J, the multiset of vectors $(C_r(\mathbf x[1 \leftarrow y]),
+  \dots, C_r(\mathbf x[k \leftarrow y]))$ over all $y$; equivalently
+  the count
+  $\sum_{y} \prod_{i} \mathbf{1}_{C_r(\mathbf x[i \leftarrow y]) = c_i}$
+  for each candidate color vector $(c_1, \dots, c_k)$;
+- in S, the $k$ independent multiplicities
+  $\#\{y : C_r(\mathbf x[i \leftarrow y]) = c_i\}$.
+Both are produced from elements of $\mathcal A_t$ by the closures
+(A1) and (A2) -- interpolation identifies the indicators, and the
+$\Phi$ operators sum them over $y$. Then multiply by the old-color
+indicator (which stays in $\mathcal A_t$ by (A1) applied to $C_r$).
+Coefficients are common to $X_0$ and $X_1$.
+
+Consequently each round-$r$, tuple-level color indicator on $V(X_j)^k$
+lies in $\mathcal A_t$, with coefficients independent of $j$.
+
+\textbf{Summing over tuples.} For any rooted source $F$,
+$\sum_{x \in V(X_j)^k} h_F(X_j; \mathbf x) = \hom(F, X_j)$:
+each homomorphism contributes exactly one root-image tuple. Applying
+this to every term of a color indicator yields
+$\#\{\mathbf x : C_r(\mathbf x) = c\} = $ (a linear combination of
+$\hom(F, X_j)$ for $F \in \mathcal F_t$). Equality of the hypotheses
+$\hom(F, X_0) = \hom(F, X_1)$ for all $F$ then gives equality of
+histograms at every round $r$, hence $k$-WL equivalence.
+
+\textbf{Disjoint union.} For $U = X_0 \sqcup X_1$, the same induction
+runs on all tuples of $U$, mixed tuples included. Interpolation is
+performed once. At the end, for each remaining source $F$, split its
+connected components into two classes: $\mathcal L$ (containing at
+least one root) and $\mathcal R$ (rootless). Then
+\[
+\sum_{\mathbf x \in V(X_j)^k} h_F(U; \mathbf x)
+  = \prod_{Q \in \mathcal L} \hom(Q, X_j) \;\cdot
+    \prod_{Q \in \mathcal R} \hom(Q, U).
+\]
+A connected graph with a root must land in one component of $U$, and
+if $Q$ is rooted and the root image is in $X_j$, the whole image lies
+in $X_j$. Rootless components are free. Components inherit the bag
+bound. Thus the first product is the same for $j = 0$ and $j = 1$
+under the hypothesis, and the second is common by definition.
+\end{proof}
+
+\subsection{The template is a sufficient detector}
+
+\begin{definition}\label{def:template}
+The \emph{template} $T = T_t$ has main vertices $[t]$ forming a
+clique, and a helper $h_{ij;\ell}$ for each $i < j$ and
+$\ell \notin \{i, j\}$, adjacent precisely to $i, j, \ell$.
+\end{definition}
+
+Its main-clique bag with one attached bag $\{i,j,\ell,h_{ij;\ell}\}$
+per helper has bag size $t$. The vertex count and degrees are as in
+Section~\ref{sec:layers}.
+
+\begin{lemma}\label{lem:test-detected}
+The round-two joint-$k$-WL color histogram determines
+$\hom(T_{k+1}, X)$ for every finite simple graph $X$. The round-one
+separate-$k$-WL color histogram determines $\hom(T_k, X)$. The same
+claims hold for the pure histograms obtained by refining a disjoint
+union $X_0 \sqcup X_1$.
+\end{lemma}
+
+\begin{proof}
+Let $A_X(v, w) = \ind{vw \in E(X)} \in \{0, 1\}$. For main images
+$\mathbf z = (z_1, \dots, z_t) \in V(X)^t$ and triples
+$B \in \binom{[t]}{3}$, put
+\[
+q_B(\mathbf z) = \Bigl|\bigcap_{b \in B} N_X(z_b)\Bigr|.
+\]
+Then the number of extensions of $\mathbf z$ to a homomorphism
+$T \to X$ is
+\begin{equation}\label{eq:extend}
+E_X(\mathbf z) = \prod_{a<b} A_X(z_a, z_b) \cdot
+                 \prod_{B \in \binom{[t]}{3}} q_B(\mathbf z)^3.
+\end{equation}
+The clique factor rejects repeated main images (a loop is not an
+edge and $A_X(v,v) = 0$). Each helper has three neighbors in $T$:
+$i$, $j$, $\ell$ for the helper $h_{ij;\ell}$. A helper image can be
+any common neighbor of $z_i, z_j, z_\ell$, and these three coordinates
+are chosen independently over all copies of the same triple, giving
+$q_B^3$.
+
+\textbf{Joint round 2.} Fix $\mathbf x = (z_1, \dots, z_k) \in V(X)^k$
+and $y \in V(X)$, and put $z_{k+1} = y$. Consider its round-one color:
+- the old color $C_1(\mathbf x)$ of the $k$-tuple;
+- the multiset of replacement-color $k$-vectors
+  $(C_1(\mathbf x[1\leftarrow y]), \dots, C_1(\mathbf x[k\leftarrow y]))$
+  over all $y$.
+
+Each replacement $k$-vector is the round-one color of $k$ vertices
+$z_1, \dots, z_{i-1}, y, z_{i+1}, \dots, z_k$. So the round-one old
+color and all faces together cover the round-one colors of all
+$(k+1)$-vertex tuples with at most one coordinate equal to $y$ and the
+rest as in $\mathbf x$.
+
+Key observation: for any triple $B \subseteq [k+1]$, some face
+$i \notin B$ omits the position that is not used, and the round-one
+color of that face determines $q_B(\mathbf z)$. Indeed, at round one,
+a $k$-tuple's color already determines the common-neighbor count of
+any triple of its positions: for the triple $(p, q, r)$ inside the
+face, the atomic replacement color of the $k$-tuple reveals
+simultaneous adjacency to $p, q, r$, and summing multiplicities gives
+the count. (Repeated positions are handled by the equality bits
+inside the atomic type.)
+
+Letting $i$ range over $[k+1]$, all pairs and triples are covered
+when $k \ge 4$: a set of size at most three is missed by some
+position. Therefore the round-two multiset determines
+$\sum_y E_X(\mathbf x, y)$ for each $\mathbf x$. Summing over
+$\mathbf x$ gives $\hom(T_{k+1}, X)$.
+
+\textbf{Separate round 1.} All $t = k$ main images are already fixed
+in $\mathbf x$. For a triple $B$, choose any $i \notin B$. Let
+$M_i(\sigma)$ be the multiplicity of atomic type $\sigma$ in the
+$i$-th coordinate's replacement multiset at round one. Then
+\[
+q_B(\mathbf x) = \sum_\sigma M_i(\sigma) \prod_{p \in B} A_\sigma(i, p),
+\]
+where $A_\sigma(i, p)$ is the $i$-$p$ adjacency bit recorded in $\sigma$.
+Thus the round-one color determines $E_X(\mathbf x)$, and summing over
+$\mathbf x$ gives $\hom(T_k, X)$.
+
+\textbf{Disjoint union.} Take a pure tuple $\mathbf x \in V(X_j)^k$
+inside $U = X_0 \sqcup X_1$. In the joint case, if some main image
+$z_a$ is in the other component, then $A_U(z_a, z_b) = 0$ for any
+other main image $z_b$, and \eqref{eq:extend} is zero; helper images
+do not rescue this. So the nonzero summands have all main images
+inside $X_j$, and common neighbors of triples lie in $X_j$ as well.
+The same formulas, evaluated in $U$, thus count exactly
+$\hom(T_{k+1}, X_j)$. The separate case is identical.
+\end{proof}
+
+\section{Parity lifts and F$_2$ duality}\label{sec:lifts}
+
+We now build the two uncolored graphs $X_0$ and $X_\star$ from a choice
+system. The construction has two parts: a base graph $G$ whose type
+map $\tau$ targets the template $T$, and a parity lift that replaces
+each base vertex by a finite set of bit-vectors.
+
+\subsection{The base graph}
+
+Let $t \ge 4$ be the parameter from Section~\ref{sec:wl-def}. Given a
+choice system of arity $t$ (Definition~\ref{def:choice}), build $G$ on
+disjoint vertex sets
+\[
+\{(i, d) : d \in D_i\}\ \ (i \in [t]),
+\qquad
+\{(h_{ij;\ell}, q) : q \in L_{ij}\}\ \ (i<j,\ \ell \notin \{i,j\}).
+\]
+The type map $\tau\colon V(G) \to V(T)$ sends $(i, d) \mapsto i$ and
+$(h_{ij;\ell}, q) \mapsto h_{ij;\ell}$.
+
+Edges of $G$:
+\begin{itemize}[nosep]
+\item $(i, d) \sim (j, e)$ iff $\lambda_{ij}^{i}(d) = \lambda_{ij}^{j}(e)$;
+\item $(h_{ij;\ell}, q) \sim (i, d)$ iff $q = \lambda_{ij}^{i}(d)$;
+\item $(h_{ij;\ell}, q) \sim (j, e)$ iff $q = \lambda_{ij}^{j}(e)$;
+\item $(h_{ij;\ell}, q) \sim (\ell, f)$ for every $f \in D_\ell$
+  (unconditional).
+\end{itemize}
+$G$ is simple. $\tau$ is a graph homomorphism $G \to T$: main-main
+edges match the clique edges, and helper edges match the three
+neighbor relations in $T$.
+
+Interpretation: a successful choice $(\ldots, d_i, \ldots)$ with
+common pair-label $\lambda_{ij}^i(d_i) = \lambda_{ij}^j(d_j)$ yields a
+homomorphism $T \to G$ by sending $i \mapsto (i, d_i)$ and
+$h_{ij;\ell} \mapsto (h_{ij;\ell}, \lambda_{ij}^i(d_i))$. This is the
+"witness" alluded to in Section~\ref{sec:layers}.
+
+\subsection{The parity lift}
+
+Recall that $\FF = \{0, 1\}$, the two-element field. For integers
+$r, c \ge 0$, a \emph{binary linear system} is a matrix
+$M \in \FF^{r \times c}$ together with a right-hand side
+$c \in \FF^r$; we ask whether there exists $z \in \FF^c$ with
+$Mz = c$. Its solution set is either empty or a coset of the kernel
+of $M$; when nonempty all cosets have the same size, and the row-echelon
+form computes the rank in polynomial time. We use exactly one
+structural fact about such systems. A binary linear system $Mz = c$
+is inconsistent if and only if there is a vector $y$ of coefficients
+on the rows of $M$ with $y^{\mathsf T} M = 0$ and
+$y^{\mathsf T} c = 1$. The proof is the field-theoretic case of the
+row-rank formula: if $c \notin \operatorname{im} M$, extend a basis of
+$\operatorname{im} M$ by the vector $c$, and read $y$ off in the row
+basis. See the "Binary duality" paragraph inside the proof of
+Lemma~\ref{lem:lift-dual} for the explicit verification.
+
+\begin{definition}[Parity lift]\label{def:lifts}
+For $b \in \FF^{V(T)}$, the graph $X_b$ has vertices
+\[
+(u, z), \qquad
+u \in V(G),\quad
+z \in \FF^{N_T(\tau(u))},\quad
+\sum_{a' \in N_T(\tau(u))} z(a') = b(\tau(u)).
+\]
+Vertices $(u, z)$ and $(v, w)$ are adjacent precisely when $uv \in E(G)$
+and $z(\tau(v)) = w(\tau(u))$.
+The two comparison graphs are $X_0 := X_{b \equiv 0}$ and
+$X_\star := X_{e_1}$, where $e_1(a) = \ind{a = 1}$.
+\end{definition}
+
+Two quick sanity checks.
+
+\textbf{Symmetry and simplicity.} The adjacency condition is symmetric
+in $(u, z) \leftrightarrow (v, w)$: $uv \in E(G)$ is symmetric and
+$z(\tau(v)) = w(\tau(u))$ is symmetric under the swap. A loop at
+$(u, z)$ would require $u \sim u$ in $G$, impossible in a simple
+graph. Both graphs are uncolored.
+
+\textbf{Order bound.} For each type $a \in V(T)$, the number of
+bit-vectors $z \in \FF^{N_T(a)}$ with prescribed parity
+$\sum z = \epsilon$ is $2^{\deg_T(a) - 1}$. Therefore both lifts have
+the same order
+\[
+|V(X_0)| = |V(X_\star)|
+= \sum_{u \in V(G)} 2^{\deg_T(\tau(u)) - 1}.
+\]
+The base vertices of main type $i$ contribute a factor
+$2^{\deg_T(i) - 1} = 2^{t - 2 + 3\binom{t-1}{2}}$, and the
+$3\binom{t}{3}$ helpers each contribute a factor
+$2^{3 - 1} = 4$. If each of $t$ main fibers has at most $A$ base
+vertices and each of $3\binom{t}{3}$ helper fibers has at most $A$
+base vertices, the common order is at most
+\[
+A \cdot t \cdot 2^{t - 2 + 3\binom{t-1}{2}}
++ A \cdot 4 \cdot 3 \binom{t}{3}
+= A M_t.
+\]
+This is exactly the order bound of Theorem~\ref{thm:main}.
+
+The map $\pi_b\colon X_b \to G$, $(u, z) \mapsto u$, is a graph
+homomorphism: every adjacency in $X_b$ projects to an adjacency in
+$G$.
+
+\subsection{Lift counts and their dual certificate}
+
+Fix a finite simple graph $F$ with a homomorphism $\phi \colon F \to G$
+and put $a = \tau \circ \phi\colon F \to T$. A \emph{lift} of $\phi$ to
+$X_b$ is a homomorphism $\psi \colon F \to X_b$ with $\pi_b \circ \psi
+= \phi$; equivalently, a choice of tag $z_x \in \FF^{N_T(a(x))}$ for
+each source vertex $x \in V(F)$ such that $\sum z_x = b(a(x))$ for
+every $x$ and $z_{x}(a(y)) + z_{y}(a(x)) = 0$ for every $xy \in E(F)$.
+
+\begin{lemma}[Lift counts and their dual obstruction]\label{lem:lift-dual}
+For every finite simple graph $F$,
+$\hom(F, X_0) \ge \hom(F, X_\star)$.
+The inequality is strict if and only if there exist a homomorphism
+$\phi\colon F \to G$ and weights $s\colon V(F) \to \FF$ and
+$r\colon E(F) \to \FF$ such that, with $a = \tau \circ \phi$,
+\begin{equation}\label{eq:dual}
+\sum_{\substack{y : xy \in E(F)\\ a(y) = a'}} r(xy)
+  = s(x)
+  \qquad (x \in V(F),\ a' \in N_T(a(x))),
+\end{equation}
+and
+\begin{equation}\label{eq:dual-sum}
+\sum_{\substack{x \in V(F)\\ a(x) = 1}} s(x) = 1.
+\end{equation}
+Whenever \eqref{eq:dual}--\eqref{eq:dual-sum} hold, the type masses
+\begin{equation}\label{eq:type-mass}
+m_u(Y) := \sum_{\substack{x \in Y\\ a(x) = u}} s(x),
+\qquad m_u(V(F)) = 1
+\end{equation}
+satisfy $m_u(V(F)) = 1$ for every $u \in V(T)$ and every
+$Y \subseteq V(F)$ inherits the definition. All sums are in $\FF$.
+\end{lemma}
+
+\begin{proof}
+Fix $\phi \colon F \to G$ once and for all. Lifts of $\phi$ to $X_b$
+are in bijection with solutions in variables
+$(z_{x, a'})_{x \in V(F), a' \in N_T(a(x))}$ of the binary linear
+system
+\begin{equation}\label{eq:system}
+\sum_{a' \in N_T(a(x))} z_{x, a'} = b(a(x))
+\quad(x \in V(F)),
+\qquad
+z_{x, a(y)} + z_{y, a(x)} = 0
+\quad(xy \in E(F)).
+\end{equation}
+A solution $(z_x)$ gives the map $x \mapsto (\phi(x), z_x)$, and any
+lift is decoded uniquely in this form.
+
+The coefficient matrix of \eqref{eq:system} depends on $\phi$ (through
+$a$) but not on $b$. At $b = 0$ the system is always solvable ($z = 0$
+is a solution); its solution set $K$ is a vector subspace of
+$\FF^{d}$ where $d = \sum_{x} |N_T(a(x))|$. For general $b$, the
+system is either inconsistent (no solutions) or a translate of $K$;
+in particular either $|K|$ or $0$ lifts.
+
+Consequently, for each $\phi$,
+\[
+\#\{\text{lifts of } \phi \text{ to } X_0\}
+= |K|,
+\qquad
+\#\{\text{lifts of } \phi \text{ to } X_\star\}
+\in \{0, |K|\}.
+\]
+Projections to $G$ partition $\hom(F, X_b)$ into disjoint fibers, so
+$\hom(F, X_0) - \hom(F, X_\star)$ is a sum over $\phi$ of $|K| - 0$
+or $|K| - |K|$. Each term is nonnegative, so the total is nonnegative,
+and strictness is exactly: at least one $\phi$ has the $X_\star$
+projected system inconsistent.
+
+\textbf{Binary duality.} A binary linear system $Mz = c$ is
+inconsistent exactly when some linear combination of its rows is zero
+on the left and one on the right: there exists $y$ with $y^{\mathsf T}
+M = 0$ and $y^{\mathsf T} c = 1$. The easy direction is
+$y^{\mathsf T} M z = 0 = y^{\mathsf T} c$ for any solution, a
+contradiction. For the reverse, suppose $c \notin \operatorname{im} M$;
+extend a basis of $\operatorname{im} M$ to a basis of
+$\FF^{\#\text{rows}}$ by adding $c$, and let $\ell$ be the dual
+functional, $\ell(\operatorname{im} M) = 0$, $\ell(c) = 1$. Reading
+$\ell$ in the row basis gives $y$.
+
+Apply this to \eqref{eq:system} with $b = e_1$. The rows split into
+vertex rows ($x \in V(F)$) and edge rows ($xy \in E(F)$). Let $y$'s
+coordinates on vertex rows be $s(x)$ and on edge rows be $r(xy)$.
+Then the coefficient of $z_{x, a'}$ in $y^{\mathsf T} M$ is
+\[
+s(x) + \sum_{\substack{y : xy \in E(F)\\ a(y) = a'}} r(xy).
+\]
+(Vertex row $x$ contributes $1$; edge row $xy$ contributes $1$ to
+$z_{x, a(y)}$ when $a(y) = a'$.) Setting this to zero gives
+\eqref{eq:dual}. Right side: $y^{\mathsf T} c$ where
+$c = (e_1(a(x)))_{x}$, so the contribution is $\sum_{x : a(x) = 1}
+s(x) = 1$, which is \eqref{eq:dual-sum}. No independence assumption
+on the equation rows is used: duality handles all ranks uniformly.
+
+\textbf{Type masses.} Fix adjacent types $u, v$ in $T$. Sum
+\eqref{eq:dual} over all $x \in V(F)$ with $a(x) = u$, using the
+neighbor type $a' = v$. Right side: $m_u(V(F))$. Left side: the total
+$r$-weight of edges whose $u$-endpoint is in $F$ and $v$-endpoint is
+in $F$ -- a symmetric quantity. Summing from type $v$ gives
+$m_v(V(F))$, so $m_u(V(F)) = m_v(V(F))$. Since $T$ is connected and
+$m_1(V(F)) = 1$ by \eqref{eq:dual-sum}, we get $m_u(V(F)) = 1$ for
+every $u$.
+\end{proof}
+
+\subsection{A successful choice supplies the witness}
+
+\begin{lemma}[A choice supplies a witness]\label{lem:choice-witness}
+If the choice system has a successful choice, then
+$\hom(T, X_0) > \hom(T, X_\star)$, and consequently $X_0$ and
+$X_\star$ are not $k$-WL equivalent.
+\end{lemma}
+
+\begin{proof}
+Fix a successful choice $(d_1, \dots, d_t) \in \prod_i D_i$. Build
+$\phi \colon T \to G$ by
+\[
+\phi(i) = (i, d_i) \quad (i \in [t]),
+\qquad
+\phi(h_{ij;\ell}) = (h_{ij;\ell}, \lambda_{ij}^i(d_i)).
+\]
+Since $\lambda_{ij}^i(d_i) = \lambda_{ij}^j(d_j)$ by success, this
+assignment is consistent on both helper-to-main incidences. Edges:
+\begin{itemize}[nosep]
+\item main-main $(i,j)$: $\lambda_{ij}^i(d_i) = \lambda_{ij}^j(d_j)$,
+  so $(i, d_i) \sim (j, d_j)$ in $G$;
+\item helper-to-$i$: by construction $q = \lambda_{ij}^i(d_i)$;
+\item helper-to-$j$: by success $q = \lambda_{ij}^j(d_j)$;
+\item helper-to-$\ell$: unconditional.
+\end{itemize}
+So $\phi$ is a graph homomorphism, and $\tau \circ \phi = \operatorname{id}_T$.
+
+Now define weights $s(x) = 1$ for every $x \in V(T)$ and
+$r(xy) = 1$ for every $xy \in E(T)$. With $a = \tau \circ \phi =
+\operatorname{id}$, we have $a(y) = y$ for every $y \in V(T)$.
+
+Check \eqref{eq:dual}. Fix $x \in V(T)$ and $a' \in N_T(x)$. The sum
+on the left side is
+\[
+\sum_{y \in N_T(x), \ y = a'} r(xy) \;=\; \ind{a' \in N_T(x)} \;=\; 1,
+\]
+because $T$ is simple: for any neighbor type $a'$ of $x$, there is
+exactly one edge in $T$ with endpoint types $x$ and $a'$. And
+$s(x) = 1$. So \eqref{eq:dual} holds.
+
+Check \eqref{eq:dual-sum}: the vertices of $T$ of main type $1$ form a
+single vertex, so $\sum_{x : a(x) = 1} s(x) = s(1) = 1$. So
+\eqref{eq:dual-sum} holds.
+
+Apply Lemma~\ref{lem:lift-dual} to deduce strictness:
+$\hom(T, X_0) > \hom(T, X_\star)$.
+
+Finally, Lemma~\ref{lem:test-detected} turns this strict relation into
+a difference of WL round histograms: for the joint convention, at
+round two, the histogram of $X_0$ determines $\hom(T_{k+1}, X_0) =
+\hom(T, X_0)$, and similarly the histogram of $X_\star$ at round two
+determines $\hom(T, X_\star)$. The two histograms therefore differ.
+The separate case is analogous at round one.
+\end{proof}
+
+This completes the "positive" direction: a successful choice forces
+a visible WL difference. The reverse is the content of
+Section~\ref{sec:separator}.
+
+\section{Extracting a choice from a bounded-bag witness}\label{sec:separator}
+
+The final ingredient is a converse to Lemma~\ref{lem:choice-witness}:
+if any small-bag source distinguishes $X_0$ from $X_\star$, the choice
+system must already admit a successful choice. This is where the
+specific helper structure of $G$ and $T$ is used. The technique is
+the oddomorphism separator argument of Neuen and Seppelt; we adapt
+it locally and prove every step.
+
+Throughout this section $F$ is a finite simple graph with a tree
+decomposition of bag size at most $t$, and $(\phi, s, r)$ is a dual
+certificate as in Lemma~\ref{lem:lift-dual} with $a = \tau \circ
+\phi$. From \eqref{eq:type-mass}, $m_u(V(F)) = 1$ for all $u \in V(T)$.
+
+\subsection{Orienting the decomposition}
+
+Recall the type mass $m_u(Y) = \sum_{x \in Y,\ a(x) = u} s(x)$
+from \eqref{eq:type-mass}.
+
+Fix a tree decomposition $(D, \text{bag})$ of $F$ with bags of size
+at most $t$. The set $\{c \in V(D) : v \in \text{bag}(c)\}$ for a
+vertex $v \in V(F)$ is a nonempty subtree of $D$, the
+\emph{occurrence subtree} of $v$.
+
+\textbf{Contracting equal bags.} Suppose an edge $(c, c')$ of $D$
+joins two bags with $\text{bag}(c) = \text{bag}(c')$. Contract this
+edge. Every remaining edge $(c, c')$ has
+$|\text{bag}(c) \cap \text{bag}(c')| \le t - 1$, because having
+$|\text{bag}(c) \cap \text{bag}(c')| = t$ would require
+$|\text{bag}(c)| = |\text{bag}(c')| = t$ and hence
+$\text{bag}(c) = \text{bag}(c')$.
+
+\textbf{Splitting along an edge.} Delete a remaining tree edge
+$(c, c')$; the tree splits into two components. Put
+$S = \text{bag}(c) \cap \text{bag}(c')$ and
+$A^\nu = V(F) \setminus S$ intersected with the vertex set of the
+$\nu$-th component ($\nu = 0, 1$). Then
+$V(F) = A^0 \sqcup S \sqcup A^1$ and $|S| \le t - 1$.
+Furthermore no edge of $F$ joins $A^0$ to $A^1$: an edge has both
+endpoints in some bag, and bags in different components after the
+split are disjoint outside $S$.
+
+\textbf{Absent main type.} Since $S$ has at most $t - 1$ vertices
+and $T$ has $t$ main types, at least one main type is absent from $S$.
+Call it $u$. By $m_u(V(F)) = 1$ and $m_u(A^0) + m_u(A^1) = 1$
+(no type-$u$ vertex is in $S$), one of $A^0, A^1$ has mass $1$.
+
+\textbf{Two absent types.} Suppose two distinct main types $u, v$
+are absent from $S$. All type-$uv$ edges lie entirely inside $A^0$
+or inside $A^1$ (any ``crossing'' endpoint would need to be in $S$).
+Summing \eqref{eq:dual} over all type-$u$ vertices in $A^\nu$ with
+$a' = v$ gives $m_u(A^\nu) = m_v(A^\nu)$, since both sides equal the
+total $r$-weight of $uv$-edges inside $A^\nu$. Hence the mass-$1$
+side is the same for $u$ and $v$.
+
+\textbf{Orientation.} Orient $(c, c')$ toward the side
+$A^\nu$ whose mass is $1$. By the previous two paragraphs this
+orientation is well-defined, independent of which absent type was
+used to define it, and of whether one or several types are absent
+from $S$.
+
+\subsection{Choosing a sink bag}
+
+Direct every edge of the decomposition tree by the rule just stated.
+Since a finite tree has a sink, fix a sink node and call its bag $B$.
+
+\textbf{The outer sides of $B$ partition $V(F) \setminus B$.}
+For each node $c$ adjacent to the sink, let $A_c$ be the side away
+from the sink and $S_c = \text{bag}(\text{sink}) \cap \text{bag}(c)$
+the intersection. Since $B = \text{bag}(\text{sink})$, we have
+$S_c \subseteq B$, and $A_c \subseteq V(F) \setminus S_c$.
+Every $v \in V(F) \setminus B$ has an occurrence subtree disjoint
+from the sink, so it lies inside exactly one component of
+$D \setminus \{\text{sink}\}$; if $v$ were in the branch's
+intersection $S_c$, it would be in $B$, impossible. Thus $v \in A_c$
+for that unique $c$, and the outer sides are disjoint and cover
+$V(F) \setminus B$.
+
+\textbf{Absent types vanish outside.} The sink is on the mass-$1$
+side of every incident edge (that is what ``sink'' means), so
+whenever a main type $\ell$ is absent from $S_c$, we have
+$m_\ell(A_c) = 0$.
+
+\textbf{Every main type is present in $B$.} Suppose a main type
+$\ell$ is absent from $B$. Then $\ell$ is absent from every
+$S_c \subseteq B$, so $m_\ell(A_c) = 0$ for every incident $c$,
+and $m_\ell(B) = 0$ (no $\ell$-vertex in $B$). Hence
+$m_\ell(V(F)) = 0$, contradicting $m_\ell(V(F)) = 1$.
+
+\textbf{Bag contents.} Since $|B| \le t$ and $B$ contains at least
+one vertex of each of the $t$ main types, $B$ contains exactly one
+vertex of each main type and no helper vertex. Write
+$x_i \in B$ for the unique vertex of type $i$, and
+$\phi(x_i) = (i, d_i)$.
+
+\subsection{The mismatch test}
+
+We prove that $(d_1, \dots, d_t)$ is a successful choice. Suppose
+not: for some pair $i < j$,
+\[
+\alpha := \lambda_{ij}^{i}(d_i) \;\ne\; \lambda_{ij}^{j}(d_j).
+\]
+For each vertex $x$ of type $i$, define
+$p_i(x) = \ind{\lambda_{ij}^i(\phi(x)) \ne \alpha}$, and for each
+vertex $y$ of type $j$, define
+$p_j(y) = \ind{\lambda_{ij}^j(\phi(y)) = \alpha}$; other vertices
+have $p = 0$. For every edge $xy \in E(F)$ with $x$ of type $i$ and
+$y$ of type $j$, we have $p_i(x) + p_j(y) = 1$ in $\FF$, because
+$\phi$ is a homomorphism and
+$uv \in E(G)$ with $u$ of type $i$, $v$ of type $j$ is exactly the
+condition $\lambda_{ij}^i(u) = \lambda_{ij}^j(v)$.
+
+Define, for any $Y \subseteq V(F)$,
+\[
+P(Y) := \sum_{d \in \{i, j\}} \ \sum_{\substack{x \in Y\\ a(x) = d}}
+        s(x)\, p_d(x).
+\]
+Using \eqref{eq:dual} at each type-$i$ vertex $x$ with $a' = j$ and
+at each type-$j$ vertex $y$ with $a' = i$, and the identity
+$p_i(x) + p_j(y) = 1$ on every $ij$-edge,
+\begin{equation}\label{eq:P-global}
+P(V(F))
+ = \sum_{\substack{xy \in E(F)\\a(x)=i,\ a(y)=j}}
+     r(xy)\,(p_i(x) + p_j(y))
+ = \sum_{\substack{xy \in E(F)\\a(x)=i,\ a(y)=j}} r(xy)
+ = m_i(V(F)) = 1.
+\end{equation}
+
+On the bag $B$ itself,
+\[
+P(B) = s(x_i) p_i(x_i) + s(x_j) p_j(x_j) = 0,
+\]
+because $p_i(x_i) = \ind{\alpha \ne \alpha} = 0$ and
+$p_j(x_j) = \ind{\lambda_{ij}^j(d_j) = \alpha} = 0$ (we assumed
+$\lambda_{ij}^j(d_j) \ne \alpha$).
+
+\subsection{Vanishing of $P$ on every outer side}
+
+Fix an outer side $A = A_c$ with intersection $S = S_c \subseteq B$.
+Choose a main type $\ell$ absent from $S$; by the sink property,
+$m_\ell(A) = 0$. We will show $P(A) = 0$, retaining boundary
+contributions.
+
+\textbf{Case $\ell = i$ or $\ell = j$.} By symmetry consider
+$\ell = i$: no type-$i$ vertex lies in $S$.
+- For each type-$j$ vertex $y \in A$, every type-$i$ neighbor of
+  $y$ lies in $A$ (an outside neighbor would have to lie in $S$,
+  which has no type-$i$ vertices).
+- For a type-$i$ vertex $x \in A$, a type-$j$ neighbor $y$ outside
+  $A$ must lie in $S$ and be the bag vertex $x_j$ (since
+  $S \subseteq B$ has only one type-$j$ vertex); on such $y$,
+  $p_j(y) = 0$.
+
+Expanding \eqref{eq:dual} at every type-$i$ vertex of $A$ with
+$a' = j$, and at every type-$j$ vertex of $A$ with $a' = i$:
+\[
+\begin{aligned}
+P(A)
+ &= \sum_{\substack{x \in A\\a(x)=i}}
+      \ \sum_{\substack{y \in N_F(x)\\a(y)=j}}
+        r(xy)\,(p_i(x) + p_j(y))\\
+ &= \sum_{\substack{x \in A\\a(x)=i}}
+      \ \sum_{\substack{y \in N_F(x)\\a(y)=j}} r(xy)
+  = m_i(A) = 0.
+\end{aligned}
+\]
+
+\textbf{Case $\ell \notin \{i,j\}$.} Set $h = h_{ij;\ell}$.
+Because $S \subseteq B$ has no helper vertices (Section~\ref{sec:separator}
+) and every external neighbor of $A$ lies in $S$, every type-$h$
+neighbor of an $i$- or $j$-vertex in $A$ lies in $A$.
+
+Let $H_A = \{w \in A : a(w) = h\}$. Expanding
+\eqref{eq:dual} first at each type-$i$ or type-$j$ vertex of $A$
+with $a' = h$ (all $h$-neighbors are inside $A$), and then at each
+$w \in H_A$ with $a' \in \{i, j\}$,
+\[
+\begin{aligned}
+P(A)
+ &= \sum_{w \in H_A} \Bigg( \sum_{\substack{x \in N_F(w)\\a(x)=i}}
+          r(wx)\, p_i(x)
+        + \sum_{\substack{y \in N_F(w)\\a(y)=j}} r(wy)\, p_j(y) \Bigg).
+\end{aligned}
+\]
+Here the first inner sum only has terms for $x \in A$; external
+type-$i$ neighbors in $S$ contribute $p_i(x_i) = 0$. Similarly for
+the second. Fix $w \in H_A$ with $\phi(w) = (h_{ij;\ell}, q_w)$.
+For a type-$i$ neighbor $x$, $\phi(x) = (i, d_x)$ must satisfy
+$\lambda_{ij}^i(d_x) = q_w$ (the incidence in $G$), so
+$p_i(x) = \ind{q_w \ne \alpha}$, constant in $x$. Symmetrically,
+for a type-$j$ neighbor $y$, $p_j(y) = \ind{q_w = \alpha}$.
+Using \eqref{eq:dual} at $w$ with $a' = i$ and $a' = j$,
+\[
+P(A) = \sum_{w \in H_A}
+         \bigl( \ind{q_w \ne \alpha}\, s(w)
+              + \ind{q_w = \alpha}\, s(w) \bigr)
+     = \sum_{w \in H_A} s(w) = m_h(A).
+\]
+Since $h$ and $\ell$ are both absent from $S$, all $h\ell$-edges
+incident to either type on $A$ remain in $A$; summing \eqref{eq:dual}
+over the two endpoint classes gives $m_h(A) = m_\ell(A) = 0$. So
+$P(A) = 0$.
+
+\subsection{Contradiction}
+
+The sets $B$ and $\{A_c\}_c$ form a disjoint partition of $V(F)$.
+Thus
+\[
+P(V(F)) = P(B) + \sum_c P(A_c) = 0 + 0 = 0,
+\]
+contradicting \eqref{eq:P-global}. Therefore every pair $i < j$
+satisfies $\lambda_{ij}^i(d_i) = \lambda_{ij}^j(d_j)$, i.e.,
+$(d_1, \dots, d_t)$ is a successful choice.
+
+\begin{lemma}[Choice extraction]\label{lem:extract}
+Let $F$ be a finite simple graph with a tree decomposition of bag
+size at most $t$. Suppose a homomorphism $\phi \colon F \to G$ and
+weights $s \colon V(F) \to \FF$, $r \colon E(F) \to \FF$ satisfy
+\eqref{eq:dual}--\eqref{eq:dual-sum} with $a = \tau \circ \phi$.
+Then the choice system has a successful choice.
+\end{lemma}
+
+\subsection{Proof of the main theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:main}]
+The graphs $X_0, X_\star$ are simple, uncolored, of equal order at
+most $A M_t$ (Section~\ref{sec:lifts}).
+
+\emph{Forward direction.} Suppose a successful choice exists. By
+Lemma~\ref{lem:choice-witness},
+$\hom(T, X_0) > \hom(T, X_\star)$. The template $T$ is $T_{k+1}$ in
+the joint case and $T_k$ in the separate case, so
+Lemma~\ref{lem:test-detected} shows that the WL round histograms
+already differ: after two joint rounds, or after one separate round.
+Hence $X_0$ and $X_\star$ are not $k$-WL equivalent.
+
+\emph{Converse direction.} Suppose no successful choice exists. Let
+$F$ be any finite simple graph with a tree decomposition of bag size
+at most $t$ and suppose for contradiction that
+$\hom(F, X_0) \ne \hom(F, X_\star)$. Since
+Lemma~\ref{lem:lift-dual} gives the non-strict inequality
+$\hom(F, X_0) \ge \hom(F, X_\star)$ in general, we have strict
+inequality here, so we get a dual certificate $(\phi, s, r)$
+satisfying \eqref{eq:dual}--\eqref{eq:dual-sum}. But then
+Lemma~\ref{lem:extract} produces a successful choice, contradiction.
+Therefore $\hom(F, X_0) = \hom(F, X_\star)$ for every such $F$, and
+Lemma~\ref{lem:hom-implies-wl} yields $X_0 \equiv_k X_\star$ in the
+corresponding convention, including the disjoint-union
+implementation.
+\end{proof}
+
+\section{Complexity consequences}\label{sec:complexity}
+
+The parity reduction is unconditional. To turn it into a time lower
+bound, we first control the size of the choice system obtained from a
+3-CNF, then account for the cost of sparsification and of writing out
+the two graphs. Everything in this section is independent of the proof
+in Sections~\ref{sec:wl-tests}--\ref{sec:separator} except through
+Theorem~\ref{thm:main}.
+
+\subsection{Sparsification}
+
+\begin{lemma}[Sparsification, Impagliazzo--Paturi--Zane]\label{lem:sparsify}
+For every $\epsilon > 0$ there are a constant $C_\epsilon \ge 1$ and a
+deterministic algorithm that expresses any 3-CNF $F$ on $N \ge 1$
+variables as a disjunction of at most $2^{\epsilon N}$ 3-CNFs on the
+same variables, each with at most $C_\epsilon N$ clauses. The running
+time is $2^{\epsilon N}\operatorname{poly}(|F|)$, where $|F|$ is the
+explicit encoding length of $F$. For positive rational $\epsilon$, the
+procedure and a valid density bound can be chosen effectively.
+\end{lemma}
+
+This is the imported sparsification theorem, not a consequence of the
+parity construction. Its constructive set-system proof has a universe
+of the $2N$ literals: choosing the rate $\epsilon/2$ there gives the
+variable-based rate $\epsilon$ displayed above. The integer threshold
+selection and fixed branching give the effective rational-rate
+selection used below.
+
+The stated input-length bound permits a polynomial-time normalization
+before sparsification: rename variables and remove tautologies and
+repeated clauses. There are only $O(N^3)$ distinct clauses of width at
+most 3, so the normalized encoding has length polynomial in $N$.
+
+\subsection{From 3-CNF to a choice system}
+
+\begin{lemma}[Grouping]\label{lem:sat-choice}
+A 3-CNF with $m$ clauses yields a $t$-ary choice system (same $t$ as
+the WL convention) whose domains and pair-label sets all have size at
+most
+\[
+A = 2^{3\lceil m/t\rceil}.
+\]
+The choice system has a successful choice if and only if the formula is
+satisfiable.
+\end{lemma}
+
+\begin{proof}
+Partition the clauses into $t$ groups, each with at most
+$\lceil m/t\rceil$ clauses. For each group $i$, let $V_i$ be the set of
+variables that appear in it, and let $D_i$ be the set of assignments on
+$V_i$ that satisfy every clause in group $i$. Pair labels are
+restrictions:
+\[
+L_{ij} = \{0, 1\}^{V_i \cap V_j}, \qquad
+\lambda_{ij}^{i}(d) = \lambda_{ij}^{j}(d) = d|_{V_i \cap V_j}.
+\]
+Each scope $V_i$ has at most $3\lceil m/t\rceil$ variables, so
+$|D_i| \le 2^{3\lceil m/t\rceil} = A$ and $|L_{ij}| \le A$.
+
+If a successful choice exists, its components agree on every shared
+variable, so their union is a well-defined assignment on
+$\bigcup_i V_i$; unused variables are free. It satisfies every clause
+because each clause lies inside its group and is satisfied by that
+group's assignment. Conversely, restrict a satisfying assignment to
+each $V_i$ to obtain a successful choice. An empty group has its unique
+empty assignment; an unsatisfiable group has empty domain; an empty
+overlap has the unique empty label. None of these degenerate cases
+requires special handling.
+\end{proof}
+
+\subsection{Fixed-dimension ETH lower bound}
+
+\begin{theorem}[Fixed-dimension ETH consequence]\label{thm:eth}
+Assume positive exponential-rate ETH: some $\delta > 0$ rules out a
+deterministic 3-SAT algorithm with running time
+$2^{\delta N}\operatorname{poly}(|F|)$, where $N$ is the number of
+variables and $|F|$ the explicit encoding length. Then there are
+constants $c > 0$ and $K \ge 4$ such that, for every fixed integer
+$k \ge K$, no deterministic algorithm decides $k$-WL equivalence of
+two $n$-vertex graphs in time $O(n^{ck})$. This holds for both joint
+and separate refinement, with explicit adjacency-matrix inputs of
+uncolored simple undirected graphs, and time measured on a multitape
+Turing machine.
+\end{theorem}
+
+\begin{proof}
+Fix $\delta > 0$ from positive-rate ETH. Choose $\epsilon < \delta/4$
+and let $C = C_\epsilon$ be the constant of Lemma~\ref{lem:sparsify}.
+
+For the Turing-machine model set $q = 1$. More generally, suppose the
+chosen machine model has a simulation
+$A_k (T + \ell + 1)^q$ steps, where $q \ge 1$ is fixed by the model,
+$T$ is the program's running time, $\ell$ its input length, and $A_k$
+may depend on $k$. Choose
+\[
+c = \frac{\delta}{24\,C\,q}, \qquad
+K > \frac{24\,C\,q}{\delta}, \qquad
+K \ge 4.
+\]
+
+Fix any $k \ge K$ and suppose a solver $\mathcal S$ decides $k$-WL
+equivalence of two $n$-vertex graphs in time $O(n^{ck})$.
+
+\textbf{Reduction from 3-SAT.} Given a 3-CNF $F$ on $N$ variables:
+\begin{enumerate}[nosep]
+\item Sparsify $F$ into at most $2^{\epsilon N}$ sparse disjuncts
+  $F_1, \dots, F_D$, each with at most $C N$ clauses.
+\item For each $F_j$, build the choice system of
+  Lemma~\ref{lem:sat-choice} with $t = k + 1$ (joint convention) or
+  $t = k$ (separate), and build the two graphs $X_0, X_\star$ of
+  Theorem~\ref{thm:main}. Let $n_j$ be their common order.
+\item Run $\mathcal S$ on $(X_0, X_\star)$. Accept the pair if
+  inequivalent.
+\item Accept $F$ if any pair is inequivalent.
+\end{enumerate}
+Correctness follows from Lemma~\ref{lem:sparsify} (a disjunction of
+satisfiable equals satisfiable) and Lemmas~\ref{lem:sat-choice} and
+Theorem~\ref{thm:main} (inequivalence iff the choice system admits a
+successful choice).
+
+\textbf{Size.} With $m \le CN$ clauses in a sparse disjunct, the
+choice system has $A = 2^{3\lceil m/t\rceil} \le 2^{3(CN/t + 1)}
+= 8 \cdot 2^{3CN/t}$ domain size. So
+\[
+n_j \;\le\; A M_t \;\le\; b_k\,2^{3CN/t},
+\qquad
+b_k := 8 M_t = 2^{O(k^2)}.
+\]
+
+\textbf{Construction time.} Write out the two adjacency matrices. The
+vertex records have length $O(N + k^2)$, and each entry of the matrix
+is determined in $O(1)$ comparisons of records and tags, so a
+multitape implementation costs at most
+$b'_k\,(N + |F|)^d\,2^{B_0 CN/t}$ steps for an absolute $d$ and a
+$k$-only constant $b'_k$, with $B_0 = 6$ (the factor comes from
+squaring the $2^{3CN/t}$ bound on $n_j$).
+
+\textbf{Solver input.} The adjacency matrix has length $\ell = O(n_j^2)$,
+so the simulated solver takes
+$O_k(n_j^{ck} + n_j^{2} + 1)$ steps ($q = 1$; both terms matter, even
+when $ck < 2$).
+
+\textbf{Total time for one disjunct.}
+Up to $k$-only constants and polynomial factors in $N$ and $|F|$:
+\[
+2^{B_0 CN/t} + 2^{6q CN/t} + 2^{3CqckN/t}.
+\]
+Since $t \ge k \ge K$:
+\begin{itemize}[nosep]
+\item $B_0 C/t = 6C/t \le 6C/k \le 6C/K < 6C \cdot \delta/(24 C q) = \delta/(4q) \le \delta/4$.
+\item $6 q C/t \le 6q C/K < 6qC \cdot \delta/(24 C q) = \delta/4$.
+\item $3 C q c k/t \le 3C q c = 3C q \cdot \delta/(24 C q) = \delta/8$.
+\end{itemize}
+So the total exponent over all $2^{\epsilon N}$ disjuncts is at most
+$\epsilon + \max(\delta/4, \delta/8) < \delta/4 + \delta/4 = \delta/2 < \delta$.
+
+Under positive-rate ETH, no such algorithm exists. The parameters
+of the supposed solver (its description, its running-time constant,
+$A_k$, $b_k$, the eventual threshold in $N$) may all depend on this
+fixed $k$; the constants $c$ and $K$ do not. Thus the contradiction
+applies to every fixed $k \ge K$, even without a uniform way of
+selecting the alleged solvers.
+\end{proof}
+
+\subsection{Uniform subexponential form}
+
+\begin{proposition}[Uniform lower bound]\label{prop:uniform}
+If no deterministic 3-SAT algorithm has running time
+$2^{o(N)}\operatorname{poly}(|F|)$, then there is no uniform
+deterministic algorithm for $k$-WL equivalence with running time
+$f(k) \, n^{g(k)}$ where $g(k)/k \to 0$. Here a uniform algorithm
+takes $k$ and the two graphs as input.
+\end{proposition}
+
+\begin{proof}
+The constructive sparsification proof chooses integer thresholds by a
+computable search from any positive rational rate and then runs a
+fixed branching procedure. We may thus fix an effectively indexed
+family $S_j$ with rate $1/j$ and sparsity constant $C_j$, for each
+$j \ge 1$.
+
+Suppose the uniform WL algorithm exists. Build one fixed machine
+$U(j, k, F)$ that: runs $S_j$; constructs the graphs; calls the WL
+algorithm. Its running time is $T_{j,k}(F) \le A_{j,k}\,N^{d_j}\,
+2^{\rho_{j,k} N}$ after normalization, where
+\[
+\rho_{j,k} = \frac{1}{j} + \max\left\{\frac{B_0 C_j}{t},
+         \frac{3 C_j g(k)}{t}\right\},
+\qquad t = \begin{cases} k+1, & (\text{J}), \\ k, & (\text{S}).\end{cases}
+\]
+Run doubling rounds $R = 1, 2, 4, \ldots$. In each round, simulate
+$U(j, k, F)$ from scratch for at most $R$ steps, for every
+$1 \le j \le R$ and $4 \le k \le R$; stop at the first completed
+decision. All computations so produced are correct. If $L$ is the
+normalized input length, a fixed tape simulator costs at most
+$O((R + L + 1)^3)$ per trial, and there are at most $R^2$ trials. So
+the racing machine runs in time
+\[
+D(F) \le C_U \bigl(T_{j,k}(F) + L + j + k + 4\bigr)^5
+\]
+for every fixed pair $(j, k)$, with a constant $C_U$ independent of
+the pair.
+
+Given $\eta > 0$: first fix $j$ with $1/j < \eta/20$. Then fix $k$
+with both terms in the maximum defining $\rho_{j,k}$ below
+$\eta/20$; this is possible since $t \ge k$ and $g(k)/k \to 0$.
+Then $\rho_{j,k} < \eta/10$, and the fifth-power bound is
+$2^{\eta N}$ for all sufficiently large $N$, after absorbing its
+fixed constants and polynomial factors. The same pair $(j, k)$ works
+for all sufficiently large $N$. The racing machine need not know a
+convergence modulus for $g(k)/k$ and need not recognize a good pair.
+
+For precision, normalize first to a canonical formula on its occurring
+variables. If none occur, decide the constant formula directly without
+sparsification. Otherwise, with $1 \le N' \le N$ variables, the
+canonical length is polynomial in $N'$. For every desired rate, the
+same fixed pair $(j, k)$ bounds all sufficiently large $N'$; the
+finitely many canonical formulas with smaller $N'$ have a common
+finite maximum running time. So the normalized solver has a uniform
+$2^{o(N)}$ bound even when the input names many unused variables.
+Parsing and normalization cost one fixed polynomial, so the full
+algorithm contradicts the assumed uniform lower bound.
+\end{proof}
+
+The same model qualification applies: at cost $q$ per simulated
+step, the effective $g(k)$ becomes at most
+$\max\{q g(k), 2q\} + 1 = o(k)$ when $q$ is fixed. For the uniform
+transfer, the simulation must itself be uniform in $k$; an
+ineffective family of separately supplied fixed-$k$ solvers does not
+define $U$, and Proposition~\ref{prop:uniform} makes no claim about
+such a family under its weaker premise.
+
+\subsection{Small dimensions on matrix inputs}
+
+\begin{remark}[Small dimensions]\label{rem:small-dim}
+On a comparison of two edgeless $n$-vertex graphs, a deterministic
+algorithm must inspect every potential edge: changing an unseen edge
+in one graph destroys equivalence, either by degrees (ordinary 1-WL)
+or by atomic tuple types ($k \ge 2$). This is an $\Omega(n^2)$
+bit-query bound.
+Decreasing $c$ so that $ck < 2$ for the finitely many $2 \le k < K$
+covers those dimensions for both tuple conventions. Ordinary neighbor
+color refinement at dimension one is covered separately by the
+degree argument. The literal one-coordinate replacement rules above,
+whose atomic types see no edges, are not this ordinary 1-WL convention.
+\end{remark}
+
+\subsection{Fixed-round decision corollary}
+
+Given two $n$-vertex graphs, consider deciding whether their
+$k$-tuple color histograms agree after two joint rounds, or after one
+separate round, starting from atomic types. This includes separate
+runs with common color names and pure-tuple comparison in the
+disjoint-union run.
+
+On the graph pairs produced by the reduction, Theorem~\ref{thm:main}
+gives equality at every round when no successful choice exists, and
+inequality by the specified round when a choice exists. The inequality
+persists because each update retains the old color. Thus the reductions
+proving Theorem~\ref{thm:eth} and Proposition~\ref{prop:uniform} give
+the corresponding deterministic time exclusions for these fixed-round
+decisions, with their respective hypotheses and parameter ranges. The
+difficulty is already present in comparing these early histograms; it
+does not require many rounds of stabilization.
+
+% =====================================================================
+% References.  A short, self-contained bibliography.
+% =====================================================================
+
+\begin{thebibliography}{99}
+
+\bibitem[AMRSSV19]{AMRSSV2019}
+A.~Atserias, L.~Man\v{c}inska, D.~E.~Roberson, R.~\v{S}\'amal,
+S.~Severini, and A.~Varvitsiotis,
+\emph{Quantum and non-signalling graph isomorphisms},
+J. Combin. Theory Ser. B 136 (2019), 289--328.
+
+\bibitem[CFI92]{CFI1992}
+J.-Y.~Cai, M.~F\"urer, and N.~Immerman,
+\emph{An optimal lower bound on the number of variables for graph
+identification}, Combinatorica 12 (1992), no.~4, 389--410.
+
+\bibitem[DGR18]{DGR2018}
+H.~Dell, M.~Grohe, and G.~Rattan,
+\emph{Lov\'asz meets Weisfeiler and Leman},
+Proc. ICALP 2018, LIPIcs 107, 40:1--40:14.
+
+\bibitem[Dvo10]{Dvorak2010}
+Z.~Dvo\v{r}\'ak,
+\emph{On recognizing graphs by numbers of homomorphisms},
+J. Graph Theory 64 (2010), no.~4, 330--342.
+
+\bibitem[GLNS25]{GLNS2025}
+M.~Grohe, M.~Lichter, D.~Neuen, and P.~Schweitzer,
+\emph{Compressing CFI graphs and lower bounds for the Weisfeiler--Leman
+refinements}, J. ACM 72 (2025), no.~3, 21:1--21:27.
+
+\bibitem[IP01]{IP2001}
+R.~Impagliazzo and R.~Paturi,
+\emph{On the complexity of $k$-SAT},
+J. Comput. System Sci. 62 (2001), no.~2, 367--375.
+
+\bibitem[IPZ01]{IPZ2001}
+R.~Impagliazzo, R.~Paturi, and F.~Zane,
+\emph{Which problems have strongly exponential complexity?},
+J. Comput. System Sci. 63 (2001), no.~4, 512--530.
+
+\bibitem[LRS25]{LRS2025}
+M.~Lichter, S.~Ra\ss{}mann, and P.~Schweitzer,
+\emph{Computational complexity of the Weisfeiler--Leman dimension},
+Proc. CSL 2025, LIPIcs 326, 13:1--13:22.
+
+\bibitem[NS26]{NS2026}
+D.~Neuen and T.~Seppelt,
+\emph{Distinguishing graphs by counting homomorphisms from sparse
+graphs}, preprint, arXiv:2601.18602v2, September 2026.
+
+\bibitem[Rob26]{Roberson2026}
+D.~E.~Roberson,
+\emph{Oddomorphisms and homomorphism indistinguishability over graphs
+of bounded degree}, J. Combin. Theory Ser. B 181 (2026), 1--61.
+
+\bibitem[WL68]{WL1968}
+B.~Weisfeiler and A.~A.~Leman,
+\emph{The reduction of a graph to canonical form and the algebra which
+appears therein}, Nauchno-Technicheskaya Informatsiya, Series 2, no.~9
+(1968), 12--16 (in Russian; English translation by G.~Ryabov).
+
+\end{thebibliography}
+
+\end{document}
