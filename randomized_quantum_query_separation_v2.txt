@@ -1,0 +1,3275 @@
+================================================================================
+RANDOMIZED AND QUANTUM QUERY COMPLEXITY:
+WHY THE FOURTH POWER IS EXACTLY RIGHT
+A Guided Tour for Young Mathematicians
+================================================================================
+
+This is a guided tour of one research paper and its one theorem:
+
+    For every total Boolean function f,
+
+        R(f)  <=  C * (1 + Q(f))^4 ,
+
+    and no exponent smaller than 4 can replace the 4.
+
+R(f) is the number of yes/no questions a classical algorithm with
+coin flips needs, in the worst case, to compute f. Q(f) is the same
+quantity for a quantum algorithm. The theorem says two things at
+once: an upper bound that was already known, and a matching family
+of examples showing the exponent is optimal.
+
+The tour is written for a motivated high-school reader. Every
+technical term is defined before it is used. Where a proof is
+delicate, the idea is explained in plain words first, and then the
+formal statement and proof are given, so the reader can compare.
+Nothing is hidden: every lemma in the original paper appears here.
+
+How to read this. Part I sets up the question. Part III and Part IV
+build the example and prove it is easy quantumly. Part V proves it
+is hard classically. Part VI adds up. Part VII proves the upper
+bound, so the tour is self-contained. Parts II and III introduce
+the machinery; if you read only one part besides I, read Part III,
+because that is where the actual idea lives.
+
+Everything is written in plain text, with formulas on their own
+indented lines so they can be read slowly. A glossary, a symbol
+table, a reading guide, and the references are at the end.
+
+
+================================================================================
+PART I. THE QUESTION
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. THE HIDDEN INPUT AND THE QUERY MODEL
+--------------------------------------------------------------------------------
+
+1.1 The setup.
+
+A Boolean function takes n bits and returns one bit:
+
+    f : {0,1}^n -> {0,1} .
+
+Here {0,1}^n means the set of all strings of n bits, so there are 2^n
+possible inputs. For example, if n = 3, the inputs are 000, 001, 010,
+011, 100, 101, 110, 111.
+
+An algorithm is not shown the input string x. Instead it is given a
+device, called an oracle, that answers questions of the form:
+
+    "what is the i-th bit of x?"    (i is any index from 1 to n)
+
+Each question is one query, and the answer is one bit. Everything the
+algorithm does before its first question, between questions, and after
+its last question is FREE: any amount of ordinary arithmetic, any
+amount of scratch memory, any helpers it likes. The only thing that is
+counted is the number of queries.
+
+This is called the query model. It is deliberately generous: it
+measures only how much of the input the algorithm must look at. It is
+the abstraction that survives translation into realistic models of
+computation, because reading input is the one thing every computer
+must do.
+
+1.2 Example: OR.
+
+Let OR(x) be 1 if at least one bit of x is 1, and 0 if all bits are 0.
+A deterministic algorithm (no coin flips) needs n queries in the worst
+case. Reason: if it has asked about x(1), ..., x(n-1) and all answers
+were 0, it still does not know whether x(n) is 0 or 1, so it must ask.
+And the input "all zeros except the last bit" forces it to ask all n.
+
+1.3 Deterministic, randomized, quantum.
+
+DETERMINISTIC. A deterministic algorithm is a fixed rule: given the
+answers so far, it either names the next index to ask about, or it
+stops and outputs a bit. It computes f if its output equals f(x) for
+every input x. Its cost is the largest number of queries on any input.
+
+D(f) is the smallest cost of a deterministic algorithm that computes f.
+
+RANDOMIZED. A randomized algorithm may also flip fair coins and use
+the outcomes. It computes f with error 1/3 if, for every input x, the
+probability that it outputs f(x) is at least 2/3. The probability is
+over the coin flips only. The input is arbitrary and fixed.
+
+R(f) is the smallest q such that some randomized algorithm computes f
+with error at most 1/3 and asks at most q questions on every input and
+for every possible sequence of coin flips.
+
+Two features matter later.
+
+  (i) Worst case in two ways. A single unlucky run that asks q+1
+      questions already disqualifies the algorithm. Equivalently, we
+      may assume the algorithm has a hard cap of q queries on every
+      input and every branch.
+
+  (ii) The number 1/3 is arbitrary. Any fixed error below 1/2 gives
+      the same measure up to a constant factor, by running the
+      algorithm several times and taking a majority vote.
+
+A useful reformulation: a randomized algorithm with cost q is a
+probability distribution over deterministic algorithms with cost q,
+one deterministic algorithm for each choice of coin flips. This makes
+R(f) a two-player game between the algorithm and an adversary who
+chooses the input. Section 14 uses exactly this form.
+
+QUANTUM. A quantum algorithm is also a rule, but its state is a unit
+vector in a complex vector space of dimension 2^w for some number w of
+quantum bits (qubits). For this tour you need only the following four
+facts.
+
+  * A state looks like
+
+        sum over j of c(j) |j> ,
+
+    where j runs over the 2^w classical w-bit strings, the c(j) are
+    complex numbers, and the sum of |c(j)|^2 over j equals 1. The
+    c(j) are called amplitudes.
+
+  * |c(j)|^2 is the probability of seeing outcome j if the state is
+    measured.
+
+  * Between measurements the algorithm applies unitary maps, that is,
+    norm-preserving linear maps. Any unitary map is free.
+
+  * A query is free except for its cost: the input x is presented
+    through the unitary
+
+        O(x) : |i, b, z>  ->  |i, b XOR x(i), z> .
+
+    Here i is an index in {1,...,n}, b is a single bit, and z holds
+    "everything else". In words, the query reads the index i and the
+    bit b out of the state, replaces b by b XOR x(i), and leaves
+    everything else alone.
+
+The important point is that, because the state may be a superposition,
+the algorithm can apply O(x) "for many indices at once": if the first
+register holds a superposition of many indices, each branch has its
+own bit XORed in. That is the whole source of quantum speedup, and it
+is not free: the algorithm cannot read the results without creating
+interference.
+
+Q(f) is the smallest q such that some quantum algorithm computes f
+with error at most 1/3 while applying the query map at most q times on
+every input and on every branch of every measurement.
+
+1.4 Some remarks on this model.
+
+  * "Between queries, any unitary" is the quantum analogue of "between
+    queries, any computation". The model counts queries and treats
+    free computation as truly free in both cases.
+
+  * A phase query is a query that writes x(i) into the sign of a
+    branch instead of into a bit. It costs one ordinary query. It is
+    the workhorse of the quantum algorithm in Part II.
+
+  * Since a randomized algorithm can be simulated by a quantum one
+    (flip a coin by measuring a fresh qubit in an equal superposition,
+    which is free), we always have
+
+        Q(f) <= R(f) .
+
+    The interesting direction is the reverse.
+
+1.5 Total versus partial functions.
+
+A total Boolean function is defined on every string in {0,1}^n. A
+partial Boolean function is defined only on a subset S of {0,1}^n,
+called its domain; an algorithm for it must be correct on S and is
+allowed to do anything at all outside S. The inputs outside S are
+"promised never to occur".
+
+Promises are powerful. They allow the designer to hide the answer
+behind a structure that is provably hard to explore but easy to reach
+if you are told where to look. The exponential separations between
+classical and quantum query complexity are all for partial functions.
+
+Every function whose complexity this paper bounds is total. The partial
+functions that appear are internal building blocks, and the
+surrounding construction is explicitly designed to keep working when
+those building blocks are driven outside their promise.
+
+
+--------------------------------------------------------------------------------
+2. THE QUESTION: HOW MUCH CAN QUANTUM HELP?
+--------------------------------------------------------------------------------
+
+2.1 The one easy inequality.
+
+    Q(f) <= R(f) <= D(f) .
+
+A deterministic algorithm is a randomized one (with no coins), and a
+randomized algorithm is a quantum one. So the three measures decrease
+from left to right.
+
+2.2 Why we cannot expect an exponential gap for total functions.
+
+For partial functions the gap can be exponential: there are functions
+whose inputs are promised to be one of two specially constructed
+families, such that a classical algorithm needs about n^{1/2} or even
+n^{1-o(1)} queries while a quantum algorithm needs a handful. The
+promise is doing the work: the algorithm knows that a hidden structure
+is either present or absent, and the art is to make it hard to find.
+
+For total functions the promise is gone and the known relations are
+polynomial. The natural question is: what polynomial is best?
+
+2.3 The formal question.
+
+Define the optimal exponent
+
+    alpha_tot = the infimum of all alpha >= 0 such that there is a
+    constant C with
+
+        R(f) <= C * (1 + Q(f))^alpha
+
+    for every n >= 1 and every total f : {0,1}^n -> {0,1} .
+
+Two words of explanation. The infimum is over all exponents alpha for
+which some universal bound holds. The "+1" is there so that constant
+functions, which need no queries at all, cost the bound nothing.
+
+The theorem of this paper is
+
+    alpha_tot = 4 .
+
+In full, for a reader who wants the exact statement:
+
+    The optimal power is alpha_tot = 4. More precisely,
+
+      R(f) = O( (1 + Q(f))^4 )     for every total Boolean function,
+
+    and for each fixed integer k >= 2 there are positive constants
+    c(k), C(k), b(k) and total Boolean functions F(k,m), one for
+    every sufficiently large power of four m, such that
+
+      Q(F(k,m)) <= C(k) * sqrt(m) * (log m)^{b(k)} ,
+
+      R(F(k,m)) >= c(k) * m^{2 - 1/k} / (log m)^2 .
+
+The first displayed line is the universal upper bound. It was already
+known. The contribution is the family of examples, which shows that no
+exponent below 4 can work.
+
+2.4 Why the family kills every smaller exponent.
+
+Since Q(F(k,m)) is at most about sqrt(m) times a power of log m, we may
+think of m as about Q^2. Substituting can be done cleanly:
+
+    m  =  Q^{2 + o(1)} .
+
+Then the second bound becomes
+
+    R  >=  c(k) * (Q^2)^{2 - 1/k} / (log m)^2
+       =  c(k) * Q^{4 - 2/k} / (log m)^2 .
+
+So R is bigger than Q raised to the power 4 - 2/k, divided by a power
+of the logarithm. Now let k grow. The exponent 4 - 2/k creeps up to 4.
+So for any proposed exponent alpha < 4 there is a k with
+
+    4 - 2/k > alpha ,
+
+and the family F(k,m) breaks every bound of the form
+R <= C (1+Q)^alpha. This proves alpha_tot >= 4.
+
+Conversely Part VII proves R(f) = O((1+Q(f))^4) for every total f,
+which proves alpha_tot <= 4. Together, alpha_tot = 4.
+
+2.5 The gap, measured precisely.
+
+It is worth being clear about how close the family comes to the upper
+bound. With Q about sqrt(m) (log m)^{b} and R about m^{2-1/k}, we have
+
+    R / Q^{4 - 2/k}   is at least const / (log m)^{O(1)} ,
+    R / Q^4           is at least const * m^{-1/k} / (log m)^{O(1)} .
+
+So the family does not quite reach Q^4: it reaches Q^4 divided by
+m^{1/k} times a power of the logarithm. Since k is fixed but arbitrary,
+the loss m^{1/k} is a polynomial factor of arbitrarily small degree.
+That is why the paper's title says "nearly quartic".
+
+The word "nearly" hides two losses:
+
+    * a polynomial loss m^{1/k}, which can be made arbitrarily small in
+      degree by choosing k large;
+    * a polylogarithmic loss (log m)^2, which is unavoidable in this
+      method.
+
+Neither loss matters for the exponent. The exponent is what survives
+the m -> infinity limit.
+
+
+--------------------------------------------------------------------------------
+3. THE ANSWER IN ONE BREATH
+--------------------------------------------------------------------------------
+
+Here is the whole paper, compressed into six paragraphs. The rest of
+the tour expands each of them.
+
+(1) The building block. There is a partial function P(k,m), called
+k-fold Forrelation, whose input is k strings of m bits each. On inputs
+inside a certain promise, a quantum algorithm computes P with O(k)
+queries, while every classical algorithm needs about m^{1 - 1/k} /
+(log m)^2 queries. In other words, one question to P is cheap
+quantumly and expensive classically. Section 4.
+
+(2) The total function. Build m columns. Each column i owns a string
+X(i) of m bits, r strings A(i,1),...,A(i,r) of k*m bits each, and a
+huge array of cells B(i,s), one for every possible address s of r
+bits. The TRUE ADDRESS of column i is the vector of the r answers
+P(A(i,h)). The cell at the true address contains a certificate: the
+exact transcripts of an exact circuit that recomputes those answers,
+plus, for every other column j, a pointer to a zero inside X(j).
+A column is a WINNER if X(i) is all ones and its cell at the true
+address passes all these checks. The total function F(k,m) asks
+whether some column is a winner.
+
+(3) Why winners are unique and hard to fake. Two winners would have to
+point at zeros in each other's all-ones strings, impossible. And a
+cell is self-certifying: a verifier recomputes the address gate by gate
+from the raw A-strings, so garbage never passes, with no promise
+anywhere. This is the cheat-sheet idea of Aaronson, Ben-David, and
+Kothari, made promise-free. Sections 8 and 9.
+
+(4) The quantum algorithm. Compute the address of every column cheaply
+(since P is cheap quantumly), then run a tournament of comparisons:
+compare two columns by reading their pointers at their decoded
+addresses and seeing who finds a zero in the other's string. A winner
+always disqualifies its opponent and is never disqualified, so it wins
+every head-to-head duel even when the opponent's address is garbage.
+The tournament (a weighted elimination process, made exact by a
+careful form of amplitude amplification) returns a short list
+containing the winner in O(sqrt(m)) polylog queries. Verify each
+listed column by searching its K local tests for a failure. Total cost:
+sqrt(m) polylog. Sections 11, 12, and 13.
+
+(5) The classical lower bound. Take an input with one hidden zero in
+every column and all cells blank: no winner. Now pick a random column I,
+erase its zero, and fill its cell at the true address. Now there is a
+winner. The two inputs differ in exactly two places. A classical
+algorithm can tell them apart only by finding the erased zero or by
+reaching the filled cell. Finding the zero is like finding a needle in
+m haystacks (probability at most 4G/m^2 by an averaging argument).
+Reaching the cell is hard because the address has r independent hard
+bits: with a per-column budget of L queries, only a 1/100 fraction of
+the columns can afford the address, and guessing an address costs
+(2/3)^r, astronomically unlikely, by a direct-product lemma. Sections
+14, 15, and 16.
+
+(6) Assembly. With G = mL/100 queries, the classical algorithm cannot
+distinguish, so R(F(k,m)) > G. Since Q(F(k,m)) is sqrt(m) polylog and
+R(F(k,m)) is m^{2-1/k}, the exponent is 4 - 2/k, and k is arbitrary.
+Section 17.
+
+A word of encouragement. The construction is large (the input has
+about m^{22} bits), but every piece is simple. There are no tricks
+hidden in the details. Read the parts in order and you will see the
+whole machine.
+
+
+================================================================================
+PART II. THE BUILDING BLOCK: k-FOLD FORRELATION
+================================================================================
+
+This part constructs one partial function P and proves three facts about
+it: it is cheap quantumly, expensive classically, and has a small exact
+circuit. Everything else in the paper is assembly around these three
+facts.
+
+
+--------------------------------------------------------------------------------
+4. SIGNS, HADAMARD MATRICES, AND THE NUMBER Phi
+--------------------------------------------------------------------------------
+
+4.1 Bits as signs.
+
+It is convenient to trade bits for signs. A bit a in {0,1} corresponds
+to the sign (-1)^a in {+1,-1}:
+
+    0 <-> +1 ,     1 <-> -1 .
+
+To go back, a sign s gives the bit 0 if s = +1 and 1 if s = -1, that is,
+a = (1 - s)/2. Any linear function of signs is a multilinear polynomial
+in the corresponding bits, so nothing is lost in translation. We use
+signs from here to the end of Part II.
+
+Throughout this part, fix an integer k >= 2 and let m be a power of
+four. The restriction to powers of four is only a convenience: it makes
+log2(m) an even integer and makes the integer M in Section 7 an
+integer.
+
+4.2 The Walsh-Hadamard matrix.
+
+Let H be the m-by-m matrix with entries
+
+    H(i,j) = (1/sqrt(m)) * (-1)^{i . j} ,
+
+where i and j are read as log2(m)-bit numbers and i . j is the bitwise
+dot product (the parity of the number of positions where both have a
+1). This is the normalized Walsh-Hadamard matrix. Two facts about it
+matter:
+
+    H is symmetric,          H^2 = identity.
+
+Symmetry is clear from the definition. H^2 = identity is the standard
+"self-inverse" property of the Hadamard transform; it follows from the
+fact that, for fixed i and j',
+
+    sum over j of (-1)^{i.j} (-1)^{j.j'}  =  m  if i = j',  0 otherwise.
+
+The unnormalized matrix W = sqrt(m) * H has entries +1 and -1. It is
+the one an actual circuit computes, using additions and subtractions
+only.
+
+Let u be the uniform unit vector:
+
+    u = (1, 1, ..., 1) / sqrt(m) .
+
+For a sign vector z in {+1,-1}^m, let D(z) be the diagonal matrix whose
+diagonal is z. So D(z) multiplies coordinate i by z(i) and does
+nothing else.
+
+4.3 The definition of Phi.
+
+Given k sign vectors z(1), z(2), ..., z(k), each of length m, define
+
+    Phi(z(1),...,z(k))
+
+        = u^T D(z(1)) H D(z(2)) H ... H D(z(k)) u .
+
+Read it as a recipe: there are k diagonal matrices and k-1 Hadamard
+matrices, and the whole product is sandwiched between two copies of u.
+
+Here is the same thing in words. Start from the uniform vector. Give
+it signs z(k). Fourier transform it (apply H). Give it signs z(k-1).
+Fourier transform it. Continue, ending with signs z(1). Then take the
+inner product with the uniform vector. Equivalently, Phi measures how
+much the vector z(1) agrees with the Fourier transform of the sign
+vectors z(2), ..., z(k), all composed.
+
+Phi is a real number between -1 and 1: it is an inner product of two
+unit vectors.
+
+A useful picture for k = 2. Then
+
+    Phi(z(1),z(2)) = u^T D(z(1)) H D(z(2)) u .
+
+This is the average over i,j of z(1)(i) z(2)(j) H(j,i), which is a
+weighted Fourier correlation between z(1) and z(2). The general k is
+the same idea, iterated.
+
+4.4 The partial function.
+
+Set
+
+    delta = 2^{-5k} .
+
+Define the partial Boolean function P = P(k,m) on k*m bits (that is, on
+k sign vectors) by
+
+    P(z(1),...,z(k)) = 1      if Phi(z(1),...,z(k)) >= delta ,
+    P(z(1),...,z(k)) = 0      if |Phi(z(1),...,z(k))| <= delta/2 ,
+    P undefined               otherwise.
+
+The two cases are disjoint, so this is consistent. The "promise" is the
+gap between the cases: either Phi is large and positive, or it is small
+in absolute value; intermediate values never occur.
+
+Written in the standard way:
+
+    P : S -> {0,1} ,    where S is the set of inputs satisfying the
+    promise above.
+
+
+--------------------------------------------------------------------------------
+5. THE QUANTUM ALGORITHM FOR P: ONE QUERY PER SIGN VECTOR
+--------------------------------------------------------------------------------
+
+5.1 The algorithm.
+
+Prepare the uniform vector u. Then apply, right to left, exactly the
+product in the definition:
+
+    start:      the uniform vector u
+    step 1:     multiply by D(z(k))          (one phase query)
+    step 2:     apply H                      (free)
+    step 3:     multiply by D(z(k-1))        (one phase query)
+    step 4:     apply H                      (free)
+    ...
+    step 2k-3:  multiply by D(z(2))          (one phase query)
+    step 2k-2:  apply H                      (free)
+    step 2k-1:  multiply by D(z(1))          (one phase query)
+    final:      project onto u               (free)
+
+That is k phase queries and k-1 Hadamards, matching the product exactly.
+
+The final amplitude on u equals exactly Phi. Therefore measuring the
+projection onto u succeeds with probability
+
+    Phi^2 .
+
+5.2 Separating the two cases.
+
+If the input is a 1-input, then Phi >= delta, so Phi^2 >= delta^2.
+
+If the input is a 0-input, then |Phi| <= delta/2, so Phi^2 <= delta^2/4.
+
+The two success probabilities differ by a factor of 4. Repetition and a
+threshold turn this into an arbitrary error eta. Run the whole procedure
+
+    Theta( log(1/eta) )
+
+times and take the majority. Each run uses k phase queries: one per
+sign vector. The phase query for D(z(h)) is built from the standard bit
+oracle O(x) with a single use of it (the phase is written into the sign
+of the branch, using one extra qubit and no extra query).
+
+Total queries:
+
+    O_k( 1 + log(1/eta) ) .
+
+5.3 Coherence.
+
+The algorithm is COHERENT: all of its work, including the repetition
+bookkeeping and the majority, can be written into registers that are
+never measured. So the whole procedure is a unitary map, and it can be
+run forwards and backwards. Section 12 needs exactly this property.
+
+5.4 Behaviour outside the promise.
+
+The algorithm produces some bit when its output register is measured,
+on every input, promised or not. That is required, because the total
+function F(k,m) of Part III has no promise and may drive P outside its
+domain at any moment. Outside the domain the bit produced may be
+anything; the construction is designed so that this does not matter.
+
+5.5 Summary.
+
+This is the first of the three facts we need.
+
+    FACT A. There is a coherent quantum algorithm that computes P on
+    its domain with error at most eta, using O_k(1 + log(1/eta)) bit
+    queries, and that produces some bit on every input.
+
+
+--------------------------------------------------------------------------------
+6. THE CLASSICAL COST OF P
+--------------------------------------------------------------------------------
+
+6.1 The known bound.
+
+Bansal and Sinha (2021), Theorem 1.3 and Corollary 1.4, analysed exactly
+this normalized form with exactly these thresholds, and proved: for
+fixed k and error 1/3,
+
+    R(P(k,m))  =  Omega_k( ( m / log(k*m) )^{1 - 1/k} ) .
+
+The constant in Omega may depend on k, which is fixed. So the classical
+cost is about m^{1-1/k} divided by a power of the logarithm.
+
+6.2 The number L.
+
+We only need a slightly weaker statement, and it is convenient to make
+it explicit. Define
+
+    L  =  floor( m^{1 - 1/k} / (log2 m)^2 ) .
+
+Then
+
+    R(P(k,m)) > L      for all sufficiently large powers of four m.
+
+Reason: the Bansal-Sinha bound is m^{1-1/k} divided by
+(log(k*m))^{1-1/k}, which is a smaller power of the logarithm than
+(log2 m)^2. So for large m the true cost dwarfs L.
+
+The number L is the classical cost of ONE address bit of ONE column.
+It is the quantity that makes the classical algorithm of Part V poor.
+
+6.3 The numbers, for scale.
+
+Take k = 2 and m = 4^20 = 2^40 = 1099511627776. Then log2 m = 40, so
+
+    L = floor( 2^20 / 40^2 ) = floor( 1048576 / 1600 ) = 655 .
+
+(The Bansal-Sinha bound is a bit larger than L, because its loss is a
+smaller power of the logarithm, but this is the right order.)
+
+Compare the two sides of the eventual separation at this m.
+
+    quantum side:     about sqrt(m) = 2^20 = 1048576, times a power
+                      of log2 m = 40;
+
+    classical side:   at least c * m^{3/2} / (log m)^2
+                      = c * 2^60 / 1600, about 7*10^14 for c near 1.
+
+So at this m the two sides already differ by a factor of order 10^8,
+and the ratio R/Q grows like m divided by a power of log m as m grows.
+
+Realistically m is enormous in the asymptotic argument: m grows without
+bound, and the input has about m^22 bits. That is the price of a total
+function with no promise. The numbers above only show that the constants
+are not astronomically bad; the theorem itself is asymptotic.
+
+6.4 The trivial upper bound.
+
+For completeness: a classical algorithm can always compute P by
+reading all k*m bits, so R(P) <= k*m. The interesting content of the
+theorem is that the truth is much closer to L than to k*m.
+
+
+--------------------------------------------------------------------------------
+7. AN EXACT, CHEAP CIRCUIT FOR P
+--------------------------------------------------------------------------------
+
+7.1 Why we need a circuit.
+
+In Part III the address of a column is a vector of r answers to P. A
+certificate for a column must include a transcript proving that the
+address is correct. For the transcript to be checkable gate by gate,
+P must be computable by an exact Boolean circuit of small size: small
+enough that a transcript has only about m (log m)^3 bits. This section
+builds that circuit and proves that Phi is exactly a ratio of integers.
+
+7.2 Phi is a ratio of integers.
+
+Recall W = sqrt(m) H, with entries +1 and -1. Since
+
+    u = (1/sqrt(m)) * 1 ,
+
+where 1 is the all-ones vector, we have
+
+    u^T D(z(1)) H D(z(2)) H ... H D(z(k)) u
+
+    = (1/m) * (1/sqrt(m))^{k-1} *
+        z(1)^T W D(z(2)) W ... W D(z(k)) 1 .
+
+So
+
+    Phi = N / M ,
+
+where
+
+    N = z(1)^T W D(z(2)) W ... W D(z(k)) (1,1,...,1)^T ,
+
+    M = m * (sqrt(m))^{k-1} .
+
+Both N and M are integers, because every entry of W and of every sign
+vector is +1 or -1. And M is an integer because m is a power of four:
+sqrt(m) = m^{1/2} = 2^{log2(m)/2} is an integer.
+
+7.3 How large are the intermediate numbers?
+
+The all-ones vector has entries of size 1. Applying D(z) changes signs,
+so it does not change sizes. Applying W to a vector with entries at
+most X gives a vector with entries at most sqrt(m) * X. There are k-1
+applications of W, so the entries of the final vector have absolute
+value at most
+
+    (sqrt m)^{k-1} = m^{(k-1)/2} = m^{O(k)} .
+
+So every intermediate integer fits in O_k(log m) bits.
+
+7.4 The circuit.
+
+To compute N:
+
+    start with the all-ones vector;
+    apply D(z(k))                     -- free: sign changes;
+    apply W                           -- m log2(m) additions;
+    apply D(z(k-1))                   -- free;
+    ...
+    apply W                           -- m log2(m) additions;
+    apply D(z(1))                     -- free;
+    take the sum of the entries       -- m additions.
+
+Each Walsh-Hadamard transform of an integer vector is computed by the
+usual butterfly recursion:
+
+    for j = 1, 2, ..., log2(m):
+        for each block of 2^j consecutive entries:
+            replace (a, b) by (a+b, a-b) .
+
+This uses m log2(m) additions and subtractions per transform, and it is
+exact integer arithmetic, with no rounding.
+
+Each addition of two O_k(log m)-bit numbers costs O_k(log m) Boolean
+gates (schoolbook addition). There are k-1 transforms, and k is fixed,
+so the total circuit size is
+
+    S = S(k,m) = O_k( m * (log m)^2 ) .
+
+7.5 The two output bits.
+
+Finally, the two tests in the definition of P become exact integer
+comparisons:
+
+    Phi >= delta            <--->
+        2^{5k} * N >= M
+
+    |Phi| <= delta/2        <--->
+        2^{5k+1} * |N| <= M
+
+because delta = 2^{-5k} and Phi = N/M. So the circuit has two output
+bits:
+
+    d  =  1 if and only if P is defined on the input,
+    b  =  the value of P,  whenever d = 1 .
+
+Both are computed exactly, on every input, promised or not. The extra
+cost of the two comparisons is O_k(log m) gates.
+
+7.6 Summary.
+
+This is the third of the three facts.
+
+    FACT B. There is a Boolean circuit C = C(k,m) of fan-in at most two
+    and size S = O_k(m (log m)^2), with two output bits d and b, such
+    that
+
+        d = 1   if and only if   P is defined,
+        d = 1   implies           b = P .
+
+    The circuit is exact on every input.
+
+It is the exactness, not merely the correctness on the promise, that
+the certificate in Part III relies on.
+
+
+================================================================================
+PART III. THE TOTAL FUNCTION
+================================================================================
+
+This is the heart of the paper. Everything before was a building block;
+everything after is analysis of the object built here.
+
+
+--------------------------------------------------------------------------------
+8. COLUMNS, ADDRESSES, AND CELLS
+--------------------------------------------------------------------------------
+
+8.1 The input.
+
+Fix k >= 2 and let m be a large power of four. The input of F(k,m) is
+divided into m COLUMNS, numbered 1 to m. Column i contains three kinds
+of bits.
+
+    (a) A string X(i) of m bits.
+
+    (b) r strings A(i,1), A(i,2), ..., A(i,r), each of k*m bits, where
+
+            r = ceil( 20 * log2(m) ) .
+
+        Each A(i,h) is a possible input to the partial function P of
+        Part II on its promised domain or off it; no promise is
+        imposed on these bits.
+
+    (c) One CELL B(i,s) for every possible ADDRESS s, where an address
+        is a string of r bits, so there are 2^r possible addresses.
+        Each cell contains:
+
+            - a POINTER p(i,s,j) in {1,...,m} for every j different
+              from i, encoded in log2(m) bits;
+
+            - r TRANSCRIPTS, one for the circuit C(k,m) applied to each
+              of A(i,1), ..., A(i,r). A transcript has one bit for each
+              non-input gate of C, including the two output gates.
+
+8.2 How big is the input?
+
+Let us count bits, to see the scale.
+
+    X strings:        m * m                    = m^2 bits
+    A strings:        m * r * k * m            = k*r*m^2 bits
+    pointers:         m * 2^r * (m-1) * log2(m)
+    transcripts:      m * 2^r * r * S
+
+With r = ceil(20 log2 m) we have 2^r >= m^20, and with
+S = O_k(m (log m)^2), the grand total is at most
+
+    m^{22} * (log m)^3
+
+bits, up to constants depending on k. So the input is astronomically
+large but finite. As m grows over powers of four, the input length n(m)
+grows like m^{22}. That is all the definition of alpha_tot needs: for
+each large m we get one total function on some number n(m) of bits, and
+one counterexample per large m is enough to rule out an exponent.
+
+Note carefully: the input carries NO promise of any kind. The A strings
+are arbitrary bits. The cells are arbitrary bits. The pointers are
+arbitrary bits. The definition of the function has to make sense for
+every one of the 2^n possible strings.
+
+8.3 The true address.
+
+If P is defined on all r of the strings A(i,1),...,A(i,r), then the
+TRUE ADDRESS of column i is
+
+    s(i) = ( P(A(i,1)), P(A(i,2)), ..., P(A(i,r)) )  in {0,1}^r .
+
+Otherwise column i has no true address.
+
+The original idea of a cheat sheet is here. The addresses are 20 log2(m)
+bits long, so there are m^20 of them, an enormous array. Locating the
+one at the true address requires answering r = 20 log2(m) instances of
+P. Classically each instance costs about L = m^{1-1/k}/(log m)^2
+queries; quantumly each costs about k. So the array is expensive to
+index classically and cheap to index quantumly.
+
+8.4 The problem with the naive idea.
+
+The naive total function would be:
+
+    F_naive(x) = 1 if X(i) = 1^m and the cell B(i, s(i)) "says the
+    right thing", for some i.
+
+That is not a total function as written: "says the right thing" is a
+claim, and the bits of the cell could contain anything. On an arbitrary
+input the cell B(i, s(i)) is garbage, and the verifier must be able to
+tell. So a cell must be SELF-VERIFYING. This is Section 8.5.
+
+There is a second problem: even if each cell is checked, the algorithm
+does not know where to look. Classically it cannot afford the address;
+quantumly it can, but it must also be able to process many candidates.
+That is where the pointers of Section 9 come in.
+
+8.5 Self-certifying cells.
+
+A cell B(i,s) should not merely assert "s is my address". It should
+carry proof. The transcript does exactly this.
+
+Conceptually, the cell says:
+
+    "I claim that P(A(i,h)) is defined for every h, and I claim its
+     value is s(h). Here is my evidence: for each h, a complete list of
+     the values taken by every gate of the circuit C on input A(i,h)."
+
+The verifier checks the list one gate at a time. For each non-input
+gate g, the verifier looks at the values claimed for its (at most two)
+predecessor gates, either from the transcript or from the actual bits
+of A(i,h) for an input wire, and checks that the claimed value of g is
+the correct Boolean function of those predecessors. Since the fan-in
+is at most two, each gate check reads at most three bits.
+
+If every gate check passes, then by induction over a topological order
+of the circuit, the transcript is EXACTLY the true evaluation. In
+particular the output gates d and b are what they should be, so d = 1
+and b = P(A(i,h)) = s(h) for every h.
+
+Two properties matter:
+
+    * A genuine transcript passes every check.
+    * A garbage transcript fails at least one check.
+
+There is no third possibility. This works because the circuit C is
+exact on every input, promised or not. If C were merely correct on a
+promise, a verifier could not distinguish "the transcript is wrong"
+from "the input is outside the promise".
+
+Section 10 turns this into a precise list of K local tests.
+
+
+--------------------------------------------------------------------------------
+9. WINNERS, UNIQUENESS, AND OUTWARD POINTERS
+--------------------------------------------------------------------------------
+
+9.1 The definition of a winner.
+
+A column i is a WINNER if all three of the following hold.
+
+    (1) ALL ONES.  X(i) = 1^m.
+
+    (2) DEFINED ADDRESS.  P(A(i,h)) is defined for every h, so the true
+        address s(i) exists.
+
+    (3) CORRECT CELL.  The cell B(i, s(i)) at that true address
+        satisfies:
+
+        (3a) each of its r transcripts is the true evaluation of C on
+             the corresponding A(i,h): every gate check passes, and
+             d = 1 and b = s(i)(h);
+
+        (3b) X(j) at position p(i, s(i), j) is 0, for every j different
+             from i.
+
+Define
+
+    F(k,m)(x) = 1    if some column is a winner,
+    F(k,m)(x) = 0    otherwise.
+
+Every condition is a predicate on input bits. There is no promise, no
+consistency assumption, no "well-formedness". On any input, either
+some column is a winner or none is, and F is defined.
+
+9.2 At most one winner.
+
+Suppose columns i and j are both winners.
+
+    * By (3b) applied to i, its cell points to a zero of X(j).
+
+    * By (1) applied to j, X(j) has no zeros at all.
+
+Contradiction. So at most one column is a winner.
+
+This single observation does two jobs:
+
+    * It makes the function well posed as a 0/1 function, with no need
+      for a promise.
+
+    * It makes "is there a winner?" equivalent to "is there exactly one
+      winner?", which is the only thing the algorithm needs.
+
+9.3 The duel.
+
+Now define a head-to-head comparison between two distinct columns i
+and j. This is the definition used by every algorithm, classical or
+quantum; only the cost differs.
+
+    Step 1. Decode the address of column i: that is, find s(i) (or
+            some other string, if the decoder is wrong). Read the
+            pointer p(i, s, j) in the cell at that address. Follow it
+            into X(j). Call column i a DISQUALIFIER of column j if the
+            bit found is 0.
+
+    Step 2. Do the same in the other direction: decode j's address,
+            read p(j, s', i), follow it into X(i). Call j a
+            disqualifier of i if the bit found is 0.
+
+    Step 3. If exactly one column disqualifies the other, that column
+            WINS THE DUEL. If neither or both do, the column with the
+            smaller index wins.
+
+This definition is deliberately precise about ties: it uses a fixed
+tie-break rule so that the duel always has exactly one winner.
+
+9.4 Why a winner always wins its duels.
+
+Suppose i is a winner, and j is any other column.
+
+    * Can j disqualify i? To disqualify i, j would need to read a zero
+      of X(i). But X(i) is all ones. So NO, always.
+
+    * Can i disqualify j? At the true address of i, its cell points at
+      a zero of X(j) (condition 3b). So YES, PROVIDED i's address is
+      decoded correctly.
+
+Therefore, as long as the decode of i is correct,
+
+    i wins the duel, always.
+
+No assumption about j is needed. In particular, whether j's A strings
+are inside the promise of P, whether j's cell is garbage, whether j's
+X string has zeros in odd places: none of this matters. The winner is
+insured by the outward orientation of its pointers.
+
+This is what "self-defending winner" means. It is worth pausing on the
+asymmetry: the winner's certificate is useful AGAINST any opponent,
+whereas the opponent's certificate is useless against the winner. The
+arrows point outward.
+
+9.5 The picture.
+
+    X(j)                          X(i)                       X(j')
+  ... 0 ... 0 ...        1 1 1 1 ... 1 1 1 1        ... 0 ... 0 ...
+                                |
+                                |   (this column is the winner)
+                                |
+                          +--------------+
+                          | B(i, s(i))   |
+                          | transcripts  |
+                          | pointers     |
+                          +--------------+
+                            /          \
+                points at a 0      points at a 0
+                in column j       in column j'
+
+Only the indicated zeros are prescribed; every other cell and every
+other bit of the other columns may be anything.
+
+9.6 Winners as certificates.
+
+A winner's data is a CERTIFICATE, in the sense of certificate
+complexity: a small partial assignment of the input bits that fixes
+the function value. It consists of
+
+    * the all-ones string X(i),
+    * the cell B(i, s(i)) with its transcripts and pointers,
+    * and the A(i,h) strings themselves, which the verifier can read
+      directly.
+
+The key novelty is that this certificate is SELF-VERIFYING. A verifier
+does not have to trust the claimed address; it recomputes it from the
+A strings, gate by gate. That is how an "addressed" certificate (a
+cheat sheet) can be used inside a TOTAL function.
+
+The second novelty is the outward pointers, which give the winner a
+defence that does not depend on any promise at all. Earlier pointer
+constructions (Goos, Pitassi, Watson 2015; Ambainis and coauthors 2017)
+used pointers between columns too, but the arrow directions are used
+differently here. The orientation, "winner points at zeros in every
+other column", is what allows a quantum comparison to be decisive even
+when both addresses are meaningless.
+
+9.7 How the two bounds will use these properties.
+
+    * The quantum algorithm (Part IV) can afford to decode addresses,
+      so a winner reliably demolishes every opponent in a duel.
+
+    * The classical algorithm (Part V) cannot afford to decode
+      addresses, so a winner is impossible to find: the address is the
+      only way in.
+
+Both of these are shadows of the same construction.
+
+
+--------------------------------------------------------------------------------
+10. LOCAL TESTS: "IS THIS COLUMN A WINNER?" AS A CHECKLIST
+--------------------------------------------------------------------------------
+
+Both algorithms need to verify candidates. Verification is a
+conjunction of many short checks. This section makes the checks
+precise and counts them.
+
+10.1 The tests.
+
+Fix an input and a pair (i, s), where i is a column and s in {0,1}^r
+is a proposed address. Consider the following list of tests.
+
+    X-TESTS. For each of the m positions of X(i), one test:
+
+            "the bit at this position is 1" .
+
+        Cost: 1 query each. There are m of them.
+
+    POINTER-TESTS. For each j different from i, one test:
+
+            "read q = p(i,s,j), then read X(j) at position q, then
+             check that the bit read is 0" .
+
+        Cost: log2(m) + 1 queries. There are m-1 of them.
+
+    GATE-TESTS. For each h in {1,...,r} and each non-input gate g of C,
+    one test:
+
+            "the bit claimed for g equals the Boolean function of the
+             claimed values of its predecessors" .
+
+        A predecessor is either another non-input gate (its value is
+        read from the transcript) or an input wire of A(i,h) (its
+        value is read from the actual input). Fan-in at most two, so
+        at most three bits are read. There are r*S of these tests.
+
+    OUTPUT-TESTS. For each h in {1,...,r}, two tests:
+
+            "the claimed value of the output gate d is 1" ,
+            "the claimed value of the output gate b equals s(h)" .
+
+        Cost: 1 query each. There are 2r of them.
+
+The total number is
+
+    K  =  m + (m-1) + r*S + 2r
+       =  m + (m-1) + r*(S+2)
+       =  O_k( m * (log m)^3 ) .
+
+The last line uses r = O(log m) and S = O_k(m (log m)^2).
+
+10.2 The lemma.
+
+    LEMMA 10.1. For every input, every column i, and every address s,
+    the statement
+
+        "column i wins at address s"
+
+    is equivalent to the statement
+
+        "all K tests pass" .
+
+    Moreover, the number of tests and their indexing convention are the
+    same for every (i, s). Each test can be evaluated exactly with
+    O(log m) bit queries.
+
+Proof.
+
+(=>) Suppose i wins at address s. Then s = s(i) by definition, so:
+
+    * X(i) is all ones, so the X-tests pass;
+
+    * each pointer p(i,s,j) = p(i,s(i),j) points at a zero of X(j), so
+      the pointer tests pass;
+
+    * the transcripts are the true evaluations of C, so each gate's
+      claimed value really is the correct Boolean function of its
+      predecessors, so every gate test passes;
+
+    * d = 1 and b = P(A(i,h)) = s(h), so the output tests pass.
+
+(<=) Now suppose all K tests pass.
+
+    * X-tests give X(i) = 1^m.
+
+    * Gate tests, by induction over a topological order of C, show
+      that each transcript is the true evaluation of C on the
+      corresponding A(i,h). (The induction works because a gate's
+      predecessors in a topological order have already been verified.)
+
+    * Output tests then give d = 1 and b = s(h). So P(A(i,h)) is
+      defined and equals s(h), for every h. That is, s = s(i).
+
+    * Pointer tests then give (3b): each p(i,s,j) points at a zero of
+      X(j).
+
+That is exactly the definition of winning at address s. QED
+
+10.3 Coherent evaluation.
+
+The tests can also be evaluated quantumly, and Part IV uses exactly
+that.
+
+    * The index of a test, together with the column and address it
+      refers to, can be supplied in SUPERPOSITION. The wiring of C and
+      the locations of all bits are fixed by k and m and cost no
+      queries.
+
+    * Evaluating a test requires loading the needed bits into some
+      ancillary registers, computing the test outcome reversibly, and
+      then unloading the bits by querying again. The bit oracle is its
+      own inverse (XOR twice returns the original), so unloading costs
+      exactly the same number of queries as loading.
+
+    * A controlled use of a loaded value is implemented by loading,
+      using the value under a control, and unloading. This changes the
+      query count by a constant factor at most.
+
+    * All workspaces are retained, so the whole evaluation is a
+      reversible unitary and can be run backwards.
+
+So there is a unitary map
+
+    |test index>|0>  ->  |test index>|outcome>
+
+that uses O(log m) queries per index, keeps all its scratch space, and
+can be inversed.
+
+10.4 The two consequences.
+
+    (i) A winning column has exactly one address at which all K tests
+        pass, namely s(i).
+
+    (ii) A non-winning column fails at least one test at EVERY address.
+        In particular, if an algorithm proposes some address on an
+         arbitrary unpromised input, and the column is not a winner at
+         that address, then searching over the tests will find a
+         failure.
+
+Statement (ii) is what makes verification possible with no promise.
+Combined with statement (i), it makes the verification EXACT: a winner
+is never falsely rejected, and a non-winner is never falsely accepted.
+
+10.5 Why this gives a sqrt(m) speedup.
+
+The search for a failing test is a search over K = m polylog items. In
+the quantum model, an unstructured search over K items costs sqrt(K)
+queries (Grover), so a verification costs
+
+    sqrt(K) * O(log m) = sqrt(m) * (log m)^{O(1)}
+
+queries. That is precisely the scale needed to beat the classical cost
+by a quadratic factor.
+
+One calibration, so the scale is not a mystery: with m = 1024 we have
+log2 m = 10, so r = 200, and S = O_k(m (log m)^2) is about 100000 (up
+to a constant depending on k). Then
+
+    K = m + (m-1) + r*(S+2) = about 200 * 100000 = 2*10^7 ,
+
+whose square root is about 4500. Since sqrt(m) = 32, that is about
+140 * sqrt(m). The constants are not small, but they are constants:
+what matters is that a verification costs sqrt(K) = sqrt(m) times a
+polylogarithm, which is the scale a classical algorithm cannot reach.
+
+
+================================================================================
+PART IV. THE QUANTUM ALGORITHM
+================================================================================
+
+Three pieces. First, a careful form of amplitude amplification that
+preserves the exact distribution it amplifies. Second, a tournament
+that needs only one candidate to be reliable. Third, the full
+procedure.
+
+
+--------------------------------------------------------------------------------
+11. AMPLIFYING WITHOUT CHANGING THE DISTRIBUTION
+--------------------------------------------------------------------------------
+
+11.1 The situation.
+
+We will build a device that prepares a state
+
+    A |0>  =  sin(theta) |good> + cos(theta) |bad> ,
+
+where |good> is a designated, normalized success state, |bad> is its
+normalized complement, and the success probability is
+
+    p  =  sin^2(theta) .
+
+We want to raise p to at least 1 - eta, at cost roughly p^{-1/2}
+applications of A and A^{-1}, given a promise that p is at least gamma.
+Standard amplitude amplification does that. But the standard statement
+is not enough here, for two reasons.
+
+    (a) We need the successful state after amplification to be EXACTLY
+        |good>, not merely close to it. Section 12 uses the probability
+        distribution of the sampled candidate, and even a small
+        perturbation would break the argument.
+
+    (b) We need the query bound to hold on EVERY branch, including the
+        failing branch, because our complexity measure is worst-case.
+
+Both are delivered by the following lemma.
+
+11.2 The lemma.
+
+    LEMMA 11.1 (Bounded amplification). Let A be a unitary with a
+    designated success bit. Let p be the probability that a measurement
+    of that bit yields 1, and let |g> be the normalized state
+    conditional on success (when p > 0). Let 0 < gamma <= 1/2 and
+    0 < eta < 1/2. There is a procedure using
+
+        O( gamma^{-1/2} * log(1/eta) )
+
+    calls to A and A^{-1} that either reports failure or produces a
+    successful outcome. Conditional on success, the output state is |g>
+    up to an overall phase. If p >= gamma, its failure probability is at
+    most eta. If p = 0, it always reports failure. The call bound holds
+    for every p, on every branch.
+
+11.3 The proof.
+
+Write, for 0 < p < 1,
+
+    A |0>  =  sin(theta) |g> + cos(theta) |b> ,
+
+with 0 < theta < pi/2, where |g> and |b> are orthonormal.
+
+An amplification step, a "Grover iteration", is the composition of two
+reflections:
+
+    * reflect about the prepared state A|0>;
+
+    * flip the phase of the success bit.
+
+Applied ell times, the standard two-dimensional rotation gives
+
+    sin((2*ell + 1)*theta) |g>  +  cos((2*ell + 1)*theta) |b> .
+
+The crucial observation is the shape of this formula. The |g>-component
+is multiplied by a REAL number, the |b>-component by a REAL number, and
+the pair stays in the same two-dimensional plane. Therefore, measuring
+success after any number of iterations leaves EXACTLY the state |g>,
+with no dependence on ell. That is property (a) of the lemma.
+
+Cost. Each iteration uses A, a query-free reflection about |0>, and
+A^{-1}. So an ell-iteration trial costs O(ell) calls.
+
+Choose
+
+    M  =  ceil( 10 / sqrt(gamma) ) .
+
+One TRIAL does the following:
+
+    with probability 1/2, choose ell = 0;
+    with probability 1/2, choose ell uniformly from {0,1,...,M-1};
+    run ell iterations;
+    measure the success bit; report the outcome.
+
+Now analyze the success probability of a trial.
+
+If p >= 1/2, the ell = 0 branch alone has success probability at least
+1/2, so the whole trial succeeds with probability at least 1/4.
+
+If gamma <= p <= 1/2, then
+
+    sin(2*theta) = 2 * sqrt(p(1-p)) >= sqrt(gamma) ,
+
+and averaging the Grover success probability over ell gives
+
+    (1/M) * sum over ell = 0..M-1 of sin^2((2*ell+1)*theta)
+        >=  1/2 - 1/(2*M*|sin(2*theta)|)
+        >=  1/2 - 1/20
+        =   9/20 .
+
+The middle inequality uses the standard bound on the average of sin^2 of
+an arithmetic progression (a geometric-series argument). So the second
+branch of the trial succeeds with probability at least (1/2)(9/20) =
+9/40.
+
+In both cases, therefore, a trial succeeds with probability at least
+
+    9/40 .
+
+Now repeat a fixed number
+
+    ceil( log(1/eta) / log(40/31) )
+
+of independent trials, each with fresh registers, stopping at the first
+success. The probability that all trials fail is at most
+
+    (31/40)^{that number}  <=  eta .
+
+Every trial uses at most O(M) calls, whether it succeeds or fails,
+because the number of iterations is a fixed upper bound. So the total
+is
+
+    O( M * log(1/eta) )  =  O( gamma^{-1/2} * log(1/eta) ) .
+
+Finally, every successful trial produces exactly |g>, and a mixture of
+identical states is that state. So neither the random choice of ell nor
+the stopping rule changes the conditional distribution.
+
+The cases p = 0 and p = 1 are immediate: with p = 0 every measurement
+fails, and with p = 1 the state is already |g>. QED
+
+11.4 What the lemma buys.
+
+Three things, each used later.
+
+    (i) A quadratic speedup over the naive repetition of A. To raise a
+        probability from gamma to a constant costs gamma^{-1/2}, not
+        1/gamma.
+
+    (ii) Exact preservation of the successful state. This is what makes
+         the tournament of Section 12 sample the correct conditional
+         distribution.
+
+    (iii) A branch-independent call bound. This is what makes the
+          resulting algorithm have a fixed worst-case query count even
+          when it fails.
+
+For a reader who has seen amplitude amplification before: the only
+unfamiliar part is the deliberate mixture over ell and the insistence
+on exactness. The mixture exists so that the failure probability is the
+same for every p >= gamma, with no dependence on an unknown phase; the
+exactness exists so that the tournament can reason about distributions.
+
+
+--------------------------------------------------------------------------------
+12. A TOURNAMENT WITH UNRELIABLE COMPARISONS
+--------------------------------------------------------------------------------
+
+12.1 The setting.
+
+Fix an input. There are m candidates, one per column. A COMPARISON is a
+unitary that takes two candidate indices and produces a "winner" bit,
+keeping all its workspace so that it can be run backwards. For each
+pair i, j let
+
+    a(i,j)  =  the probability that the comparison says "i beats j",
+               when the result is measured.
+
+We always use the SAME circuit for the unordered pair {i,j}, with the
+two indices sorted, so that
+
+    a(i,j) + a(j,i) = 1        for i different from j,
+    a(i,i) = 0 .
+
+These are the only structural assumptions. In particular, we do NOT
+assume that any a(i,j) is close to 0 or 1, or that "i beats j" is
+transitive, or that any pair other than the one containing the
+distinguished winner behaves well.
+
+12.2 The proposition.
+
+    PROPOSITION 12.1. For m >= 2 put
+
+        T = ceil( log2(1000*m) ) ,     epsilon = 1/(1000*T) .
+
+    Suppose a coherent, reversible comparison circuit with retained
+    workspace uses at most c >= 1 bit queries, that the probabilities
+    a(i,j) satisfy the two displayed conditions, and that some index i*
+    satisfies
+
+        a(i*,j) >= 1 - epsilon      for every j different from i* .
+
+    Then there is a quantum algorithm making
+
+        O( c * sqrt(m) * T^2 * log T )
+
+    queries on every branch, which returns a list of at most T
+    candidates, such that the list contains i* with probability at least
+
+        1 - 2m/2^T - T*epsilon .
+
+The rest of this section is the proof.
+
+12.3 The ideal process.
+
+Forget quantum mechanics for a moment. Define a purely probabilistic
+process. States are weights w(i) >= 0, initially all equal to 1. Let W
+be the sum of the weights. While W > 0:
+
+    pick a pivot p at random with probability w(p)/W;
+    append p to the list;
+    for every i, replace w(i) by w(i) * a(i,p).
+
+If W = 0, stop and leave the list alone. (Once W hits zero it stays
+zero, since every new weight is a product.)
+
+The process has a drift, and the drift is the key.
+
+    Claim. Whatever the current weights, the expected value of the new
+    total weight is at most half the old:
+
+        E[ W(new) | w ]  <=  W/2 .
+
+Proof of the claim. The new total is the sum over i of w(i)*a(i,p), so,
+averaging over the choice of p,
+
+    E[ W(new) | w ]  =  (1/W) * (sum over p,i of w(p)*w(i)*a(i,p)) .
+
+Split the double sum into the pairs with i different from p. For each
+unordered pair {i,p}, the two terms contribute
+
+    w(i)*w(p)*( a(i,p) + a(p,i) )  =  w(i)*w(p) ,
+
+because a(i,p) + a(p,i) = 1. There are no diagonal terms, since
+a(i,i) = 0. Hence
+
+    (sum over p,i of w(p)*w(i)*a(i,p))
+        = (sum over unordered pairs {i,p} of w(i)*w(p))
+        = ( W^2 - (sum over i of w(i)^2) ) / 2 ,
+
+which is at most W^2/2. Dividing by W gives the claim. QED
+
+So the total weight halves in expectation at every step, REGARDLESS of
+the structure of the comparisons. After T steps,
+
+    E[ W(T) ]  <=  m / 2^T .
+
+Now suppose i* has not been selected at any of the T steps. Then every
+step multiplied w(i*) by a factor a(i*,p) >= 1 - epsilon, because the
+pivot p was never i* itself. So the final weight of i* is at least
+
+    (1 - epsilon)^T  >=  1 - T*epsilon  >  1/2 .
+
+Since weights are nonnegative, the total weight is at least the weight
+of i*, so W(T) > 1/2. Therefore
+
+    Pr[ i* absent from the ideal list ]
+        <= Pr[ W(T) >= 1/2 ]
+        <= E[W(T)] / (1/2)                (Markov's inequality)
+        <= 2m / 2^T .
+
+This is the whole reason the tournament works, and notice how little it
+used: only a(i,p) + a(p,i) = 1 and a(i*,p) >= 1 - epsilon.
+
+12.4 Implementing one step quantumly.
+
+Now suppose a list of previous pivots p(1),...,p(t) has been fixed, with
+t < T. We must sample a new pivot with probability exactly w(i)/W, where
+w(i) is the product of a(i,p(b)) over b = 1..t.
+
+Prepare a uniform superposition of i in {1,...,m}. For each previous
+pivot, compare i with that pivot in a FRESH workspace. Do not measure
+anything. The joint state is
+
+    (1/sqrt(m)) * (sum over i of
+        |i> tensor |phi(i,p(1))> tensor ... tensor |phi(i,p(t))> ) ,
+
+where |phi(i,p)> is the complete comparison state, including its result
+bit.
+
+Now compute a single "success" bit: it is 1 exactly when every one of the
+t comparisons says that i beats its pivot. Keep all the comparison
+workspace; do not erase it.
+
+Because the workspaces are in a tensor product and the comparisons
+act on disjoint registers, conditional on the index i the success
+probability is exactly
+
+    (product over b of a(i,p(b)))  =  w(i) .
+
+And distinct indices give orthogonal index registers, so the TOTAL
+success probability is
+
+    W / m ,
+
+and the conditional distribution of i given success is exactly
+
+    w(i) / W .
+
+That is the pivot law we wanted, expressed as a quantum state.
+
+12.5 Using the amplifier.
+
+Apply Lemma 11.1 with
+
+    gamma = 1/(2m) ,     eta = epsilon .
+
+A successful run produces exactly the state above, so the conditional
+distribution of the index is unchanged. This is precisely the property
+that Section 11.3 was designed to give.
+
+If the amplification reports failure, stop and return the list
+accumulated so far. Otherwise measure the index, append it to the list,
+and go on, for at most T stages.
+
+Now the analysis. Until i* is selected for the first time, its weight
+is at least 1 - T*epsilon > 1/2, so the total weight is at least 1/2,
+so the success probability W/m is at least 1/(2m) = gamma. So at each
+such stage the amplifier fails with probability at most epsilon.
+
+Conditional on not failing, the produced pivot has EXACTLY the ideal
+law. So we may couple the real process to the ideal process, with
+coupling failure at most epsilon per stage, conditional on the whole
+previous history. (Note: the failure probability may depend on the
+history; the coupling does not care, because it is applied stage by
+stage.)
+
+Summing over the at most T stages, the total probability of a coupling
+failure before i* is selected is at most T*epsilon. Adding the
+probability that the ideal process misses i* gives the stated bound:
+
+    1 - 2m/2^T - T*epsilon .
+
+Once i* has entered the list, later failures cannot remove it.
+
+12.6 The query count.
+
+At stage t, the preparation and its inverse use O(c*(t+1)) queries:
+there are t comparisons, each of cost c, plus the O(c) cost of preparing
+the uniform superposition and doing index arithmetic.
+
+Lemma 11.1 uses O( sqrt(m) * log(1/epsilon) ) calls to the preparation
+and to its inverse. Since epsilon = 1/(1000T), log(1/epsilon) = O(log T).
+
+Summing over t = 0, 1, ..., T-1 gives
+
+    O( c * sqrt(m) * log T * T^2 )  =  O( c * sqrt(m) * T^2 * log T )
+
+queries. Every stage and every trial count is a fixed upper bound, so
+this is a worst-case query bound even when there is no i* at all.
+
+12.7 What is not assumed.
+
+It is worth saying explicitly what the proof does NOT use.
+
+    * NO TRANSITIVITY. The comparisons need not form a tournament in the
+      graph-theoretic sense.
+
+    * NO GAP FOR NON-WINNERS. If i and j are both non-winners, a(i,j)
+      may be exactly 1/2, or anything else, as long as
+      a(i,j) + a(j,i) = 1.
+
+    * NO RELIABLE COMPARISONS AT ALL, except those involving i*.
+
+This is exactly the situation created by unpromised addresses: two
+columns whose Forrelation strings are outside the promise produce
+comparison outcomes determined by the tie-break rule, that is, by which
+index is smaller. That is a perfectly arbitrary but perfectly legal set
+of probabilities.
+
+The weights are the machinery that makes this work. Instead of trying to
+make every comparison reliable, the tournament tracks how much each
+candidate has been "discredited" and reweights accordingly. The winner's
+weight falls by at most a factor (1 - epsilon) per step, so it survives;
+the total weight halves each step, so most candidates are eliminated.
+That is the entire intuition.
+
+
+--------------------------------------------------------------------------------
+13. FINDING AND CHECKING A WINNER
+--------------------------------------------------------------------------------
+
+Now assemble the pieces. Fix an arbitrary input; it may contain
+undefined Forrelation instances and nonsense transcripts. All
+probabilities below are over the algorithm's own randomness and
+measurements.
+
+13.1 Decoding a column.
+
+To decode column i, run the quantum algorithm of Section 5 on each of
+its r strings A(i,1),...,A(i,r), and amplify.
+
+Specifically, use Fact A of Section 5 with error parameter epsilon/(2r)
+per instance: each instance is decoded with error at most
+epsilon/(2r), and the decoded bit of A(i,h) is its majority.
+
+    Accuracy. By a union bound over the r instances, if all r instances
+    are inside the domain of P, then the decoded address equals the true
+    address s(i) with probability at least
+
+        1 - r * (epsilon/(2r))  =  1 - epsilon/2 .
+
+    (If some instance is outside the domain, the decoder still returns
+    some address; it has no obligation to be right, and generally will
+    not be.)
+
+    Cost. r instances, each O_k(1 + log(r/epsilon)) queries, gives
+
+        O_k( r * log(r/epsilon) )  =  (log m)^{O_k(1)}
+
+    queries, since r = O(log m) and log(1/epsilon) = O(log log m).
+
+    Coherence. Everything is done with workspaces retained, so the whole
+    decode is a reversible circuit. It can be inverted.
+
+We will occasionally decode a column "with error epsilon/2" and
+occasionally "with error epsilon/4", depending on how many decodes a
+single comparison does. The constants are absorbed.
+
+13.2 Comparing two columns.
+
+Given two distinct columns i and j, sort their indices (so say i < j)
+and perform this comparison.
+
+    Step 1. Decode the address of i in one workspace, with error
+            epsilon/4. Decode the address of j in another workspace,
+            with error epsilon/4.
+
+    Step 2. In column i, at its decoded address, read the pointer that
+            points toward j, follow it into X(j), and record whether
+            the bit found is a 0.
+
+    Step 3. Do the same the other way: in column j, at its decoded
+            address, read the pointer toward i, follow it into X(i), and
+            record whether the bit found is a 0.
+
+    Step 4. Say that i DISQUALIFIES j if Step 2 found a 0, and that j
+            DISQUALIFIES i if Step 3 found a 0. If exactly one of them
+            disqualifies the other, that one is declared the victor.
+            Otherwise, the smaller index is declared the victor.
+
+For a self-comparison, return false without reading anything.
+
+Query cost:
+
+    c  =  O_k( log m * log log m )  =  (log m)^{O_k(1)} .
+
+The decoding dominates. Reading a pointer costs log2(m) queries (one bit
+at a time); following it costs 1 more.
+
+Correctness of the model. After decoding, the addresses sit in
+registers, and all later operations are controlled on those registers in
+the computational basis. Different address outcomes are ORTHOGONAL, so
+they do not interfere; the measurement probabilities are exactly the
+classical description "decode, then read". Reversing the whole
+preparation costs the same number of queries, since every step is
+unitary and the bit oracle is its own inverse. And using the same
+circuit for both orderings of the pair (achieved by sorting) gives
+
+    a(i,j) + a(j,i) = 1 .
+
+13.3 The winner beats everybody.
+
+Let i* be a winner. Its string X(i*) is all ones, so no pointer, at any
+address, can find a zero in it. Therefore NO OPPONENT CAN EVER
+DISQUALIFY i*.
+
+When i*'s address is decoded correctly, which happens with probability
+at least 1 - epsilon/4, its certificate points at a zero in every other
+column, so i* disqualifies every opponent.
+
+So, including the opponent's own decode error epsilon/4, the
+probability that i* wins the duel against any given j is at least
+
+    a(i*,j)  >=  1 - epsilon/4 - epsilon/4  =  1 - epsilon/2
+              >  1 - epsilon .
+
+(In the paper's own notation this is written "at least 1 - epsilon", with
+the factor 2 absorbed into the definition of epsilon. We have kept it
+explicit to make the accounting transparent.)
+
+Crucially, this holds no matter what j is, and no matter whether j's
+Forrelation strings are inside the promise. The outward orientation of
+the pointers is what makes the winner's advantage independent of the
+opponent's behaviour.
+
+13.4 The tournament.
+
+Apply Proposition 12.1 with the comparison of Section 13.2, to get a
+list of at most T candidates. If a winner exists, then by Section 13.3
+the hypothesis a(i*,j) >= 1 - epsilon holds, so the list contains i*
+with probability at least
+
+    1 - 2m/2^T - T*epsilon .
+
+13.5 Checking a candidate.
+
+For each listed column, decode and MEASURE its address afresh. (This
+is a measurement, so the address becomes a classical value s.) At that
+fixed address, the winner conditions are exactly the K local tests of
+Lemma 10.1.
+
+Now search for a failing test. Supply a uniform superposition of the K
+test indices, evaluate the test coherently, and set a flag exactly when
+the test FAILS. Then
+
+    success probability  =  0        if all K tests pass,
+    success probability  >= 1/K      otherwise.
+
+Apply Lemma 11.1 with gamma = 1/K and eta = epsilon. Since K >= m >= 4,
+the cost is
+
+    O( sqrt(K) * log(1/epsilon) * log m )
+        =  sqrt(m) * (log m)^{O_k(1)} ,
+
+where the extra factor log m accounts for evaluating one test
+(Section 10.3).
+
+Decision rule:
+
+    if a failing test is found,      REJECT this candidate;
+    if the search reports failure,   ACCEPT it.
+
+Exactness matters here. The search can NEVER report a failing test when
+all K tests pass, so a genuine winner is never rejected for that reason.
+It can be rejected only if its address was decoded incorrectly, which
+happens with probability at most epsilon.
+
+Conversely, if a column is not a winner at the measured address, then at
+least one test fails, so the search finds a failure with probability at
+least 1 - epsilon; the candidate is accepted with probability at most
+epsilon.
+
+13.6 Error analysis.
+
+On an input with NO winner:
+
+    at most T candidates are listed, and each is accepted with
+    probability at most epsilon. So the algorithm outputs 1 with
+    probability at most T*epsilon.
+
+On an input WITH a winner i*:
+
+    i* is missing from the list with probability at most 2m/2^T;
+    i* is listed but rejected with probability at most epsilon;
+    so the algorithm outputs 0 with probability at most
+    2m/2^T + epsilon.
+
+Both are comfortably below 1/3 with
+
+    T = ceil(log2(1000 m)) ,     epsilon = 1/(1000 T) :
+
+    2m/2^T    <=  2m/(1000 m)  =  1/500 ,
+    T*epsilon =  1/1000 .
+
+13.7 The quantum bound.
+
+Collect the costs:
+
+    tournament:   O( c * sqrt(m) * T^2 * log T )
+                  = sqrt(m) * (log m)^{O_k(1)}
+    checking:     at most T candidates, each of cost
+                  sqrt(m) * (log m)^{O_k(1)}
+                  = sqrt(m) * (log m)^{O_k(1)}
+
+since T = O(log m) and c = (log m)^{O_k(1)}.
+
+    PROPOSITION 13.1. For every fixed k >= 2, the total functions
+    F(k,m) of Part III satisfy
+
+        Q(F(k,m))  <=  sqrt(m) * (log m)^{O_k(1)} .
+
+13.8 One more word about the query model.
+
+All the "array accesses" in this part are ordinary bit queries.
+
+    * A pointer is read one bit at a time, which costs log2(m) queries;
+      then the target position is computed from the bits just read,
+      which costs no additional queries.
+
+    * A controlled bit query is implemented by loading the addressed
+      input bit into an ancilla, using it under the control, and
+      unloading it with a second query. So a controlled query costs two
+      ordinary queries.
+
+    * The global bit index is computed reversibly from the column,
+      cell, and wire indices, using only free arithmetic.
+
+So neither coherent addressing nor the retained comparison garbage
+changes the model or the count.
+
+
+================================================================================
+PART V. THE CLASSICAL LOWER BOUND
+================================================================================
+
+Two ingredients: a lemma saying that answering many independent copies of
+a hard question is exponentially unlikely, and a pair of inputs that
+differ in two places. The rest is bookkeeping.
+
+
+--------------------------------------------------------------------------------
+14. HOW TO ANSWER MANY HARD QUESTIONS AT ONCE
+--------------------------------------------------------------------------------
+
+14.1 What the lemma says, in words.
+
+Suppose one copy of a question needs L queries to answer, and even then
+you get it right only with probability at most 2/3 against a suitably
+chosen distribution on its inputs. Then r independent copies, queried
+ADAPTIVELY and INTERLEAVED, and with a budget of L queries per copy,
+are answered correctly with probability at most (2/3)^r.
+
+"Adaptively and interleaved" means the algorithm may ask its first
+question to copy 3, then two questions to copy 1, then react to those
+answers and ask more from whichever copy it likes. The lemma says that
+this freedom buys nothing: the success probability still multiplies.
+
+14.2 The lemma.
+
+    LEMMA 14.1 (Capped direct product). Let P be a partial Boolean
+    function with domain D inside {0,1}^N, let mu be a distribution on
+    D, and let L be a nonnegative integer. Suppose every deterministic
+    algorithm making at most L queries computes P correctly with
+    probability at most beta, when the input is drawn from mu.
+
+    Let U(1),...,U(r) be independent samples from mu. Then every
+    classical algorithm making at most L queries to EACH U(h) has
+    probability at most
+
+        beta^r
+
+    of outputting
+
+        ( P(U(1)), ..., P(U(r)) ) .
+
+    The algorithm may be randomized, may choose which of the r inputs to
+    query next adaptively based on all answers so far, and may receive
+    any extra information that is independent of U(1),...,U(r).
+
+14.3 The proof.
+
+Step 1: remove randomness. Fix the extra information and all coin
+flips. What remains is a deterministic algorithm. We prove the bound for
+each fixed choice, and then average.
+
+Step 2: the conditional distribution stays a product. This is the key
+structural fact.
+
+    Claim. Fix a transcript tau of positive probability, that is, a
+    complete record of the queries made so far and the answers received.
+    Conditional on tau, the law of (U(1),...,U(r)) is a product of the
+    individual conditional laws.
+
+    Proof of the claim. The event "transcript is tau" constrains each
+    U(h) only through the bits that were queried in U(h): it requires
+    them to equal the answers recorded in tau. Any tuple of inputs
+    satisfying those requirements produces exactly the same transcript,
+    because the next query is determined by the previous answers. So
+    the event is a Cartesian product of constraints, one per input, and
+    the inputs are independent. QED
+
+Step 3: a supermartingale. For each h and each transcript tau, define
+
+    V(h)(tau) = the largest probability of computing P(U(h)) correctly
+                using at most L - q(h) further queries to U(h),
+
+where q(h) is the number of queries already made to U(h) in tau, and
+the maximum is over all strategies for the remaining budget, evaluated
+under the conditional law of U(h) given tau. The maximum exists because
+the domain is finite and the budget is finite.
+
+Two observations.
+
+    (i) Initially, before any query, every V(h) is at most beta:
+        the initial conditional law is mu and the budget is L.
+
+    (ii) The PRODUCT of the V(h) is a supermartingale in the successive
+         queries. Indeed, suppose the next query addresses U(h). Then,
+         conditional on tau, the expected value of V(h) after the answer
+         is at most V(h)(tau): making that particular query and then
+         continuing optimally is one of the strategies allowed in the
+         definition of V(h)(tau). The other factors V(j) for j
+         different from h are unchanged and may be pulled out of the
+         expectation. So
+
+             E[ product of V(j) | tau ]  <=  product of V(j)(tau) .
+
+There are at most r*L queries in total. A run that stops earlier can be
+extended by steps that leave all V's unchanged, so the supermartingale
+property covers the whole run.
+
+Step 4: conclusion. At the final transcript, the algorithm has chosen an
+answer vector. The conditional probability that this particular vector
+is correct is at most
+
+    product over h of ( max over b in {0,1} of Pr[ P(U(h)) = b | tau ] ) ,
+
+because, by the claim, the r coordinates are conditionally independent
+given tau. Each factor is at most V(h)(tau), since the algorithm may
+always choose to make no further queries. So the conditional success
+probability is at most the product of the V(h).
+
+Taking expectations over the transcript, and then averaging over the
+fixed extra information and the coin flips, gives the bound beta^r. QED
+
+14.4 Where beta comes from: minimax.
+
+We will apply the lemma to P = P(k,m), to mu = a distribution supplied by
+minimax, and to L as in Section 6.2.
+
+The hypothesis "every deterministic algorithm with L queries has
+success at most beta" is supplied by minimax (Yao's principle), as
+follows.
+
+Consider the finite set of deterministic decision trees of depth at most
+L on the finite domain D. A randomized algorithm of depth L is a
+probability distribution over these trees. Finite minimax, applied to
+the payoff "answer correctly", says
+
+    max over distributions on depth-L trees of
+        min over x in D of Pr[ correct on x ]
+
+  = min over distributions mu on D of
+        max over depth-L trees T of Pr_{x from mu}[ T(x) = P(x) ] .
+
+The left-hand side is the best worst-case success probability of a
+randomized algorithm with L queries. Since L < R(P) by Section 6.2,
+that best is strictly below 2/3. (The maximum is attained, because
+there are finitely many trees.)
+
+Therefore SOME distribution mu makes every depth-L tree succeed with
+probability at most 2/3. Take beta = 2/3.
+
+So the lemma gives: guessing r independent answers, with L queries per
+answer, succeeds with probability at most (2/3)^r.
+
+14.5 The number that matters.
+
+With
+
+    r = ceil( 20 * log2(m) ) ,
+
+we have
+
+    (2/3)^r  <=  m^{ 20 * log2(2/3) }  =  m^{-20 * log2(3/2)} .
+
+The number log2(3/2) is about 0.585, so
+
+    (2/3)^r  <=  m^{-11.7...} ,
+
+an astronomically small number. For m = 1024, that is about 10^{-35}.
+This is the factor that makes guessing a whole address hopeless.
+
+
+--------------------------------------------------------------------------------
+15. THE PLANTED INPUT
+--------------------------------------------------------------------------------
+
+15.1 Two inputs that differ in two places.
+
+We build a distribution on inputs with no winner, then a coupled
+distribution on inputs with a winner.
+
+DUMMY INPUT Y(0). For each column i independently:
+
+    * choose J(i) uniformly from {1,...,m}, and set X(i) to all ones
+      EXCEPT at position J(i), where it is 0;
+
+    * draw A(i,1),...,A(i,r) independently from the distribution mu of
+      Section 14.4 (so they are always inside the domain of P);
+
+    * fill every cell B(i,s) with one fixed blank bit pattern. Blanks
+      never form a correct transcript, since a correct transcript would
+      need d = 1 in its output gate, and the fixed pattern does not
+      satisfy the circuit's defining equations.
+
+Every column has a zero, so no column is all ones, so no column is a
+winner. Hence
+
+    F(Y(0)) = 0 .
+
+Now choose I uniformly from {1,...,m}, independently of everything.
+
+PLANTED INPUT Y(1). Form Y(1) from Y(0) by exactly two changes.
+
+    * Set X(I) to all ones. (This erases the zero at position J(I).)
+
+    * In the cell B(I, s(I)) at I's true address, write the correct
+      transcripts and the pointers
+
+          p(I, s(I), j)  =  J(j)      for every j different from I.
+
+      The transcripts are the true evaluations of C on A(I,1),...,A(I,r),
+      which exist because those strings are inside the domain of P. The
+      pointer into column j names position J(j), where X(j) has a 0.
+
+Nothing else changes.
+
+Then column I is a winner: its string is all ones, its address is
+defined and certified, and its pointers point at zeros everywhere else.
+So
+
+    F(Y(1)) = 1 .
+
+15.2 Where exactly do the two inputs differ?
+
+Compare Y(0) and Y(1) bit by bit.
+
+    * X(I) at position J(I): 0 in Y(0), 1 in Y(1).          (DIFFERS)
+
+    * All other bits of X(I): 1 in both.                    (SAME)
+
+    * All bits of X(j) for j different from I: identical.   (SAME)
+
+    * The cell B(I, s(I)): blank in Y(0), correct in Y(1).  (DIFFERS)
+
+    * Every other cell: blank in both.                      (SAME)
+
+    * All A(i,h) strings: identical.                        (SAME)
+
+So the two inputs differ in exactly one bit of X(I) and in the bits of
+one cell.
+
+15.3 The coupling argument.
+
+Consider a deterministic algorithm with a query budget G. Run it on Y(0)
+and on Y(1). Until it queries a location where the two inputs differ,
+both runs receive identical answers, and therefore make identical
+queries. So the two runs can be coupled: they diverge only if the run
+on Y(0) queries
+
+    * the bit X(I) at position J(I), or
+    * some bit of the cell B(I, s(I)) .
+
+Therefore
+
+    | Pr[ algorithm outputs 1 on Y(0)]
+      - Pr[ algorithm outputs 1 on Y(1)] |
+
+    <=  Pr[ the Y(0)-run queries X(I) at J(I) ]
+      + Pr[ the Y(0)-run queries some bit of B(I, s(I)) ] .
+
+(Counting EVERY visit to the cell, rather than only visits to bits that
+actually differ, only makes the bound larger, and it is simpler.)
+
+If the algorithm had worst-case error at most 1/3, it would output 1
+with probability at most 1/3 on Y(0) and at least 2/3 on Y(1), so the
+difference would be at least 1/3. So it suffices to show that the
+right-hand side above is less than 1/3.
+
+That is what Section 16 does.
+
+15.4 Why the A strings are drawn from mu.
+
+The distribution mu is chosen so that a single Forrelation instance needs
+more than L queries to solve. Every column gets its own independent
+draws. The independence is essential: it is what lets Lemma 14.1 say
+that guessing r answers is like guessing r independent coins. And it is
+why the planted input can afford to leave the A strings alone: the
+whole difficulty of the problem is packed into them.
+
+
+--------------------------------------------------------------------------------
+16. BOUNDING THE TWO WAYS TO NOTICE
+--------------------------------------------------------------------------------
+
+16.1 Preview.
+
+The two terms to bound are:
+
+    Term 1 (finding the erased zero):  how likely is the run to query
+        the one bit that changed in X(I)?
+
+    Term 2 (reaching the planted cell): how likely is the run to query
+        the transplanted cell B(I, s(I))?
+
+Term 1 is answered by an averaging argument over the hidden zero
+positions. Term 2 is answered by a split into "heavy" and "nonheavy"
+columns, with Lemma 14.1 handling the nonheavy ones.
+
+16.2 Term 1: the erased zero.
+
+Let Z be the number of columns whose zero is FOUND during the run on
+Y(0). That is, Z is the number of columns i such that the run queries
+position J(i) of X(i).
+
+Since I is uniform and independent of the run, and the run queries X(I)
+at position J(I) exactly when column I's zero is found,
+
+    Pr[ the run queries X(I) at J(I) ]  =  E[Z] / m .
+
+So it remains to bound E[Z]. This is where the structure of the dummy
+distribution is used: each X(i) has exactly one zero, uniformly placed,
+and the cells reveal nothing about it (they are blank, and the blank
+pattern is the same in every cell).
+
+    Claim.  E[Z]  <=  4G/m .
+
+    Proof. Consider a column i and the moment at which its zero is found.
+    Before that moment, the position of the zero is uniform among the
+    positions of column i not yet queried. This is true conditional on
+    the entire adaptive transcript, because X(i)'s zero position is
+    independent of all the other parts of the input and of the answers
+    received so far, and the blank cells reveal nothing about it.
+
+    Call the discovery EARLY if fewer than m/2 distinct positions of
+    column i were queried before it. Conditional on the transcript just
+    before a query, if k < m/2 positions have been queried then at least
+    m - k > m/2 positions remain candidates, so the probability that
+    this particular query is the zero is at most 1/(m-k) < 2/m.
+    Summing over the G queries, the expected number of early discoveries
+    is at most 2G/m.
+
+    A discovery that is not early happens in a column that received at
+    least m/2 queries. There are at most G/(m/2) = 2G/m such columns.
+
+    Adding the two expectations gives E[Z] <= 4G/m. QED
+
+Consequently
+
+    Term 1  <=  4G / m^2 .
+
+16.3 Term 2: heavy and nonheavy columns.
+
+The planted cell is at the TRUE address s(I), which depends on all r
+answers P(A(I,h)). There are two ways to get there: learn the address,
+or guess it.
+
+    DEFINITION. Call column i HEAVY if the run makes more than L queries
+    in total to its strings A(i,1),...,A(i,r). Otherwise call it
+    NONHEAVY.
+
+Since the whole run makes G queries, there are at most G/L heavy
+columns. Since I is uniform and independent of the run,
+
+    Pr[ I is heavy ]  <=  (G/L)/m  =  G/(m L) .
+
+The complement of "heavy" is "nonheavy": at most L queries in total to
+the r strings of that column.
+
+16.4 A simulator that tries to guess the address.
+
+Fix i and a time t in {1,...,G}. Here is an algorithm that tries to
+guess the address of column i.
+
+    It is given, for free, the entire dummy input EXCEPT the r strings
+    A(i,1),...,A(i,r). This information is independent of those r
+    strings.
+
+    It runs the deterministic algorithm up to the proposed t-th query,
+    but aborts if it is about to make an (L+1)-st query to the r strings
+    in total.
+
+    If it reaches time t and the proposed t-th query is into the cell
+    B(i,s), it outputs s as its guess for the address (that is, for the
+    vector of r answers). Otherwise, including when the simulated run
+    stops or aborts, it outputs some fixed vector.
+
+This simulator makes at most L queries in total to the r target strings,
+hence at most L to each of them. By Lemma 14.1, it guesses the address
+vector s(i) correctly with probability AT MOST
+
+    (2/3)^r .
+
+16.5 The crucial correspondence.
+
+When the original dummy run queries the cell B(i, s(i)) at time t AND
+column i is nonheavy, the simulator has not aborted (because the
+original run made at most L queries to those strings by time G, hence
+by time t), and its t-th query is exactly the query into B(i, s(i)).
+Therefore the simulator outputs exactly s(i).
+
+So
+
+    Pr[ i is nonheavy AND the t-th query of the run is in B(i, s(i)) ]
+        <=  (2/3)^r .
+
+Note carefully: the simulation bounds a JOINT event, and it does not
+condition the input distribution on the column being nonheavy. That
+matters, because conditioning could destroy the independence that
+Lemma 14.1 needs. This is a small but essential point in the original
+proof.
+
+16.6 Union over t and average over I.
+
+There are at most G possible times t, so
+
+    Pr[ I is nonheavy AND the run queries B(I, s(I)) ]
+        <=  G * (2/3)^r .
+
+Adding the heavy event from Section 16.3,
+
+    Term 2  <=  G/(m L)  +  G * (2/3)^r .
+
+16.7 Putting it together.
+
+The difference between the two output probabilities is at most
+
+    Term 1 + Term 2
+
+        =  4G/m^2  +  G/(m L)  +  G * (2/3)^r .
+
+Now choose
+
+    G  =  floor( m * L / 100 ) .
+
+For all sufficiently large powers of four m we have 1 <= L <= m, so
+
+    4G/m^2  <=  4L/(100 m)  <=  4/100 ,
+
+    G/(m L)  <=  1/100 ,
+
+    G * (2/3)^r
+        <=  (m^2/100) * (2/3)^r
+        <=  (1/100) * m^{ 2 - 20*log2(3/2) }
+        =   o(1) ,
+
+the last exponent being about 2 - 11.7 = -9.7.
+
+So the total is at most
+
+    5/100  +  o(1)  <  1/3
+
+for all large enough m.
+
+Therefore no deterministic algorithm with budget G can distinguish the
+two inputs. The same holds for randomized algorithms with worst-case
+budget G, by fixing the coins and averaging.
+
+16.8 The conclusion.
+
+    PROPOSITION 16.1. For each fixed integer k >= 2 and every
+    sufficiently large power of four m, the total function F(k,m) of
+    Part III satisfies
+
+        R(F(k,m))  >  G  =  floor( m * L / 100 ) ,
+
+    where L = floor( m^{1-1/k} / (log2 m)^2 ). In particular
+
+        R(F(k,m))  =  Omega_k( m^{2 - 1/k} / (log m)^2 ) .
+
+16.9 The intuition, in one paragraph.
+
+A classical algorithm has to choose. It can spend several million
+queries learning one column's address, or it can ignore addresses and
+hope. The heavy-column count says it can afford to learn the address of
+only a 1/100 fraction of the columns, and then the uniform choice of I
+means it is looking at the wrong column with probability about 99/100.
+The direct-product bound says guessing is hopeless: the address has r
+independent hard bits, each guessed with probability at most 2/3, so a
+whole address guess is right with probability about m^{-11.7}. The two
+failure modes ADD because they concern disjoint parts of the input.
+
+
+================================================================================
+PART VI. THE EXPONENT IS EXACTLY FOUR
+================================================================================
+
+
+--------------------------------------------------------------------------------
+17. ADDING UP
+--------------------------------------------------------------------------------
+
+17.1 The family, restated.
+
+Combining Part IV and Part V:
+
+    PROPOSITION 17.1. For each fixed integer k >= 2 there are positive
+    constants c(k), C(k), b(k) such that, for every sufficiently large
+    power of four m, the total function F(k,m) of Part III satisfies
+
+        Q(F(k,m))  <=  C(k) * sqrt(m) * (log m)^{b(k)} ,
+
+        R(F(k,m))  >=  c(k) * m^{2 - 1/k} / (log m)^2 .
+
+Everything in this proposition has been proved: the first line is
+Proposition 13.1, the second line is Proposition 16.1. The constants
+absorb the powers of log m and the fixed dependence on k.
+
+17.2 Killing every smaller exponent.
+
+Fix a real number alpha with
+
+    0 <= alpha < 4 .
+
+Choose an integer k >= 2 so large that
+
+    2 - 1/k > alpha/2 .
+
+Such a k exists because 2 - 1/k tends to 2 from below as k grows, and
+alpha/2 < 2. For example:
+
+    if alpha = 3,     need 2 - 1/k > 1.5,   so 1/k < 0.5, any k >= 3;
+    if alpha = 3.9,   need 1/k < 0.05,      so k >= 21;
+    if alpha is near 4, k must be about 2/(4 - alpha).
+
+Now keep k FIXED and let m run over large powers of four. Write
+
+    Q = Q(F(k,m))  and  R = R(F(k,m)) .
+
+From Proposition 17.1,
+
+    1 + Q  <=  1 + C(k) * sqrt(m) * (log m)^{b(k)}
+           <=  C'(k) * sqrt(m) * (log m)^{b(k)}
+
+for all large enough m (the constants absorb the "+1" and the "+1" in
+front of the logarithm). Raising to the power alpha,
+
+    (1 + Q)^alpha
+        <=  C''(k, alpha) * m^{alpha/2} * (log m)^{alpha * b(k)} .
+
+Therefore
+
+    R / (1 + Q)^alpha
+
+        >=  c(k) * m^{2 - 1/k} / (log m)^2
+            / ( C''(k,alpha) * m^{alpha/2} * (log m)^{alpha b(k)} )
+
+        =   c''(k, alpha) * m^{ 2 - 1/k - alpha/2 }
+            / (log m)^{ 2 + alpha * b(k) } .
+
+By the choice of k, the exponent in m is
+
+    2 - 1/k - alpha/2  >  0 .
+
+A positive power of m beats any power of log m. So the ratio tends to
+infinity as m grows. Hence no constant C can make
+
+    R(f)  <=  C * (1 + Q(f))^alpha
+
+hold for every total function f. This proves
+
+    alpha_tot >= 4 .
+
+17.3 Closing the gap.
+
+Part VII proves: for every total Boolean function f,
+
+    R(f)  <=  D(f)  =  O( (1 + Q(f))^4 ) .
+
+So 4 does belong to the set of admissible exponents, and
+
+    alpha_tot  =  4 .
+
+17.4 What the separation really looks like.
+
+It is worth writing down the actual shape of the gap once, for the
+record, since slogans can hide the truth.
+
+    Q(F(k,m))  =  sqrt(m) * (log m)^{O_k(1)}          -- SMALL
+    R(F(k,m))  =  m^{2-1/k} / (log m)^2               -- BIG
+
+Eliminating m in favour of Q:
+
+    m = Q^2 / (log m)^{O_k(1)} = Q^{2+o(1)} ,
+
+    R = Q^{4-2/k} / (log m)^{O_k(1)} .
+
+So R is a positive power of Q that can be made arbitrarily close to 4,
+divided by a power of the logarithm. It is never equal to Q^4: it is
+Q^4 divided by m^{1/k} times a polylogarithm.
+
+Three things this says.
+
+    * The exponent 4 is optimal as a power, in the sense of the
+      definition of alpha_tot. No bound R <= C (1+Q)^alpha with
+      alpha < 4 can hold for all total functions.
+
+    * The family does not achieve a clean quartic separation: there is
+      a subpolynomial (in Q) loss. This is the "nearly" in the title.
+
+    * The loss is precisely m^{1/k} * (log m)^{O(1)} = Q^{2/k} *
+      (log Q)^{O(1)}, which can be made as close to 1 as desired in the
+      exponent by choosing k large, at the cost of making the constants
+      C(k), c(k) worse and the input size larger.
+
+17.5 The three things that made this work.
+
+For the reader who wants the plot rather than the details:
+
+    (1) A cheat sheet indexed by hard bits: locating the right cell
+        costs r answers to P, cheap quantumly, expensive classically.
+        (This is the ABK16 idea.)
+
+    (2) Self-certifying cells: a verifier recomputes the address from
+        the raw A strings, gate by gate, so a TOTAL function can use an
+        addressed certificate with no promise. (This is what makes the
+        construction total.)
+
+    (3) Outward pointers: a winner disqualifies every opponent and can
+        never be disqualified, so a quantum tournament can find it with
+        comparisons that are worthless for non-winners. (This is the
+        new ingredient that pushes the exponent from 3 to 4.)
+
+Any two of the three are not enough. Cheat sheets alone give the ABK16
+power 5/2 with the partial-function P improved to keep the promise. The
+promise-free version without pointers does not let an algorithm compare
+candidates. Pointers without cheat sheets would not give a total
+function with an unbounded address space.
+
+
+================================================================================
+PART VII. WHY FOUR IS AN UPPER BOUND
+================================================================================
+
+This part proves the known theorem R(f) <= D(f) = O((1+Q(f))^4) for every
+total Boolean function. Nothing from Parts II-VI is used. The proof is the
+one of Aaronson, Ben-David, Kothari, Rao and Tal (2021), and it rests on
+Huang's proof of the sensitivity conjecture (2019).
+
+
+--------------------------------------------------------------------------------
+18. LINEAR ALGEBRA IN ONE PAGE, AND THE ADVERSARY BOUND
+--------------------------------------------------------------------------------
+
+18.1 The minimum linear algebra we need.
+
+Everything in this part is finite-dimensional real linear algebra.
+Matrices are square and symmetric, with rows and columns indexed by the
+2^n inputs of a Boolean function f.
+
+    * A VECTOR v is a list of real numbers v(x), one per input. Its norm
+      is |v| = sqrt( sum over x of v(x)^2 ).
+
+    * A MATRIX M is a table M(x,y). It is SYMMETRIC if M(x,y) = M(y,x)
+      and NONNEGATIVE if all entries are >= 0. It acts on vectors by
+
+          (M v)(x)  =  sum over y of M(x,y) v(y) .
+
+    * The OPERATOR NORM |M| of a symmetric matrix M is
+
+          the largest possible value of |M v| / |v| over nonzero v,
+
+      which equals the largest absolute value of an eigenvalue of M.
+
+    * PERRON-FROBENIUS, the only non-elementary linear algebra fact we
+      use: a nonnegative symmetric matrix M has a nonnegative unit vector
+      v with
+
+          M v = |M| v .
+
+      Consequently, v^T M v = |M| when v is a unit vector.
+
+That is all. The rest of Part VII is combinatorial.
+
+18.2 The adversary bound.
+
+    LEMMA 18.1 (Nonnegative spectral adversary). Let f be a nonconstant
+    total Boolean function. Let Gamma be a nonzero, symmetric,
+    nonnegative matrix indexed by inputs, with
+
+        Gamma(x,y) = 0   whenever   f(x) = f(y) .
+
+    For each coordinate i, let Gamma(i) be the matrix obtained by
+    keeping only those entries Gamma(x,y) for which x and y differ in
+    coordinate i. Then, for an absolute constant c > 0,
+
+        Q(f)  >=  c * |Gamma| / ( max over i of |Gamma(i)| ) .
+
+The lemma is the standard spectral-adversary lower bound of Barnum,
+Saks and Szegedy (2003). We prove it because the proof is not long and
+because the parameters matter.
+
+18.3 The proof.
+
+SETUP. Purify the algorithm. All randomness is replaced by a
+deterministic unitary acting on a larger space, and all measurements are
+deferred to the end. Branches that have already finished may perform
+"empty" queries (queries to an auxiliary index that is never used), and
+a controlled bit query can be simulated by two ordinary bit queries. So
+the number of queries grows by at most a constant factor. This is why a
+worst-case bounded algorithm becomes a fixed-length algorithm with a
+slightly larger cap.
+
+Let
+
+    |psi(x, t)>
+
+be the normalized state of the algorithm on input x after t queries.
+For t = 0 the state does not depend on x, because no input bit has been
+read.
+
+Let v be the nonnegative unit eigenvector of Gamma with eigenvalue
+|Gamma|, whose existence is Perron-Frobenius. Define
+
+    W(t)  =  sum over x,y of v(x) v(y) Gamma(x,y) <psi(x,t) | psi(y,t)> .
+
+INITIAL VALUE. At t = 0 the states are input-independent, so
+
+    W(0) = sum over x,y of v(x) v(y) Gamma(x,y) = v^T Gamma v = |Gamma| .
+
+CHANGE PER QUERY. Input-independent unitaries preserve all inner
+products, so only queries change W. Just before a query, write the
+state as
+
+    |psi(x)>  =  sum over i of |i> |phi(x,i)> ,
+
+where i ranges over the queried coordinates and the |phi(x,i)> are
+unnormalized. The bit oracle acts the same way on inputs x and y at
+index i unless x(i) and y(i) differ. When they differ, the inner
+product changes by at most
+
+    2 * |phi(x,i)| * |phi(y,i)| ,
+
+because the difference between the relevant unitary and the identity
+has operator norm at most 2.
+
+Put u(i)(x) = v(x) |phi(x,i)|. These are NONNEGATIVE, and this is where
+nonnegativity of Gamma enters. Using Gamma(x,y) >= 0,
+
+    | W(t+1) - W(t) |
+        <=  2 * (sum over i of u(i)^T Gamma(i) u(i))
+
+        <=  2 * (max over i of |Gamma(i)|) * (sum over i of |u(i)|^2) .
+
+And
+
+    sum over i of |u(i)|^2
+        = sum over i and x of v(x)^2 |phi(x,i)|^2
+        = sum over x of v(x)^2 * 1
+        = 1 ,
+
+by the normalization of each |psi(x)> and the fact that |v| = 1.
+Therefore
+
+    | W(t+1) - W(t) |  <=  2 * (max over i of |Gamma(i)|) .
+
+FINAL VALUE. At the end we measure an output bit. Suppose f(x) differs
+from f(y); say f(x) = 0 and f(y) = 1. Write
+
+    p_x(b)  =  Pr[ the algorithm outputs b on input x ] ,
+    p_y(b)  =  Pr[ the algorithm outputs b on input y ] .
+
+Correctness says p_x(0) >= 2/3 and p_y(1) >= 2/3, so
+
+    p_x(1) <= 1/3     and     p_y(0) <= 1/3 .
+
+A general fact about two quantum states is that the absolute value of
+their inner product is at most the sum, over outcomes b, of the square
+roots of the products of the outcome probabilities:
+
+    | <psi(x) | psi(y)> |
+        <=  sqrt( p_x(0) p_y(0) ) + sqrt( p_x(1) p_y(1) ) .
+
+(This is the standard fact that the overlap is at most the fidelity.)
+Applying the bounds above,
+
+    | <psi(x) | psi(y)> |
+        <=  sqrt( (2/3)(1/3) ) + sqrt( (1/3)(2/3) )
+        =   2 * sqrt(2) / 3
+        =   0.943... .
+
+The case f(x) = 1, f(y) = 0 is the same by symmetry.
+
+Splitting the sum defining W(final) into pairs with f(x) = f(y), which
+contribute zero by the hypothesis on Gamma, gives
+
+    | W(final) |  <=  (2 sqrt(2)/3) * |Gamma| .
+
+CONCLUSION. W must change by at least
+
+    |Gamma| - (2 sqrt(2)/3)|Gamma|  =  (1 - 2 sqrt(2)/3)|Gamma| ,
+
+which is about 0.057 |Gamma|. Each query changes W by at most
+2 max_i |Gamma(i)|. So the number of queries is at least
+
+    (1 - 2 sqrt(2)/3) |Gamma| / ( 2 * max over i of |Gamma(i)| ) ,
+
+which is the claimed form with
+
+    c = (1 - 2 sqrt(2)/3) / 2  =  0.028... .
+
+QED
+
+18.4 How to use the lemma.
+
+To prove a quantum lower bound for f, one exhibits a matrix Gamma with
+large norm and small coordinate slices. Two examples in Section 19 give
+two of the four ingredients of the final theorem.
+
+
+--------------------------------------------------------------------------------
+19. BLOCK SENSITIVITY AND THE SENSITIVITY GRAPH
+--------------------------------------------------------------------------------
+
+19.1 Sensitivity and blocks.
+
+A coordinate i is SENSITIVE at input x if flipping x(i) changes f(x).
+The sensitivity s(f) is the largest number of sensitive coordinates, over
+all inputs.
+
+A set B of coordinates is a SENSITIVE BLOCK at x if flipping EVERY bit
+of B (and no other bit) changes f(x). The block sensitivity bs(f) is the
+largest number of pairwise disjoint sensitive blocks, over all inputs x.
+
+Clearly s(f) <= bs(f), since a single coordinate is a block.
+
+19.2 The sensitivity graph.
+
+Let S(f) be the adjacency matrix of the graph whose vertices are all 2^n
+inputs and where two inputs are adjacent exactly when they differ in
+exactly one bit AND have different f-values. This is a simple,
+undirected, nonnegative, symmetric matrix. Define
+
+    lambda(f) = |S(f)| ,
+
+the operator norm of this adjacency matrix.
+
+19.3 The lemma.
+
+    LEMMA 19.1. For every nonconstant total Boolean function,
+
+        bs(f)  =  O( Q(f)^2 )     and     lambda(f)  =  O( Q(f) ) .
+
+    Proof.
+
+    FIRST: bs(f) = O(Q(f)^2). Let x have b pairwise disjoint sensitive
+    blocks B(1),...,B(b), and for each block let y(B) be the input
+    obtained by flipping B. Take Gamma to be the adjacency matrix of a
+    STAR: the center is x, the leaves are the b inputs y(B), with entry
+    1 on each edge and 0 elsewhere. This Gamma is symmetric, nonnegative,
+    and zero on pairs with f(x) = f(y), because flipping a sensitive
+    block changes the function value.
+
+        * Gamma has norm sqrt(b). Reason: the vector that is 1 on the
+          leaves (and 0 elsewhere, or with the appropriately scaled
+          center coordinate) is an eigenvector with eigenvalue +sqrt(b);
+          equivalently, the star is a complete bipartite graph K(1,b)
+          whose adjacency spectrum is {+sqrt(b), 0, ..., 0, -sqrt(b)}.
+
+        * For each coordinate i, Gamma(i) has at most ONE edge, because
+          the blocks are disjoint, so at most one block contains i. A
+          single-edge matrix has norm 1.
+
+    So Lemma 18.1 gives
+
+        Q(f)  >=  c * sqrt(b) / 1 = c sqrt(b) ,
+
+    that is, b = O(Q^2). Since x and its blocks were arbitrary, this
+    proves bs(f) = O(Q(f)^2).
+
+    SECOND: lambda(f) = O(Q(f)). Take Gamma = S(f), the sensitivity
+    graph adjacency matrix. For each coordinate i, the edges of S(f)
+    that flip coordinate i form a PARTIAL MATCHING: each input has at
+    most one neighbour obtained by flipping coordinate i, because
+    flipping i is deterministic.
+
+    A partial matching's adjacency matrix has norm at most 1: its edges
+    are disjoint, so its largest eigenvalue is at most 1 (in fact the
+    spectral radius of a graph of maximum degree 1 is at most 1).
+
+    So Lemma 18.1 applied to Gamma = S(f) gives
+
+        Q(f)  >=  c * lambda(f) / 1 ,
+
+    that is, lambda(f) = O(Q(f)). QED
+
+19.4 The two inequalities we carry forward.
+
+    bs(f)     =  O( Q(f)^2 )
+    lambda(f) =  O( Q(f)^1 )
+
+Section 21 combines these with the degree bound of Section 20.
+
+
+--------------------------------------------------------------------------------
+20. DEGREE VERSUS LAMBDA: HUANG'S THEOREM
+--------------------------------------------------------------------------------
+
+20.1 The statement.
+
+Let deg(f) be the degree of the real multilinear polynomial that
+represents f on inputs in {0,1}^n. Replacing bits by signs does not
+change the degree: a function of n bits is a degree-d polynomial in the
+bits if and only if it is a degree-d polynomial in the signs
+
+    chi(x) = (-1)^{bit} .
+
+So we may work with signs throughout this section.
+
+    LEMMA 20.1. For every nonconstant total Boolean function,
+
+        deg(f)  <=  lambda(f)^2 .
+
+This is the form of Huang's sensitivity theorem that Aaronson and
+coauthors use. The original theorem is bs(f) = O(s(f)^2); the degree
+form is what fits the adversary bound.
+
+20.2 The proof.
+
+STEP 1: RESTRICT TO A d-CUBE. Write f as a real multilinear polynomial
+in sign variables, with d = deg(f) >= 1. Some monomial of degree d has a
+nonzero coefficient; say its support is a set R of d coordinates. Fix
+all other n - d coordinates to arbitrary signs (say +1).
+
+The coefficient of that monomial is UNCHANGED by this restriction. Why?
+Fixing variables can turn other monomials into monomials on R, but only
+by removing variables from their support, which LOWERS their degree.
+A monomial that would contribute to the coefficient of the full monomial
+on R after fixing must have contained R, so its degree was at least d;
+if it strictly contains R its degree is larger than d, contradiction.
+So only the chosen monomial contributes.
+
+The result is a sign function g on the d-cube whose correlation with
+parity is nonzero:
+
+    sum over x in {+1,-1}^d of g(x) * x(1) x(2) ... x(d)  is not 0 .
+
+(It equals a positive power of 2 times the coefficient, up to the
+constant factor from the sign-value embedding.)
+
+STEP 2: A LARGE SET WHERE g AGREES WITH PARITY. Because the correlation
+above is nonzero, the two sets
+
+    U(+)  =  { x : g(x) = + x(1) x(2) ... x(d) } ,
+    U(-)  =  { x : g(x) = - x(1) x(2) ... x(d) } ,
+
+have different sizes: the correlation is |U(+)| - |U(-)| divided by 2^d,
+which is nonzero only when the sizes differ. So one of them has size
+STRICTLY GREATER than 2^{d-1}. Call it U.
+
+Every edge of the d-cube with both endpoints in U joins two inputs on
+which g differs: parity flips across every edge, so if both endpoints
+agree with parity then g differs at both, and likewise if both disagree.
+
+STEP 3: A SIGNED MATRIX WITH SQUARE d*I. Define matrices recursively:
+
+    H'(1)   =  [ 0  1 ]
+               [ 1  0 ] ,
+
+    H'(j+1) =  [ H'(j)   I   ]
+               [ I     -H'(j) ] .
+
+Two facts by induction:
+
+    * The entrywise absolute value of H'(j) is the ordinary adjacency
+      matrix of the j-cube.
+
+    * (H'(j))^2 = j * I .
+
+Let us verify the second for j+1:
+
+    [ H'  I ]  [ H'  I ]      [ H'^2 + I      H' - H'  ]
+    [ I  -H']  [ I  -H']  =   [ H' - H'    I + H'^2    ]
+
+                          =   [ (j+1) I     0     ]
+                              [ 0       (j+1) I    ] .
+
+Also the trace of H'(j) is zero by induction (the diagonal blocks of
+H'(j+1) have traces tr H'(j) and -tr H'(j)). So the eigenvalues of
+H'(j) are +sqrt(j) and -sqrt(j), each with multiplicity 2^{j-1}.
+
+Apply this with j = d. The (+sqrt(d))-eigenspace has dimension 2^{d-1},
+and the space of vectors supported on U has dimension |U| > 2^{d-1}.
+Their dimensions add to more than 2^d, so they INTERSECT NONTRIVIALLY.
+Take a nonzero real vector v in the intersection, and set u = |v|
+entrywise.
+
+Let A(U) be the ordinary (unsigned) adjacency matrix of the subgraph of
+the d-cube induced on U. For each edge {x,y} with both endpoints in U,
+
+    v(x) v(y) H'(d)(x,y)  <=  |v(x) v(y)|  =  u(x) u(y) ,
+
+because H'(d)(x,y) is +1 or -1. Summing over all edges of the induced
+subgraph,
+
+    u^T A(U) u  >=  v^T H'(d) v  =  sqrt(d) |v|^2  =  sqrt(d) |u|^2 .
+
+STEP 4: EXTEND BACK TO f. Every edge of A(U) is a sensitivity edge for
+g on the d-cube. After undoing the restriction of Step 1, every such
+edge becomes a sensitivity edge for the original function f (the
+restricted coordinates were fixed, so flipping the differing
+coordinate still changes the value). So S(f) contains all those edges.
+
+Extend u by zero to all 2^n inputs of f. Then
+
+    u^T S(f) u  >=  u^T A(U) u  >=  sqrt(d) |u|^2 ,
+
+so the operator norm of S(f) is at least sqrt(d):
+
+    lambda(f)  >=  sqrt( deg(f) ) .
+
+Squaring gives deg(f) <= lambda(f)^2. QED
+
+20.3 The history in one sentence.
+
+Huang proved the sensitivity conjecture by the same H'-matrix trick
+applied directly to the induced subgraph, showing s(f) >= sqrt(bs(f)).
+Here the H'-matrix trick is applied to a restriction of the polynomial,
+which yields a statement about the degree.
+
+
+--------------------------------------------------------------------------------
+21. DETERMINISTIC VERSUS BLOCK SENSITIVITY AND DEGREE, AND THE THEOREM
+--------------------------------------------------------------------------------
+
+21.1 Midrijanis's algorithm.
+
+    LEMMA 21.1. For every total Boolean function,
+
+        D(f)  <=  bs(f) * deg(f) .
+
+    Proof. Here is a deterministic algorithm.
+
+        While the function restricted to the answers received so far is
+        nonconstant:
+            select a monomial of MAXIMUM degree in the restricted
+            polynomial;
+            query all of its variables.
+
+    Fix the actual input x, and analyse one round. Let S be the support
+    of the selected monomial. A monomial of maximum degree in the
+    current restriction has a nonzero coefficient. Fixing all
+    still-unqueried variables outside S to their values in x keeps that
+    coefficient nonzero, because no monomial in the restriction
+    strictly contains S (that would have larger degree).
+
+    So the resulting function on S is nonconstant: it has a monomial
+    of degree |S|, and therefore is not the constant function. Hence
+    there is some assignment to S that gives a different value from
+    x's assignment. The set of coordinates where these two assignments
+    differ is NONEMPTY and is a SENSITIVE BLOCK at x.
+
+    Different rounds query DISJOINT sets of coordinates, since
+    previously queried coordinates are already fixed and are never
+    queried again. So the blocks found are pairwise disjoint sensitive
+    blocks at the fixed input x. There are therefore at most bs(f)
+    rounds.
+
+    Each round queries at most deg(f) coordinates, since restrictions
+    never increase degree, and the selected monomial has degree at most
+    deg(f).
+
+    So the total number of queries is at most bs(f) * deg(f). QED
+
+21.2 The theorem.
+
+    THEOREM 21.2. Every total Boolean function satisfies
+
+        R(f)  <=  D(f)  =  O( (1 + Q(f))^4 ) .
+
+    Proof. For nonconstant f, Lemma 19.1 gives
+
+        bs(f)      =  O( Q(f)^2 ) ,
+        lambda(f)  =  O( Q(f) ) .
+
+    Lemma 20.1 gives
+
+        deg(f)  <=  lambda(f)^2  =  O( Q(f)^2 ) .
+
+    Lemma 21.1 gives
+
+        D(f)  <=  bs(f) * deg(f)  =  O( Q(f)^2 ) * O( Q(f)^2 )
+              =  O( Q(f)^4 ) .
+
+    A deterministic algorithm is also randomized, so R(f) <= D(f).
+
+    Constant functions need no queries at all, which is why the statement
+    uses 1 + Q(f) rather than Q(f). QED
+
+21.3 The four ingredients, in one line each.
+
+    * bs(f) = O(Q(f)^2)      -- the star adversary matrix.
+    * lambda(f) = O(Q(f))    -- the sensitivity-graph adversary matrix.
+    * deg(f) <= lambda(f)^2  -- Huang's signed-cube trick applied to a
+                                restriction of the polynomial.
+    * D(f) <= bs(f) deg(f)   -- Midrijanis's greedy monomial algorithm.
+
+21.4 A note on the sharpness of Part VII.
+
+Every step of the proof in this part is tight up to constants for
+"generic" functions, but the theorem only says O((1+Q)^4). Part VI shows
+that the exponent 4 cannot be lowered as a universal power. So the
+theorem is optimal at the level of exponents, though for any particular
+function a much better bound may hold.
+
+
+================================================================================
+PART VIII. HOW THIS MAPS TO THE ORIGINAL PAPER
+================================================================================
+
+The original is a LaTeX document with six numbered source files plus a
+preamble, a references file, and one figure. Here is where everything
+went. Section numbers on the left are this tour's; the file names are the
+original's.
+
+    original file                      this tour
+    ---------------------------------  --------------------------------------
+    main.tex (title, abstract)         title page, section 2.3
+    01-introduction.tex                sections 1, 2, 3
+    02-construction.tex                sections 8, 9, 10
+    03-quantum.tex                     sections 11, 12, 13
+    04-classical.tex                   sections 14, 15, 16
+    05-exponent.tex                    section 17
+    06-upper-bound.tex                 sections 18, 19, 20, 21
+    outward-pointers.tex (a figure)    section 9.5 (drawn in ASCII)
+    preamble.tex (macros)              not needed; all notation is spelled
+                                       out on the spot
+    references.bib                     the reference list below
+
+A READING GUIDE
+
+    * Ten minutes: sections 2.3, 2.4, 9.2, 9.4, 17.4. That is the claim,
+      the construction's idea, the reason winners are decisive, and the
+      arithmetic of the exponent.
+
+    * An hour: Parts I, III, IV, and section 17. That is the full
+      argument for the quantum upper bound on the examples, plus the
+      assembly. It leaves the classical lower bound and the quartic
+      upper bound as black boxes.
+
+    * Everything: read straight through. Part V is the most delicate
+      bookkeeping; Part VII is the most self-contained.
+
+    * If you know amplitude amplification: read 11.3 carefully, because
+      the mixture over ell is not the standard presentation, and the
+      exactness claim is the point.
+
+    * If you know the adversary bound: section 18.3 is the standard
+      proof and can be skimmed; section 20 is where Huang's theorem
+      enters and is worth reading slowly.
+
+WHAT THIS PAPER DOES NOT CLAIM
+
+    * It says nothing about TIME complexity. Only query complexity is
+      bounded. The circuits and unitaries may be as large as you like.
+
+    * It says nothing about concrete or small m. The separation is
+      asymptotic: m runs over large powers of four, and the input length
+      grows like m^22. The functions are artificial.
+
+    * It does not claim R(f) = Theta(Q(f)^4) for the constructed family:
+      the family achieves Q^{4-2/k} divided by a polylogarithm, not Q^4.
+
+    * It does not claim that the exponent 4 is achieved by any "natural"
+      function. Only that no universal exponent below 4 exists.
+
+    * The constant 1/3 for the error is arbitrary and is never used
+      sharply. Any fixed error below 1/2 gives the same results up to
+      constants.
+
+
+================================================================================
+PART IX. GLOSSARY AND SYMBOL TABLE
+================================================================================
+
+
+GLOSSARY
+
+    Address.  For a column i, the r-bit string s(i) whose h-th bit is
+    P(A(i,h)). It exists only if all r answers are defined. The array of
+    cells B(i,s) is indexed by addresses.
+
+    Amplitude.  A complex number c(j) in a quantum state: the state is
+    the sum of c(j)|j>, and |c(j)|^2 is a probability.
+
+    Amplitude amplification.  The trick that raises a success amplitude
+    from sin(theta) to sin((2*ell+1)theta) by ell Grover iterations.
+    Section 11.1.
+
+    Adversary bound.  A quantum lower bound obtained from a matrix
+    Gamma: Q(f) >= c*|Gamma|/max_i|Gamma(i)|.  Section 18.2.
+
+    Block sensitivity, bs(f).  The largest number of pairwise disjoint
+    sensitive blocks at any input. A sensitive block is a set of
+    coordinates such that flipping all of them changes f. Section 19.1.
+
+    Boolean function.  A map from strings of n bits to one bit.
+
+    Cell, B(i,s).  The block of input bits in column i indexed by
+    address s. It holds pointers and transcripts. Section 8.1.
+
+    Cheat sheet.  A construction that places a certificate in a table
+    indexed by hard bits, so that locating it is expensive classically
+    and cheap quantumly. Section 8.3.
+
+    Circuit, C(k,m).  An exact Boolean circuit of fan-in two and size
+    S = O_k(m (log m)^2) that computes whether P is defined and, if so,
+    its value. Section 7.4.
+
+    Coherent.  Performed as a unitary, with all intermediate registers
+    retained and no measurement, so that the whole thing can be run
+    backwards. Sections 5.3, 10.3.
+
+    Column.  One of the m blocks of the input of F(k,m). Section 8.1.
+
+    Comparison.  A unitary (or, classically, a procedure) that takes two
+    candidate indices and decides which one wins the duel. Section 12.1.
+
+    Direct product, capped.  The statement that answering r independent
+    copies of a hard question, with a per-copy budget of L queries,
+    succeeds with probability at most beta^r. Section 14.2.
+
+    Domain.  The subset of inputs on which a partial function is defined.
+
+    Duel.  The head-to-head comparison of two columns by reading their
+    pointers at their decoded addresses. Section 9.3.
+
+    Dummy input, Y(0).  The input with one uniformly placed zero in each
+    column and all cells blank. It has no winner. Section 15.1.
+
+    Grover iteration.  One step of amplitude amplification, i.e. a
+    reflection about the prepared state followed by a phase flip of the
+    success bit.
+
+    Heavy column.  A column in which the classical algorithm spends more
+    than L queries on the A strings. Section 16.3.
+
+    Operator norm, |M|.  The largest possible stretch |Mv|/|v| of a
+    symmetric matrix M. Equals the largest absolute value of an
+    eigenvalue. Section 18.1.
+
+    Oracle, O(x).  The unitary |i,b,z> -> |i, b XOR x(i), z> that
+    implements one query. Section 1.3.
+
+    Partial function.  A Boolean function defined only on a subset of
+    inputs, used as an internal building block. Section 1.5.
+
+    Perron-Frobenius.  A nonnegative symmetric matrix has a nonnegative
+    eigenvector with eigenvalue equal to its operator norm. Section 18.1.
+
+    Planted input, Y(1).  The dummy input with one column's zero erased
+    and that column's true cell filled in. It has a winner. Section 15.1.
+
+    Pointer, p(i,s,j).  A claimed position of a zero in column j, stored
+    in cell B(i,s) of column i. Section 8.1.
+
+    Promise.  A restriction on which inputs may occur. Total functions
+    have none.
+
+    Query.  One use of the oracle. The only cost that is counted.
+
+    Sensitivity graph, S(f).  The adjacency matrix of the graph on
+    inputs with edges between inputs that differ in one bit and have
+    different f-values. Its operator norm is lambda(f). Section 19.2.
+
+    Self-certifying cell.  A cell whose claimed address can be checked
+    gate by gate from the raw A strings, with no promise needed.
+    Section 8.5.
+
+    Sensitivity, s(f).  The largest number of coordinates at any input
+    whose flip changes f. Section 19.1.
+
+    Test.  One local check in the conjunction that verifies "column i
+    wins at address s". There are K of them. Section 10.1.
+
+    Total function.  A Boolean function defined on every input.
+
+    Transcript.  One claimed bit for every non-input gate of the circuit
+    C, i.e. a candidate execution trace. Section 8.1.
+
+    Tournament.  The weighted elimination process that returns a short
+    list of candidates, with weights w(i) recomputed by multiplying by
+    comparison probabilities. Section 12.3.
+
+    Winner.  A column with an all-ones string, a defined address, and a
+    correct cell at the true address. Section 9.1.
+
+    Witness (zero witness).  A pointer to a zero in an opponent's string.
+    It is what makes a column disqualify an opponent.
+
+
+SYMBOL TABLE
+
+    General
+
+    n           number of input bits
+    f, g        Boolean functions
+    x, y        inputs
+    x(i)        i-th bit of x
+    D(f)        deterministic query complexity
+    R(f)        randomized query complexity, error 1/3, worst case
+    Q(f)        quantum query complexity, error 1/3, worst case
+    deg(f)      degree as a real multilinear polynomial
+    s(f)        sensitivity
+    bs(f)       block sensitivity
+    lambda(f)   operator norm of the sensitivity graph S(f)
+    alpha_tot   the optimal exponent; proved equal to 4
+
+    The building block (Part II)
+
+    k           fixed integer >= 2
+    m           a large power of four
+    H           normalized Walsh-Hadamard matrix, H(i,j)=(-1)^{i.j}/sqrt(m)
+    W           unnormalized Walsh-Hadamard matrix, sqrt(m)*H, entries +-1
+    u           uniform unit vector, (1,...,1)/sqrt(m)
+    D(z)        diagonal matrix with the sign vector z on its diagonal
+    Phi         u^T D(z(1)) H ... H D(z(k)) u, a real number in [-1,1]
+    delta       2^{-5k}
+    P(k,m)      k-fold Forrelation, a partial Boolean function
+    N, M        integers with Phi = N/M; M = m*(sqrt(m))^{k-1}
+    S           size of the circuit C(k,m); O_k(m (log m)^2)
+    d, b        the two output bits of C: defined?, value
+    L           floor(m^{1-1/k}/(log2 m)^2), the classical cost of one
+                address bit
+
+    The total function (Part III)
+
+    r           number of A strings per column; ceil(20*log2 m)
+    X(i)        the m-bit string of column i
+    A(i,h)      the h-th k*m-bit string of column i
+    s(i)        true address of column i, in {0,1}^r
+    B(i,s)      the cell of column i at address s
+    p(i,s,j)    the pointer from cell B(i,s) toward column j
+    K           number of local tests; m + (m-1) + r*(S+2)
+    F(k,m)      the total function: 1 iff some column is a winner
+
+    The algorithms (Parts IV, V)
+
+    a(i,j)      probability the comparison says i beats j
+    i*          the winner (when one exists)
+    w(i), W     candidate weights and their sum (tournament only)
+    beta        the per-copy success bound in the direct-product lemma
+    gamma       the success-probability lower bound fed to amplification
+    eta         the target failure probability of amplification
+    T           ceil(log2(1000*m)), maximum list length
+    epsilon     1/(1000*T)
+    c           query cost of one comparison, (log m)^{O_k(1)}
+    G           the classical budget, floor(m*L/100)
+    J(i), I     the hidden zero position of column i, and the planted
+                column index
+
+    The upper bound (Part VII)
+
+    Gamma       the adversary matrix
+    Gamma(i)    the slice of Gamma on pairs differing in coordinate i
+    S(f)        the sensitivity graph adjacency matrix
+    H'(j)       the signed cube matrix with (H'(j))^2 = j*I
+    U           a subset of the j-cube of size > 2^{j-1}
+    v, u        an eigenvector and its entrywise absolute value
+
+    OVERLOADS TO WATCH FOR. The original paper, and this tour, reuse a
+    few letters. They are always distinguishable from context, but here
+    is the list so no reader is confused.
+
+    * S means three different things: the domain of a partial function
+      (section 20.1), the size of the circuit C (section 7.4), and the
+      support of a monomial (section 21.1).
+
+    * W means two different things: the unnormalized Walsh-Hadamard
+      matrix (section 4.2) and the total candidate weight in the
+      tournament (section 12.3).
+
+    * u means two different things: the uniform unit vector (section
+      4.2) and the entrywise absolute value of an eigenvector (section
+      20.2). The second only appears inside section 20.
+
+    * b means two different things: the second output bit of C (section
+      7.5) and the number of sensitive blocks in a particular input
+      (section 19.3). Also loop indices.
+
+    * x means an input, and also a vertex of the d-cube in section 20.
+      The second usage is local to section 20.2.
+
+    * v means the Perron-Frobenius eigenvector of Gamma in section 18.3
+      and the eigenvector inside the d-cube in section 20.2.
+
+
+================================================================================
+PART X. REFERENCES
+================================================================================
+
+In rough chronological order. The two 2026 entries are the papers this
+tour's subject sits next to.
+
+    Yao (1977). Probabilistic computations: toward a unified measure of
+    complexity. FOCS. The minimax principle used in section 14.4.
+
+    Nisan (1991). CREW PRAMs and decision trees. SIAM J. Computing.
+    Block sensitivity.
+
+    Nisan and Szegedy (1994). On the degree of Boolean functions as real
+    polynomials. Computational Complexity. The degree measure.
+
+    Grover (1996). A fast quantum mechanical algorithm for database
+    search. STOC. Quadratic speedup for search.
+
+    Durr and Hoyer (1996). A quantum algorithm for finding the minimum.
+    arXiv quant-ph/9607014. Quantum minimum finding.
+
+    Bennett, Bernstein, Brassard, Vazirani (1997). Strengths and
+    weaknesses of quantum computing. SIAM J. Computing. The Omega(sqrt n)
+    lower bound for search.
+
+    Boyer, Brassard, Hoyer, Tapp (1998). Tight bounds on quantum
+    searching. Fortschritte der Physik. Amplitude amplification,
+    constant-success version.
+
+    Beals, Buhrman, Cleve, Mosca, de Wolf (2001). Quantum lower bounds by
+    polynomials. J. ACM. D(f) = O(Q(f)^6) and the polynomial method.
+
+    Brassard, Hoyer, Mosca, Tapp (2002). Quantum amplitude amplification
+    and estimation. Contemporary Mathematics. The two-dimensional
+    rotation used in section 11.3.
+
+    Barnum, Saks, Szegedy (2003). Quantum query complexity and
+    semi-definite programming. CCC. The spectral adversary bound of
+    section 18.
+
+    Shaltiel (2003). Towards proving strong direct product theorems.
+    Computational Complexity.
+
+    Sun, Yao, Zhang (2004). Graph properties and circular functions: how
+    low can quantum query complexity go? CCC.
+
+    Midrijanis (2004). Exact quantum query complexity for total Boolean
+    functions. arXiv quant-ph/0403168. The inequality
+    D(f) <= bs(f)*deg(f) of section 21.1.
+
+    Spalek and Szegedy (2006). All quantum adversary methods are
+    equivalent. Theory of Computing.
+
+    Drucker (2012). Improved direct product theorems for randomized
+    query complexity. Computational Complexity. The capped direct product
+    argument of section 14.
+
+    Goos, Pitassi, Watson (2015). Deterministic communication vs.
+    partition number. FOCS. Pointer functions.
+
+    Aaronson, Ben-David, Kothari (2016). Separations in query complexity
+    using cheat sheets. STOC. The cheat-sheet framework and the power
+    5/2 separation.
+
+    Ambainis, Balodis, Belovs, Lee, Santha, Smotrovs (2017).
+    Separations in query complexity based on pointer functions. J. ACM.
+    Nearly quartic deterministic separations.
+
+    Aaronson and Ambainis (2018). Forrelation: a problem that optimally
+    separates quantum from classical computing. SIAM J. Computing. The
+    k=2 case of the building block.
+
+    Huang (2019). Induced subgraphs of hypercubes and a proof of the
+    sensitivity conjecture. Annals of Mathematics. The signed-cube
+    matrix of section 20.
+
+    Tal (2020). Towards optimal separations between quantum and
+    randomized query complexities. FOCS. Power 8/3 - o(1).
+
+    Aaronson, Ben-David, Kothari, Rao, Tal (2021). Degree vs.
+    approximate degree and quantum implications of Huang's sensitivity
+    theorem. STOC. D(f) = O(Q(f)^4) and the conjecture R(f) = O(Q(f)^3).
+
+    Bansal and Sinha (2021). k-Forrelation optimally separates quantum
+    and classical query complexity. STOC. The classical lower bound for
+    P(k,m) used in section 6.
+
+    Mande, Paraashar, Saurabh (2023). Randomized and quantum query
+    complexities of finding a king in a tournament. FSTTCS. Quantum
+    tournament algorithms.
+
+    Sherstov, Storozhenko, Wu (2023). An optimal separation of randomized
+    and quantum query complexity. SIAM J. Computing. Power 3 - o(1).
+
+    Ben-David and Kothari (2026). Randomized query complexity can beat
+    certificate complexity. arXiv 2609.15063. Comparison-based
+    separation of certificate from randomized and quantum complexity.
+
+    Ambainis, Iraids, Kokainis (2026). Near-optimal separations of
+    certificate complexity from randomized and quantum query
+    complexity. arXiv 2609.11664. The other comparison-based paper.
+
+
+================================================================================
+END OF TOUR
+================================================================================
+
+If you remember one paragraph, remember section 9.4: the winner points
+at a zero in every other column, and no one can point at a zero in the
+winner. That is the whole paper. Everything else is making that one
+asymmetry work in a total function, in a quantum algorithm, and in a
+classical lower bound.
