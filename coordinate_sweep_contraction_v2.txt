@@ -1,0 +1,985 @@
+% Coordinate sweeps and the Thorp shuffle: a clear and complete proof
+% that Theta(log N) physical shuffles mix N = 2^d cards.
+%
+% This document is self-contained. It proves one theorem:
+%   the Thorp shuffle on 2^d labeled cards mixes to the uniform
+%   permutation in O(d) physical shuffles, and Omega(d) are necessary.
+%
+% Structure:
+%   Part 1  What is the problem
+%   Part 2  Notation and the standard tools we use
+%   Part 3  A dimension lower bound
+%   Part 4  The overlap theorem (the technical heart)
+%   Part 5  From overlap to a row-column Fourier estimate
+%   Part 6  Schatten interpolation
+%   Part 7  The sparse shapes
+%   Part 8  The induction that proves the main moment bound
+%   Part 9  From the moment bound to mixing
+%   Part 10 The matching lower bound
+%
+% Everything below is written so that a reader who is willing to accept
+% the "toolkit" of Part 2 can follow every step. The toolkit is standard
+% representation theory of the symmetric group; each item is stated as a
+% precise, usable fact, with a reference.
+
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=26mm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\Ind}{Ind}
+\newcommand{\TV}{\mathrm{TV}}
+\newcommand{\HS}{\mathrm{HS}}
+\newcommand{\op}{\mathrm{op}}
+\newcommand{\E}{\mathbb E}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\ind}{\mathbf 1}
+\allowdisplaybreaks[1]
+\setlength{\emergencystretch}{2em}
+\title{Row--column symmetry and contraction of coordinate sweeps\\
+       \large a clear and complete account}
+\author{OpenAI}
+\date{September 26, 2026}
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The Thorp shuffle on $N=2^d$ labeled cards mixes the full permutation to
+uniform in $\Theta(\log N)$ physical shuffles. The upper bound uses an
+absolute number of \emph{coordinate sweeps} (each sweep = $d$ physical
+shuffles). This document gives the complete proof, following the
+weighted-contraction route. Everything the proof uses from representation
+theory is collected in Part~\ref{part:toolkit} as a precise, quotable list.
+\end{abstract}
+
+\tableofcontents
+
+%=========================================================================
+\part{What is the problem}\label{part:intro}
+%=========================================================================
+
+\section{The shuffle, in plain words}\label{sec:shuffle}
+
+Take a deck of $N=2^d$ cards. Label the $d$ positions of a card by bits
+$x=(x_1,\dots,x_d)\in\mathbb F_2^d$. \emph{One physical Thorp shuffle}
+does the following.
+
+\begin{enumerate}
+\item Deal the deck into the $N/2$ unordered pairs of positions that differ
+      only in the first bit, and in each pair independently swap the two
+      cards with probability $1/2$. (This is a "riffle" along the first
+      coordinate: it is the classical Thorp move.)
+\item Rotate the $d$ coordinates cyclically, so that the next shuffle
+      riffles along what was the second coordinate.
+\end{enumerate}
+
+In coordinates a physical shuffle sends $(x_1,u)\mapsto(u,x_1+\xi_u)$,
+where $u=(x_2,\dots,x_d)$ and the bits $\xi_u$ are independent and fair.
+After $d$ physical shuffles the
+rotation has come back to the identity, so $d$ physical shuffles are the
+same as \emph{the same matching applied independently along each of the
+$d$ coordinate directions, once.} We call that object a
+\emph{coordinate sweep}.
+
+A single card is already uniform after one sweep (it has been swapped
+according to $d$ independent fair coins). The subtlety is that the
+\emph{joint} law of all the cards is not uniform: the cards have used the
+same switches, so they are correlated. The theorem says that an
+\emph{absolute constant} number of sweeps (i.e.\ $O(d)$ physical shuffles)
+destroys every trace of this correlation, measured in total variation
+distance from the uniform permutation.
+
+\section{Statement of the theorem}\label{sec:statement}
+
+Let $S_N$ be the symmetric group. A permutation $g\in S_N$ acts on
+positions, and the product $gh$ means "apply $h$ first, then $g$".
+Let $q_d$ be the law of one physical shuffle; it is a probability measure
+on $S_N$. Then $K_d=q_d^{*d}$, the law of one coordinate sweep, is the
+$d$-fold convolution. We write $K_d(\lambda)$ for the expectation of the
+representing matrix $\rho_\lambda(g)$ of the irreducible unitary
+representation labelled by the partition $\lambda\vdash N$:
+\begin{equation}\label{eq:fourier}
+K_d(\lambda)=\sum_{g\in S_N} K_d(g)\,\rho_\lambda(g).
+\end{equation}
+Write $D_\lambda=\dim\rho_\lambda$. Because one matching layer averages
+the (self-adjoint unitary) action of a product of disjoint transpositions,
+its Fourier matrix is an orthogonal projection; therefore every
+$K_d(\lambda)$ is a contraction.
+
+\begin{theorem}[Main; weighted sweep moments]\label{thm:main}
+There exist positive weights $W_\lambda$ (one per partition
+$\lambda\vdash 2^d$) and an absolute constant $p_*<\infty$ such that, for
+every $d\ge1$ and every $\lambda\vdash 2^d$,
+\begin{equation}\label{eq:main-bound}
+D_\lambda^{3/4}\ \le\ W_\lambda\ \le\ D_\lambda,
+\qquad
+W_\lambda\,\|K_d(\lambda)\|_{p_d}^{p_d}\le 1
+\quad\text{for some }2\le p_d\le p_*.
+\end{equation}
+Consequently $\|K_d(\lambda)\|_{\op}\le D_\lambda^{-3/(4p_*)}$, and there
+is an absolute $q=4p_*/3<\infty$ with the unweighted bound
+$D_\lambda\|K_d(\lambda)\|_q^q\le1$.
+\end{theorem}
+
+\begin{corollary}[Optimal order of mixing]\label{cor:mix}
+Let $t_{\rm mix}(d)$ be the least number of physical shuffles after which
+the distance from uniform is at most $1/4$, uniformly over the starting
+deck, and put $N=2^d$. There is an absolute constant $C$ with
+\[
+ \Big\lceil\frac{2}{N}\log_2\frac{3N!}{4}\Big\rceil
+ \ \le\ t_{\rm mix}(d)\ \le\ C\,d .
+\]
+In particular $t_{\rm mix}(d)=\Theta(\log N)$.
+\end{corollary}
+
+The upper bound is the hard direction and occupies Parts
+\ref{part:dim}--\ref{part:moment}, \ref{part:mixing}. The lower bound is
+Part~\ref{part:lower}.
+
+\section{The plan, in plain words}\label{sec:plan}
+
+Split the $d$ coordinate directions into two blocks of $\approx d/2$ each.
+The positions become a rectangular board of $m$ rows by $n$ columns
+($mn=N$). The first block of directions shuffles \emph{within rows}; the
+second shuffles \emph{within columns}. Each block is itself a collection of
+smaller, independent coordinate sweeps (one independent copy inside each
+row, and one inside each column).
+
+\emph{Induction on $d$.} Suppose we already understand the two smaller
+sweeps on the row group and the column group. The full sweep is the
+product of the row part and the column part. In any irreducible
+representation $V_\lambda$, the operator norm of a product is not simply
+the product of the norms; the overlap between the row decomposition and
+the column decomposition gets in the way. Part~\ref{part:overlap} is
+exactly the estimate of this overlap: how much of a vector that lives in
+a single row-type can survive projection onto a single column-type inside
+$V_\lambda$.
+
+The key engineering idea is the \emph{weight} $W_\lambda$. It is a number
+between $D_\lambda^{3/4}$ and $D_\lambda$, built so that the ratio
+$W_\lambda/(W_\mu W_\nu)$ exactly pays for the overlap cost of going from
+a row-type $\mu$ and a column-type $\nu$ up to $\lambda$. This is what
+makes the induction close with a \emph{bounded} Schatten exponent
+$p_d\le p_*$, independent of $d$.
+
+Three independent ways to prove the overlap estimate are known. This
+document gives one of them completely: the \emph{weighted contraction}
+route, whose overlap estimate (Theorem~\ref{thm:occupied}) is an inequality
+about a board with deleted cells. It is the most self-contained. The other
+two routes ("deletion frames" and "coherent states") prove the same kind
+of bound by other techniques; we mention them in
+Remarks~\ref{rem:frames}--\ref{rem:coherent} but do not develop them,
+in order to keep this account short enough to actually read.
+
+%=========================================================================
+\part{Notation and the standard tools we use}\label{part:toolkit}
+%=========================================================================
+
+\section{Conventions}\label{sec:conventions}
+
+All vector spaces are over $\mathbb C$ and all representations are unitary.
+For a partition $\lambda$ of $N$ (a Young diagram with $N$ boxes) let
+$V_\lambda$ be the irreducible $S_N$-representation and
+$D_\lambda=\dim V_\lambda$. On a \emph{product} of groups, $\mu,\nu,\dots$
+denote tuples of partitions and $V_\mu,D_\mu$ are the tensor products and
+products of dimensions. Traces on a single matrix space are
+\emph{unnormalised}; Schatten norms are
+$\|A\|_p^p=\Tr(|A|^p)$ for $2\le p<\infty$ and $\|A\|_\infty$ is the
+operator norm. All logarithms in estimates are natural; we write
+$f\lesssim g$ or $f=O(g)$ when $f\le Cg$ for an absolute constant $C$,
+and constants are relabelled freely.
+
+We use the symmetric group $S_L$ of degree $L$ and allow $L=0$ (the
+trivial group) and the empty partition (dimension $1$). Box coordinates
+are $(i,j)$ with $i$ the row and $j$ the column; the \emph{width} of
+$\lambda$ is $\lambda_1$ and $k:=N-\lambda_1$ counts the boxes below the
+first row.
+
+\section{The toolkit}\label{sec:factlist}
+
+These are the classical facts used in the proof. Each is precise and ready
+to quote.
+
+\begin{enumerate}
+\item[(T1)] \textbf{Regard irreducibles on subgroups.} Restricting $V_\lambda$
+  to a Young subgroup $S_{L_1}\times\cdots\times S_{L_r}$ decomposes into
+  tensor products $V_{\lambda^{(1)}}\otimes\cdots\otimes V_{\lambda^{(r)}}$,
+  with the $\lambda^{(i)}$ running over all tuples with
+  $|\lambda^{(1)}|+\cdots+|\lambda^{(r)}|=N$ and a nonnegative integer
+  multiplicity (the Littlewood--Richardson coefficient). In particular
+  \emph{restriction to $S_{N-1}$ is "delete one box"}: $V_\lambda$
+  restricted to $S_{N-1}$ is the direct sum of $V_{\lambda^-}$ over all
+  ways to remove a corner box. \emph{(Branching; see Sagan 2001, Thm 2.8.3,
+  or James 1978.)}
+
+\item[(T2)] \textbf{Two subgroups at once.} If $V_\sigma$ is an irreducible of
+  $S_{m}$ and $V_\tau$ of $S_{n}$, then
+  $\Ind_{S_m\times S_n}^{S_{m+n}}(V_\sigma\otimes V_\tau)$ contains
+  $V_\chi$ with multiplicity given by the Littlewood--Richardson
+  coefficient for the skew shape $\chi/\sigma$ filled by the content of
+  $\tau$. \emph{(Littlewood--Richardson; James 1978, Thm 16.4.)}
+
+\item[(T3)] \textbf{Pieri's rule.} Induction of a single row (or single
+  column) adds boxes to the first (or first column) subject to the diagram
+  staying a partition. \emph{(Stanley EC2, Thm 7.15.7.)}
+
+\item[(T4)] \textbf{Hook-length formula, with the correction we keep.} For
+  $\lambda\vdash L$,
+  $D_\lambda=L!/\prod_{\text{boxes}}\text{hook}(b)$. If $\lambda$ is the
+  diagram $\alpha$ decorated by a single extra long top row of length
+  $L-|\alpha|$, the ratio of the top-row factorial to the hooks it creates
+  is at least $\binom{L}{|\alpha|}\exp(-|\alpha|/(L-|\alpha|+1))$, obtained
+  by comparing the top-row part with $\binom{L}{|\alpha|}$ and bounding the
+  hook perturbation in the first row. We use this repeatedly. \emph{(Sagan
+  2001, Thm 3.10.2.)}
+
+\item[(T5)] \textbf{Ordinary Schur--Weyl duality.} On the tensor power
+  $(\mathbb C^h)^{\otimes L}$ the groups $U(h)$ and $S_L$ act and commute,
+  and
+  $(\mathbb C^h)^{\otimes L}\cong\bigoplus_{\gamma\vdash L,\ \ell(\gamma)\le h}
+  W_\gamma\otimes V_\gamma$ with $W_\gamma$ the polynomial
+  $U(h)$-representation of highest weight $\gamma$. A positive matrix $P$
+  acting identically on all $L$ factors has, on the $U(h)$-type $\gamma$,
+  largest eigenvalue given by the highest-weight monomial
+  $\prod_i x_i^{\gamma_i}$ in the eigenvalues of $P$ sorted decreasingly;
+  this is also a lower bound for $\Tr(P^\gamma)$. \emph{(Etingof et al.,
+  Thm 4.57 and Cor 4.59; Schur characters in Stanley EC2 Thm 7.10.3.)}
+
+\item[(T6)] \textbf{Signed tensor space} $(\mathbb C^h\oplus\mathbb C^h)^{\otimes s}$
+  (the "even" block and the "odd" block). The group $S_s$ acts by
+  permuting factors and inserting a sign equal to the sign of the
+  reordering of the odd factors. This $S_s$-action commutes with a diagonal
+  $U(h)\times U(h)$ action, one $U(h)$ per block. Fixing the number $s_e$ of
+  even slots and $s_o$ of odd, a $U(h)\times U(h)$-sector with top weights
+  $(\gamma,\xi)$ has multiplicity space, as an $S_s$-representation,
+  $\Ind_{S_{s_e}\times S_{s_o}}^{S_s}(V_\gamma\otimes V_{\xi^{\rm tr}})$,
+  where $\xi^{\rm tr}$ means the transpose because the odd block contributes
+  a sign. This is the standard "sign twist and induction" combination.
+  \emph{(Etingof et al., with James 1978 Thm 6.7 for the sign and Thm 16.4
+  for the induction.)}
+
+\item[(T7)] \textbf{Group-algebra matrix actions.} Given a matrix $M$ on an
+  irreducible $V_\mu$ of a subgroup $R\subseteq S_N$, form the element of
+  $\mathbb CR$ with matrices $M$ on the $V_\mu$-block and $0$ elsewhere.
+  Viewed in any larger representation, its restriction to $R$ acts as
+  "the chosen matrix on one copy of the carrier, and identity on every
+  multiplicity copy". Its coefficient at $g\in R$ is
+  $\frac{D_\mu}{|R|}\Tr(M\rho_\mu(g^{-1}))$. \emph{(Orthogonality and
+  Plancherel; Etingof et al.)} We call this a \emph{matrix action
+  supported on $\mu$}. When $M$ is the rank-one projector onto a unit
+  vector $e$, it is an orthogonal projection on the $R$-part and is written
+  $P_{\mu,e}$; it uses one direction of the carrier and is the identity on
+  multiplicity copies.
+
+\item[(T8)] \textbf{Cauchy--Schwarz for sums of projections.} When a positive
+  operator is a sum of orthogonal projections onto orthogonal subspaces,
+  comparison between two such decompositions is controlled by
+  Cauchy--Schwarz, and nonnegativity of each irreducible's contribution
+  lets one take traces representation by representation. We use this
+  without further comment.
+
+\item[(T9)] \textbf{Entropy of an occupation law.} For a probability vector
+  $(\omega_{ij})$ supported on the cells of a board and marginals
+  $(p_i),(q_j)$, the relative entropy of $\omega$ from the product
+  $(p_iq_j)$ is at most $\log(mn/s)$ when $\omega$ is uniform on $s$
+  occupied cells of an $m\times n$ board. \emph{(Standard; the argument is
+  the entropy/subadditivity duality of Carlen--Cordero-Erausquin 2009,
+  Thm 2.1.)}
+
+\item[(T10)] \textbf{Interpolation of a bilinear Schatten map.} If a bilinear
+  map has norm $\le e^{E/2}$ at the $2$-Schatten endpoint and $\le1$ at the
+  operator-norm endpoint, then it has norm $\le e^{E/p}$ at the
+  $p$-Schatten norm for $2\le p<\infty$, with $E$ independent of $p$.
+  \emph{(Complex interpolation of Schatten classes / three-lines; see the
+  computation in Part~\ref{part:interp}. We spell it out.)}
+\end{enumerate}
+
+%=========================================================================
+\part{A dimension lower bound}\label{part:dim}
+%=========================================================================
+
+\section{Every nontrivial type that survives is large}\label{sec:dimbound}
+
+One matching layer kills every partition of length $>N/2$: averaging a
+swap along one coordinate projects onto the invariants of a Young subgroup
+$S_2^{N/2}$, and only partitions of length $\le N/2$ survive. So we only
+need to bound types $\lambda$ with at most $N/2$ rows. Below, $k=N-\lambda_1$
+is the number of boxes below the first row.
+
+\begin{lemma}[Dimension away from the first row]\label{lem:dim}
+There is an absolute $c>0$ such that, for every $N\ge2$ and every
+nontrivial partition $\lambda\vdash N$ with at most $N/2$ rows,
+\[
+ \log D_\lambda \ \ge\ c\,k,\qquad k=N-\lambda_1.
+\]
+\end{lemma}
+\begin{proof}
+If both width and height are $<N/10$, every hook length is $\le N/5$, so
+the hook formula gives $\log D_\lambda\ge cN\ge ck$.
+
+Otherwise pass to $\lambda$ or its transpose so the first row has length
+$u\ge N/10$; let $v=N-u$ be the remaining boxes. Keep that whole first
+row and a subdiagram of size $\ell=\min(v,\lfloor u/2\rfloor)$ below it.
+By branching (T1) $D_\lambda$ is at least the dimension of that
+subdiagram. For a diagram with first row $u$ and any fixed lower part of
+size $\ell$, the hook formula plus (T4) bounds
+\[
+ D_\lambda\ \ge\ \binom{u+\ell}{\ell}\,\exp\!\Big(-\frac{\ell}{u-\ell+1}\Big).
+\]
+The lower part has width $\le\ell$, so it adds at most $\ell$ to each top-row
+hook; the correction is the displayed exponential. In the original case
+$\ell\ge c_1 k$ (large $N$); in the transpose case the height hypothesis
+gives $v\ge N/2\ge k$, so again $\ell\ge c_1 k$. With $\ell\le u/2$ the
+logarithm is $\ge(\log3-1)\ell\ge c_2 k$. Finite small $N$ are covered by
+decreasing $c$; the only one-dimensional irreducibles are trivial and
+sign, both excluded here.
+\end{proof}
+
+In particular, if $k>N^{1-\eps}$ for a small fixed $\eps>0$ then
+\begin{equation}\label{eq:dim-large}
+ \log D_\lambda\ \ge\ c_0\,N^{1-\eps}.
+\end{equation}
+
+%=========================================================================
+\part{The overlap theorem}\label{part:overlap}
+%=========================================================================
+
+\section{A board with deleted cells}\label{sec:board}
+
+This is the technical heart. Picture an $m\times n$ board, $mn=N$. Colour
+some cells \emph{occupied} (there are $s$ of them) and the rest
+\emph{deleted} (there are $t=N-s$). Put the symmetric group $G_s$ on the
+occupied cells. Restricting a representation $V_a$ of $G_s$ to the
+within-row group $S_{n}^m$, and also to the within-column group $S_m^n$,
+gives two decompositions that do not commute. The theorem bounds how a
+row-type direction and a column-type direction can overlap.
+
+\begin{theorem}[Overlap on an arbitrary occupied board]\label{thm:occupied}
+Let $a\vdash s$ be a partition lying in the $(h,h)$-hook, i.e.\ no box of
+$a$ has both row index and column index greater than $h$; here $1\le h\le N$.
+Decompose $V_a$ under the row group and, separately, under the column
+group. For row-types $\sigma$ (a tuple of partitions) and column-types
+$\theta$, let $I_{\sigma,u}\colon V_\sigma\to V_a$ and
+$I_{\theta,v}\colon V_\theta\to V_a$ be isometries onto orthogonal copies,
+over all copies $u$ and $v$, chosen so that their images span the
+corresponding isotypic parts. Then
+\begin{equation}\label{eq:occupied}
+ \sum_{u,v}\|I_{\sigma,u}^* I_{\theta,v}\|_{\op}^2
+ \ \le\ \exp\!\big\{C[(m+n+1)h^2\log(N+2)+t]\big\}\,
+      \min\Big\{1,\ \frac{D_\sigma D_\theta}{D_a}\Big\}.
+\end{equation}
+Here $C$ is absolute. When $s=0$ the empty representation has dimension $1$.
+\end{theorem}
+
+\emph{In plain words.} The overlaps between the two decompositions are
+tiny: the total squared overlap is bounded by an explicit factor (the
+exponential) times the "quantum" ratio $D_\sigma D_\theta/D_a$, never
+more than $1$. The exponential depends on the hook width $h$ and on the
+number $t$ of deleted cells, which is exactly the cost of having a
+non-rectangular occupied region.
+
+\begin{proof}[Proof of Theorem~\ref{thm:occupied}]
+For $s=0$ there is nothing to prove. Throughout we use the signed tensor
+space $\mathcal L=(\mathbb C^h\oplus\mathbb C^h)^{\otimes s}$ and the
+signed $S_s$-action (T6).
+
+\smallskip\noindent\textbf{Realisation.}
+By (T5)--(T7) the standard signed realization carries $V_a$ inside
+$\mathcal L$; concretely, at fixed parity counts $s_e,s_o$ and sector top
+weights $(\gamma,\xi)$ (both of length $\le h$, degrees $s_e,s_o$), the
+sector's multiplicity space is $\Ind_{S_{s_e}\times S_{s_o}}^{S_s}(V_\gamma\otimes
+ V_{\xi^{\rm tr}})$. There is a sector containing $V_a$: take $\gamma$ as the
+first $h$ rows of $a$ and $\xi^{\rm tr}$ as the rest (a diagram of width
+$\le h$), so that the relevant Littlewood--Richardson coefficient is
+positive. This sector is the arena for the rest of the proof.
+
+\smallskip\noindent\textbf{Size and entropy of sectors.}
+The dimensions of the $U(h)\times U(h)$ carriers, and the number of
+sectors, are at most $\exp(O(h^2\log(N+2)))$ (count symbol occupations row
+by row in a semistandard tableau). The multiplicity of any $S_s$-type
+$\chi$ in the signed action is also $\le\exp(O(h^2\log(N+2)))$: given
+$(\gamma,\xi)$ contributing to $\chi$, the skew shape $\chi/\xi^{\rm tr}$
+has content $\gamma$ and its part in the first $h$ columns has at most
+$h^2$ boxes, beyond which columns are determined. Hence (with
+$u=|\gamma|+|\xi|$)
+\begin{equation}\label{eq:sector-entropy}
+ D_\chi\ \le\ \exp(H(\gamma,\xi))\ \le\ D_\chi\exp(O(h^2\log(N+2))),
+ \qquad
+ H(\gamma,\xi)=\sum_i\gamma_i\log(u/\gamma_i)+\sum_j\xi_j\log(u/\xi_j).
+\end{equation}
+The first inequality is $D_\chi\le\binom{u}{|\gamma|}D_\gamma D_\xi$ (from
+T2 and transposition-invariance of dimension) with multinomial bounds; the
+second is (T4) applied to the hooks in the first $h$ rows and columns
+together with $|\gamma\cap\xi^{\rm tr}|\le h^2$.
+
+\smallskip\noindent\textbf{Turning overlap into a trace.}
+Let $P_\sigma,P_\theta$ be the row- and column-isotypic projections inside
+$V_a$, and expand the embeddings: the sum of squared Hilbert--Schmidt norms
+$\sum_{u,v}\|I_{\sigma,u}^*I_{\theta,v}\|_2^2=\Tr_{V_a}(P_\sigma P_\theta)$,
+which dominates the required sum of squared operator norms. Lift to a
+sector projector $P$ of $\mathcal L$ and subgroup isotypic projectors
+$Q_\sigma,Q_\theta$. Since $P$ commutes with the signed permutations and
+each irreducible contributes nonnegatively,
+\[
+ \Tr_{V_a}(P_\sigma P_\theta)\ \le\ \Tr_{\mathcal L}(Q_\sigma P Q_\theta P).
+\]
+
+\smallskip\noindent\textbf{Majorising by product states.}
+We bound $Q_\sigma$ in the positive semidefinite order by a probability
+mixture of tensor products $S=\bigotimes_{\text{cells}} S_i$, with the same
+even state $S_i$ in every cell of row $i$. The prefactor is
+$D_\sigma\exp(Cm\,h^2\log(N+2))$. On one row of length $l$, bound the
+projection for a partition $\chi$ by the sum over compatible sector top
+weights $(\gamma_0,\xi_0)$; in each sector, average by
+$U(h)\times U(h)$ the identical-cell product of the diagonal state with
+entries $(\gamma_{0,i}/l,\xi_{0,j}/l)$. After averaging this product acts
+as a scalar $\ge\exp(-H(\gamma_0,\xi_0))/\dim(\text{carrier})$ on that
+sector (highest-weight eigenvalue via T5), and the dimensions are folded
+into the prefactor. Do the same for $Q_\theta$ with column states $T_j$ and
+prefactor $D_\theta\exp(Cn\,h^2\log(N+2))$. Positivity then reduces us to
+bounding $\Tr_{\mathcal L}(S P T P)$.
+
+\smallskip\noindent\textbf{The quarter-root filter.}
+Two normalisations are needed at once: the global sector must pay
+$\exp(-H(\gamma,\xi))$ in the squared norm, and the per-cell overlaps must
+average to $\le1$ under the row- and column-marginals. Let $\bar S,\bar T$
+be the average cell-states over the $s$ occupied cells, put
+$X=\bar S^{1/2}$, $Y=\bar T^{1/2}$, and set
+$S_i'=X^{-1/2}S_iX^{-1/2}$, $T_j'=Y^{-1/2}T_jY^{-1/2}$ (inverses on
+supports). With $L=(X^{1/2})^{\otimes s}P(Y^{1/2})^{\otimes s}$ we have
+$\Tr_{\mathcal L}(SPTP)=\|(S')^{1/2}L(T')^{1/2}\|_2^2$. The matrix $L$ acts
+on the sector with operator norm $\le\exp(-H(\gamma,\xi)/2)$: indeed
+$(X^{1/2})^{\otimes s}=(\bar S^{1/4})^{\otimes s}$ has norm
+$\le\exp(-H(\gamma,\xi)/4)$ on that sector by the largest-weight monomial
+in the eigenvalues of $\bar S$ (whose sum is $1$); the same for $\bar T$.
+By matrix-coefficient orthogonality for the block-unitary group, $L$ is an
+integral of $U^{\otimes s}$ over block unitaries with total coefficient
+$\le \exp(-H(\gamma,\xi)/2)\cdot(\text{squared carrier dimension})$.
+
+\smallskip\noindent\textbf{The cell product and an entropy bound.}
+For a block unitary $U$ let $z_{ij}=\Tr(S_i'UT_j'U^*)\ge0$. The weighted
+squared Hilbert--Schmidt norm of $U^{\otimes s}$ on the occupied cells is
+$\prod_{\text{cells}}z_{ij}$. Under the product of row-marginals $p_i$ and
+column-marginals $q_j$ (uniform occupation of the $s$ cells), the mean is
+$\Tr(\bar S^{1/2}U\bar T^{1/2}U^*)\le1$ by Cauchy--Schwarz. So the
+$\omega$-average of $\log z_{ij}$ is at most the relative entropy of the
+occupation law $\omega$ from $p_iq_j$, which is $\le\log(mn/s)\le\log(N/s)$
+(T9). Hence $\prod z_{ij}\le\exp(s\log(N/s))\le\exp(t)$. Inserting the
+integral for $L$ and the triangle inequality,
+\[
+ \Tr_{\mathcal L}(SPTP)\ \le\ \exp\{C h^2\log(N+2)+t\}\,\exp(-H(\gamma,\xi)),
+\]
+and $D_a\le\exp(H(\gamma,\xi))$ by \eqref{eq:sector-entropy}. Multiplying by
+the mixture prefactors $D_\sigma D_\theta$ and dividing by $D_a$ gives
+\eqref{eq:occupied}, with $\min\{1,D_\sigma D_\theta/D_a\}$ recording that
+the overlap can never exceed $1$.
+\end{proof}
+
+\begin{remark}\label{rem:frames}
+A second, independent proof of an overlap bound uses \emph{deletion frames}:
+resolve a row-type vector by remembering only $t$ marked positions per row,
+control the resulting marked kernels with a Schatten-$8$ estimate, and use
+a signed-tensor Schatten-$2$ estimate for the complementary shapes. It gives
+a uniform Schatten exponent without weights.
+\end{remark}
+\begin{remark}\label{rem:coherent}
+A third proof, on \emph{coherent states}, keeps the deleted positions as an
+ordered list and compares row and column projections by averaging
+highest-weight coherent vectors and matching their one-cell densities by a
+minimum-norm (Kempf--Ness type) argument. It yields an explicit restoration
+factor $e^{3t}\binom{N}{t}$. These routes are not needed below.
+\end{remark}
+
+%=========================================================================
+\part{From overlap to the row-column Fourier estimate}\label{part:fourier}
+%=========================================================================
+
+\section{The weighted overlap}\label{sec:weighted-overlap}
+
+Now fix the split of the sweep. Write $N=2^d$ as $mn$ with $m,n$ both of
+order $\sqrt N$ (they are the sizes of a column and a row for a balanced
+split of the $d$ bits). The row part acts within rows, the column part
+within columns; both are products of smaller independent sweeps.
+
+We assume for the estimate that the current $\lambda$ is not sparse, in the
+sense
+\begin{equation}\label{eq:not-sparse}
+ k=N-\lambda_1>N^{1-\eps},\qquad \lambda^{\rm tr}_1\le N/2,
+\end{equation}
+with the small $\eps$ of \eqref{eq:dim-large}; the sparse range is handled
+in Part~\ref{part:sparse}. The weights $W_\lambda$ are built in
+\eqref{eq:Jdef} below; for the moment only their two properties matter,
+$D_\lambda^{3/4}\le W_\lambda\le D_\lambda$, and the exact minimisation
+formula \eqref{eq:Jdef}.
+
+\begin{proposition}[Weighted overlap]\label{prop:weighted-overlap}
+Under \eqref{eq:not-sparse}, for irreducibles $\mu$ of the row group and
+$\nu$ of the column group and unit carrier vectors $e,f$,
+\begin{equation}\label{eq:weighted-overlap}
+ W_\lambda\,\Tr_{V_\lambda}(P_{\mu,e}P_{\nu,f})
+ \ \le\ W_\mu W_\nu\,\exp\!\big\{O((\log D_\lambda)/d)\big\},
+\end{equation}
+with an absolute implied constant independent of the types and of $d$.
+\end{proposition}
+
+The proof needs the weight formula, so we state it now.
+
+\section{The weights}\label{sec:weights}
+
+The weight is a small ``tax'' on each diagram designed so that the tax of
+a parent equals the tax of its children \emph{plus} exactly enough to pay
+for restoring deleted cells. Fix absolute constants
+\[
+ b_0=\tfrac14,\quad \delta=\tfrac1{16},\quad b_1=\tfrac{b_0\delta}{4},\quad
+ A=10,\quad \eta=\frac{b_1}{2A},\quad \eps=\frac{\eta}{8},
+\]
+and the penalty function
+\[
+ F_L(r)=r\min\{\log(L/r),\ \eta\log L\}\qquad(1\le r\le L),\qquad F_L(0)=0.
+\]
+For a diagram $\lambda\vdash L$ and a subdiagram $a\subseteq\lambda$
+(itself a Young diagram) let $r=L-|a|$ and define
+\begin{equation}\label{eq:Jdef}
+ J(\lambda)=\min_{a\subseteq\lambda}\big\{b_0\log D_a+b_1 r\log L-AF_L(r)\big\},
+ \qquad W_\lambda=D_\lambda\,e^{-J(\lambda)}.
+\end{equation}
+Empty diagrams have $J=0$, $W=1$. Since $AF_L(r)\le\frac{b_1}{2}r\log L$,
+the minimised expression is nonnegative, and $a=\lambda$ shows
+$0\le J(\lambda)\le\tfrac14\log D_\lambda$; hence
+\begin{equation}\label{eq:weight-range}
+ D_\lambda^{3/4}\ \le\ W_\lambda\ \le\ D_\lambda.
+\end{equation}
+On tuples (product groups) $J$ is summed and $W$ multiplied.
+
+The point of $J$ is this \emph{trimming lemma}: the minimising $a$ can be
+taken inside the $(h,h)$-hook, $h=\lfloor N^\delta\rfloor$, at additive
+cost $O(h^2)$ in the minimum of \eqref{eq:Jdef}. Indeed, trimming the boxes
+with both indices $>h$ from any minimiser $a_1$ to get $a$ changes
+$\log D_{a_1}-\log D_a$ by at least $x(\log h-C)-Ch^2$ where $x$ is the
+number trimmed, while the penalty changes by at most $(b_1\log N+A)x$; as
+$b_1<b_0\delta$ the trim is favorable. Consequently, taking $a$ in the
+hook with $t=N-|a|$,
+\begin{equation}\label{eq:trim}
+ b_0\log D_a+b_1t\log N-AF_N(t)=J(\lambda)+O(h^2),
+ \qquad t\log N\le C(\log D_\lambda+h^2).
+\end{equation}
+
+\section{Proof of the weighted overlap}\label{sec:fourier-proof}
+
+\begin{proof}[Proof of Proposition~\ref{prop:weighted-overlap}]
+Take the hook subdiagram $a$ from \eqref{eq:trim}, and choose a diagram
+$b\vdash t$ so that $V_\lambda$ occurs in
+$\mathcal I=\Ind_{G_{N-t}\times G_t}^{G_N}(V_a\otimes V_b)$ (possible by
+branching and decomposing the restriction). The trace on $\mathcal I$ of
+$XY$, for $X=P_{\mu,e}$ and $Y=P_{\nu,f}$, bounds the wanted trace on
+$V_\lambda$, since each $G_N$-type contributes nonnegatively.
+
+\smallskip\noindent\textbf{Fibers at deleted sets.}
+$\mathcal I$ is a direct sum over the $t$-sets $Z$ of the board; at $Z$, the
+stabiliser acts as $V_a$ on the complement of $Z$ and $V_b$ on $Z$. Let
+$v_i$ count $Z$ in row $i$ and $u_j$ in column $j$, and set
+\[
+ L_R=\prod_i\binom{n}{v_i},\quad
+ L_C=\prod_j\binom{m}{u_j},\quad
+ L_0=\binom{N}{t},\quad
+ E_0=H_R+H_C-H_0,
+\]
+$H_R=\sum_i v_i\log(n/v_i)$, $H_C=\sum_j u_j\log(m/u_j)$,
+$H_0=t\log(N/t)$ (zero terms are $0$). For a nonempty profile $E_0\ge0$ (it
+is $t$ times a relative entropy). The layout count is controlled by
+\begin{equation}\label{eq:layout}
+ \log\frac{L_{RC}^2L_0}{L_RL_C}\ \le\ E_0+O(t),
+\end{equation}
+where $L_{RC}$ is the number of $t$-sets with the given row- and
+column-profiles: $\log L_R\ge H_R$, $\log L_C\ge H_C$,
+$\log L_0\le H_0+t$ by binomial bounds, and subadditivity of entropy gives
+$\log L_{RC}\le E_0+2t$ (take a uniformly random occupied cell with
+independent row index $I$ and column index $J$, and use
+$H(V\mid I,J)\le H(V\mid I)+H(V\mid J)-H(V)$).
+
+\smallskip\noindent\textbf{Diagonal blocks.}
+The block trace of $XY$ pairs $Z,Z'$ with equal profiles; off-diagonal
+blocks are bounded by the geometric mean of diagonal overlaps (Cauchy--
+Schwarz for $X^{1/2}UX'^{1/2}$). For a diagonal block at $Z$, the row
+stabiliser $R_Z$ acts separately off and on $Z$; if $\alpha=(\sigma,\tau)$
+denotes the two parts, then (T7, orthogonality, $|R|=L_R|R_Z|$)
+\[
+ X_{ZZ}=\frac{D_\mu}{L_R}\sum_\alpha\frac{1}{D_\alpha}\mathcal P_{\alpha,M_\alpha},
+\]
+the $M_\alpha\succeq0$ with $\sum_\alpha\Tr M_\alpha=1$ obtained by tracing
+out the multiplicity space. Similarly $Y_{ZZ}$ with $D_\nu/L_C$ and column
+stabiliser types $\zeta=(\theta,\pi)$. The only subtlety is that $M_\alpha$
+need not be a product of a surviving-cell state and a deleted-cell state;
+the next lemma (which needs no independence) removes this worry.
+
+\begin{lemma}[Arbitrary carrier vectors]\label{lem:entangled}
+Let $A_l\colon E'\to E$ and $B_r\colon F'\to F$ be finite families with
+$\sum_r|\langle x,B_r y\rangle|^2\le C\|x\|^2\|y\|^2$. Then for unit
+$w\in E\otimes F$ and $w'\in E'\otimes F'$,
+$\sum_{l,r}|\langle w,(A_l\otimes B_r)w'\rangle|^2\le C\sum_l\|A_l\|_\op^2$.
+\end{lemma}
+\begin{proof}
+For fixed $l$, $B\mapsto\langle w,(A_l\otimes B)w'\rangle$ has operator
+norm $\le\|A_l\|_\op$; by trace-norm duality it is
+$\sum_s c_s\langle x_s,By_s\rangle$ with unit $x_s,y_s$, $c_s\ge0$,
+$\sum_s c_s\le\|A_l\|_\op$. The triangle inequality in $\ell^2(r)$, then
+squaring and summing in $l$, finishes.
+\end{proof}
+
+The fiber overlap for arbitrary pure carrier vectors $w,w'$ therefore has
+the form $\sum_{l,r}|\langle w,(A_l\otimes B_r)w'\rangle|^2$ with $A_l$ the
+row-decomposition overlaps and $B_r$ the column ones. On $Z$ itself the
+row and column subgroups intersect trivially, so the pairwise products of
+their group elements use unique factorisations; Plancherel in $G_t$ gives
+for unit $x,y$
+\begin{equation}\label{eq:on-Z}
+ \sum_r|\langle x,B_ry\rangle|^2\ \le\ \frac{D_\tau D_\pi}{D_b}
+ \frac{t!}{\prod_i v_i!\prod_j u_j!}\ \le\ \frac{D_\tau D_\pi}{D_b}e^{E_0+O(t)}
+\end{equation}
+(using $E_0=t\log t-\sum v_i\log v_i-\sum u_j\log u_j$ and factorial
+bounds). Lemma~\ref{lem:entangled} upgrades this to arbitrary carrier
+vectors, and Theorem~\ref{thm:occupied} bounds $\sum_l\|A_l\|_\op^2$.
+
+\smallskip\noindent\textbf{Putting the pieces together.}
+Write $S=\max\{0,\log(D_\sigma D_\theta/D_a)\}$. Combining
+\eqref{eq:occupied}, the fiber bound via Lemma~\ref{lem:entangled}, and
+\eqref{eq:on-Z}, and dividing by $D_\alpha D_\zeta$ from the diagonal-block
+formulas, the pure-state bound becomes
+\[
+ \frac{1}{D_aD_b}\exp\{E_0-S+O(t+(m+n+1)h^2\log(N+2))\}.
+\]
+The positive mixtures have total weight $1$, so no extra count appears.
+Multiply by $D_\mu D_\nu L_{RC}^2/(L_RL_C)$ and use
+$D_\lambda\le L_0D_aD_b$ and \eqref{eq:layout}:
+\begin{equation}\label{eq:pref-final}
+ \frac{D_\mu D_\nu}{D_\lambda}
+ \exp\{2E_0-S+O(t+(m+n+1)h^2\log(N+2))\}.
+\end{equation}
+
+\smallskip\noindent\textbf{The weight budget pays $2E_0-S$.}
+Restrict $\mu_i$ to its complement row of size $n-v_i$: the surviving type
+$\sigma_i$ is a subpartition of $\mu_i$ of that size; likewise $\theta_j$
+is a subpartition of $\nu_j$ of size $m-u_j$. So
+\[
+ J(\mu)+J(\nu)\le b_0\log(D_\sigma D_\theta)+b_1t\log N
+ -A\Big(\sum_i F_n(v_i)+\sum_j F_m(u_j)\Big).
+\]
+Together with \eqref{eq:trim}, this gives
+\begin{equation}\label{eq:budget}
+ J(\lambda)-J(\mu)-J(\nu)\ \ge\ -b_0 S+AE_0
+ -O\big(h^2+(mn^{1-\eta}+nm^{1-\eta})\log(N+2)\big).
+\end{equation}
+Therefore, with $\mathcal E$ the error in \eqref{eq:budget},
+\[
+ 2E_0-S-[J(\lambda)-J(\mu)-J(\nu)]
+ \le (2-A)E_0-(1-b_0)S+\mathcal E\le\mathcal E,
+\]
+since $A\ge2$, $b_0\le1$, $E_0,S\ge0$. This is exactly the statement that
+replacing $D_\mu D_\nu/D_\lambda$ by $W_\mu W_\nu/W_\lambda$ (i.e.\
+dividing \eqref{eq:pref-final} by $D_\lambda e^{-J}$ and multiplying by the
+child weights) leaves only the error $\mathcal E$. All error terms and the
+count of profiles are $O((\log D_\lambda)/d)$ by \eqref{eq:dim-large}, and
+$h\le N^{1/16}$, $m,n\asymp\sqrt N$, $\eps<\eta/2$. This is
+\eqref{eq:weighted-overlap}.
+\end{proof}
+
+%=========================================================================
+\part{Schatten interpolation}\label{part:interp}
+%=========================================================================
+
+\section{A $p$-moment bilinear estimate}\label{sec:interp}
+
+The row part and the column part of the sweep multiply (in the scan order)
+to give $K_d$. Each part, inside a row or a column, is an independent
+smaller sweep. Let $\mathcal B(M,M')$ on $V_\lambda$ be the product of the
+two subgroup matrix actions, using arbitrary matrices $M_\mu$, $M'_\nu$ on
+their irreducibles.
+
+\begin{proposition}\label{prop:interp}
+Under \eqref{eq:not-sparse}, for $2\le p<\infty$,
+\begin{equation}\label{eq:interp}
+ W_\lambda\|\mathcal B(M,M')\|_p^p
+ \le e^{O((\log D_\lambda)/d)}
+ \Big(\sum_\mu W_\mu\|M_\mu\|_p^p\Big)\Big(\sum_\nu W_\nu\|M'_\nu\|_p^p\Big),
+\end{equation}
+with the constant in the exponent independent of $p$.
+\end{proposition}
+\begin{proof}
+For a single pair of types, the squared $2$-norm is a trace of a product of
+positive matrix actions; diagonalising and using \eqref{eq:weighted-overlap}
+gives
+$W_\lambda\|\mathcal B(M,M')\|_2^2\le e^{E}(\sum_\mu W_\mu\|M_\mu\|_2^2)
+(\sum_\nu W_\nu\|M'_\nu\|_2^2)$ with $E=O((\log D_\lambda)/d)$. Summing over
+type tuples with triangle and Cauchy--Schwarz absorbs the log counts
+(which are $O(N^{3/4}\log N)$, covered by \eqref{eq:dim-large}) into $E$.
+Also $\|\mathcal B(M,M')\|_\op\le\max_\mu\|M_\mu\|_\op\max_\nu\|M'_\nu\|_\op$
+by unitary restriction.
+
+Now interpolate. Let the bilinear map $\Phi$ carry $(M,M')$ to
+$\mathcal B(M,M')$ with output weighted trace-norm. It has norm $\le e^{E/2}$
+at the $2$-Schatten endpoint and $\le1$ at the operator-norm endpoint.
+Normalise inputs to $p$-norm $1$; test the output against a dual-norm-one
+matrix. On the strip with value at $z=2/p$, extend the inputs blockwise by
+polar factors with exponent $pz/2$ on absolute values (zero singular values
+kept zero) and the test matrix with exponent $p'(1-z/2)$,
+$p'=p/(p-1)$. Boundary norms are $\le1$; the three-lines inequality gives
+factor $e^{(E/2)\theta}=e^{E/p}$ at $\theta=2/p$. Raising to the $p$-th
+power gives \eqref{eq:interp}, and the exponent coefficient does not grow
+with $p$.
+\end{proof}
+
+%=========================================================================
+\part{The sparse shapes}\label{part:sparse}
+%=========================================================================
+
+\section{Representations whose first row is almost the whole diagram}
+\label{sec:sparse-proof}
+
+When $k=N-\lambda_1$ is small, the general machinery is overkill; a direct
+combinatorial estimate is better. This is the range that seeds the
+induction.
+
+\begin{proposition}\label{prop:sparse}
+For $k=N-\lambda_1\ge1$,
+\begin{equation}\label{eq:sparse}
+ \|K_d(\lambda)\|_\op\ \le\ (Cd)^k\,(k/N)^{k/8}
+\end{equation}
+for an absolute $C$.
+\end{proposition}
+
+\begin{proof}
+Work on ordered injective $k$-tuples of positions $x\mapsto y$. Let $K$ be
+the sweep transition kernel. On functions of $k$-tuples that sum to zero
+over any one coordinate (all others fixed), $K$ acts; this subspace contains
+$V_\lambda$ because $V_\lambda$ occurs on $k$-tuples (invariants upon
+restriction to $G_{N-k}$, branching T1) but not on $(k-1)$-tuples.
+
+\smallskip\noindent\textbf{The pair-factor formula.}
+A sweep sends each card along a path; the path of a card is fixed by its
+start and end, since the successive end coordinates replace the start ones.
+For two cards, let $\ell$ be the last coordinate where they differ at the
+start and $r$ the first coordinate where they differ at the end. Give the
+pair weight $w=0$ if $r>\ell$, $w=2$ if $r=\ell$, $w=1$ otherwise. Then
+$K(x,y)=N^{-k}\prod_{\text{pairs}}w$. (Paths do not collide iff
+$r\le\ell$ for all pairs; a switch used by two paths rather than one
+contributes the factor $2$ exactly when a pair has $r=\ell$.) This works for
+any subset of cards.
+
+\smallskip\noindent\textbf{Cancelled kernel.}
+Because the zero-sum subspace forces all proper-coordinate marginals to
+vanish, we may replace $K$ by the fully cancelled
+\[
+ D(x,y)=N^{-k}\sum_{B\subseteq[k]}(-1)^{k-|B|}\prod_{\text{pairs in }B}w .
+\]
+This vanishes unless the contact graph (pairs with $w\ne1$) has no isolated
+vertex, and its absolute column sums are $\le2^k$ (each subset term in
+absolute value is the nonnegative doubly stochastic sweep kernel).
+
+\smallskip\noindent\textbf{Inclusion of occupied sets.}
+In $K^*K$ we sample $x$ from the row $z$ of $K^*$ (a reverse scan). The
+occupied set $S$ of $x$ satisfies, for every fixed $F$,
+\begin{equation}\label{eq:inclusion}
+ \Pr(S\supseteq F)\le(k/N)^{|F|}.
+\end{equation}
+This is the upper product-of-marginals property: true at the reverse scan
+start, and preserved by a random switch (test one switched site, average
+the two bounds; test both, and the product of marginals can only grow under
+averaging). The final marginals are $k/N$ (one position is uniform after
+all coordinates).
+
+\smallskip\noindent\textbf{A spanning forest.}
+A no-isolated-vertex graph on $S$ contains a spanning forest with $c\le k/2$
+rooted trees of size $\ge2$. There are $\le C_0^k$ forest shapes, choose
+roots in $\binom Nc$ ways and path types in $2^k$ ways. Conditioned on the
+common routing, expose children after parents: a common-routing child has
+at most two possible start positions per meeting switch, and an
+independent-path child summed over fresh positions meets a given parent at
+stage $i$ with expectation $\le2^i2^{-(i-1)}$. Each embedding uses $k$ sites,
+so multiply by $(k/N)^k$ via \eqref{eq:inclusion}. Summing gives, for the
+signed kernel $K^*D$, absolute row sum $\le(C_1d)^k(k/N)^{k/2}$ using
+$\binom Nc\le(C_2N/k)^{k/2}$ for $c\le k/2$. The $\ell^2$-operator (Schur)
+bound on this subspace bounds $K^*K$ there, proving \eqref{eq:sparse}.
+\end{proof}
+
+%=========================================================================
+\part{The induction that proves the main moment bound}\label{part:moment}
+%=========================================================================
+
+\section{Closing the induction}\label{sec:induction}
+
+\begin{proof}[Proof of Theorem~\ref{thm:main}]
+All $K_d(\lambda)$ are contractions. Partitions of length $>N/2$ are killed
+by one matching layer; the trivial one satisfies \eqref{eq:main-bound} at any
+exponent.
+
+\smallskip\noindent\textbf{Sparse range.} For $1\le k\le N^{1-\eps}$,
+\eqref{eq:sparse} with $W_\lambda\le D_\lambda\le N^k$ gives, for all large
+$d$ and any sufficiently large absolute exponent $p$,
+\[
+ W_\lambda\|K_d(\lambda)\|_p^p
+ \le N^k\cdot N^{k}\,N^{-\eps k p/8}\cdot(\log\text{-factor})^k\le1 .
+\]
+
+\smallskip\noindent\textbf{The recursive step.} Suppose \eqref{eq:main-bound}
+holds at the two smaller bit sizes $d_1,d_2\le\lceil d/2\rceil$ with their
+exponents. Apply \eqref{eq:interp} at $p=\max(p_{d_1},p_{d_2})\ge2$, feeding
+in the two subgroup sweep parts. Each input on a tuple is a tensor product of
+smaller sweeps, so each weighted $p$-th power term of the inputs is $\le1$
+by the inductive hypothesis, and the sums over type tuples use only the
+count bounds. Thus
+\[
+ W_\lambda\|K_d(\lambda)\|_p^p\le\exp\{C(\log D_\lambda)/d\}
+\]
+with $C$ absolute. Since $W_\lambda\ge D_\lambda^{3/4}$,
+\[
+ \|K_d(\lambda)\|_p^p\ \le\ D_\lambda^{-3/4}e^{C(\log D_\lambda)/d}
+ \ \le\ D_\lambda^{-1/2}
+\]
+for large $d$ (so $C/d\le1/4$), which gives $\|K\|_\op^p\le\|K\|_p^p\le D_\lambda^{-1/2}$.
+
+Push the exponent by a small factor $1+\theta$. Interpolation of Schatten norms
+gives $\|K\|_{p(1+\theta)}^{p(1+\theta)}\le\|K\|_\op^{\theta p}\|K\|_p^p$ for
+$\theta\ge0$. Write $E=C(\log D_\lambda)/d$, so that $W_\lambda\|K\|_p^p\le e^{E}$
+and $\|K\|_\op^{\theta p}\le(D_\lambda^{-3/4}e^{E})^{\theta}$ (using
+$W_\lambda\ge D_\lambda^{3/4}$). Then
+\[
+ W_\lambda\|K\|_{p(1+\theta)}^{p(1+\theta)}
+ \le D_\lambda^{-3\theta/4}\,e^{E(1+\theta)}\le1
+\]
+once $\theta\ge C'/d$ with an absolute $C'$ (take $C'=2C$). Take
+$p_d=p(1+C'/d)$; then \eqref{eq:main-bound} holds at $p_d$.
+
+\smallskip\noindent\textbf{Base case.} For each fixed small $d$, a nontrivial
+sweep matrix is a product of orthogonal projections that together generate
+$S_N$, so its operator norm is strictly below $1$ on every nontrivial
+$V_\lambda$ (equality would need a common invariant vector for all matching
+switches, whose generated group is all of $S_N$). Hence a finite absolute
+base exponent $p_0$ exists covering the finitely many $d\le d_0$, chosen also
+large enough for the sparse range.
+
+\smallskip\noindent\textbf{Bounded exponent.} The recurrence multiplies the
+two child exponents by $1+C'/d$ and then takes a maximum. Along repeated
+halvings $d\mapsto\lceil d/2\rceil$ the sum of $1/d$ is a convergent
+geometric series, so $p_d\le p_*<\infty$ with $p_*$ absolute. This proves
+\eqref{eq:main-bound}, hence Theorem~\ref{thm:main}.
+\end{proof}
+
+%=========================================================================
+\part{From the moment bound to mixing}\label{part:mixing}
+%=========================================================================
+
+\section{Plancherel and Cauchy--Schwarz}\label{sec:mixing}
+
+Let $\pi$ be the uniform permutation distribution, and let $\Pr_j$ be the law
+of $j$ independent forward sweeps. Finite-group Plancherel and
+Cauchy--Schwarz (Diaconis--Shahshahani 1981, Sections 2--3) give
+\begin{equation}\label{eq:TV}
+ 4\,\|\Pr_j-\pi\|_{\TV}^2\ \le\ \sum_{\lambda\ne(N)} D_\lambda\|K_d(\lambda)^j\|_{\HS}^2 .
+\end{equation}
+We bound $\|K_d(\lambda)^j\|_{\HS}^2\le D_\lambda\|K_d(\lambda)\|_\op^{2j}$.
+By Theorem~\ref{thm:main} and $W_\lambda\ge D_\lambda^{3/4}$,
+$\|K_d(\lambda)\|_\op\le D_\lambda^{-3/(4p_*)}$. Hence
+\[
+ D_\lambda\|K_d(\lambda)^j\|_{\HS}^2\ \le\ D_\lambda^2\,D_\lambda^{-3j/(2p_*)}.
+\]
+Taking $j=8p_*/3$ (an absolute number of sweeps) gives
+$D_\lambda^2D_\lambda^{-4}=D_\lambda^{-2}$. So
+\[
+ 4\|\Pr_j-\pi\|_{\TV}^2\ \le\ \sum_{\substack{\lambda\ne(N)\\ \lambda^{\rm tr}_1\le N/2}} D_\lambda^{-2}.
+\]
+This sum tends to $0$ as $d\to\infty$: for $k>N^{1-\eps}$ it is bounded by
+\eqref{eq:dim-large} and the partition count; for $1\le k\le N^{1-\eps}$,
+$D_\lambda\ge e^{-1}(N/k)^k$ (top-row hook estimate as in Lemma~\ref{lem:dim})
+and there are at most $2^k$ such diagrams. Since the product law determines
+the deck from any fixed starting deck, this is a worst-case bound. Thus an
+absolute number $j$ of sweeps gives TV distance $\le1/4$ uniformly in $d$
+(large $d$; the finitely many small $d$ converge by the strict Fourier gap
+and only increase the absolute sweep count, and convolution cannot increase
+TV). One sweep is $d$ physical shuffles, so $t_{\rm mix}(d)\le Cd$. This is
+the upper bound of Corollary~\ref{cor:mix}.
+
+%=========================================================================
+\part{The matching lower bound}\label{part:lower}
+%=========================================================================
+
+\section{Counting reachable permutations}\label{sec:lower}
+
+\begin{proposition}[Support obstruction]\label{prop:support}
+Let $q_d$ be one physical shuffle. For every integer $t\ge0$,
+\[
+ \|q_d^{*t}-U_{S_N}\|_{\TV}\ \ge\ 1-\frac{2^{tN/2}}{N!}.
+\]
+Thus TV distance $\le1/4$ needs at least
+$\lceil(2/N)\log_2(3N!/4)\rceil=2d-O(1)$ physical shuffles.
+\end{proposition}
+\begin{proof}
+One physical shuffle uses $N/2$ independent fair bits (one per pair), so
+$t$ shuffles use $tN/2$ fair bits and can produce at most $2^{tN/2}$
+permutations. Testing against the uniform measure (which weighs every
+permutation and every non-reachable point in the complement),
+$\|q_d^{*t}-U_{S_N}\|_{\TV}\ge1-2^{tN/2}/N!$. The threshold
+$2^{tN/2}/N!\le3/4$ rearranges to the stated lower bound; Stirling gives the
+$2d-O(1)$ form.
+\end{proof}
+
+This is the lower bound of Corollary~\ref{cor:mix}. Combined with the upper
+bound, $t_{\rm mix}(d)=\Theta(d)=\Theta(\log N)$.
+
+%=========================================================================
+\begin{thebibliography}{99}
+\bibitem[Thorp(1973)]{Thorp} E.~O.~Thorp, Nonrandom shuffling with
+applications to the game of Faro, J.\ Amer.\ Statist.\ Assoc.\ 68 (1973),
+842--847.
+\bibitem[Morris(2008)]{Morris2008} B.~Morris, The mixing time of the Thorp
+shuffle, SIAM J.\ Comput.\ 38 (2008), 484--504.
+\bibitem[Morris(2009)]{Morris2009} B.~Morris, Improved mixing time bounds for
+the Thorp shuffle and the $L$-reversal chain, Ann.\ Probab.\ 37 (2009),
+453--477.
+\bibitem[Morris(2013)]{Morris2013} B.~Morris, Improved mixing time bounds for
+the Thorp shuffle, Combin.\ Probab.\ Comput.\ 22 (2013), 118--132.
+\bibitem[Montenegro--Tetali(2006)]{MT} R.~Montenegro, P.~Tetali,
+Mathematical aspects of mixing times in Markov chains, Found.\ Trends
+Theoret.\ Comput.\ Sci.\ 1 (2006), 237--354.
+\bibitem[Czumaj--Vocking(2014)]{CV} A.~Czumaj, B.~V\"ocking, Thorp shuffling,
+butterflies, and non-Markovian couplings, ICALP 2014, LNCS 8572, 344--355.
+\bibitem[Diaconis--Shahshahani(1981)]{DS} P.~Diaconis, M.~Shahshahani,
+Generating a random permutation with random transpositions, Z.\ Wahrsch.\ 57
+(1981), 159--179.
+\bibitem[Sagan(2001)]{Sagan} B.~E.~Sagan, The Symmetric Group, 2nd ed., GTM
+203, Springer, 2001.
+\bibitem[Stanley(1999)]{Stanley} R.~P.~Stanley, Enumerative Combinatorics II,
+Cambridge, 1999.
+\bibitem[James(1978)]{James} G.~D.~James, The Representation Theory of the
+Symmetric Groups, LNM 682, Springer, 1978.
+\bibitem[Etingof et al.(2011)]{Etingof} P.~Etingof et al., Introduction to
+representation theory, MIT lecture notes, 2011.
+\bibitem[Borcea--Br\"anden--Liggett(2009)]{BBL} J.~Borcea, P.~Br\"anden,
+T.~M.~Liggett, Negative dependence and the geometry of polynomials, J.\ Amer.\
+Math.\ Soc.\ 22 (2009), 521--567.
+\bibitem[Carlen--Cordero-Erausquin(2009)]{CCE} E.~A.~Carlen,
+D.~Cordero-Erausquin, Subadditivity of the entropy and Brascamp--Lieb type
+inequalities, GAFA 19 (2009), 373--405.
+\bibitem[Vershik--Okounkov(2005)]{VO} A.~M.~Vershik, A.~Yu.~Okounkov, A new
+approach to the representation theory of the symmetric groups II, J.\ Math.\
+Sci.\ 131 (2005), 5471--5494.
+\bibitem[Perelomov(1972)]{Perelomov} A.~M.~Perelomov, Coherent states for
+arbitrary Lie group, Comm.\ Math.\ Phys.\ 26 (1972), 222--236.
+\bibitem[Franks--Walter(2022)]{FW} C.~Franks, M.~Walter, Minimal length in an
+orbit closure as a semiclassical limit, arXiv:2004.14872.
+\bibitem[Kempf--Ness(1979)]{KN} G.~Kempf, L.~Ness, The length of vectors in
+representation spaces, LNM 732, Springer, 1979, 233--243.
+\end{thebibliography}
+
+\end{document}
