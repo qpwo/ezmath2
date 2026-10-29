@@ -1,0 +1,374 @@
+THE GIT PROOF
+how git stores your work, and why its history cannot lie to you
+
+written so that a sharp 16-year-old can follow every step, with nothing hidden.
+every claim marked THEOREM has a real proof. the single thing nobody can prove
+(that the hash does not collide) is stated openly as an assumption and flagged
+whenever it is used.
+
+CONTENTS
+  0. the question
+  1. the one big idea: name a thing by what it is
+  2. the four objects
+  3. definitions and the model
+  4. the one assumption
+  5. theorem 1: a name is faithful (integrity and deduplication)
+  6. theorem 2: a commit is a complete, unambiguous snapshot
+  7. theorem 3: history is a graph with no loops (a DAG)
+  8. theorem 4: a stored thing can never change (immutability)
+  9. theorem 5: making a commit never destroys history (branches are labels)
+ 10. theorem 6: merging does the only forced thing, and refuses to guess
+ 11. theorem 7: the whole repository can be checked with local tests (fsck)
+ 12. a tiny worked example
+ 13. things people get wrong
+ 14. what was actually proven, and what was assumed
+
+
+0. THE QUESTION
+------------------------------------------------------------
+You have a folder full of files: a story, a program, a set of notes.
+You keep changing them. You want three guarantees:
+
+   (a) I can get back EXACTLY what the folder looked like on any past day.
+   (b) Nobody (not even me, by accident) can silently change the past.
+   (c) If two people edit copies of the same folder, I can combine their work,
+       and when the combination is genuinely ambiguous, I am TOLD, never lied to.
+
+Git gives exactly these three guarantees. This document proves that it does,
+starting from a blank sheet. The proofs are short. The cleverness is all in one
+idea, and the rest is bookkeeping that follows from it.
+
+
+1. THE ONE BIG IDEA: NAME A THING BY WHAT IT IS
+------------------------------------------------------------
+Imagine a library of sealed boxes. Every box is stamped with a fingerprint of
+its contents: run the contents through a fingerprinting machine and you get a
+short code. Two boxes with the same contents get the same code. Two boxes with
+different contents (in practice) get different codes.
+
+Now the rule that runs everything:
+
+   to store something, you compute its code, and you file it under that code.
+
+So the "name" of a thing IS a fingerprint of the thing. This is called content
+addressing. Everything git does, and every guarantee above, grows out of it.
+
+The fingerprinting machine is a cryptographic hash function. In git it is SHA-1
+(older) or SHA-256 (newer). We write H(x) for the code of content x. It maps any
+finite string of bytes to a short fixed-length code.
+
+
+2. THE FOUR OBJECTS
+------------------------------------------------------------
+Git stores exactly four kinds of thing. Everything else is made of these.
+
+  BLOB     the raw contents of one file. no name, no permissions, just bytes.
+           Its code is H("blob" + length + the bytes).
+
+  TREE     a directory listing: an ordered list of entries, each entry being
+           (a name, and the code of a blob or of another tree). A tree can point
+           to subtrees, so trees nest into the whole folder shape.
+           Its code is H("tree" + the serialized entries).
+
+  COMMIT   one saved moment. It contains: the code of the root tree (the whole
+           folder shape at that moment), a list of parent commit codes, an
+           author line, a date, and a message.
+           Its code is H("commit" + the serialized fields).
+
+  TAG      (optional) a named, signed label pointing at a commit. We mention it
+           once and set it aside; it changes nothing in the proofs.
+
+A repository is just a big set of these objects, filed under their codes. A
+branch is not an object: it is a small label file holding one commit code. HEAD
+is a pointer that says which branch (or which commit) you are standing on.
+
+
+3. DEFINITIONS AND THE MODEL
+------------------------------------------------------------
+Fix the alphabet: a string is a finite sequence of bytes. "Content" means a
+string.
+
+Hash. H is a function from finite strings to fixed-length codes.
+
+Serialization. We assume a fixed, unambiguous way to turn each object into a
+byte string, using length prefixes so that decoding is unique. This makes
+serialize INJECTIVE: two different objects serialize to two different byte
+strings, and one byte string decodes to at most one object. (This is a design
+choice, not a hope; length-prefixing guarantees it.)
+
+Object code. For an object O, its code is id(O) = H(serialize(O)).
+
+The store. A repository is a set S of objects together with a lookup: given a
+code, return the stored byte string filed under it. We also keep named pointers
+(branches, HEAD).
+
+Snapshot. For a commit c, define snapshot(c) by walking c's root tree: for each
+entry, if it is a blob record (path -> blob code), and if it is a tree recurse
+into it with an extended path. A snapshot is the resulting table that maps every
+file path to its file content (or to "absent").
+
+Ancestor. Commit c is an ancestor of commit d if you can walk from d back to c
+by following parent links zero or more times. (Every commit is an ancestor of
+itself by the "zero steps" convention.)
+
+
+4. THE ONE ASSUMPTION
+------------------------------------------------------------
+ASSUMPTION (collision resistance).
+For any two different byte strings s != t, H(s) != H(t).
+
+Nobody has proven this for SHA-1 or SHA-256; it is believed true and is the
+foundation of all cryptography. Stated honestly: git's guarantees hold as long
+as this holds. If someone found two different contents with the same code, they
+could swap one for the other undetected. That would be a break of the hash, not
+a flaw in git's design. Keep this in mind; it is used in the next two theorems.
+
+
+5. THEOREM 1: A NAME IS FAITHFUL
+------------------------------------------------------------
+STATEMENT. Suppose two stored objects have the same code. Then they are the same
+object. Equivalently: (i) identical content is stored only once, and (ii) any
+tampering with stored bytes is detectable.
+
+PROOF.
+Let x and y be objects with id(x) = id(y), i.e. H(serialize(x)) = H(serialize(y)).
+If x and y were different objects, then by injectivity serialize(x) != serialize(y),
+two different byte strings with the same hash, contradicting the assumption. So
+x = y. That gives deduplication: equal content -> equal code -> one copy. That
+also gives tamper detection: to check a stored object, recompute H of its stored
+bytes and compare to its code; any change makes them differ (again by the
+assumption). QED.
+
+This single theorem is why "get back exactly what the folder looked like" is even
+possible: every file's bytes are pinned to a code that no other bytes share.
+
+
+6. THEOREM 2: A COMMIT IS A COMPLETE, UNAMBIGUOUS SNAPSHOT
+------------------------------------------------------------
+STATEMENT. Given one commit code, there is exactly one snapshot it describes. In
+any repository that contains that commit and the objects it points to, the whole
+folder (every path and its exact bytes) is determined and recoverable.
+
+PROOF.
+A commit fixes a root tree code (its own serialization includes it, Theorem 1
+then makes that fixed). By Theorem 1, that code names exactly one tree. Each tree
+entry names exactly one blob-or-subtree. Recursion is finite: a tree's total file
+count is finite and path depth is finite, so the walk terminates. At the leaves,
+each blob code names exactly one content (Theorem 1). So the mapping path ->
+content is fully determined and has no free choices. QED.
+
+Two payoffs. First, git really does store whole snapshots, not "diffs"; it is
+space-cheap only because unchanged files keep the same blob code and are not
+stored twice (deduplication, Theorem 1). Second, "the folder at commit X" is a
+well-defined mathematically unique object; there is no ambiguity to argue about.
+
+
+7. THEOREM 3: HISTORY IS A GRAPH WITH NO LOOPS (A DAG)
+------------------------------------------------------------
+STATEMENT. The ancestor relation is acyclic: no commit is an ancestor of itself
+except by the trivial zero-step convention. The graph of commits joined by parent
+links is a directed acyclic graph (DAG).
+
+INTUITION FIRST. A commit's code is a fingerprint of a string that already
+contains the codes of its parents. So a parent must be fingerprinted before its
+child. Time cannot run backwards; so no loop.
+
+PROOF (by construction order).
+Consider any repository ever assembled by the normal operations. To write a
+commit c, the tool must produce serialize(c), which contains the codes of all of
+c's parents. By Theorem 1, obtaining a parent's code means that parent object
+already exists. So every parent of c existed strictly earlier than c. Give each
+commit the moment it was created; this orders all commits in a strict total order,
+and every parent link points strictly backwards in that order. A relation whose
+every edge goes strictly backwards in a fixed order cannot contain a cycle. Hence
+the commit graph is a DAG. QED.
+
+COULD A FORGER CLOSE A LOOP? To make c its own ancestor, some commit in the loop
+would have to contain its own code inside the very string it fingerprints:
+x = H( some string that contains x ). That is a fixed point of a hash-based
+equation, which requires breaking the hash (a preimage attack). Under the
+assumption, nobody can. So acyclicity is not just a convention; it is forced.
+
+Consequence for people: "before" and "after" in git are not guesses. The DAG is
+the truth, and it is tamper-evident because every edge is fingerprinted.
+
+
+8. THEOREM 4: A STORED THING CAN NEVER CHANGE
+------------------------------------------------------------
+STATEMENT. Once an object is stored under its code, the object store can only
+grow. No stored object's code ever points to different bytes later. Editing a
+file never changes an old object; it creates a new one.
+
+PROOF.
+An object's identity is its code = H(bytes) (Theorem 1). Changing the bytes of an
+object makes them fingerprint to a different code; the store files them under the
+new code, as a brand-new object. The old bytes and old code are untouched. So the
+set of stored (code -> bytes) pairs only ever accumulates. QED.
+
+This is the heart of guarantee (b). "Rewriting history" in everyday git talk never
+means editing old commits; it means moving a branch label to point at different
+commits. The old commits still sit there, unchanged, under their own codes.
+
+
+9. THEOREM 5: MAKING A COMMIT NEVER DESTROYS HISTORY
+------------------------------------------------------------
+STATEMENT. Advancing a branch from its old tip T to a new commit U (whose parents
+include T) leaves T, and all of T's ancestors, intact and still reachable from U.
+Therefore committing is non-destructive: nothing you can do by ordinary committing
+throws away earlier history.
+
+PROOF.
+By definition, U lists T among its parents, so T is an ancestor of U and is
+reachable from U (Theorem 3 gives the walk). T and its ancestors were already
+stored before U was made (Theorem 3, construction order) and, by Theorem 4, are
+never altered or removed by storing U. Advancing the branch is just rewriting one
+small label file (T's code -> U's code). So the only change is a pointer; the
+entire earlier history remains. QED.
+
+Two honest footnotes so nothing is hidden.
+ (a) A branch can later be moved somewhere else, or a commit can be "orphaned"
+     when nothing points at it. Orphaned objects can be deleted by garbage
+     collection. GC is a separate, explicit action, and it only ever removes
+     objects that no reachable commit needs; it can never corrupt a reachable
+     snapshot (Theorem 2).
+ (b) In practice git keeps a reflog: a private log of where branches used to
+     point, so even many "lost" commits are recoverable for a while. That is a
+     convenience on top of the model, not part of the core proof.
+
+
+10. THEOREM 6: MERGING DOES THE ONLY FORCED THING, AND REFUSES TO GUESS
+------------------------------------------------------------
+Setup. A is the common ancestor commit. B is "ours". C is "theirs". All snapshots
+exist (Theorem 2). For a file path p, write base = snapshot(A)(p), ours =
+snapshot(B)(p), theirs = snapshot(C)(p); a missing file is the special value ABSENT.
+
+The three-way rule R, applied independently to each path:
+   (1) if ours == theirs:                      take ours
+   (2) else if ours == base:                   take theirs
+   (3) else if theirs == base:                 take ours
+   (4) else:                                   CONFLICT (do not choose)
+
+STATEMENT. For every path where rule R does not hit case (4), its result is the
+unique file content that correctly represents both sides' changes relative to the
+ancestor. For every path that hits case (4), the two sides genuinely disagree and
+NO content can be silently justified, so a conflict must be surfaced.
+
+PROOF, case by case.
+ (1) ours == theirs. Both sides ended at the same content (perhaps both changed,
+     perhaps neither). Any faithful result must equal that shared content; to do
+     otherwise would alter what both sides agreed on. Unique.
+ (2) ours == base, theirs != base. Our side did not change p; their side changed
+     base into theirs. A correct merge must carry their change forward unchanged,
+     so the result is forced to be theirs. Nothing else is consistent with their
+     edit. Unique.
+ (3) theirs == base, ours != base. Symmetric: ours changed, theirs did not, so the
+     result is forced to be ours. Unique.
+ (4) ours != theirs, and both differ from base. Both sides edited p, to different
+     results. Choosing ours silently deletes their edit; choosing theirs silently
+     deletes ours. No single value can represent both edits at once (a single file
+     path holds one content). So there is no forced answer; the only honest action
+     is to stop and show a human both sides. Hence conflicts are exactly the truly
+     ambiguous paths. QED.
+
+So the rule is not a heuristic. It is the unique rule that (i) keeps every
+non-conflicting change and (ii) never fabricates a choice the evidence cannot
+support. That is guarantee (c): you are told, never lied to.
+
+(Side note, so it is not a gap: git's line-level merge is this same proof applied
+to smaller pieces, the changed "hunks". When two edits touch disjoint pieces, the
+non-conflicting rule applies and they combine. When they touch the same lines,
+it is case (4) and you get a conflict. The reasoning is identical at finer grain.)
+
+
+11. THEOREM 7: THE WHOLE REPOSITORY CAN BE CHECKED WITH LOCAL TESTS (fsck)
+------------------------------------------------------------
+A repository is CONSISTENT if every object reachable from any branch (or tag or
+HEAD) is present and its stored bytes fingerprint back to its code.
+
+STATEMENT. If a repository is consistent, then every reachable commit's snapshot
+reconstructs exactly the content that was committed, and any missing or altered
+object anywhere in that reachable history is detected by a purely local check.
+
+PROOF.
+Check each object by recomputing H of its bytes and comparing to its stored code.
+By Theorem 1 every object that passes is byte-for-byte the correct object; every
+object that fails or is missing is reported. Now take any reachable commit; by
+Theorem 2 its snapshot is determined by the codes it reaches, and by the passing
+checks each of those codes resolves to exactly the right bytes, recursively from
+the root tree down to every blob. So the reconstructed snapshot equals the
+committed one. Because the verification needs only the object's own bytes and its
+own code, every check is local; no trust in any central authority is required.
+QED.
+
+This is why any one person, holding only a copy of the objects, can independently
+verify that the history they have is the true one.
+
+
+12. A TINY WORKED EXAMPLE
+------------------------------------------------------------
+Write "hello" into a file. blob1 = H("blob 5 hello").
+Put it in the root: tree1 = H("tree: name=story.txt code=blob1").
+Commit:   c1 = H("commit: tree=tree1 parents=[] msg=first").
+Branch main now points to c1.
+
+Now edit the file to "hello world". blob2 = H("blob 11 hello world").
+tree2 = H("tree: name=story.txt code=blob2").
+c2 = H("commit: tree=tree2 parents=[c1] msg=second").
+Branch main now points to c2.
+
+What you can now check, by hand:
+ - To fetch the original file you only need blob1; its code pins "hello"
+   (Theorem 1). The old file was never destroyed (Theorem 4).
+ - c2 lists c1 as a parent, and c1 existed before c2 (Theorem 3), so pressing
+   "parent" from c2 lands on c1 and stops; it can never loop.
+ - Advancing main from c1 to c2 changed only the branch label; c1 is still
+   reachable from c2 (Theorem 5).
+
+Notice that if nothing else in the folder changed, only the one blob changed; the
+other files kept their codes and were not stored again. Whole snapshots, stored
+cheaply. That is deduplication (Theorem 1) doing its job.
+
+
+13. THINGS PEOPLE GET WRONG
+------------------------------------------------------------
+ - "git stores the changes." No. git stores complete snapshots. It is
+   space-efficient because unchanged files keep the same code and are stored once
+   (Theorems 1, 2). "It stores diffs" is the single most common mistruth.
+ - "a commit is a folder of files." A commit is a small record pointing to a tree;
+   the tree points to blobs; the heavy bytes are shared, never copied per commit.
+ - "a branch is a copy of the project." A branch is a one-line label holding one
+   code. Making a branch costs almost nothing.
+ - "merge picks a winner." Merge picks a result only when it is forced (cases
+   1,2,3). When it is not forced, it stops and tells you (case 4).
+ - "history can be rewritten." Labels move; objects are immutable (Theorem 4).
+ - "a hash collision means fake history is easy." Forging a different file with the
+   same code requires breaking the hash (Section 4). If that ever falls, every
+   part of this document that leans on it falls with it, honestly and openly.
+ - "old commits are gone once I move the branch." They are orphaned, not altered;
+   they persist until an explicit garbage collection, and the reflog often keeps
+   them reachable for a while anyway.
+
+
+14. WHAT WAS ACTUALLY PROVEN, AND WHAT WAS ASSUMED
+------------------------------------------------------------
+Proven, given the one assumption in Section 4:
+ - names are faithful: equal code => equal content, so integrity and
+   deduplication both hold (Theorem 1);
+ - a commit is a complete, unique snapshot (Theorem 2);
+ - history is a DAG, and a loop cannot be closed without breaking the hash
+   (Theorem 3);
+ - stored objects are immutable; the object store only grows (Theorem 4);
+ - committing never destroys history; a branch is only a label (Theorem 5);
+ - three-way merge is the unique honest rule and surfaces exactly the real
+   conflicts (Theorem 6);
+ - an entire repository's correctness is checkable by local recomputation (Theorem
+   7).
+
+Assumed, stated plainly and used whenever it was needed:
+ - the hash does not collide (collision resistance, Section 4).
+
+Everything else in this document was derived from those two things and the plain
+definitions of blob, tree, commit, and parent link. Nothing was swept under the
+rug. That is the whole of it: git is trustworthy because it names every thing by
+a fingerprint of the thing, and then never lets a name mean anything but one
+thing.
