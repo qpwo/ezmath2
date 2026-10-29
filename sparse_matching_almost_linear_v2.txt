@@ -1,0 +1,1408 @@
+MAXIMUM MATCHING IN ALMOST LINEAR TIME
+A guide for bright readers
+
+This is a friendly rewrite of a September 2026 research paper, published
+under the author name "OpenAI", that claims a striking algorithmic
+result: that maximum matching in a general graph can be found by a
+single randomized algorithm in time just barely above (n+m), where n is
+the number of vertices and m is the number of edges.
+
+The original paper is a serious technical argument. It uses the
+language of algorithms research: word-RAM models, epsilon grids, matrix
+concentration inequalities, cut approximators, dynamic trees,
+minimum-ratio circulations, and so on. It is not light reading. It is
+not intended to be. But beneath the formal apparatus there are ideas
+that can be described in ordinary language, and that is what this
+document tries to do.
+
+If you only read one paragraph, read this: a matching is a set of
+pairs. Finding the largest set of pairs in a general graph has been
+studied for sixty years. The best bound from 1980 (Micali-Vazirani)
+is about m times the square root of n. This paper claims the
+square-root factor can be eliminated almost entirely, using a
+sophisticated new data structure and a randomized analysis.
+
+Two honest notes for the reader.
+  (1) The argument is long, technical, and in a few places tight. Even
+      specialists would want to read it carefully; if they tried to
+      implement it, they would find the constants terrible. This guide
+      focuses on WHAT the argument does and WHY each piece is there,
+      not on the exact constants.
+  (2) The proof carefully separates "proved on every path" from "with
+      high probability" from "eventually, for large enough sizes." A
+      real proof must keep these three apart. The guide will call them
+      out whenever they matter, because slipping between them is how
+      careful algorithm analysis goes wrong.
+
+
+PART I. WHAT A MATCHING IS, AND WHY IT IS HARD
+
+
+1. Matchings
+============
+
+Draw a dot for each person at a party. Connect two dots with a line if
+the corresponding two people would be willing to be paired up. The
+resulting picture is a GRAPH: the dots are VERTICES, the lines are
+EDGES.
+
+A MATCHING is a choice of edges, no two of which share a vertex. In the
+party picture, a matching is a set of "sitting together at dinner"
+pairs, each person in at most one pair. People not in any pair are
+UNMATCHED.
+
+A MAXIMUM MATCHING is a matching with as many pairs as possible. It is
+a theorem (Berge, 1957) that if a matching is not maximum, there is an
+"augmenting path" you can flip to improve it by exactly one pair. That
+criterion is the entire basis of matching algorithms: repeatedly find
+augmenting paths, flip them, and stop when none remains.
+
+Examples to internalize.
+
+  Two people, one line. Matching number 1.
+  Four people, every pair connected (K_4). Matching number 2. Two
+    pairs cover everyone. You cannot have three pairs, since that
+    would need six people.
+  Five people, every pair connected (K_5). Matching number 2. One
+    person is left over. The odd count forces an unmatched vertex.
+  One center connected to n leaves (a "star"). Matching number 1. The
+    center pairs with only one of its many neighbors.
+  Four people in a line, 1-2-3-4. Matching number 2, via the pairs
+    {1,2} and {3,4} (or {2,3}, and then 1 and 4 are unmatched).
+
+Matching is not a puzzle from a book. When a hospital assigns residents
+to rotations, when a phone network pairs antennas without interference,
+when a chemist matches bonds under constraints, it is finding a
+maximum matching in some graph. Faster matching algorithms speed up
+all of those applications.
+
+
+2. Why matching is not easy
+===========================
+
+If the graph is BIPARTITE -- its vertices can be colored black and
+white so that every edge has one black end and one white end -- then
+matching has a clean characterization. Hall's theorem (1935) says a
+perfect matching (one that covers every vertex) exists exactly when
+"for every set X of black vertices, X has at least |X| white
+neighbors." That is a real theorem, and it makes BIPARTITE matching
+relatively tractable: search for a set of black vertices with too few
+neighbors, and you find a certificate that no perfect matching exists.
+
+For general graphs, Hall's theorem fails. The smallest counterexample
+is the TRIANGLE -- three vertices, with all three edges between them.
+
+  Try to pair all three. You cannot: a matching of size 1 covers two
+  of them; the third has no partner. So a triangle has no perfect
+  matching.
+
+  But look at any single vertex. It has two neighbors. Hall's
+  condition "for every subset X, |N(X)| >= |X|" is trivially
+  satisfied here; no subset has fewer neighbors than its size.
+
+The obstruction is the ODD CYCLE. Two odd cycles crossing, three odd
+cycles whose pairwise intersections are small, or any combination of
+odd cycles, all act as obstructions.
+
+Tutte's theorem (1947) makes this precise. A graph has a perfect
+matching if and only if, for every subset S of vertices, the number of
+odd-sized connected components of "G with S removed" is at most |S|.
+The odd components are exactly the generalized triangles.
+
+Tutte's theorem gives a criterion but not an algorithm. Turning the
+criterion into a fast algorithm is the entire history of matching.
+
+
+3. Edmonds and the blossom
+==========================
+
+Tutte's theorem is an existence criterion. It does not directly give
+an algorithm. The algorithmic breakthrough came in 1965 from Jack
+Edmonds.
+
+Edmonds' insight was that the odd-set obstruction is "shrinkable."
+When you find an odd cycle of a particular kind during your search, you
+can literally SHRINK it to a single artificial vertex ("a blossom")
+and run your algorithm on the shrunken graph. At the end you "unshrink"
+and read off the matching.
+
+Three operations form the whole algorithm.
+
+  Search. Build an "alternating tree": start from an unmatched vertex,
+    and alternately add an unmatched edge (which enters a new vertex)
+    and then a matched edge (which continues from it). Every vertex in
+    the tree is either an "outer" vertex (at even depth, so a free
+    edge can emanate) or an "inner" vertex (at odd depth, whose only
+    tree-edge-with-lookahead is the matching edge).
+
+  Augment. If the search finds an unmatched edge from an outer vertex
+    to a free vertex, the tree plus this edge is an "augmenting path".
+    Flip every edge along it (unmatched edges become matched, matched
+    edges unmatched). The matching size goes up by one.
+
+  Shrink. If the search finds an unmatched edge joining two outer
+    vertices, the tree cycle that results has odd length. Contract it
+    to a single "blossom" vertex and continue. Blossoms cannot be
+    avoided; without them, augmenting-path search is not correct on
+    general graphs.
+
+Edmonds' algorithm runs one search per augmentation, and there are at
+most n/2 augmentations. Since each search costs O(m) elementary steps,
+the running time is O(mn). That is polynomial, which was a famous
+achievement in the 1960s -- but it is not fast.
+
+The reason each search costs O(m) and not less: you may have to look at
+essentially every edge to be sure no augmenting path exists. Batching
+searches is what Micali and Vazirani did next.
+
+
+4. Micali-Vazirani and the modern baseline
+==========================================
+
+In 1980 Micali and Vazirani batched augmenting paths. Instead of
+finding one augmenting path at a time, they find a MAXIMAL SET OF
+SHORTEST augmenting paths at once, then "grow" the matching by that
+whole batch.
+
+The trick is to do the whole set of shortest augmenting paths with the
+same O(m) search, and then prove that after the batch the next
+shortest augmenting paths are strictly longer. That gives phases: in
+phase k, find all shortest augmenting paths of length 2k+1, augment by
+all of them, and move on. There are at most sqrt(n) phases, because
+after sqrt(n) phases the shortest remaining augmenting path must be
+long -- and once the path is longer than sqrt(n), a "shortcut" argument
+lets you finish the rest of the algorithm with a simpler O(m) pass.
+
+Total: O(m sqrt(n)). This has been the best published bound for
+general graphs for more than four decades.
+
+To summarize the state of the art in a compact table.
+
+  For BIPARTITE graphs:
+    1955, 1973: O(mn) and O(m sqrt(n)) -- matching is "easy" here.
+    2013-2022: even faster, using electrical flows and continuous
+      optimization. The current bound is essentially (n+m)^{1+o(1)}
+      (Chen-Kyng-Liu-Peng-Probst-Sachdeva, 2022), which was a
+      breakout result.
+
+  For general graphs:
+    1965: O(mn) -- Edmonds.
+    1980: O(m sqrt(n)) -- Micali-Vazirani.
+    1991-2018: weighted matching gets O(m sqrt(n) log W); cardinality
+      stays near O(m sqrt(n)).
+    2024: algebraic algorithms at matrix multiplication time.
+
+Until this paper, the gap between bipartite and general graphs was
+substantial: bipartite had an almost-linear algorithm, general did
+not.
+
+
+PART II. THE NEW ALGORITHM'S SHAPE
+
+
+5. The main theorem, stated plainly
+===================================
+
+Here is the paper's central claim, in plain language.
+
+  THEOREM. There is one fixed randomized algorithm (no hidden
+  parameters) such that the following holds. Given any simple
+  undirected graph on n vertices and m edges, run the algorithm with
+  fresh random bits. With probability at least 2/3, it outputs a
+  maximum matching. On every possible random choice it halts in at
+  most  C * p^(1 + eta(p))  elementary steps, where p = n+m and C is a
+  fixed constant. The function eta(p) is nonnegative, decreasing, and
+  tends to 0 as p tends to infinity.
+
+The "elementary steps" are counted in the standard word-RAM model: a
+word of `c_0 log(n+2)` bits, and standard arithmetic, comparison, and
+integer-division operations on a word cost one step. Random bits cost
+one step each. This is the usual model for algorithmic results.
+
+Two things about this theorem deserve emphasis.
+
+  (1) It is a SINGLE algorithm. There is no input-dependent switching.
+    The algorithm does not "detect that the input is easy and take a
+    shortcut". It is one fixed program, with a fixed random-bit
+    source, that happens to be correct on all inputs and to be fast
+    on all inputs up to the 1 + eta(p) factor.
+
+  (2) The "on every path" qualifier is important. This is a worst-
+    case time bound, in the worst case over random choices. Even if
+    the algorithm gets bad random bits, it still halts in C p^(1+eta)
+    steps. It might return the wrong answer (with probability at most
+    1/3), but it will not run too long.
+
+For technically clean statements the paper also establishes an
+"f-factor" corollary (Section 20 below): given one integer f(v) per
+vertex, find a subgraph in which each vertex v has exactly f(v)
+incident edges, or correctly certify that no such subgraph exists.
+Same running time, same success probability, same single program.
+
+Now: how do you actually get matching to run in almost-linear time?
+The paper's strategy is an ecosystem of reductions and data
+structures. The next several sections unpack that ecosystem.
+
+
+6. Two critical reductions
+==========================
+
+The algorithm does not directly attack "maximum matching in general
+graphs". It attacks a simpler-looking problem (perfect matching in a
+graph of maximum degree three), and it does so via two reductions that
+are important enough to describe carefully.
+
+Reduction 1: from cardinality to perfect matching.
+
+  Suppose you know how to decide, for any graph H, whether H has a
+  perfect matching. Fix the original graph G, and fix a target k. How
+  would you decide whether G has a matching of size k?
+
+  The naive way: add n - 2k new vertices, each adjacent to every
+  original vertex of G. Then a size-k matching of G becomes a perfect
+  matching of the new graph, and vice versa. But the new graph can
+  have n times (n - 2k) new edges, which is potentially n^2. That
+  destroys any (n+m)-linear running time.
+
+  The clever way, this paper's approach: use a PERMUTATION NETWORK.
+  A permutation network is an arrangement of "switches" (small
+  routing subcircuits) that can route any assignment of inputs to
+  outputs along vertex-disjoint paths. The famous construction is
+  Benes' (1964). It has O(n log n) switches, and it can route any
+  permutation in O(log n) "layers".
+
+  Replace the "each-of-n-original-to-each-of-n-2k-new-vertices"
+  complete connection by a Benes network with n inputs and n outputs.
+  Each original vertex is wired to one network input; the target
+  vertices get the network outputs. A perfect matching in the
+  resulting graph forces exactly n-2k original vertices to take a
+  network path, and any choice of n-2k original vertices can be
+  routed through the network.
+
+  The resulting graph has O(n log n) vertices and O(n log n) edges.
+  That is linearithmic, not quadratic. Good.
+
+Reduction 2: from arbitrary degree to degree three.
+
+  Suppose G has a vertex v of degree d. Replace v by a "path gadget":
+  a chain of 2d - 1 new vertices, with v's d edges attached to the
+  odd positions of the chain. There are d odd positions and d-1 even
+  positions. Every even position of the chain must be matched to one
+  of its two adjacent odd positions; this forces all but one of the
+  odd positions to be matched internally, leaving exactly one odd
+  position available for an external edge.
+
+  So each gadget "selects" exactly one of the d original edges, in
+  any perfect matching of the expanded graph. The expanded graph has
+  d odd positions and d-1 even positions per gadget, for a total of
+  O(sum d_v) = O(m) new vertices. Each new vertex has degree at most
+  3. And crucially, the transformation is EXACT and REVERSIBLE: a
+  perfect matching of the new graph gives back exactly one matching of
+  G, and vice versa.
+
+Between the two reductions, we get: for any k, there is a subcubic
+graph H_k of size O(n log n) + O(m) that has a perfect matching if and
+only if G has a matching of size k. The size is O(n log n + m) -- not
+quadratic -- which is essential.
+
+Since G's maximum matching size is between 0 and n/2, the algorithm
+does a binary search on k. Each test calls the subcubic perfect
+matching procedure on H_k. That is the whole reduction. Log-many
+tests, and each test is on a subcubic graph of linearithmic size.
+
+
+7. Subcubic perfect matching: the modern view
+=============================================
+
+So the problem becomes: perfect matching in a graph of maximum degree
+three. Even here, the best bound before this paper is O(m sqrt(n)).
+The reason is embarrassingly simple: an augmenting path can have length
+up to n, and Edmonds' search for it can cost n per augmentation. To
+beat O(m sqrt(n)) you need to avoid expanding long augmenting paths at
+every step.
+
+The new paper's strategy is to not expand long augmenting paths. It
+uses a different, non-explicit, representation of the current matching
+state, in which an augmenting path of length n only costs O(log n) to
+represent and O(log n) to reason about.
+
+Think of it as the difference between two ways of storing the seating
+chart at a dinner party.
+
+  Explicit representation. Keep a list of every pair, and an "open"
+    list of everyone not yet seated. When a new person arrives, find
+    someone to pair with them by scanning the open list. Cost is
+    proportional to how many pairs you may have to rearrange.
+
+  Compressed representation. Keep a summary of "here are the groups
+    of people who are happy with any of several different seating
+    arrangements", plus some count of how many spare seats each group
+    has. When a new person arrives, look at the summary, adjust the
+    arrangement, and only expand the summary into an actual seating
+    chart when you need to output the final answer.
+
+The compressed representation is what makes the new algorithm fast.
+It is much harder to maintain than the explicit one, but its storage
+cost does not grow with the number of augmenting paths.
+
+Formally, this is described in the paper as a "matching state" that
+contains "bins", "rows", and "ledgers". The next section explains what
+each of those is.
+
+
+8. The bin-and-row state
+========================
+
+The representation is a partition of the current matching into a
+"compressed" part and an "explicit" part. The compressed part contains
+the pieces that will be expanded only at the very end.
+
+A BIN is an odd-sized set of vertices. It is factor-critical:
+no matter which one of its vertices you nominate as the "exposed" one,
+there is a matching that covers all the others internally. A bin of
+weight w_d = (|d| + 1)/2 means it has 2 w_d - 1 vertices.
+
+  Example. A single vertex is a bin of weight 1. A triangle is a bin
+  of weight 2 (its 3 vertices, one exposed, two matched by the
+  remaining edge). A 5-cycle is a bin of weight 3.
+
+A ROW is a single vertex outside all the bins. Each row is assigned
+to a distinct bin, along one of the graph edges between them. When a
+bin is "assigned", its exposed vertex is matched to its row. When a
+bin is "free" (no row assigned to it), its exposed vertex is
+unmatched.
+
+The rest of the vertices form a set U of explicitly-matched pairs.
+They are the "fat" part of the state: matched pairs whose interior
+detail is available if we need it, and that we don't bother compressing.
+
+The state also comes with three useful counts.
+
+  |M| is the number of pairs in the current matching.
+  K = n/2 - |M| is the number of augmentations we still need.
+  Ledgers are the "budgets" that let us reason about who can
+  borrow from whom.
+
+
+9. The three actions: gain, expand, price
+=========================================
+
+The phase algorithm proceeds by taking actions. Each action changes
+the state slightly, and the state is always maintained to be a true
+matching. The three actions are:
+
+  GAIN. Match a free bin to a free bin joined by a physical edge.
+    When you find an edge between two free bins, you can rearrange
+    both bins' internal matchings to expose exactly the endpoints of
+    that edge, then match along the edge. This increases |M| by one.
+    It is the whole point of the algorithm: gains are progress.
+
+  EXPAND. When a free bin has an edge to a matched vertex inside U,
+    break that matched pair into (a new row) + (a new singleton bin),
+    and use the edge to make the singleton bin that bin's assigned
+    row. Then the vertex in U and the free bin are no longer touching;
+    they have been "absorbed" into the compressed state. This does
+    not increase |M|, but it exposes more of the graph to inspection.
+
+  PRICE. If there is no free-bin edge and no free-bin-to-U edge, find
+    a "priced direction" -- a small circulation that increases a
+    potential function. The pricing step uses a data structure (the
+    "engine") that we'll meet in Section 14.
+
+The algorithm insists on taking gains as often as possible. Between
+gains, it takes expansions and pricing steps. The claim is:
+  - If the graph HAS a perfect matching and we haven't reached it
+    yet, then one of these actions always applies.
+  - The number of expansions and pricing steps between two gains is
+    controlled by a ledger-based accounting argument.
+
+The next two sections set up the ledgers.
+
+
+PART III. LEDGERS, DEBT, AND PRICING
+
+
+10. The ledger
+==============
+
+The most distinctive idea in the paper is the ledger. Let's motivate
+it before we define it.
+
+You are maintaining a matching in a compressed form. At any moment,
+some bins are free (contributing one unmatched vertex each) and some
+are assigned to rows (whose exposed vertices are matched to the rows).
+
+A natural question to ask: after some small change, can I still match
+everything? The answer depends on the bipartite "row-to-bin"
+incidence graph: each row r is adjacent to whichever bins it has
+physical edges to. The classical Hall condition (imported to this
+bipartite setting) says the current assignment can be rearranged to
+any other injective assignment if and only if for every set X of
+bins, the number of rows whose neighbors are all in X is at most |X|.
+
+So we want a surplus: |X| - (number of captive rows of X). This
+surplus is called h(X), the "deficiency of X". We need h(X) >= 1 for
+all nonempty X, at every "settled" state.
+
+Actually we need something stronger. We need to be able to not only
+maintain the current assignment, but to handle a whole extended
+sequence of changes without doing a global scan for the Hall
+condition each time. The BUDGET for how much slack we have is what
+the ledger measures.
+
+A LEDGER is like a bank account per bin. Each row r "puts" some
+amount of budget, L units in the current parameterization, into its
+incidence graph. The budget is spread across the bins that r has
+edges to. Each bin d has a "load" from all rows allocating to it, and
+its "residual" is L minus that load. Even bins with small or zero
+load have a minimum: that minimum is c * w_d for some "floor
+parameter" c.
+
+There are a + 1 ledgers simultaneously, with different floors:
+
+  Ledger 0 (top):    floor C * w_d = (a+1) * w_d, and slack; used
+                     for the SMOOTH PROGRESS OBJECTIVE.
+  Ledger 1:          floor a * w_d
+  Ledger 2:          floor (a-1) * w_d
+  ...
+  Ledger a (bottom): floor 1 * w_d, no debt allowed at settled
+                     states; used for the HALL CERTIFICATE.
+
+The gap between adjacent floors is one unit. That gap is the
+"operational margin" the algorithm uses to amortize its work: when a
+repair has to move budget, the adjacent ledgers permit moving one
+unit, and the total movement across the whole family is bounded.
+
+The ledger with the smallest floor is the "bottom" ledger. Its
+debt-free state is what gives the Hall certificate:
+
+  BOTTOM SURPLUS. At a settled state, for every nonempty set X of
+  bins, L * h(X) >= w(X). In particular h(X) >= 1 for all non-empty X.
+
+So if you can maintain the bottom ledger's bounds without going into
+debt, you have proved that at least one augmenting path exists. That
+is the correctness guarantee for the phase algorithm.
+
+
+11. Debt
+========
+
+In practice you cannot always maintain the ledger exactly: some
+change forces you to overspend in the short run. The ledger allows
+this as "debt": a debt p^j_d >= 0 at ledger j bin d means that the
+ledger is effectively short by p^j_d at bin d.
+
+The ledger invariant is: y^j_d + p^j_d >= c_j * w_d, where y^j_d is
+the residual at bin d in ledger j and c_j is the ledger's floor
+parameter. So debt is "shorted capacity", and it accumulates:
+
+  - EXPAND adds debt c_j at the newly installed assigned bin.
+  - GAIN (with ledger repair) can add at most 2L of net debt per gain.
+  - CONTRACTION preserves total debt (or reduces it).
+
+Debt is a temporary bad thing: at every settled state, the bottom
+ledger's total debt is zero. The bottom-most period is short enough
+that the debt never accumulates on it, and the coarser ledgers
+"carry" the debt while the finer ones take over the Hall proof.
+
+The trick is: because the bottom floor is c_a = 1 and the next floor up
+is c_{a-1} = 2, a projection peel that removes weight w(R) from the
+bottom decreases the next-coarse ledger's debt by AT LEAST w(R). This
+is the "payment" argument: every peel costs weight, and weight is
+what finances future peels.
+
+
+12. Projections: the local repair problem
+=========================================
+
+Between the current state and the next settled state, we may have
+accumulated debt. To return to a settled (debt-free on bottom)
+state, we run a PROJECTION at some ledger level.
+
+A projection is a flow problem. On the row-bin graph we set up a
+network with
+
+  - source -> deficit bin d, capacity (c w_d - y_d)_+ (how far d is
+    below its floor),
+  - surplus bin d -> sink, capacity (y_d - c w_d)_+ (how far d is
+    above its floor),
+  - for each incidence e=(r,d), bin -> row with capacity x_e (current
+    allocation) and row -> bin with capacity L+1.
+
+A MAXIMUM FLOW of value beta = total deficit "cures" all deficits
+by rerouting allocations. The new allocation has all residuals at
+least their floor. Done.
+
+But if the maximum flow is LESS than beta, some deficits remain. Then
+the algorithm identifies all residual-reachable bins from the source,
+which form a set R, and PEELS that set. Peeling means: unfreeze the
+assigned rows of R, remove their bins from the compressed state, and
+turn their free exposed vertices into unmatched vertices (they go
+onto the "blocker list"). This trades compressed structure for
+concreteness at those specific bins.
+
+The key lemma is that if R is nonempty it makes PROGRESS. Its weight
+w(R) is at least as large as the coarse-ledger debt it retires. So
+peels are always paid for.
+
+The clever part is that this projection network is HUGE: O(n) arcs,
+O(n) vertices. Doing it globally would defeat the whole point. So the
+algorithm does it locally: it starts from the "seeds" that are close
+to deficit, and only "explores" bins that become reachable through
+positive allocations. Every expanded bin PERMANENTLY LOCKS IN some of
+its own capacity that it consumed from the flow. This bounds the
+region size by O(P) where P is the total debt, not by O(n).
+
+  Cost of one local projection test: (P + B) * S^{O(1/a) + o(1)}.
+  Where P is the total debt (O_a(S) for j > 1), B is a "padding" term,
+  and S is the master size bound.
+
+That is the heart of the algorithm's local work bound.
+
+The local projection test uses the PRICED STEP primitive that we're
+about to define. Each threshold test runs on a small local network,
+calls the engine O(log S) times, and returns either "yes the flow is
+big enough" (in which case it locked in enough to move the state
+forward) or "no the flow is not big enough" (in which case the state
+is peeled). The exact result is recovered by one more static flow
+computation on the small local network, of size O(P).
+
+This is where the mysterious parameter a comes in: a bigger a means
+more ledger levels, more amortization, and more slack, at the cost of
+more bookkeeping per step. The algorithm's running time has an
+"exponent = O(1/a)" term, meaning larger a gives a nicer exponent. The
+paper picks a >= 1000 to make the exponents comfortably small, but
+each specific a is a FIXED choice. Different a values give different
+algorithms; the uniformization step at the end combines them all.
+
+
+13. Progress: why the algorithm always makes some
+=================================================
+
+The crucial correctness lemma is: if the graph has a perfect matching
+and the algorithm is not done, then one of the three main actions
+applies.
+
+If a free-free edge exists, GAIN applies. If a free-bin-to-U edge
+exists (with enough slack), EXPAND applies. Otherwise: no such edge
+exists, and the algorithm should be able to find a PRICED DIRECTION
+that increases the potential.
+
+This is the "no false stall" lemma. Its proof (from the paper, with
+annotations for the reader) goes as follows:
+
+  Realize the matching conceptually (mentally, not algorithmically).
+  Take the symmetric difference with a perfect matching. This
+  decomposes into K-i* vertex-disjoint "augmenting chains".
+
+  Because no free-free edge and no free-bin-to-U edge exists, each
+  chain from a free bin must eventually exit through a specific
+  structure. The paper shows that these chains let you simultaneously
+  free a set of bins Z of size at least K/2 (where K is the deficit
+  at the phase start). Rearranging the ledger reallocations so that
+  these newly-free bins each receive L units, while pushing other
+  columns to their capacities, produces an ALTERNATIVE allocation x'
+  that differs from the current x by a CIRCULATION.
+
+  This circulation has more positive derivative of the log objective
+  than negative, by a comfortable margin (at least 3x). That
+  circulation is the "priced direction" the engine looks for.
+
+  So the engine cannot return LOW, unless it reports stochastic
+  failure. Otherwise it returns a direction and takes a step, which
+  changes state.
+
+The pricing step ALSO cannot happen infinitely many times without a
+structural action, because each successful step increases the
+objective by at least Omega(q^2), and there is only so much objective
+in the system.
+
+So: as long as there is no false stochastic failure and no
+suspension, the algorithm always makes progress.
+
+
+14. Pricing, and the engine
+===========================
+
+Pricing is what the algorithm does when nothing else works. We have a
+current allocation x; we want to nudge it in a direction that improves
+the top-level logarithmic objective Phi = sum_e log x_e + sum_d log s_d.
+
+The engine (the "priced step primitive") is the operational part.
+Given the current point and a small positive budget q, the engine
+either:
+
+  - Returns LOW (meaning: no acceptable direction exists). It can
+    only do this if no circulation direction d satisfies
+    (g . d) / ||lambda * d||_1 > 1/2, where g is the gradient and
+    lambda is the sum of absolute individual derivatives. And even
+    then, it must not return LOW if stochastic failure happens; that
+    is reported separately.
+
+  - Returns a circulation increment h on the exact epsilon-grid, with
+    ||lambda * h||_1 <= q/100 (small absolute motion) and g . h >=
+    q^2/1000 (real objective gain). This increases Phi by Omega(q^2).
+
+The engine also exposes CACHED REGISTERS f_hat_e ~ f_e, accurate
+enough that lambda_e(f_hat_e) * |f_e - f_hat_e| <= q/100. The cache
+is refreshed whenever a coordinate has drifted too far, and the total
+number of refreshes is O(number of successful steps) * polylog.
+
+That last piece is important. The naive approach -- recompute the
+exact f_e for every coordinate before every pricing step -- would cost
+O(n) per step, defeating the whole purpose. The engine instead keeps a
+CACHE of f values and refreshes lazily. "Refreshes lazily" is the
+technical way of saying: it keeps track, using a separate "absolute
+motion" accumulator, of how much a coordinate has actually changed
+since it was last cached. When that absolute motion exceeds a
+threshold, the coordinate is refreshed. Because every pricing step
+only moves each coordinate a small total amount, the total absolute
+motion is bounded by the number of steps times polylog.
+
+That is what makes the whole pipeline work.
+
+There is one more subtlety that matters for correctness: the pricing
+step is done on a "priced" network whose PRICES are derived from the
+cached values. The engine must ensure that the prices are close enough
+to the exact derivatives that the ratio test is still correct. The
+analysis shows that the cached-value error, the rounding error, and
+the pricing accuracy all fit within the allowed slack q, and that the
+test "ratio >= 2q" exactly matches the "ratio >= 1/4" condition in
+the algorithm.
+
+We will not give the derivation here. The point to take away is:
+pricing is correct, at a cost of polylogarithmic work per successful
+step, and each successful step increases the objective by a fixed
+polynomial in the accuracy parameter q. Since the total objective
+range is O(S log S), at most O(S q^{-2} log S) successful pricing
+steps occur, and the whole pricing phase costs S^{1 + O(1/a) + o(1)}.
+
+Next, the engine's real implementation needs the cycle backend. That
+is the subject of Part IV.
+
+
+PART IV. THE CYCLE BACKEND
+
+
+15. Why the backend exists
+==========================
+
+Pricing needs a circulation. But finding circulations is not a trivial
+operation, especially when the graph is changing (edges added, removed,
+prices retargeted) and there are millions of edges.
+
+The "cycle backend" is the data structure that answers this need. It
+maintains a dynamic graph, and it answers queries of the form: "give
+me a short circulation with a good gradient-to-length ratio". The
+interface is precise:
+
+  Input:
+    - a dynamic undirected graph on at most M vertices and edges
+    - positive integral lengths l_e on each edge
+    - integral gradients gamma_e on each edge
+    - a master size bound S and parameters a and sigma
+    - M must satisfy S^{1/a} <= M <= S^2
+
+  Operations:
+    - insert an edge (with its length and gradient)
+    - delete an edge (or replace with a new length/gradient; a price
+      change is modeled as delete + insert)
+    - query: return a circulation as a list of individual actual
+      edges and forest paths
+
+  Quality guarantee: let OPT = max over nonzero circulations d of
+  (gamma . d) / ||l * d||_1. If OPT > 0, the query must return a
+  circulation c with:
+    - raw length V > 0 (raw length counts traversals with multiplicity)
+    - (gamma . c) / V >= M^{-10/a} * OPT
+
+  Time: initialization is M^{1 + O(1/a) + o_a(1)}. Each operation is
+  amortized M^{O(1/a) + o_a(1)}.
+
+  Reliability: stochastic failure detected with probability at most
+  2^{-sigma} * S^{-60} per backend instance. It does not fail on any
+  path, only reports failure.
+
+A few things worth noticing.
+
+  - The QUALITY factor is M^{-10/a}, not 1. The backend is an
+    APPROXIMATE cycle finder. In the pricing step we saw that we
+    only need OPT/4 or better, so as long as M^{-10/a} > some
+    small constant we are fine. For large a and moderate M this
+    is satisfied.
+
+  - The RAW LENGTH counts every traversal with multiplicity. This is
+    the "raw-motion" convention from Section 14. Without it, an
+    adversarial query that mostly canceled out would appear short
+    but would actually have consumed many steps.
+
+  - The output is not just "an edge set". It is a
+    specifically-chosen COMBINATION of actual edges and forest
+    paths. The reason is that the engine's state depends on the
+    exact sequence of edge traversals, not just the net circulation.
+
+The backend is built recursively: at the outer level, we handle a
+graph of size at most M. At an inner level i, we handle a graph of
+size at most n_i = M^{1 - i/(2a)}. There are d = 2a - 4 levels. The
+outer level has n_0 = M, the bottom has n_d = M^{2/a}.
+
+Between levels, each parent edge "becomes" a forest path in the
+parent (via a segment decomposition) plus a single child edge. The
+child edge's coefficients are aggregated from the parent path. So a
+circulation at the child level "expands" via those segments into a
+circulation at the parent. Each level costs a factor of b^2 = M^{2/a^2}
+in quality. Over d levels, total loss is M^{(4a - 8)/a^2}, which for
+a >= 1000 is well below the M^{-10/a} bound stated in the interface.
+
+The construction is in three parts. First, the ROUTING HELPER
+(Section 16): given a graph and "resource demands" on it, find a
+sparse subgraph that still meets the demands. Second, the FROZEN
+DECOMPOSITION (Section 17): at each level, "freeze" the graph
+structure at the start of a "phase", precompute some pre-built
+forests (called "covers"), and then any query can be answered by
+looking at a bounded number of those pre-built forks. Third, the
+LIFTED PUBLIC FOREST (Section 18): the child graph's forest is lifted
+back to a parent forest using "arm slots", so we can hand the parent
+a circulation using the child's answer.
+
+
+16. The routing helper
+======================
+
+The routing helper is a purely combinatorial object, used as a
+building block.
+
+  Input:
+    - an undirected multigraph F with identified edge copies
+    - for each edge f, a sparse set of "resource counts" m_xf in
+      {1, ..., 10}, where x is a "resource label"
+    - the constraint sum_f m_xf <= C_0 for every vertex and every
+      resource x (this is a LOCAL sparsity condition: at each vertex,
+      each resource is spread across at most C_0 edges)
+
+  Output:
+    - a subgraph F' subset F
+    - for every edge f=vw in F, a walk Q_f in F' from v to w
+
+  Guarantees:
+    - |F'| is small: at most P_* * v_+, where v_+ is the number of
+      distinct vertex labels and P_* is a fixed-parameter logarithmic
+      factor
+    - |Q_f| is short: at most P_*
+    - resource preservation: for every resource x,
+        sum_f sum_{e in Q_f} m_xe  <=  P_* * C_0
+      That is, even after all the routing, every resource is only
+      used P_* times more than the local pre-routing bound.
+
+  Runtime: O((input size + 1) * b * M^{o_a(1)}) where b = M^{1/a^2}.
+  Failure probability: 2^{-sigma} S^{-800}.
+
+The resource preservation is the crucial innovation. Without it, the
+routing helper would be just a typical sparse routing sparsifier. The
+key lemma is that ADDITIONAL resource usage is proportional to the
+pre-routing LOCAL usage (at each vertex). So a vertex that appears in
+few edges' routes stays "cheap" after sparsification.
+
+The construction has three rounds.
+
+ROUND 1: SAMPLING CUTS.
+
+  Sample edges with probability inversely proportional to vertex
+  degrees. Retained edge e gets weight 1/p_e. Compute a maximum flow
+  between two equal halves of the vertex "stubs". The max flow's
+  deficiency (matched pairs short of a perfect bipartite matching)
+  identifies a sparse cut, if one exists. If so, split the piece into
+  two, defer the crossing edges to later stages, and recurse on the
+  halves.
+
+  The random sampling ensures accuracy: with overwhelming probability,
+  the sampled cut weights are close (multiplicatively) to the real
+  ones. This is a "matrix Bernstein inequality" result: the sampled
+  cut-weights form a sum of independent matrix-valued random
+  variables, and the concentration is exponential.
+
+ROUND 2: MATCHED OVERLAY.
+
+  If a piece survives r_m rounds without a further cut, it must be
+  "expanding" (conductance at least 1/(4 r_m)). The algorithm now
+  uses the max-flow matchings it computed in each round to build a
+  "regular overlay graph" on the stubs. The matching edges have short
+  real embedding lengths and the overlay has bounded degree. This is
+  the "median rule": the overlay's edges are chosen by the median of
+  some random projections.
+
+ROUND 3: RECURSIVE ROUTING.
+
+  Now we need to route the actual DEMAND STUB PAIRS (each demand edge
+  wants to be routed as a path connecting its two stubs) through the
+  overlay. Do this recursively:
+    - Group virtual labels (stubs) into "buckets" of size ~b
+    - Route each demand through its bucketed graph (with bounded hop
+      length by conditioning)
+    - Recursively route on the bucketed graphs
+    - Substitute back to get short paths in the overlay
+
+  Crucially, each packet uses O(t * log(1/eps)) hops per level, and
+  there are O(log_b(M)) levels. Total hop count: polylog. After
+  substitution, the real path uses only a polylog factor more length
+  than the overlay path. Every packet's path is verified before
+  accepting.
+
+The resource-preservation check is a separate step at the end: after
+substituting real edges for overlay edges, we count actual traversals
+on each resource. If any exceeds the allowed bound, the attempt is
+rejected (retried with fresh randomness). If it succeeds, the sparse
+support and short paths are guaranteed.
+
+This is heavily inspired by the "cut-matching" framework of
+Khandekar-Rao-Vazirani (2006) and by the hierarchical routing of
+Ghaffari-Kuhn-Su (2017). The specific contribution of this paper is
+the explicit resource-preservation accounting, needed because the
+backend's downstream utilization is "resource-aware".
+
+
+17. Freezing and decomposing the graph
+======================================
+
+The backend maintains its graph in epochs. An epoch is a fixed number
+of input edits. At the start of an epoch, the current (nonloop) graph
+is FROZEN: its structure and prices are fixed, and it serves as the
+"reference" graph for the rest of the epoch. New edges inserted
+during the epoch are tracked separately.
+
+The algorithm precomputes a family of FORESTS on the frozen graph,
+called COVERS. A cover F_j at layer j (j = 1, ..., r) is a set of
+K_h partitions of the frozen vertices into cells. Each cell has a
+shortest-path tree of radius at most Gamma * R_j (where R_j = b^j and
+b = M^{1/a^2}). The key coverage property: for every vertex v, SOME
+partition has a cell containing its entire closed R_j-ball.
+
+  How the covers are built: independent random "delays" X_c from a
+  geometric distribution (Pr[X_c >= t] = 2^{-t}), with each center
+  scoring R_j * X_c - dist(c, v). A vertex v picks the center with
+  maximum score. The runner-up gap being > 2 R_j means the coverage
+  holds. Random shifts (Miller-Peng-Xu) and verified padding
+  guarantee this with probability > 1/2 per attempt; retry up to
+  2 (sigma + 1000 log S + 10) times.
+
+Now, the DECOMPOSITION LEMMA (which is the workhorse):
+
+  FIX any epoch state and any current circulation Delta. Write Delta
+  = Delta_s + Delta_n (surviving frozen part + new-edge part).
+
+  Then there exist coefficients alpha_f on live "fundamental cycles"
+  C_f^0 (one per surviving frozen chord) and a forest vector z on the
+  "raw forests" H_j such that:
+
+    sum_f alpha_f * pi(C_f^0)  =  Delta_s + pi(z)         (identity)
+    sum_f |alpha_f| * w_f      <= A_* * ||l * Delta_s||_1  (coefficient bound)
+    ||z||_length               <= A_* * ||l * Delta_s||_1  (residual bound)
+
+  where pi(C) is the "projection" of the cycle to the actual edges.
+
+The proof: decompose each surviving edge's "two-arm" walk (one arm to
+a common representative, then back) into fundamental cycles of the
+frozen forest. The "common representative" is the highest layer at
+which the two arm choices agree; below that, the arms cancel; above
+that, they don't (and the local "chord" structure covers them).
+
+The RESIDUAL z is the leftover forest vector that isn't quite a
+circulation yet. It has divergence only at "new edge endpoints" and
+"hole endpoints" (where the frozen forest's edges were cut).
+
+Then the algorithm COMPRESSES z into a smaller graph (the child graph
+J) by:
+  - taking the Steiner subtree of the terminal set
+  - suppressing degree-2 nonterminals
+  - assigning summed length and gradient to each compressed segment
+
+The compression is exact for the length norm. So a child circulation
+of length ||l^J * Xi||_1 expands to a parent circulation with length
+at most that (times the arm-slot lifting factor, which is 1).
+
+
+18. The lifted public forest
+============================
+
+The child graph has its own forest structure. When the child returns
+a circulation as a forest path (or a piece of one), we need to expand
+it back to the parent. If the child path is short, the parent path is
+short. If the child path is long, we need to make sure it isn't
+suddenly expensive to expand.
+
+The solution: PRE-BUILT ARM SLOTS. Every child vertex q has, in its
+corresponding pool of "occurrences" at the parent, a set of ARM SLOTS.
+Each arm slot has the shape of a path (the compressed segment of the
+parent that q corresponds to), oriented outward from q's image in the
+parent. Up to D_{i+1} = b^{2(d-i-1)} copies of this path are
+pre-built, one per child-forest occurrence.
+
+When the child's forest is used to answer a query, we need to lift
+each child forest path. We choose a fixed endpoint of the corresponding
+parent segment (say q), grab its arm slot in the correct occurrence,
+and connect the far tip of that arm to the OTHER endpoint's center
+(via a null connector). This is a "lift" of one child edge.
+
+The problem: when the child's forest structure CHANGES (because a new
+query created a new child-forest edge, or a deletion cut one off), the
+arm slots need to be reassigned. But reassignment could break the
+engine's accumulated values.
+
+The solution: PERSISTENT EDGE LIFETIMES. Each arm edge has a unique
+identifier that reflects its physical endpoint, pool index, and
+segment position -- NOT which specific occurrence uses it. When an arm
+slot is reassigned to a different occurrence, its internal edges keep
+their identities. Their accumulations (signed motion h_c and absolute
+motion A_c from Section 14) are transferred intact. So the engine's
+cached values remain correct.
+
+The critical claim: LIFTING PRESERVES THE SCORE. If a child
+circulation has score (gamma . c) / ||l^J * c||_1 = rho, then after
+lifting, the parent circulation has:
+  gamma . c_lifted = gamma . c         (same gradient, propagated)
+  ||l * c_lifted||_1 <= ||l^J * c||_1  (no larger raw length, because
+                                          each child length is a sum of
+                                          parent constituent lengths)
+  score >= rho                         (immediate)
+
+So the parent's problem is at least as good as the child's problem.
+And the child's problem is at least b^2 smaller. That is the
+recursion's quality guarantee.
+
+Two more properties of the lift are worth stating because they allow
+the engine's per-coordinate accuracy tracking:
+
+  - STABILITY: a forest path that existed before the lift continues
+    to exist after (with the same identifier and same endpoints). The
+    engine can reuse its cached value without a re-fetch.
+  - INVARIANT SUPPORT: reassignment of dormant arm slots does not
+    change any active identifier. The engine's "current edge set"
+    only changes when new edges are explicitly inserted.
+
+This is what makes the whole thing work at the engine level. Without
+the persistent lifetimes, the cached values would drift on every
+forest edit, and the engine would have to fall back to O(S) rebuilds
+per operation. With them, the engine's cost per step stays
+polylogarithmic.
+
+SECTION: what we skipped
+
+The BACKEND-UPDATES section of the original paper is the one that
+maintains the child graph dynamically: how many edits happen per
+parent-edit, how many child slots are consumed, how to reuse slots,
+how to bound the number of new edges selected as "central" chords
+at each rebuild. It is the implementation-heavy core of the argument.
+Some of its parameters:
+
+  - Each epoch has h_i = n_i / k edits, where k = M^{1/a}.
+  - Inner snapshots at periods s_j = b^{z_0 - j}, j = 0, ..., z_0
+    where z_0 = ceil(log_b h_i).
+  - Each inner snapshot has path-hop bound p(j) = (10 P_*)^{j+1} and
+    visit bound C(j) = D_l * (100 P_*)^{j+1}.
+  - At a rebuild, the routing helper is called on a core graph with
+    O(E_0) incident labels (where E_0 = number of logical edits
+    since the last snapshot). It returns support of size O(P_* E_0).
+  - Total additional support per epoch prefix of t' edits is at most
+    b t' times a fixed log factor.
+
+The upshot: each parent edit triggers at most b = M^{1/a^2} child
+edits, and the recursion depth is O(a). So the total recursive work
+is dominated by the top level, with the sub-linear exponents adding
+up to O(1/a).
+
+This is where the "almost linear" in the title lives: the algorithm
+has a cost of
+    S^{1 + O(1/a) + o(1)}
+where the O(1/a) exponent is what we're paying for the recursive
+structure. Choosing a larger a gives a smaller exponent. The
+parameter a is fixed per-branch in the uniformization step (Section
+19), and larger branches have asymptotically better bounds.
+
+
+PART V. WRAPPING UP
+
+
+19. One uniform program
+=======================
+
+Every algorithm so far has two parameters: a and sigma. Different
+choices give different algorithms.
+  - Larger a gives a better time bound (exponent O(1/a), tending to
+    zero as a tends to infinity). But the constants get worse.
+  - Larger sigma gives better success probability (>= 1 - 2^{-sigma}),
+    at the cost of more random bits and more retries.
+
+The main theorem claims a SINGLE algorithm, with FIXED constants and
+a success probability of at least 2/3. How do you get one algorithm
+out of a family?
+
+Answer: universal search, or "dovetailing" (Levin, 1973).
+
+  Set up a schedule of rounds j = 0, 1, 2, ... In round j, give
+  branch t (t = 0, ..., j) a budget of 2^{j-t} elementary steps.
+  A branch that finishes halts the whole schedule; a branch that
+  doesn't finish is paused, with its state saved, and resumes at
+  its next scheduled time.
+
+  Branch 0 uses Edmonds' deterministic O(n^3) algorithm. It is slow
+  but guaranteed to finish with a correct answer. So the schedule
+  ALWAYS halts within polynomial time.
+
+  Branch t (t >= 1) is the paper's algorithm with a = 1000 + t and
+  sigma = t + 20. It costs p^{1 + O(1/a) + o(1)} on any n+m = p
+  input, with success probability 1 - 2^{-(t+20)}.
+
+Now the interesting part: what is the running time of the schedule?
+
+  Fix a target size p. Some branch t is "the first to finish"; call
+  its actual step count T_t(p). The schedule's wall-clock time is at
+  most sum_{j=0}^{ceil(log_2 T_t(p)) + t} 2^{j - t'}, where the sum
+  is over all branches t' = 0, 1, 2, ..., and this sums to at most
+  2^{t + 2} * T_t(p).
+
+  So the schedule's actual cost is at most 4 * 2^t * T_t(p) for the
+  branch that finishes first.
+
+  For each fixed t, branch t's upper bound is p^{1 + O(1/(1000+t))
+  + o(1)}. So the schedule's cost is
+  at most min over t of { 4 * 2^t * p^{1 + O(1/(1000+t)) + o(1)} }.
+
+  Take t = O(log log p). Then 2^t = (log p)^O(1) = p^{o(1)}, and
+  1/(1000+t) = O(1/log log p) = o(1). So the total cost is
+  p^{1 + o(1)}.
+
+Formally, the paper does not assert "p^{1 + o(1)}". It asserts
+"C * p^{1 + eta(p)}" for some nonnegative, nonincreasing function
+eta that tends to 0. The function eta is DEFINED by the schedule:
+
+  eta(p) = sup over all inputs and paths of size p of
+           max(0, log_p(T(that path) / p) - 1).
+
+This supremum is finite: the polynomial fallback branch bounds it.
+This supremum tends to zero: the fixed branches have bounds whose
+rate tends to 1. And it is nonincreasing in p because the supremum
+is over larger sets as p grows.
+
+That is the construction. The schedule is what makes it ONE program.
+
+  Is the schedule really one algorithm?
+
+  Yes, with care. Every branch runs in the same fixed word-RAM
+  model. Every branch's parameters are FIXED integers (a = 1000+t,
+  sigma = t+20), not floating-point. The schedule uses a fixed
+  round structure and a fixed doubling schedule. All the coroutine
+  state is integer state. So the schedule is one finite program,
+  and the word size c_0 is a single fixed constant.
+
+  The one subtlety is physical word size. The schedule's intermediate
+  sizes are bounded by the polynomial fallback branch; c_0 is chosen
+  once at compile time to cover that bound. It does NOT depend on
+  the input.
+
+Random bits: each branch has its own independent fair-bit stream,
+revealed on-demand. Coupling all branches to independent streams,
+and taking a union bound on their failure probabilities, gives
+    sum over t >= 1 of 2^{-(t+20)} = 2^{-19} < 1/3.
+So the final answer is correct with probability at least 2/3.
+
+
+20. Prescribed-degree factors (f-factors)
+=========================================
+
+Let us finish with the "second" problem the paper solves. Given a
+graph G and an integer f(v) for each vertex v -- with
+0 <= f(v) <= deg(v) -- an F-FACTOR is a subgraph in which each vertex
+v has exactly f(v) incident edges. So a perfect matching is the
+special case f(v) = 1 for all v, and a 1-factor is
+"everyone gets paired exactly once."
+
+The classical reduction (Tutte 1954) is: build an auxiliary graph H_f,
+and find a perfect matching in H_f. The naive version of H_f would
+have quadratic size. This paper's version is linearithmic.
+
+Here is the construction.
+
+  For each host edge e = {u, v}, create two PORT vertices x_{u,e}
+  and x_{v,e}, joined by a CROSS EDGE labeled e. (Each host vertex
+  u gets one port for each incident edge.)
+
+  For each host vertex v with degree d_v and target f(v), create a
+  permutation network of size s_v = smallest power of two >= d_v.
+  The network has d_v inputs and s_v outputs. Assign distinct inputs
+  to the d_v ports at v.
+
+  Let b_v = d_v - f(v). Select b_v outputs of v's network. Add a
+  SINK vertex adjacent only to the output endpoint of each selected
+  output.
+
+  Split every network position a into two vertices a_in, a_out,
+  joined by an IDLE EDGE. For every directed arc a -> a' in the
+  network, add a TRANSITION EDGE from a_out to a'_in.
+
+The whole graph H_f is simple (no self-loops, no multi-edges). Its
+size is O(m log(n+2)).
+
+  Claim: H_f has a perfect matching if and only if G has an
+  f-factor.
+
+  Proof sketch (=>): take a perfect matching of H_f. At every split
+  position, either its idle edge is used (so the position is
+  "internally covered") or both endpoints are matched by non-idle
+  edges. So the number of "externally matched" inputs equals the
+  number of "externally matched" outputs in every network. Since
+  selected transition edges and network-internal edges balance, the
+  imbalance comes only from port attachments (which contribute one
+  input) and sink attachments (which contribute one output). All b_v
+  sinks are covered, so exactly b_v ports use sink attachments, and
+  exactly d_v - b_v = f(v) ports use cross edges. Every host edge's
+  two ports either both use the cross edge (so the host edge is in
+  the f-factor) or neither does (host edge excluded). So the f-factor
+  consists of the labels of the cross edges used.
+
+  Proof sketch (<=): given an f-factor F, at each vertex v, exactly
+  b_v port attachments are outside F. Route these b_v input ports to
+  the b_v selected outputs, and extend this to a permutation of all
+  s_v inputs and outputs. The permutation network realizes this as
+  vertex-disjoint paths. Select these paths, plus the appropriate
+  cross edges, idle edges, and sinks. It is a perfect matching of
+  H_f.
+
+Now apply the almost-linear matching algorithm to H_f. Its size is
+O(m log(n+2)) = O(p log p). Its word length fits in O(log(n+2)) bits.
+So the corollary is: prescribed-degree factors in p^{1 + o(1)} time,
+single program, probability >= 2/3. Same as matching itself.
+
+Notice what the corollary buys us. The paper's main theorem is about
+matching; the corollary shows the technique extends to a much larger
+class of problems. Prescribed-degree factors have their own classical
+Tutte reduction, but the naive version is quadratic. The permutation
+network is what makes it linearithmic. That is a nice piece of
+algorithm engineering that is somewhat orthogonal to the main result.
+
+
+21. What the paper actually proves
+==================================
+
+Let us step back and say what the paper establishes, in one place.
+
+  THEOREM (main). There is one uniform randomized word-RAM
+  algorithm, with fixed constants c_0 >= 2 and C >= 1 and a
+  nonincreasing function eta(p) -> 0, such that for every graph G on
+  n vertices, m edges, p = n + m, the algorithm halts in at most
+  C * p^{1 + eta(p)} steps on every computation path, and with
+  probability at least 2/3 outputs a maximum matching of G.
+
+  For sparse graphs (m = O(n)), the bound is n^{1 + o(1)}. For dense
+  graphs (m = Theta(n^2)), the bound is n^{2 + o(1)}.
+
+  COROLLARY (f-factors). Same time and probability guarantees for the
+  problem of deciding whether G has an f-factor, and of returning one
+  when it does.
+
+  Special cases of prior work (all subsumed in this paper's results):
+    - Bipartite matching: the earlier (2022) almost-linear
+      algorithms of Chen et al. and van den Brand et al.
+    - Algebraic matching: the O(n^omega) algorithms of Mucha-Sankowski,
+      Harvey, and others.
+    - Micali-Vazirani's O(m sqrt(n)) bound.
+
+Some honest notes.
+
+  - THE PROOF IS LONG. The paper's formal argument is dense. The
+    matrix concentration inequalities in the routing helper, the
+    recursive edit accounting in the backend, and the adaptive
+    probability analysis of the engine are all nontrivial. This guide
+    explains what each layer does, but a reader who wants to verify
+    every step will want to look at the original.
+
+  - SOME PARTS ARE "FOR ANY FIXED a". The paper's constructions have
+    parameters a and sigma. The exact-time bounds apply for
+    FIXED a and sigma, and then the uniformization step aggregates
+    over all such choices. This is standard but worth being explicit
+    about: "for every fixed a, there is a program that..." is what
+    the paper actually proves for most of its intermediate lemmas;
+    the "single program" statement comes from dovetailing.
+
+  - WHAT IS RIGOROUS. The classical results (Tutte, Edmonds,
+    Micali-Vazirani, Hall, Benes) are all cited to their sources and
+    used correctly. The paper builds on Chen et al.'s 2022
+    almost-linear flow algorithms, and takes the static scheduling
+    (the deterministic flow theorem of van den Brand et al. 2023) as
+    a primitive. Given those inputs, the paper's own contributions
+    are:
+      * The bin/row matching state with the a+1 ledger levels.
+      * The local projection algorithm with weight-locked boundary
+        exploration, converting a global repair problem into a local
+        O(P) flow problem.
+      * The frozen decomposition with resource-preserving routing.
+      * The persistent-arm-identity public forest, which keeps the
+        engine's per-coordinate accumulations stable under forest
+        edits.
+      * The uniformization schedule that turns the parameterized
+        family into a single program with a single envelope.
+    Each of those is a nontrivial new contribution of this paper.
+
+  - WHAT IS NOT PROVEN. The paper does not claim to be
+    implementable. Its constants are astronomical: a >= 1000,
+    S = O(p log p), M up to S^2, and so on. A real implementation
+    would need to be re-parameterized. The PROOF is asymptotic; the
+    implementation would be a separate engineering project.
+
+  - WHY IT MATTERS. Maximum matching is a fundamental problem with
+    applications in scheduling, allocation, biology, and complexity
+    theory (its polynomial-time decidability is one of the original
+    results in algorithmic graph theory). Matching is one of the
+    very rare problems where the "right" data structure has resisted
+    the natural O(p) bound for DECADES. If the present paper's
+    arguments are correct, matching joins the very small group of
+    fundamental problems (like spanning tree, testing connectivity,
+    and matrix-rank-ish tasks) whose exact version admits an
+    almost-linear algorithm. That would be a major step.
+
+  - ONE CAUTION. The paper was written in 2026 and is very recent.
+    Whether these arguments survive detailed scrutiny by the
+    community is a good question to keep in mind. The ideas are
+    old and correct at the top level (bin/row states, ledgers,
+    circulations, dovetailing are all known techniques); the NEW
+    assembly in this paper is what has to be examined carefully.
+
+
+APPENDIX. HOW TO READ THE ORIGINAL
+
+
+A reading guide for the original paper's sections:
+
+  Section 1 (Introduction)         What matching is, why it is hard,
+                                    what the paper's contributions
+                                    are. The most accessible section.
+
+  Section 2 (Preliminaries)         The technical model (word-RAM,
+                                    dyadic grids). Can be skimmed on
+                                    first pass; come back when you
+                                    need to know a specific definition.
+
+  Section 3 (Matching states)       How the bin/row state is defined.
+                                    The heart of the correctness
+                                    argument (lemmas about what
+                                    preserves the invariants).
+
+  Section 4 (Projection analysis)   How the local projection algorithm
+                                    works, and the "no false stall"
+                                    lemma. The most technically dense
+                                    section; if you only read the
+                                    statements of the lemmas, you
+                                    will get the general picture.
+
+  Section 5 (Engine)                The "priced step" primitive and its
+                                    proof from the cycle backend.
+
+  Section 6 (Routing helper)        The sparse routing sparsifier with
+                                    resource preservation. This is
+                                    where the matrix Bernstein
+                                    inequalities live.
+
+  Section 7 (Backend quality)       How the frozen decomposition works
+                                    and why the recursion preserves
+                                    quality.
+
+  Section 8 (Backend updates)       How the child graph is maintained.
+                                    Most of the "for a fixed a"
+                                    boilerplate is here.
+
+  Section 9 (Uniformization)        How the parameterized family of
+                                    algorithms becomes one program.
+                                    Analogous to the "scheduling" step
+                                    in other universal-search proofs.
+
+  Section 10 (f-factors)            Tutte reduction via Benes networks.
+
+  If you have limited reading time: read 1, 3 (statements only), 5
+  (statement only), 6 (statement only), 7 (statement only), 9 (the
+  scheduling part), 10 (the reduction).
+
+  If you want to understand the CORE IDEA about how matching becomes
+  almost-linear: read 3, 4, 7. The other sections are "how to make
+  the pieces efficient"; sections 3, 4, 7 are "why the pieces are
+  correct".
+
+
+GLOSSARY OF KEY TERMS
+
+  Augmenting path. A path alternating between unmatched and matched
+    edges that starts and ends at unmatched vertices. Flipping it
+    increases the matching size by one.
+
+  Bipartite graph. A graph that can be two-colored so every edge
+    joins different colors. Matching is easier here.
+
+  Blossom. An odd cycle (or odd-length alternating structure) that
+    can be "contracted" during matching search.
+
+  Bin. A factor-critical odd-sized vertex set in the compressed
+    matching state.
+
+  Cross edge. In the f-factor reduction, the edge connecting two
+    adjacent ports.
+
+  Debt. A temporary (paid-off-later) drop in a ledger's residual.
+
+  Factor-critical. A set of vertices such that removing any one
+    leaves a graph with a perfect matching (of the remainder).
+
+  Fundamental cycle. The cycle formed by a chord plus the unique
+    path between its endpoints in the frozen forest.
+
+  Gain. An operation that increases |M| by 1.
+
+  Gradient. In the pricing engine, the partial derivative of the
+    logarithmic objective in the direction of each edge.
+
+  Ledger. An allocation of L units per row to nearby bins. Used to
+    measure and control slack.
+
+  Low. The engine's "no good direction exists" response.
+
+  Matching. A set of edges, no two sharing an endpoint.
+
+  Odd component. A connected component of G - S having an odd number
+    of vertices. Tutte's theorem is about these.
+
+  Peel. A projection operation that removes a set of bins from the
+    compressed state.
+
+  Permutation network. A fixed arrangement of switches that can route
+    any input-output permutation.
+
+  Priced step. A small circulation that increases a potential
+    function by at least a fixed amount.
+
+  Projection. A local flow computation that either repairs the
+    ledger exactly or reveals a peelable set of bins.
+
+  Raw length. Total traversal count, with multiplicity.
+
+  Resource preservation. The routing helper's guarantee about how
+    often a physical vertex is used across all virtual routes.
+
+  Row. A single vertex in the compressed state, assigned to a bin.
+
+  Subcubic. A graph where every vertex has degree at most three.
+
+  Uniformization. Making a family of algorithms (parameterized by a,
+    sigma) into one algorithm via dovetailing.
+
+  Unit. A single elementary step in the word-RAM model.
+
+  Weight (of a bin). (|d| + 1) / 2, for bin d of |d| vertices.
+
+  y^j_d, p^j_d. In ledger j at bin d: the residual and the debt.
+
+------------------------------------------------------------------
+
+End of guide. If you got this far, you have now seen an expert's
+argument (in outline) for why maximum matching can be found in
+essentially linear time. The punchline is real: matchings that used
+to take the square root of something now take barely more than the
+input size. The cost of "barely more" is a stack of techniques --
+bins, ledgers, pricing, covers, arms, and dovetailing -- each of which
+solves one small obstruction on the way to the result.
