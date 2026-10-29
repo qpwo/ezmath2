@@ -1,0 +1,1484 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage[margin=1.05in]{geometry}
+\usepackage{booktabs}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+\setlength{\emergencystretch}{2em}
+\widowpenalty=10000
+\clubpenalty=10000
+\setcounter{tocdepth}{1}
+\title{Threshold parallel repetition for finite-dimensional entangled games}
+\author{OpenAI}
+\date{September 25, 2026}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Let $G$ be a finite two-player one-round game with entangled value
+$v=\omega^*(G)<1$. Suppose two players play $k$ independent copies of
+$G$ in parallel and may entangle their answers across all copies. We
+prove that, for every $0<\delta<1-v$, the probability that they win at
+least a $(v+\delta)$-fraction of the copies is at most
+$\exp(-c\,\delta^5 k/(1+\log d))$, where $d=|\mathcal A|\,|\mathcal B|$
+and $c>0$ is universal. The bound is uniform over all finite-dimensional
+joint strategies, holds at every repetition length $k\ge1$ (including
+small $k$, where ceiling effects matter), and allows arbitrary
+correlated question distributions with zero entries or disconnected
+support. For each fixed question distribution we also prove the
+sharper-in-form bound
+$\exp(-c'\,\delta^3 k/((1+\kappa_\mu)(1+\log d)))$, in which the
+constant $\kappa_\mu$ depends only on the positives of the question
+distribution. Either bound amplifies both completeness and soundness of
+a one-round two-prover protocol without changing the number of provers,
+the number of rounds, or the classical nature of the messages.
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\section{Introduction}\label{sec:intro}
+
+\subsection{The question, in plain words}
+
+A \emph{one-round two-player game} has a referee, two players, and a
+scoring rule. The referee draws a pair of questions $(x,y)$ from a known
+distribution $\mu$, sends $x$ to the first player (Alice) and $y$ to the
+second (Bob), and receives answers $(a,b)$ back. He then decides whether
+to accept by applying a predicate $V(x,y,a,b)\in\{0,1\}$. The players
+cannot speak during the game, but before it begins they may agree on any
+shared strategy --- in particular on a shared quantum state of any finite
+dimension, measured locally by each player. The best success probability
+of such a strategy is the \emph{entangled value} $v=\omega^*(G)$.
+
+Threshold parallel repetition asks a simple question. The referee now
+plays $k$ independent copies of $G$ in parallel: questions
+$(x_1,y_1),\ldots,(x_k,y_k)$ are sampled independently from $\mu$, and
+each player is handed his entire list. The players may entangle their
+$k$ answers globally, so their wins in different coordinates need not
+behave like independent events. Can they nevertheless concentrate their
+wins: win the game in substantially more than a $v$-fraction of the
+coordinates with non-negligible probability?
+
+The answer is no, and the decay is exponential. The main theorem makes
+this precise. Three features make it nontrivial:
+\begin{enumerate}
+  \item The wins are correlated across coordinates; the players can
+        choose a joint finite-dimensional strategy on the whole
+        $k$-fold game.
+  \item The bound must be uniform over all finite dimensions and over
+        all choices of $\mu$, including correlated $\mu$ with zeros or
+        disconnected support.
+  \item The bound must hold at every $k\ge1$, not only asymptotically.
+\end{enumerate}
+
+\subsection{The formal model}
+
+A \emph{finite two-player one-round game} is a tuple
+\[
+ G = (\mathcal X,\mathcal Y,\mathcal A,\mathcal B,\mu,V)
+\]
+consisting of:
+\begin{itemize}
+  \item nonempty finite question alphabets $\mathcal X,\mathcal Y$;
+  \item nonempty finite answer alphabets $\mathcal A,\mathcal B$;
+  \item a probability distribution $\mu$ on $\mathcal X\times\mathcal Y$;
+  \item a Boolean predicate $V:\mathcal X\times\mathcal Y\times\mathcal A\times\mathcal B\to\{0,1\}$.
+\end{itemize}
+
+A \emph{finite-dimensional entangled strategy} for $G$ consists of a
+unit vector $\psi\in\mathcal H_A\otimes\mathcal H_B$ in a
+finite-dimensional tensor product of Hilbert spaces, together with:
+\begin{itemize}
+  \item a positive operator-valued measurement (POVM) on $\mathcal H_A$
+        for each $x\in\mathcal X$, i.e.\ positive operators
+        $\{M_x^a\}_{a\in\mathcal A}$ with $\sum_a M_x^a = I$;
+  \item a POVM on $\mathcal H_B$ for each $y\in\mathcal Y$, i.e.\
+        positive operators $\{N_y^b\}_{b\in\mathcal B}$ with
+        $\sum_b N_y^b=I$.
+\end{itemize}
+The strategy wins with probability
+\[
+ p_\psi(M,N)
+ =\sum_{x,y,a,b}\mu(x,y)\,V(x,y,a,b)\,
+   \langle\psi|M_x^a\otimes N_y^b|\psi\rangle .
+\]
+The \emph{entangled value} is
+\[
+ v=\omega^*(G)=\sup_{\psi,M,N} p_\psi(M,N),
+\]
+where the supremum is over all finite dimensions and all such data. It
+need not be attained. Taking $\psi$ to be pure causes no loss: any mixed
+finite-dimensional state can be purified by adjoining a finite ancilla.
+
+\subsection{Repetition and the threshold event}
+
+The $k$-fold repetition $G^k$ is the game in which the referee samples
+$(X_1,Y_1),\ldots,(X_k,Y_k)$ independently from $\mu$, sends the entire
+list $X_1,\ldots,X_k$ to Alice and $Y_1,\ldots,Y_k$ to Bob, and accepts
+$(A_1,\ldots,A_k)$ and $(B_1,\ldots,B_k)$ when all $k$ coordinate pairs
+satisfy $V$. A general \emph{$k$-coordinate strategy} is any
+finite-dimensional entangled strategy for this game; it does not need to
+be a tensor product of single-game strategies.
+
+Write
+\[
+ I_i = V(X_i,Y_i,A_i,B_i)\in\{0,1\},\qquad
+ W_k = I_1+\cdots+I_k,
+\]
+and set $d=|\mathcal A|\,|\mathcal B|$. All logarithms are natural.
+
+\subsection{Main theorem}
+
+\begin{theorem}[Threshold parallel repetition]\label{thm:main}
+There is a universal constant $\kappa_0>0$ with the following property.
+Let $G$ be a finite two-player one-round game with Boolean acceptance
+predicate and entangled value $v=\omega^*(G)<1$. For every
+$0<\delta<1-v$, every integer $k\ge1$, and every finite-dimensional
+joint strategy for the $k$-fold repetition of $G$,
+\begin{equation}\label{eq:main}
+ \Pr\!\left[W_k\ge\lceil(v+\delta)k\rceil\right]
+ \le \exp\!\left(-\frac{\kappa_0\,\delta^5}{1+\log d}\,k\right).
+\end{equation}
+The same inequality holds for the supremum over all such strategies.
+\end{theorem}
+
+Four features of \eqref{eq:main} deserve emphasis:
+\begin{enumerate}
+  \item it is uniform over the dimension of the strategy;
+  \item $\mu$ may be any distribution on $\mathcal X\times\mathcal Y$,
+        including correlated $\mu$ with zeros or disconnected support;
+  \item the rate depends on $|\mathcal A|,|\mathcal B|$ only through
+        the product $d$; it does not involve $|\mathcal X|$ or
+        $|\mathcal Y|$;
+  \item the bound holds for every $k\ge1$, not just asymptotically.
+        The ceiling in $\lceil(v+\delta)k\rceil$ matters at small $k$
+        and is handled explicitly.
+\end{enumerate}
+
+\subsection{A distribution-dependent cubic bound}
+
+We also prove a bound whose exponent is cubic in $\delta$, at the cost
+of a constant that depends on the positives of $\mu$. Let
+\[
+ H = \{(x,y)\in\mathcal X\times\mathcal Y:\mu(x,y)>0\}
+\]
+be the \emph{support} of $\mu$, and form its \emph{connection graph}:
+its vertices are the pairs in $H$, and two vertices are joined when they
+share a coordinate. Let $H_1,\ldots,H_J$ be the connected components,
+$\lambda_j=\mu(H_j)$, $\mu_j=\mu(\cdot\mid H_j)$ the conditional law on
+component $j$, and
+\[
+ \mu_{j,\min}=\min_{z\in H_j}\mu_j(z).
+\]
+Define
+\begin{equation}\label{eq:kappa-mu}
+ \kappa_\mu = 8\,\max_{1\le j\le J}\frac{|H_j|-1}{\mu_{j,\min}} .
+\end{equation}
+Singletons contribute $0$. The constant $\kappa_\mu$ is finite because
+each component is finite and every positive mass is positive.
+
+\begin{corollary}[Cubic bound for fixed $\mu$]\label{cor:support-threshold}
+With the same hypotheses as Theorem~\ref{thm:main} and the constant
+$\kappa_\mu$ of \eqref{eq:kappa-mu}, for every $0<\delta<1-v$, every
+$k\ge1$, and every finite-dimensional joint strategy,
+\begin{equation}\label{eq:support-threshold-rate}
+ \Pr\!\left[W_k\ge\lceil(v+\delta)k\rceil\right]
+ \le \exp\!\left(-\frac{\delta^3}
+ {16384\,(1+\kappa_\mu)\,(1+\log d)}\,k\right).
+\end{equation}
+The same holds for the supremum over strategies.
+\end{corollary}
+
+Theorem~\ref{thm:main} is universal in $\mu$ and pays a fifth power of
+$\delta$; Corollary~\ref{cor:support-threshold} is cubic in $\delta$ but
+pays the distribution constant $\kappa_\mu$. Both bounds hold for the
+same strategy, so one may use whichever rate is larger.
+
+\subsection{Relation to prior work}
+
+For the \emph{classical} value of a game, Raz \cite{raz1998} proved that
+the all-wins probability decays exponentially, Holenstein
+\cite{holenstein2009} improved the quantitative dependence on the gap
+via correlated sampling, and Rao \cite{rao2011} proved concentration
+above the classical value --- the threshold conclusion, which is
+strictly stronger than an all-wins bound. For \emph{entangled}
+strategies, structure-specific results came first: XOR games
+\cite{csuu2008}, unique games \cite{krt2010}, projection games
+\cite{dsv2015}, free games \cite{jpy2014,cs2015}, and complete-support
+distributions \cite{cs2014}. Yuen \cite{yuen2016} proved polynomial
+all-wins decay for arbitrary finite entangled games, and
+Bavarian--Vidick--Yuen \cite{bvy2017,bvy2022} proved exponential
+threshold decay after an anchoring transformation that modifies the
+game. Chapter~6 of \cite{tenadvances2026} and Song \cite{song2026}
+supply the analytic conditioning machinery (smooth samplers, resolvent
+purifications) that we use. The contribution of the present paper is a
+quantitative transfer from tested-coordinate conditioning to threshold
+decay, together with the explicit universal fifth-power and
+distribution-dependent cubic rates above, without any anchoring.
+
+\subsection{Road map}
+
+Section~\ref{sec:marginals} recalls notation and proves an elementary
+warm-up bound. Section~\ref{sec:threshold} isolates the probabilistic
+heart of the argument: a transfer from a conditioning bound to a
+threshold bound. Section~\ref{sec:main-proof} states Song's conditioning
+estimate and proves Theorem~\ref{thm:main} by plugging it into the
+transfer. Sections~\ref{sec:operators}--\ref{sec:root-rounding} build
+the analytic machinery needed for Corollary~\ref{cor:support-threshold}:
+resolvent purifications, transport of measurements, exposure estimates,
+and support-component rounding. Section~\ref{sec:amplification} derives
+the two-sided amplification corollary. A reader who accepts Song's
+estimate can read Sections~\ref{sec:intro}--\ref{sec:main-proof} and
+\ref{sec:amplification} and stop there.
+
+\section{Warm-up: notation and the mean bound}\label{sec:marginals}
+
+\subsection{Notation}
+
+Symbols introduced so far:
+\begin{center}
+\begin{tabular}{ll}
+$\mathcal X,\mathcal Y$ & question alphabets \\
+$\mathcal A,\mathcal B$ & answer alphabets \\
+$d = |\mathcal A|\,|\mathcal B|$ & product of answer alphabet sizes \\
+$\mu$ & question distribution on $\mathcal X\times\mathcal Y$ \\
+$V$ & acceptance predicate, $\{0,1\}$-valued \\
+$v=\omega^*(G)$ & entangled value \\
+$I_1,\ldots,I_k$ & coordinate win indicators of a joint strategy \\
+$W_k=\sum_{i=1}^k I_i$ & total wins \\
+$E_C$ & event that every coordinate in $C$ is won \\
+$p_C=\Pr(E_C)$ & probability of $E_C$ \\
+$\tau(C)$ & conditioning cost $(\log(1/p_C)+|C|\log d)/(k-|C|)$
+\end{tabular}
+\end{center}
+The conditioning cost $\tau(C)$ will be the central bookkeeping device
+of Sections~\ref{sec:threshold}--\ref{sec:main-proof}. Its numerator
+combines the rarity of $E_C$ with the number of possible tested answer
+strings; its denominator is the number of coordinates whose wins are
+still ``free'' after testing $C$.
+
+\subsection{The mean bound}
+
+The following direct consequence of the definition of $v$ also covers
+the case $v=0$, where the threshold bound becomes trivial.
+
+\begin{lemma}[Marginal success probabilities]\label{lem:mean-bound}
+Let $G$ be a finite two-prover game with entangled value $v$ and let
+$I_1,\ldots,I_k$ be the coordinate win indicators of any
+finite-dimensional joint strategy for the $k$-fold repetition. Then
+\[
+ \mathbb E I_i\le v\quad(1\le i\le k),
+ \qquad \mathbb E\sum_{i=1}^k I_i\le kv .
+\]
+In particular, if $v=0$ then every coordinate is lost almost surely.
+\end{lemma}
+
+\begin{proof}
+Fix $i$ and fix the question pairs at all coordinates other than $i$.
+On a fresh input $(x,y)$ to one copy of $G$, insert $x$ and $y$ at
+coordinate $i$, use the fixed questions elsewhere, run the joint
+strategy, and retain only the answers at coordinate $i$. What remains is
+a finite-dimensional entangled strategy for $G$; its success probability
+is at most $v$ by definition of $\omega^*(G)$. Averaging over the fixed
+questions under $\mu^{\otimes(k-1)}$ gives $\mathbb E I_i\le v$. Summing
+gives the second claim, and when $v=0$ the nonnegative indicator $I_i$
+has expectation zero, hence is zero almost surely.
+\end{proof}
+
+\section{From conditioning bounds to threshold bounds}\label{sec:threshold}
+
+This section contains the combinatorial heart of the argument. It
+converts a single analytic input --- an upper bound on the average
+conditional win rate outside a tested set $C$, in terms of the
+conditioning cost $\tau(C)$ --- into the exponential threshold decay of
+\eqref{eq:main}. The conversion uses only the joint distribution of the
+binary win indicators, never the underlying quantum strategy. All
+arithmetic below uses the symbols
+\[
+ q=v+\delta,\quad q_0=v+\delta/2,\quad
+ \eta=\delta/16,\quad r=\log(q/q_0),\quad R=\log(d/q),
+\]
+and the target rate
+\[
+ c=\frac{\delta\,T}{16(1+\log d)}.
+\]
+
+\subsection{Sampling a tested set from the upper tail}
+
+Fix $0<q_0<q<1$ and suppose the upper tail $\{W_k\ge\lceil qk\rceil\}$
+has positive probability $p_H$. We want one fixed set $C$ such that:
+(i) $E_C$ has decent probability; (ii) conditioned on $E_C$, the
+remaining coordinates still have win rate at least $q_0$ with
+overwhelming probability. The following lemma shows that sampling
+coordinates with replacement produces such a $C$.
+
+\begin{lemma}[Sampling the upper tail]\label{lem:tail-sampling}
+Let $I_1,\ldots,I_k$ be arbitrary jointly distributed $\{0,1\}$-valued
+random variables. Suppose $0<q_0<q<1$, $0<\varepsilon<1$, and
+$p_H=\Pr(W_k\ge\lceil qk\rceil)>0$. Put
+\[
+ \ell=\left\lceil \frac{\log(4/(\varepsilon p_H))}{\log(q/q_0)}\right\rceil .
+\]
+Then there exists $C\subseteq[k]$ with $|C|\le\ell$ such that
+\begin{equation}\label{eq:sampled-set-guarantees}
+ p_C\ge\tfrac12 p_H\, q^\ell,
+ \qquad \Pr(W_k<q_0 k\mid E_C)\le\varepsilon.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Draw $\ell$ indices $i_1,\ldots,i_\ell$ independently and uniformly from
+$[k]$, and let $C$ be the set of distinct indices drawn. The draw is
+independent of the indicators. For each possible value $C$, set
+\[
+ a_C=\Pr(E_C),\quad b_C=\Pr(E_C,\,W_k<q_0 k),\quad A=p_H\,q^\ell.
+\]
+Two averaging identities hold over the random draw. First,
+\[
+ \mathbb E_C a_C
+ =\mathbb E\big[(W_k/k)^\ell\big]
+ \ge p_H\,q^\ell=A ,
+\]
+because each drawn coordinate is won with conditional probability
+$W_k/k$ given the draw, and the coordinates (with repeats) are
+exchangeable. Second,
+\[
+ \mathbb E_C b_C\le q_0^\ell\le\varepsilon A/4 ,
+\]
+because $W_k<q_0 k$ forces $(W_k/k)^\ell<q_0^\ell$, and $\ell$ was chosen
+so that $q_0^\ell\le\varepsilon\,p_H q^\ell/4=\varepsilon A/4$.
+
+Now decompose $\mathbb E_C a_C$ into three contributions: draws with
+$a_C<A/2$; draws with $a_C\ge A/2$ and $b_C>\varepsilon a_C$; and all
+remaining draws. The first class contributes at most $A/2$ trivially.
+The second class contributes at most
+\[
+ \varepsilon^{-1}\sum_C b_C
+ =\varepsilon^{-1}\,\mathbb E_C b_C
+ \le A/4 .
+\]
+Together they contribute strictly less than $\mathbb E_C a_C=A$, so the
+remaining draws have positive total $a_C$-weight. Any such draw
+satisfies $a_C\ge A/2$ and $b_C\le\varepsilon a_C$, i.e.,
+\eqref{eq:sampled-set-guarantees}.
+\end{proof}
+
+\subsection{The conditioning-to-threshold transfer}
+
+\begin{proposition}[Conditioning-to-threshold transfer]\label{prop:conditioning-to-tail}
+Let $G$ be a finite two-prover game with nonempty answer alphabets,
+$d=|\mathcal A|\,|\mathcal B|$, and $v=\omega^*(G)<1$. Fix
+$0<\delta<1-v$ and $0<T\le\delta/4$. Suppose the following holds for
+every $k\ge1$, every finite-dimensional strategy for $k$ repetitions,
+and every $C\subsetneq[k]$ with $p_C>0$:
+\begin{equation}\label{eq:threshold-input}
+ \frac{\log(1/p_C)+|C|\log d}{k-|C|}\le T
+ \quad\Longrightarrow\quad
+ \frac1{k-|C|}\sum_{i\notin C}\Pr(I_i=1\mid E_C)\le v+\delta/4.
+\end{equation}
+Then, for every $k\ge1$ and every finite-dimensional strategy,
+\begin{equation}\label{eq:generic-threshold-rate}
+ \Pr\!\left[W_k\ge\lceil(v+\delta)k\rceil\right]
+ \le \exp\!\left(-\frac{\delta\,T}{16\,(1+\log d)}\,k\right).
+\end{equation}
+The same bound holds for the supremum over strategies.
+\end{proposition}
+
+The rest of this section is the proof.
+
+\begin{proof}[Proof of Proposition~\ref{prop:conditioning-to-tail}]
+Set
+\[
+ q=v+\delta,\; q_0=v+\delta/2,\; \eta=\delta/16,\;
+ r=\log(q/q_0),\; R=\log(d/q),\;
+ c=\frac{\delta T}{16(1+\log d)}.
+\]
+The constraints $0<q_0<q<1$ and $r,R>0$ are immediate. The elementary
+estimates $\log(1+u)\ge u/(1+u)$ for $u\ge0$ and $-q\log q\le1/e$ give
+\begin{equation}\label{eq:rate-arithmetic}
+ \frac{c}{r}\le\frac{T}{8}\le\frac{\eta}{2},
+ \qquad c\left(1+\frac{R}{r}\right)\le\frac{3T}{16}.
+\end{equation}
+For the first inequality use $r\ge\delta/(2q)$, so
+$c/r\le Tq/(8(1+\log d))\le T/8$; then $T/8\le\eta/2$ is $T\le\delta/4$,
+which is our hypothesis. For the second, multiply by $\delta$ and
+estimate $\delta(1+R/r)\le\delta+2q\log(d/q)\le3(1+\log d)$.
+
+\paragraph{Large repetition lengths.}
+We prove \eqref{eq:generic-threshold-rate} for all $k\ge k_0$, where
+$k_0$ is a positive integer chosen below independently of the strategy.
+Suppose, toward a contradiction, that
+\[
+ p_H=\Pr(W_k\ge\lceil qk\rceil)\ge e^{-ck}.
+\]
+Apply Lemma~\ref{lem:tail-sampling} with $\varepsilon=\eta$. Set
+\[
+ t=1+\frac{\log(4/\eta)}{r}, \qquad B=\log 2+R\,t .
+\]
+Since $p_H\ge e^{-ck}$,
+\[
+ \ell\le1+\frac{\log(4/(\eta p_H))}{r}
+ \le1+\frac{\log(4/\eta)+ck}{r}=\frac{ck}{r}+t .
+\]
+Choose $k_0$ large enough that $t/k_0\le\eta/2$ and $B/k_0\le T/16$.
+For $k\ge k_0$, \eqref{eq:rate-arithmetic} gives
+$|C|\le\ell\le ck/r+t\le\eta k/2+\eta k/2=\eta k$, so $C\subsetneq[k]$
+and $k-|C|>0$.
+
+Write $u=|C|/k$, so $u\le\eta<q_0$. On the event $\{W_k<q_0 k\}$ we use
+only that $W_k-|C|\ge0$. On its complement in $E_C$, $W_k-|C|\ge
+q_0 k-|C|=(q_0-u)k$. Combining these two cases with
+$\Pr(W_k<q_0 k\mid E_C)\le\eta$,
+\[
+ \mathbb E[W_k-|C|\mid E_C]\ge(1-\eta)(q_0-u)k .
+\]
+Dividing by $k-|C|=k(1-u)$,
+\[
+ \frac{\mathbb E[W_k-|C|\mid E_C]}{k-|C|}
+ \ge(1-\eta)\frac{q_0-u}{1-u} .
+\]
+The function $f(u)=(q_0-u)/(1-u)$ is decreasing on $[0,1)$ because
+$f'(u)=(q_0-1)/(1-u)^2<0$. Since $u\le\eta$,
+\[
+ \frac{q_0-u}{1-u}\ge\frac{q_0-\eta}{1-\eta},
+ \qquad\text{hence}\qquad
+ \frac{\mathbb E[W_k-|C|\mid E_C]}{k-|C|}\ge q_0-\eta .
+\]
+Since $q_0-\eta=v+\delta/2-\delta/16=v+7\delta/16$,
+\begin{equation}\label{eq:conditional-high-rate}
+ \frac{\mathbb E[W_k-|C|\mid E_C]}{k-|C|}\ge v+\frac{7\delta}{16}.
+\end{equation}
+
+On the other hand, the first conclusion of the sampling lemma gives
+\[
+ \log(1/p_C)+|C|\log d
+ \le\log(1/p_H)+\log 2+|C|R
+ \le ck+\log 2+\ell R .
+\]
+Using $\ell\le ck/r+t$,
+\[
+ \log(1/p_C)+|C|\log d\le ck(1+R/r)+B .
+\]
+Divide by $k-|C|\ge(1-\eta)k$ and apply \eqref{eq:rate-arithmetic}:
+\[
+ \frac{\log(1/p_C)+|C|\log d}{k-|C|}
+ \le\frac{c(1+R/r)+B/k}{1-\eta}
+ \le\frac{3T/16+T/16}{1-\eta}
+ \le T .
+\]
+The hypothesis \eqref{eq:threshold-input} now contradicts
+\eqref{eq:conditional-high-rate}. This establishes
+\eqref{eq:generic-threshold-rate} for $k\ge k_0$.
+
+\paragraph{All repetition lengths.}
+Fix any $k$-coordinate strategy with $k<k_0$ and let
+$p_H=\Pr(W_k\ge\lceil qk\rceil)$. Take $N$ independent tensor copies of
+the strategy; this is a legal $(Nk)$-coordinate finite-dimensional
+strategy. The event that every block has at least $\lceil qk\rceil$
+wins has probability $p_H^N$, and it implies the global threshold event
+because $N\lceil qk\rceil\ge\lceil qNk\rceil$. Choose $N$ with
+$Nk\ge k_0$. The already-proved bound yields
+$p_H^N\le\exp(-cNk)$, i.e., $p_H\le\exp(-ck)$. This is exactly
+\eqref{eq:generic-threshold-rate} for the original $k$.
+
+\paragraph{Suprema.}
+The bound \eqref{eq:generic-threshold-rate} was derived for an
+arbitrary finite-dimensional strategy with constants independent of
+dimension. Monotonicity of the supremum over strategies preserves the
+inequality.
+\end{proof}
+
+\section{The universal threshold bound}\label{sec:main-proof}
+
+\subsection{Song's conditioning estimate}
+
+The sole external analytic input in the proof of Theorem~\ref{thm:main}
+is the following estimate.
+
+\begin{proposition}[Song's conditioning estimate,
+  {\cite[Definition~4.3 and Lemma~4.4]{song2026}}]\label{prop:song-conditioning}
+There is a universal constant $B_4\ge1$ with the following property.
+Let $G$ be a finite two-player game with entangled value $v<1$, and fix
+a finite-dimensional strategy for $k\ge1$ repetitions. For any
+$C\subsetneq[k]$ with $p_C=\Pr(E_C)>0$, put $m=k-|C|$ and
+\[
+ \tau=\frac{\log(1/p_C)+|C|\log(|\mathcal A|\,|\mathcal B|)}{m}.
+\]
+If $\tau\le1$, then
+\begin{equation}\label{eq:song-conditioning}
+ \frac1m\sum_{i\notin C}\Pr(I_i=1\mid E_C)\le v+B_4\,\tau^{1/4}.
+\end{equation}
+\end{proposition}
+
+The estimate is proved in \cite{song2026} using a smooth quantum
+sampler together with the analytic conditioning machinery of Chapter~6
+of \cite{tenadvances2026}; the proof does not use the
+Dinur--Steurer--Vidick sampling theorem. Everything in
+Theorem~\ref{thm:main} except the elementary algebra that converts
+\eqref{eq:song-conditioning} into \eqref{eq:main} is due to
+\cite{song2026}. The rest of this section makes that algebra explicit.
+
+\subsection{Proof of Theorem~\ref{thm:main}}
+
+\begin{proof}[Proof of Theorem~\ref{thm:main}]
+Fix $0<\delta<1-v$ and set
+\[
+ T=\left(\frac{\delta}{4B_4}\right)^4 .
+\]
+Because $B_4\ge1$ and $0<\delta<1$, $T\le\delta/4<1$. Suppose a
+conditioning cost satisfies $\tau\le T$. Then
+Proposition~\ref{prop:song-conditioning} gives
+\[
+ \frac1{k-|C|}\sum_{i\notin C}\Pr(I_i=1\mid E_C)
+ \le v+B_4\,T^{1/4}=v+\frac{\delta}{4}.
+\]
+So hypothesis \eqref{eq:threshold-input} of
+Proposition~\ref{prop:conditioning-to-tail} holds at this $T$. Applying
+that proposition,
+\[
+ \Pr(W_k\ge\lceil(v+\delta)k\rceil)
+ \le\exp\!\left(-\frac{\delta T}{16(1+\log d)}\,k\right)
+ =\exp\!\left(-\frac{\kappa_0\,\delta^5}{1+\log d}\,k\right)
+\]
+with $\kappa_0=1/(16(4B_4)^4)$. Because the bound is uniform in the
+strategy, the same inequality holds for the supremum over strategies.
+\end{proof}
+
+The remaining sections prove Corollary~\ref{cor:support-threshold}. That
+proof does not use Song's sampler; instead it builds an alternative
+conditioning estimate from the exposure machinery of
+Sections~\ref{sec:operators}--\ref{sec:exposure}, which yields a
+square-root (rather than fourth-root) error and hence a cubic rate in
+$\delta$.
+
+\section{A common purification of effects}\label{sec:operators}
+
+Conditioning on answers replaces the shared quantum state by local
+positive operators applied to it. To compare the resulting vectors, we
+need purifications of those operators that are close whenever an
+operator entropy gap is small. For positive definite operators, this gap
+is an average of Petz's operator Bregman divergence \cite{petz2007};
+related resolvent estimates appear in Kim \cite{kim2014}. The
+construction below furnishes all purifications in one common
+finite-dimensional space. This preserves the answer measurements on the
+purified side, not just the norms of the conditioned vectors. The
+formulation and its Jensen estimate appear in
+\cite[Chapter~6, Definition~4.2, Lemma~4.3, and Appendix~A.4]{tenadvances2026};
+the proof is included below, along with the finite-dimensional
+compression.
+
+For a finite-dimensional complex Hilbert space $\mathcal H$, an
+\emph{effect} is a self-adjoint operator $T$ on $\mathcal H$ with
+$0\preceq T\preceq I$. Put $f(t)=t\log t$ for $t>0$ and $f(0)=0$, and
+define
+\[
+ \mathcal F_T:\mathcal H\longrightarrow
+ L^2((0,\infty),ds;\mathcal H),\qquad
+ (\mathcal F_T h)(s)=T(T+sI)^{-1}h.
+\]
+The inverse exists for every $s>0$, including when $T$ has a kernel.
+
+\begin{lemma}[Resolvent purification]\label{lem:resolvent}
+For every effect $T$ on $\mathcal H$, $\mathcal F_T^*\mathcal F_T=T$. If
+$A_1,\ldots,A_N$ are effects, $q_1,\ldots,q_N>0$ sum to $1$, and
+$B=\sum_j q_j A_j$, then
+\begin{equation}\label{eq:resolvent-jensen}
+ \sum_j q_j(\mathcal F_{A_j}-\mathcal F_B)^*
+                 (\mathcal F_{A_j}-\mathcal F_B)
+ \preceq \sum_j q_j f(A_j)-f(B).
+\end{equation}
+Finally, for any finite collection $\mathscr T$ of effects, all maps
+$\mathcal F_T$, $T\in\mathscr T$, can be compressed to a single
+finite-dimensional subspace of $L^2((0,\infty),ds;\mathcal H)$,
+preserving every product $\mathcal F_S^*\mathcal F_T$ for
+$S,T\in\mathscr T$.
+\end{lemma}
+
+\begin{proof}
+The scalar identity
+\[
+ \int_0^\infty \frac{t^2}{(t+s)^2}\,ds = t\qquad(t\ge0)
+\]
+and the spectral theorem give the first assertion
+$\mathcal F_T^*\mathcal F_T=T$.
+
+To prove \eqref{eq:resolvent-jensen}, write $D_j=A_j-B$. If
+$h\in\ker B$, positivity and $q_j>0$ imply $A_jh=0$ for all $j$. This
+common kernel reduces every operator in question and both sides of
+\eqref{eq:resolvent-jensen} vanish there. We therefore restrict to
+$\operatorname{supp}B$, where $B>0$.
+
+The scalar integral
+\[
+ f(t)=\int_0^\infty
+       \left(\frac{t}{1+s}-\frac{t}{t+s}\right) ds \qquad (t\ge0)
+\]
+converges (including at $t=0$, where the integrand is zero). Functional
+calculus, together with $\sum_j q_j D_j=0$, gives
+\begin{align}
+ \sum_j q_j f(A_j)-f(B)
+ &=\int_0^\infty s\sum_j q_j
+       \big( (A_j+sI)^{-1} - (B+sI)^{-1}\big)\,ds \notag\\
+ &=\int_0^\infty s\sum_j q_j(B+sI)^{-1}D_j
+       (A_j+sI)^{-1}D_j(B+sI)^{-1}\,ds.
+ \label{eq:resolvent-gap}
+\end{align}
+For the second equality use the exact identity
+\begin{align*}
+ (A_j+sI)^{-1}
+ ={}&(B+sI)^{-1}-(B+sI)^{-1}D_j(B+sI)^{-1}\\
+ &+(B+sI)^{-1}D_j(A_j+sI)^{-1}D_j(B+sI)^{-1},
+\end{align*}
+and average over $j$. The final integrand in \eqref{eq:resolvent-gap}
+is bounded near $s=0$ (since $B>0$ and $s(A_j+sI)^{-1}\preceq I$) and is
+$O(s^{-2})$ as $s\to\infty$. Thus these are norm-convergent operator
+integrals.
+
+The resolvent identity also yields
+\[
+ A_j(A_j+sI)^{-1}-B(B+sI)^{-1}
+ = s(A_j+sI)^{-1}D_j(B+sI)^{-1}.
+\]
+Consequently the left-hand side of \eqref{eq:resolvent-jensen} has
+integrand
+\[
+ s^2\sum_j q_j(B+sI)^{-1}D_j(A_j+sI)^{-2}D_j(B+sI)^{-1}.
+\]
+Since $s(A_j+sI)^{-2}\preceq(A_j+sI)^{-1}$, congruence by
+$D_j(B+sI)^{-1}$ bounds this integrand by the final integrand in
+\eqref{eq:resolvent-gap}. Integration proves the inequality.
+
+For the finite-dimensional compression, the span
+\[
+ \mathcal K=\operatorname{span}\{\mathcal F_T h:
+              T\in\mathscr T,\ h\in\mathcal H\}
+\]
+has dimension at most $|\mathscr T|\dim\mathcal H$. Viewing every map as
+taking values in this same subspace preserves all inner products of
+images, hence every stated product. An unused one-dimensional summand
+can be added if a nonzero codomain is needed.
+\end{proof}
+
+The common codomain is essential: compressing different operators
+separately would not in general preserve their distances. In our
+applications the number of effects is finite, although their number and
+the resulting dimension need not have a uniform bound.
+
+\begin{lemma}[Transporting answer measurements]\label{lem:measurement-transport}
+Let $\mathcal H,\mathcal K$ be finite-dimensional complex Hilbert spaces,
+let $T$ be an effect on $\mathcal H$, and let $F:\mathcal H\to\mathcal K$
+satisfy $F^*F=T$. Suppose $\mathcal A$ is a nonempty finite set and
+positive operators $(G_a)_{a\in\mathcal A}$ satisfy $\sum_a G_a=T$.
+Then there is a POVM $(\widetilde G_a)_{a\in\mathcal A}$ on $\mathcal K$
+with
+\begin{equation}\label{eq:measurement-pullback}
+ F^*\widetilde G_a F = G_a\qquad (a\in\mathcal A).
+\end{equation}
+The POVM depends only on $F$ and the operators $G_a$.
+\end{lemma}
+
+\begin{proof}
+All inverses below act on the support of $T$ and are zero on its kernel.
+Define $V_T=F T^{-1/2}$. Then $V_T^*V_T=\Pi_T$, the orthogonal
+projection onto $\operatorname{supp}T$, so $V_TV_T^*$ is an orthogonal
+projection on $\mathcal K$. Each $G_a$ is supported on
+$\operatorname{supp}T$, because $0\preceq G_a\preceq T$. Fix
+$a_*\in\mathcal A$ and put
+\[
+ \widetilde G_a
+ =V_T T^{-1/2}G_a T^{-1/2}V_T^*
+   +\mathbf{1}_{\{a=a_*\}}(I_{\mathcal K}-V_TV_T^*).
+\]
+These operators are positive and sum to $I_{\mathcal K}$. Since
+$F=V_T T^{1/2}$, their pullbacks are $G_a$, as claimed. The same
+formula applies when $T=0$: all $G_a$ and $V_T$ vanish, and the POVM
+always outputs $a_*$.
+\end{proof}
+
+In particular, if $\Psi=(\mathcal F_T\otimes\mathcal F_S)\psi$ and
+$\sum_a G_a=T$, $\sum_b H_b=S$, the transported measurements satisfy
+\begin{equation}\label{eq:joint-measurement-pullback}
+ \langle\Psi|\widetilde G_a\otimes\widetilde H_b|\Psi\rangle
+ =\langle\psi|G_a\otimes H_b|\psi\rangle.
+\end{equation}
+Thus the common purification preserves the exact answer probabilities,
+not just the norms of the conditioned vectors.
+
+\section{Conditioning on a tested set}\label{sec:exposure}
+
+Fix a finite-dimensional strategy for the $k$-fold game, with state
+$\psi$ and POVMs $\{M_{\mathbf x}^{\mathbf a}\}$ and
+$\{N_{\mathbf y}^{\mathbf b}\}$. Let $C\subseteq[k]$ be a set of tested
+coordinates and let
+\[
+ E_C=\{V(X_j,Y_j,A_j,B_j)=1\text{ for every }j\in C\},
+ \qquad p=\Pr(E_C)>0.
+\]
+Assume $m=k-|C|\ge1$, and put
+\begin{equation}\label{eq:conditioning-budget}
+ d_C=(|\mathcal A|\,|\mathcal B|)^{|C|},\qquad
+ L=\log(d_C/p),\qquad \tau=L/m.
+\end{equation}
+We construct a vector and local measurements that reproduce the
+conditional answers at one untested coordinate. Two approximating
+vectors, each determined by one player's question and a transcript, will
+have total squared error at most $2p\tau$ on average. These comparisons
+let Section~\ref{sec:root-rounding} replace the conditional vector by a
+fixed state on each support component. Throughout this section,
+conditional expectations of operators use the original, unconditioned
+question distribution $\mu^{\otimes k}$. We adapt the weighted reveal
+argument of \cite[Chapter~6, Section~4]{tenadvances2026}, using a fixed
+ordering of the untested coordinates.
+
+\subsection{Exposing one question at each coordinate}
+
+Fix any ordering of the untested coordinates, and abbreviate their
+questions as $X_1,\ldots,X_m$ and $Y_1,\ldots,Y_m$, with answers
+$A_1,\ldots,A_m$ and $B_1,\ldots,B_m$. The tested questions retain the
+notation $X_C,Y_C$. Position-indexed win indicators refer to these same
+untested coordinates; sums over $i\notin C$ in the result statements
+use the original coordinate labels. For $0\le j\le m$ define the flag
+\[
+ \Omega_j = (X_C, Y_C, X_{\le j}, Y_{>j}).
+\]
+Conditioned on a flag of positive probability, the full question vectors
+$\mathbf X$ and $\mathbf Y$ are independent. At a tested coordinate,
+both questions are fixed. At each untested coordinate, one question is
+fixed and the other has its conditional law under $\mu$; these
+remaining choices are independent across coordinates. This argument
+uses no independence between the two questions within a coordinate.
+
+For tested answer strings $\alpha\in\mathcal A^C$ and
+$\gamma\in\mathcal B^C$, define the coarse-grained effects
+\[
+ M_{\mathbf x}^{\alpha}
+   =\sum_{\mathbf a:\,a_C=\alpha} M_{\mathbf x}^{\mathbf a},
+ \qquad
+ N_{\mathbf y}^{\gamma}
+   =\sum_{\mathbf b:\,b_C=\gamma} N_{\mathbf y}^{\mathbf b},
+\]
+and the testing mask
+\[
+ \theta(x_C,y_C,\alpha,\gamma)
+   =\prod_{j\in C} V(x_j,y_j,\alpha_j,\gamma_j).
+\]
+For $C=\varnothing$ there is one pair of empty answer strings and the
+empty product is $1$. Write
+\[
+ F_j^\alpha=\mathbb E[M_{\mathbf X}^\alpha\mid\Omega_j],\qquad
+ H_j^\gamma=\mathbb E[N_{\mathbf Y}^\gamma\mid\Omega_j],\qquad
+ \chi(A,B)=\langle\psi|A\otimes B|\psi\rangle.
+\]
+The answer strings here are fixed indices of the effects, not additional
+conditions on the question distribution. These are positive
+contractions. Conditional independence and linearity give, for every
+$j$,
+\begin{equation}\label{eq:exposure-mass}
+ \mathbb E_{\Omega_j}\sum_{\alpha,\gamma}
+       \theta\,\chi(F_j^\alpha,H_j^\gamma)=p.
+\end{equation}
+
+A \emph{mode} is an index $i\in[m]$. Delete its question from the flag
+and set
+\[
+ r_0=(X_C,Y_C,X_{<i},Y_{>i}),\qquad \nu_i=\operatorname{law}(r_0).
+\]
+At $\Omega_{i-1}$ the questions $X_{\le i-1}$ and $Y_{\ge i}$ are
+exposed; at $\Omega_i$ the questions $X_{\le i}$ and $Y_{>i}$ are
+exposed. The transition from $\Omega_{i-1}$ to $\Omega_i$ reveals
+$X_i$ and hides $Y_i$, and this is the entitlement to which the entropy
+telescope of Lemma~\ref{lem:exposure} applies.
+
+The variable $r_0$ is independent of $(X_i,Y_i)\sim\mu$. For each value
+of $r_0$ of positive probability, put
+\begin{align*}
+ F_x^\alpha&=\mathbb E[M_{\mathbf X}^\alpha\mid r_0,X_i=x],&
+ H_y^\gamma&=\mathbb E[N_{\mathbf Y}^\gamma\mid r_0,Y_i=y],\\
+ F_y^\alpha&=\sum_x \mu(x\mid y)F_x^\alpha,&
+ H_x^\gamma&=\sum_y \mu(y\mid x)H_y^\gamma.
+\end{align*}
+We use these formulas only on positive marginal probabilities. In each
+conditional ensemble, zero weights are omitted before applying
+Lemma~\ref{lem:resolvent}. Questions of zero marginal probability may be
+assigned arbitrary complete local POVMs with answers in the original
+alphabets. All four effects also depend on $i,r_0$, which we suppress in
+the notation. The subscripts in $F_y^\alpha,H_x^\gamma$ indicate the
+question on which the conditional average depends. In particular,
+\[
+ (F_{i-1}^\alpha,H_{i-1}^\gamma)=(F_y^\alpha,H_y^\gamma),
+ \qquad
+ (F_i^\alpha,H_i^\gamma)=(F_x^\alpha,H_x^\gamma).
+\]
+Here the first identity is evaluated at $Y_i=y$, the second at
+$X_i=x$. The mask depends only on $r_0,\alpha,\gamma$, not on $x,y$.
+
+\subsection{The conditional vector and its measurements}
+
+Apply the common finite-dimensional compression in
+Lemma~\ref{lem:resolvent} to all four families
+$F_x^\alpha,F_y^\alpha,H_x^\gamma,H_y^\gamma$, over every mode, flag,
+and positive-marginal question. This yields fixed finite-dimensional
+target spaces $\mathcal K_A,\mathcal K_B$ for the maps $\mathcal F_T$,
+including the maps used later for the local approximations.
+
+Let $R_i$ be the finite set of transcripts $\mathbf r=(r_0,\alpha,\gamma)$,
+where $r_0$ ranges over its positive-probability values and
+$(\alpha,\gamma)\in\mathcal A^C\times\mathcal B^C$. Put
+\begin{gather*}
+ w_i(\mathbf r)=\nu_i(r_0)\,\theta(\mathbf r),\qquad
+ \Psi_{xy}^{\mathbf r}
+   =(\mathcal F_{F_x^\alpha}\otimes\mathcal F_{H_y^\gamma})\psi,\\
+ p_{xy}^{\mathbf r}=\|\Psi_{xy}^{\mathbf r}\|^2
+   =\chi(F_x^\alpha,H_y^\gamma).
+\end{gather*}
+The last identity follows from $\mathcal F_T^*\mathcal F_T=T$. The
+weights $w_i(\mathbf r)$ use counting measure on the answer strings;
+they are independent of $(x,y)$ and need not sum to one. Their sum is at
+most $d_C$. The vector's squared norm supplies the remaining
+probability of the tested answers.
+
+We next exhibit measurements on $\Psi_{xy}^{\mathbf r}$ that reproduce
+the conditional answers. Define the finer effects
+\[
+ G_x^{\alpha,a}
+  =\mathbb E[M_{\mathbf X}^{\alpha,\,a_i=a}\mid r_0,X_i=x],\qquad
+ K_y^{\gamma,b}
+  =\mathbb E[N_{\mathbf Y}^{\gamma,\,b_i=b}\mid r_0,Y_i=y],
+\]
+where an unmentioned answer is summed out. They are positive and
+satisfy $\sum_a G_x^{\alpha,a}=F_x^\alpha$ and
+$\sum_b K_y^{\gamma,b}=H_y^\gamma$. Lemma~\ref{lem:measurement-transport}
+provides POVMs $\{\widetilde M_{\mathbf r,x}^a\}$ on $\mathcal K_A$ and
+$\{\widetilde N_{\mathbf r,y}^b\}$ on $\mathcal K_B$ such that
+\[
+ \mathcal F_{F_x^\alpha}^*\widetilde M_{\mathbf r,x}^a
+      \mathcal F_{F_x^\alpha}=G_x^{\alpha,a},
+ \qquad
+ \mathcal F_{H_y^\gamma}^*\widetilde N_{\mathbf r,y}^b
+      \mathcal F_{H_y^\gamma}=K_y^{\gamma,b}.
+\]
+If $p_{xy}^{\mathbf r}>0$, write
+$\varphi_{xy}^{\mathbf r}=\Psi_{xy}^{\mathbf r}/\sqrt{p_{xy}^{\mathbf r}}$.
+Then
+\begin{equation}\label{eq:exposure-fine-law}
+ \langle\varphi_{xy}^{\mathbf r}|
+      \widetilde M_{\mathbf r,x}^a\otimes\widetilde N_{\mathbf r,y}^b
+       |\varphi_{xy}^{\mathbf r}\rangle
+  =\frac{\chi(G_x^{\alpha,a},K_y^{\gamma,b})}{p_{xy}^{\mathbf r}}.
+\end{equation}
+To identify this probability, condition the original experiment on
+$r_0,X_i=x,Y_i=y$. The unfixed Alice questions $X_{>i}$ and Bob
+questions $Y_{<i}$ are independent, with conditional laws determined by
+$Y_{>i}$ and $X_{<i}$ respectively. More explicitly, for positive-mass
+conditioning data their joint law is
+\[
+ \Pr(X_{>i}=\mathbf u,Y_{<i}=\mathbf z\mid r_0,X_i=x,Y_i=y)
+ =\prod_{j>i}\mu(u_j\mid y_j)
+  \prod_{j<i}\mu(z_j\mid x_j).
+\]
+This is a statement about the original question law, before conditioning
+on tested answers. Neither product depends on the fresh pair $(x,y)$.
+Since Alice's effect depends only on $\mathbf X$, dropping the condition
+$Y_i=y$ leaves its average unchanged; the analogous assertion holds for
+Bob after dropping $X_i=x$. Averaging the joint effect
+$M_{\mathbf X}^{\alpha,\,a_i=a}\otimes N_{\mathbf Y}^{\gamma,\,b_i=b}$
+therefore gives exactly $G_x^{\alpha,a}\otimes K_y^{\gamma,b}$. Its
+coarse-grained probability is $p_{xy}^{\mathbf r}$. When
+$\theta(\mathbf r)=1$, conditioning further on the tested answers
+$(\alpha,\gamma)$ already implies $E_C$. Thus
+\eqref{eq:exposure-fine-law} is the conditional distribution of the
+untested answers $(A_i,B_i)$ given $E_C,\mathbf r,X_i=x,Y_i=y$. Values
+with $\theta(\mathbf r)p_{xy}^{\mathbf r}=0$ have no mass in that
+conditional experiment.
+
+In particular, the joint law of the transcript and fresh questions
+conditioned on $E_C$ is
+\begin{equation}\label{eq:exposure-law}
+ \lambda_i(\mathbf r,x,y)
+   =\frac{w_i(\mathbf r)\,\mu(x,y)\,\|\Psi_{xy}^{\mathbf r}\|^2}{p}.
+\end{equation}
+Thus $\lambda_i$ is a probability law even though the weights
+$w_i$ alone are not. The measurements in \eqref{eq:exposure-fine-law}
+are local: Alice's depends only on $(i,\mathbf r,x)$ and Bob's only on
+$(i,\mathbf r,y)$. The transcript is an analysis variable, not
+information given to the players. A legal one-game strategy must start
+with a shared resource independent of the fresh questions and obtain any
+transcript information using only that resource and the player's own
+question.
+
+\subsection{Local descriptions and their approximation error}
+
+The conditional vector $\Psi_{xy}^{\mathbf r}$ depends on both fresh
+questions. Replace the effect on the opposite player's space by its
+conditional average to obtain two vectors with one-question
+descriptions:
+\[
+ \Psi_x^{\mathbf r}=(\mathcal F_{F_x^\alpha}\otimes
+                          \mathcal F_{H_x^\gamma})\psi,\qquad
+ \Psi_y^{\mathbf r}=(\mathcal F_{F_y^\alpha}\otimes
+                          \mathcal F_{H_y^\gamma})\psi.
+\]
+The first is determined by $(i,\mathbf r,x)$ and the second by
+$(i,\mathbf r,y)$. Both lie in the same fixed space
+$\mathcal K_A\otimes\mathcal K_B$ as $\Psi_{xy}^{\mathbf r}$. Put
+$p_x^{\mathbf r}=\|\Psi_x^{\mathbf r}\|^2$ and
+$p_y^{\mathbf r}=\|\Psi_y^{\mathbf r}\|^2$. The identity
+$\mathcal F_T^*\mathcal F_T=T$ and linearity of $\chi$ give
+\begin{equation}\label{eq:exposure-norms}
+ \begin{gathered}
+ p_{xy}^{\mathbf r}=\chi(F_x^\alpha,H_y^\gamma),\qquad
+ p_x^{\mathbf r}=\sum_y\mu(y\mid x)p_{xy}^{\mathbf r},\qquad
+ p_y^{\mathbf r}=\sum_x\mu(x\mid y)p_{xy}^{\mathbf r},\\
+ \mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}\theta\,p_{xy}^{\mathbf r}
+ =\mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}\theta\,p_x^{\mathbf r}
+ =\mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}\theta\,p_y^{\mathbf r}=p.
+ \end{gathered}
+\end{equation}
+Here the total mass is $p$ by \eqref{eq:exposure-law}; the two averaging
+identities give the same mass for the local descriptions.
+
+Define the errors at mode $i$ by
+\begin{equation}\label{eq:mode-error-definitions}
+ e_A(i)=\mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}\theta
+          \|\Psi_{xy}^{\mathbf r}-\Psi_y^{\mathbf r}\|^2,\qquad
+ e_B(i)=\mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}\theta
+          \|\Psi_{xy}^{\mathbf r}-\Psi_x^{\mathbf r}\|^2.
+\end{equation}
+The subscript names the tensor factor that changes: $e_A$ replaces
+Alice's effect and compares with $\Psi_y$, which Bob can describe from
+$(i,\mathbf r,y)$; $e_B$ replaces Bob's effect and compares with
+$\Psi_x$, which Alice can describe from $(i,\mathbf r,x)$. We will bound
+their averages by an entropy telescope.
+
+\begin{lemma}[Mixed exposure]\label{lem:exposure}
+For any finite-dimensional repeated-game strategy, proper tested set
+$C$ with $p=\Pr(E_C)>0$, and fixed ordering of the $m=k-|C|$ untested
+coordinates, the preceding construction gives finite-dimensional vectors
+and local POVMs satisfying the exact conditional answer law
+\eqref{eq:exposure-fine-law}, transcript law \eqref{eq:exposure-law},
+and norm identities \eqref{eq:exposure-norms}. With
+$\tau=(|C|\log(|\mathcal A|\,|\mathcal B|)+\log(1/p))/m$,
+\begin{equation}\label{eq:exposure-errors}
+ \mathbb E_i e_A(i)\le p\tau,\qquad
+ \mathbb E_i e_B(i)\le p\tau,\qquad
+ \mathbb E_i\bigl(e_A(i)+e_B(i)\bigr)\le2p\tau,
+\end{equation}
+where $i$ is uniform on $[m]$ and the errors are defined in
+\eqref{eq:mode-error-definitions}. The question distribution may have
+zero entries and disconnected support.
+\end{lemma}
+
+\begin{proof}
+The construction and exact laws have been verified above. To prove the
+error bounds, let $f(t)=t\log t$, with $f(0)=0$, as in
+Lemma~\ref{lem:resolvent}. Use the flags $\Omega_j$ to define
+\[
+ U_j=\mathbb E_{\Omega_j}\sum_{\alpha,\gamma}
+      \theta\,\chi(f(F_j^\alpha),H_j^\gamma),\qquad
+ Z_j=\mathbb E_{\Omega_j}\sum_{\alpha,\gamma}
+      \theta\,\chi(F_j^\alpha,f(H_j^\gamma)).
+\]
+We will show that moving from $\Omega_{i-1}$ to $\Omega_i$ increases
+$U$ by at least $e_A(i)$ and decreases $Z$ by at least $e_B(i)$.
+The common range bound
+\begin{equation}\label{eq:exposure-potential-range}
+ -pL\le U_j,Z_j\le0\qquad(0\le j\le m)
+\end{equation}
+will then bound each sum of errors by $pL$.
+
+For the lower bound on $U_j$, fix a flag and a pair of tested answer
+strings. Set $F=F_j^\alpha$, $H=H_j^\gamma$,
+$g=\chi(I,H)\le1$, and $h=\chi(F,H)$. The positive functional
+$A\mapsto\chi(A,H)$ has mass $g$. Applying scalar concavity of
+$h_0(t)=-t\log t$ to a spectral decomposition of $F$ gives
+\[
+ -\chi(f(F),H)\le g\,h_0(h/g)
+       =h\log(g/h)\le h_0(h).
+\]
+The formula has value $0$ when $g=0$, since then $h=0$. Because
+$\theta\in\{0,1\}$ and $h_0(0)=0$, Jensen's inequality over the flag
+and the $d_C$ answer pairs, together with
+\eqref{eq:exposure-mass}, gives
+\[
+ -U_j\le\mathbb E\sum_{\alpha,\gamma}h_0(\theta h)
+      \le d_C\,h_0(p/d_C)=pL.
+\]
+The proof for $Z_j$ interchanges the two players. The upper bounds in
+\eqref{eq:exposure-potential-range} follow from $f(T)\preceq0$ for
+positive contractions $T$.
+
+The changes when replacing $Y_i$ by $X_i$ in the flag are
+\begin{align}
+ J_A(i):=U_i-U_{i-1}
+ &=\mathbb E_{\nu_i\mu_Y}\sum_{\alpha,\gamma}\theta\,
+   \chi\Big(\sum_x\mu(x\mid y)f(F_x^\alpha)
+                      -f(F_y^\alpha),H_y^\gamma\Big),
+       \label{eq:exposure-jensen-A}\\
+ J_B(i):=Z_{i-1}-Z_i
+ &=\mathbb E_{\nu_i\mu_X}\sum_{\alpha,\gamma}\theta\,
+   \chi\Big(F_x^\alpha,
+       \sum_y\mu(y\mid x)f(H_y^\gamma)-f(H_x^\gamma)\Big),
+       \label{eq:exposure-jensen-B}
+\end{align}
+where $\mu_X,\mu_Y$ are the two marginals of $\mu$. For example,
+linearity in the second argument rewrites $U_i$ as
+$\mathbb E_{\nu_i\mu}\sum_{\alpha,\gamma}
+\theta\,\chi(f(F_x^\alpha),H_y^\gamma)$; subtracting $U_{i-1}$ gives
+\eqref{eq:exposure-jensen-A}. The other identity uses linearity in the
+first argument.
+
+For fixed $r_0,y,\alpha,\gamma$, apply the Jensen estimate of
+Lemma~\ref{lem:resolvent} to the ensemble $F_x^\alpha$ with
+probabilities $\mu(x\mid y)$ and then evaluate its operator inequality
+against $H_y^\gamma$ in the state $\psi$. This bounds the corresponding
+squared distance between $\Psi_{xy}^{\mathbf r}$ and
+$\Psi_y^{\mathbf r}$, and hence $e_A(i)\le J_A(i)$. Applying the same
+argument to the ensemble $H_y^\gamma$ with probabilities $\mu(y\mid x)$
+gives $e_B(i)\le J_B(i)$. In particular, both potential changes are
+nonnegative. Telescoping along the fixed ordering now yields
+\begin{equation}\label{eq:exposure-telescope}
+ \frac1m\sum_{i=1}^m J_A(i)\le p\tau,\qquad
+ \frac1m\sum_{i=1}^m J_B(i)\le p\tau,
+\end{equation}
+by \eqref{eq:exposure-potential-range} and $L=m\tau$. These
+inequalities prove \eqref{eq:exposure-errors}. The ordering was
+arbitrary and fixed throughout; no averaging over orderings is required.
+\end{proof}
+
+\subsection{The change in the sampled question distribution}
+
+The vectors describe the experiment after conditioning on $E_C$. A
+one-game strategy, however, receives questions with the original law
+$\mu$. The following estimate bounds the resulting discrepancy. We use
+$\|\cdot\|_1$ for the full $\ell_1$ distance of probability
+distributions.
+
+\begin{lemma}[Question drift]\label{lem:question-drift}
+Under the preceding assumptions, put
+\[
+ \Delta_i=\|\operatorname{law}(X_i,Y_i\mid E_C)-\mu\|_1.
+\]
+For a uniformly chosen untested coordinate,
+\[
+ \mathbb E_i\Delta_i
+ \le\sqrt{\frac{2\log(1/p)}{m}}\le\sqrt{2\tau}.
+\]
+\end{lemma}
+\begin{proof}
+Let $Q=((X_j,Y_j))_{j\in[k]}$ be the full question vector and let
+$P=\operatorname{law}(Q\mid E_C)$. On the support of $\mu^{\otimes k}$,
+\[
+ \frac{P(Q)}{\mu^{\otimes k}(Q)}
+   =\frac{\Pr(E_C\mid Q)}{p}\le\frac1p.
+\]
+It follows that $D(P\|\mu^{\otimes k})\le\log(1/p)$, where $D$ denotes
+relative entropy with natural logarithms. Relative entropy to a product
+measure is at least the sum of the relative entropies of its marginals:
+this follows by expanding entropies and using subadditivity. Retaining
+only the $m$ untested coordinates, Pinsker's inequality and
+Cauchy--Schwarz give
+\[
+ \frac1m\sum_{i=1}^m\Delta_i
+ \le \frac1m\sum_{i=1}^m\sqrt{2D(P_i\|\mu)}
+ \le\sqrt{\frac2m\sum_{i=1}^mD(P_i\|\mu)}
+ \le\sqrt{\frac{2\log(1/p)}m}.
+\]
+\end{proof}
+
+\section{A cubic bound for a fixed question distribution}\label{sec:root-rounding}
+
+The exposure estimates also give a direct route to threshold repetition
+when constants may depend on the question distribution. Within each
+connected component of its support, we replace the conditional vector by
+one reference vector. Adjacent question pairs have a common local
+approximation, so the cost of this replacement is controlled along
+paths in the support. The resulting conditioning error is of square-root
+order, which gives a cubic threshold rate. The construction uses the
+exposure vectors and transported answer measurements of
+Section~\ref{sec:exposure}. The connection-graph viewpoint of Dinur,
+Harsha, Venkat, and Yuen \cite{dhvy2017} motivated this fixed-support
+approach; the quantum common-vector replacement by a component root and
+the explicit cubic coefficient are proved here.
+
+For a finite question distribution $\mu$, let
+\[
+ H=\{(x,y):\mu(x,y)>0\}.
+\]
+Join two vertices of $H$ when they share either coordinate. Let $H_j$ be
+the connected components, and let $\lambda_j,\mu_j,\mu_{j,\min}$,
+$\kappa_\mu$ be as in \eqref{eq:kappa-mu}. This constant depends on the
+positive masses of $\mu$, as well as on its support; in particular,
+$\kappa_\mu=0$ when every component is a singleton.
+
+\begin{proposition}[Conditioning through support components]
+\label{prop:root-conditioning}
+Let $G$ be a finite two-prover game with question distribution $\mu$ and
+$v=\omega^*(G)$. For any finite-dimensional strategy for $k$ copies and
+$C\subsetneq[k]$, suppose that
+\[
+ E_C=\{I_j=1\text{ for every }j\in C\},\qquad p=\Pr(E_C)>0.
+\]
+Put $m=k-|C|$ and
+$\tau=(|C|\log(|\mathcal A|\,|\mathcal B|)+\log(1/p))/m$. Then
+\begin{equation}\label{eq:root-conditioning}
+ \frac1m\sum_{i\notin C}\Pr(I_i=1\mid E_C)
+ \le v+\sqrt{\frac{\log(1/p)}{2m}}
+          +4\sqrt{\kappa_\mu\tau}+2\kappa_\mu\tau.
+\end{equation}
+The constants are independent of the strategy dimension and of $k$.
+\end{proposition}
+
+\begin{proof}
+Write $G_j$ for the game with distribution $\mu_j$ and the original
+predicate, and put $v_j=\omega^*(G_j)$. Every positive-probability
+question $x$ identifies a unique component, because all support pairs
+with first entry $x$ are adjacent; the same holds for each $y$. Thus
+\begin{equation}\label{eq:root-component-values}
+ \sum_j\lambda_j v_j\le v.
+\end{equation}
+Indeed, tensor together finite-dimensional strategies approaching the
+finitely many component suprema, and let each player use the factor
+identified by the local question. Their weighted success approaches the
+left side. No supremum need be attained.
+
+We must control two changes. Replacing the vectors within a component
+will produce a legal strategy for $G_j$. Conditioning on $E_C$ can also
+change the frequencies of the components; after constructing those
+strategies, we will compare the new component weights with $\lambda_j$.
+
+Use Lemma~\ref{lem:exposure} for the fixed set $C$. In this proof we
+restore the mode $i\in[m]$ in the notation for its vectors and
+measurements. For $\mathbf r=(r_0,\alpha,\gamma)$ put
+\[
+ w_{i,\mathbf r}=\frac1m w_i(\mathbf r)=\frac1m\nu_i(r_0)\theta(\mathbf r),
+ \qquad
+ \Psi_{i,z}^{\mathbf r}=\Psi_{xy}^{\mathbf r}\quad(z=(x,y)).
+\]
+These finite nonnegative weights do not depend on the fresh pair $z$.
+They need not sum to one. Let $\Psi_{i,x}^{\mathbf r},\Psi_{i,y}^{\mathbf r}$
+be the local vectors from the exposure lemma, and let
+\[
+ W_{i,\mathbf r,z}=\sum_{a,b}V(x,y,a,b)\,
+               \widetilde M_{\mathbf r,x}^a\otimes
+               \widetilde N_{\mathbf r,y}^b .
+\]
+Here the measurements also have their mode-$i$ dependence, and
+$0\le W_{i,\mathbf r,z}\le I$. The norm, error, and win identities give
+\begin{align}
+ \sum_{i,\mathbf r,z}w_{i,\mathbf r}\mu(z)\|\Psi_{i,z}^{\mathbf r}\|^2
+   &=p, \label{eq:root-input-mass}\\
+ \sum_{i,\mathbf r,z}w_{i,\mathbf r}\mu(z)c_{i,\mathbf r,z}
+   &\le2p\tau, \label{eq:root-input-error}\\
+ \sum_{i,\mathbf r,z}w_{i,\mathbf r}\mu(z)
+       \langle\Psi_{i,z}^{\mathbf r},
+              W_{i,\mathbf r,z}\Psi_{i,z}^{\mathbf r}\rangle
+   &=p\bar s,\qquad
+ \bar s=\frac1m\sum_{i\notin C}\Pr(I_i=1\mid E_C),
+   \label{eq:root-input-win}
+\end{align}
+where
+\[
+ c_{i,\mathbf r,z}=\|\Psi_{i,z}^{\mathbf r}-\Psi_{i,x}^{\mathbf r}\|^2
+               +\|\Psi_{i,z}^{\mathbf r}-\Psi_{i,y}^{\mathbf r}\|^2.
+\]
+
+Choose a root $\rho_j\in H_j$. We first bound the error of replacing
+$\Psi_{i,z}^{\mathbf r}$ by $\Psi_{i,\rho_j}^{\mathbf r}$ on its entire
+component. For fixed $i,\mathbf r$, abbreviate these vectors by $\Psi_z$
+and the costs by $c_z$. If $z,z'$ share $y$, their common anchor
+$\Psi_y$ gives $\|\Psi_z-\Psi_{z'}\|^2\le2(c_z+c_{z'})$; the same
+assertion follows from $\Psi_x$ when they share $x$. A simple path to
+the root has length at most $|H_j|-1$. Cauchy--Schwarz along that path,
+and the fact that each vertex lies on at most two of its edges, give
+\[
+ \|\Psi_z-\Psi_{\rho_j}\|^2
+ \le4(|H_j|-1)\sum_{a\in H_j}c_a
+ \le\frac{4(|H_j|-1)}{\mu_{j,\min}}
+                         \sum_{a\in H_j}\mu_j(a)c_a.
+\]
+For a singleton component the left side is zero. Define
+\[
+ E_j=\sum_{i,\mathbf r,z\in H_j}w_{i,\mathbf r}\mu_j(z)
+             \|\Psi_{i,z}^{\mathbf r}-\Psi_{i,\rho_j}^{\mathbf r}\|^2,
+ \qquad
+ E=\sum_j\lambda_jE_j.
+\]
+Summing the path estimate and applying \eqref{eq:root-input-error}
+shows
+\begin{equation}\label{eq:root-path-error}
+ E\le\kappa_\mu p\tau.
+\end{equation}
+
+The root vectors now define legal component strategies. We compare
+their total squared norms and accepting masses with the corresponding
+masses before replacement. Define
+\begin{align*}
+ P_j&=\sum_{i,\mathbf r,z\in H_j}w_{i,\mathbf r}\mu_j(z)
+        \|\Psi_{i,z}^{\mathbf r}\|^2,\\
+ \widehat P_j&=\sum_{i,\mathbf r}w_{i,\mathbf r}
+        \|\Psi_{i,\rho_j}^{\mathbf r}\|^2,\\
+ T_j&=\sum_{i,\mathbf r,z\in H_j}w_{i,\mathbf r}\mu_j(z)
+       \langle\Psi_{i,z}^{\mathbf r},
+              W_{i,\mathbf r,z}\Psi_{i,z}^{\mathbf r}\rangle,\\
+ \widehat T_j&=\sum_{i,\mathbf r,z\in H_j}w_{i,\mathbf r}\mu_j(z)
+       \langle\Psi_{i,\rho_j}^{\mathbf r},
+              W_{i,\mathbf r,z}\Psi_{i,\rho_j}^{\mathbf r}\rangle.
+\end{align*}
+If $\widehat P_j>0$, the shared pure state
+\[
+ |\Xi_j\rangle=\widehat P_j^{-1/2}
+       \sum_{i,\mathbf r}\sqrt{w_{i,\mathbf r}}\,
+       |i,\mathbf r\rangle_A|i,\mathbf r\rangle_B\otimes
+       \Psi_{i,\rho_j}^{\mathbf r}
+\]
+is normalized and finite dimensional. Both players use the original
+transported POVMs, controlled by their shared flag $(i,\mathbf r)$.
+The state and the flag distribution are independent of the fresh
+questions: the vector arguments are fixed at $\rho_j$, and the weights
+exclude the new pair. Each controlled measurement depends only on its
+own player's input. The resulting success in $G_j$ is
+$\widehat T_j/\widehat P_j$. If $\widehat P_j=0$, then
+$\widehat T_j=0$. Therefore, in all cases,
+\begin{equation}\label{eq:root-legal-strategy}
+ \widehat T_j\le v_j\widehat P_j.
+\end{equation}
+
+For vectors $a,b$ and an effect $0\le W\le I$,
+\[
+ |\langle a,Wa\rangle-\langle b,Wb\rangle|
+       \le(\|a\|+\|b\|)\|a-b\|.
+\]
+Weighted Cauchy--Schwarz, with $W=I$ or $W=W_{i,\mathbf r,z}$,
+consequently gives
+\[
+ |P_j-\widehat P_j|,\ |T_j-\widehat T_j|
+ \le e_j:=(\sqrt{P_j}+\sqrt{\widehat P_j})\sqrt{E_j}.
+\]
+Write $\widehat P=\sum_j\lambda_j\widehat P_j$. The triangle inequality
+in the weighted direct sum of the vector spaces yields
+$\sqrt{\widehat P}\le\sqrt p+\sqrt E$. A further Cauchy--Schwarz
+inequality therefore gives
+\[
+ \sum_j\lambda_je_j
+ \le(\sqrt p+\sqrt{\widehat P})\sqrt E
+ \le2\sqrt{pE}+E.
+\]
+By \eqref{eq:root-legal-strategy} and $v_j\le1$,
+$T_j\le v_jP_j+2e_j$. Since
+$\sum_j\lambda_jP_j=p$ and $\sum_j\lambda_jT_j=p\bar s$, it follows
+that
+\begin{equation}\label{eq:root-conditional-components}
+ \bar s\le\sum_j\widetilde\lambda_jv_j
+                      +4\sqrt{E/p}+2E/p,
+ \qquad\widetilde\lambda_j=\lambda_jP_j/p.
+\end{equation}
+
+It remains to compare the conditional component weights with
+$\lambda_j$. Let $J_i$ be the support component of the $i$-th untested
+question pair. The exact norm identity identifies
+$\widetilde\lambda$ with the average of
+$\operatorname{law}(J_i\mid E_C)$ over $i\in[m]$. Unconditionally,
+$(J_1,\ldots,J_m)$ has law $\lambda^{\otimes m}$. After conditioning on
+$E_C$, its density relative to that law is at most $1/p$, so
+\[
+ D\bigl(\operatorname{law}(J_1,\ldots,J_m\mid E_C)
+                      \,\|\,\lambda^{\otimes m}\bigr)\le\log(1/p).
+\]
+As in Lemma~\ref{lem:question-drift}, product relative entropy bounds
+the sum of its marginal relative entropies. Pinsker's inequality,
+convexity of total variation, and Cauchy--Schwarz imply
+\[
+ \operatorname{TV}(\widetilde\lambda,\lambda)
+       \le\sqrt{\frac{\log(1/p)}{2m}},
+ \qquad
+ \operatorname{TV}(a,b)=\tfrac12\|a-b\|_1.
+\]
+Because $0\le v_j\le1$, this bounds the increase of their weighted
+average. Substituting \eqref{eq:root-component-values} and
+\eqref{eq:root-path-error} into \eqref{eq:root-conditional-components}
+proves \eqref{eq:root-conditioning}.
+\end{proof}
+
+For a fixed $\mu$, \eqref{eq:root-conditioning} is
+$O_\mu(\sqrt\tau+\tau)$. Song's estimate in
+Proposition~\ref{prop:song-conditioning} has fourth-root error with a
+universal constant. Where both apply, one may use the smaller error. The
+proof above does not use Song's sampler.
+
+\subsection{The resulting threshold rate}
+
+\begin{proof}[Proof of Corollary~\ref{cor:support-threshold}]
+Proposition~\ref{prop:root-conditioning} bounds the conditioning error
+by
+\[
+ \sqrt{\tau/2}+4\sqrt{\kappa_\mu\tau}+2\kappa_\mu\tau.
+\]
+At $T=\delta^2/(1024(1+\kappa_\mu))$, this is at most
+\[
+ \frac\delta{32}+\frac\delta8+\frac\delta{512}
+ =\frac{81\delta}{512}<\frac\delta4.
+\]
+Since also $T\le\delta/4$, Proposition~\ref{prop:conditioning-to-tail}
+(cf.\ \eqref{eq:threshold-input}) gives \eqref{eq:support-threshold-rate}.
+\end{proof}
+
+The larger of the exponents in \eqref{eq:main} and
+\eqref{eq:support-threshold-rate} is valid. Lemma~\ref{lem:mean-bound}
+gives the sharper probability zero when $v=0$.
+
+\section{Two-sided error amplification}\label{sec:amplification}
+
+A threshold between completeness and soundness amplifies both guarantees
+without changing the number of players or rounds. Tensor copies of a
+single-game strategy give completeness; Theorem~\ref{thm:main} controls
+soundness even for joint strategies across all repetitions.
+
+\begin{corollary}[Two-sided error amplification]\label{cor:error-amplification}
+Let $G$ be a finite two-player one-round game in the model above, and
+fix $0\le s<c\le1$. Put $\Delta=c-s$, $t=(c+s)/2$, and
+$d=|\mathcal A|\,|\mathcal B|$. For an integer $k\ge1$, let $H_k$ sample
+$k$ independent question pairs from $G$, send each player the entire
+local question string, and accept exactly when $W_k\ge\lceil tk\rceil$.
+Then
+\begin{align*}
+ \omega^*(G)\ge c
+ &\quad\Longrightarrow\quad
+ \omega^*(H_k)\ge1-\exp(-\Delta^2k/8),\\
+ \omega^*(G)\le s
+ &\quad\Longrightarrow\quad
+ \omega^*(H_k)\le
+ \exp\!\left(-\frac{\kappa_0(\Delta/2)^5}{1+\log d}\,k\right),
+\end{align*}
+where $\kappa_0$ is the universal constant in Theorem~\ref{thm:main}.
+\end{corollary}
+\begin{proof}
+For completeness, the supremum definition supplies a finite-dimensional
+strategy with success $p>c-\Delta/4=t+\Delta/4$, whether or not the value
+is attained. Its $k$ tensor copies give independent Bernoulli win
+indicators of mean $p$. Since $W_k$ is integer valued,
+$\{W_k<\lceil tk\rceil\}=\{W_k<tk\}$, so Hoeffding's inequality
+\cite[Theorem~2]{hoeffding1963} bounds rejection by
+$\exp(-2(p-t)^2k)\le\exp(-\Delta^2k/8)$.
+For soundness, set $v=\omega^*(G)\le s$ and $\delta=t-v$.
+Then $\delta\ge\Delta/2>0$ and $\delta<1-v$, since $t<1$.
+Theorem~\ref{thm:main} applies at exactly the threshold
+$\lceil(v+\delta)k\rceil=\lceil tk\rceil$, uniformly over all
+finite-dimensional joint strategies; taking their supremum proves the
+claim.
+\end{proof}
+
+For polynomial-time verifier families with efficiently computable
+rational bounds $c,s$, inverse-polynomial gap $c-s$, and polynomial
+answer bit-length, polynomially many repetitions therefore make both
+errors exponentially small in the input length, while preserving two
+provers, one round, and classical messages. Indeed, $1+\log d$ is
+polynomially bounded and the ceiling threshold is efficiently
+computable.
+
+\begin{thebibliography}{99}
+
+\bibitem{raz1998}
+Ran Raz,
+\emph{A parallel repetition theorem},
+SIAM J.\ Comput.\ 27(3), 763--803, 1998.
+
+\bibitem{holenstein2009}
+Thomas Holenstein,
+\emph{Parallel repetition: simplifications and the no-signaling case},
+Theory of Computing 5(8), 141--172, 2009.
+
+\bibitem{rao2011}
+Anup Rao,
+\emph{Parallel repetition in projection games and a concentration bound},
+SIAM J.\ Comput.\ 40(6), 1871--1891, 2011.
+
+\bibitem{csuu2008}
+Richard Cleve, William Slofstra, Falk Unger, and Sarvagya Upadhyay,
+\emph{Perfect parallel repetition theorem for quantum {XOR} proof
+systems}, Computational Complexity 17(2), 282--299, 2008.
+
+\bibitem{krt2010}
+Julia Kempe, Oded Regev, and Ben Toner,
+\emph{Unique games with entangled provers are easy},
+SIAM J.\ Comput.\ 39(7), 3207--3229, 2010.
+
+\bibitem{dsv2015}
+Irit Dinur, David Steurer, and Thomas Vidick,
+\emph{A parallel repetition theorem for entangled projection games},
+Computational Complexity 24(2), 201--254, 2015.
+
+\bibitem{jpy2014}
+Rahul Jain, Attila Pereszl\'enyi, and Penghui Yao,
+\emph{A parallel repetition theorem for entangled two-player one-round
+games under product distributions}, CCC 2014.
+\url{https://arxiv.org/abs/1311.6309}.
+
+\bibitem{cs2015}
+Andr\'e Chailloux and Giannicola Scarpa,
+\emph{Parallel repetition of free entangled games: simplification and
+improvements}, 2015. \url{https://arxiv.org/abs/1410.4397}.
+
+\bibitem{cs2014}
+Andr\'e Chailloux and Giannicola Scarpa,
+\emph{Parallel repetition of entangled games with exponential decay via
+the superposed information cost}, corrected version, 2014.
+\url{https://arxiv.org/abs/1310.7787}.
+
+\bibitem{yuen2016}
+Henry Yuen,
+\emph{A parallel repetition theorem for all entangled games},
+ICALP 2016, LIPIcs 55, 77:1--77:13, 2016.
+\url{https://arxiv.org/abs/1604.04340}.
+
+\bibitem{bvy2017}
+Mohammad Bavarian, Thomas Vidick, and Henry Yuen,
+\emph{Hardness amplification for entangled games via anchoring},
+STOC 2017, 303--316, 2017.
+
+\bibitem{bvy2022}
+Mohammad Bavarian, Thomas Vidick, and Henry Yuen,
+\emph{Anchored parallel repetition for nonlocal games},
+SIAM J.\ Comput.\ 51(2), 214--253, 2022.
+
+\bibitem{tenadvances2026}
+{OpenAI}, \emph{Ten Advances in Mathematics and Theoretical Computer
+Science}, 2026. Chapter~6: Quantum parallel repetition, pp.~154--182.
+\url{https://cdn.openai.com/pdf/ten-proofs-oai.pdf}.
+
+\bibitem{song2026}
+Zhao Song,
+\emph{Parallel repetition for entangled games with gap exponent three},
+ECCC TR26-199, 2026.
+\url{https://eccc.weizmann.ac.il/report/2026/199/}.
+
+\bibitem{petz2007}
+D\'enes Petz,
+\emph{Bregman divergence as relative operator entropy},
+Acta Math.\ Hungar.\ 116, 127--131, 2007.
+
+\bibitem{kim2014}
+Isaac H.\ Kim,
+\emph{Modulus of convexity for operator convex functions},
+J.\ Math.\ Phys.\ 55(8), 082201, 2014.
+
+\bibitem{dhvy2017}
+Irit Dinur, Prahladh Harsha, Rakesh Venkat, and Henry Yuen,
+\emph{Multiplayer parallel repetition for expander games}, 2017.
+\url{https://arxiv.org/abs/1610.08349}.
+
+\bibitem{hoeffding1963}
+Wassily Hoeffding,
+\emph{Probability inequalities for sums of bounded random variables},
+J.\ Amer.\ Statist.\ Assoc.\ 58(301), 13--30, 1963.
+
+\end{thebibliography}
+
+\end{document}
