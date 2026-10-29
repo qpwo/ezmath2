@@ -1,0 +1,538 @@
+Trace reconstruction from deletion traces
+A complete and readable account of the quasipolynomial sample bound
+
+Companion to trace_reconstruction_anchor_induction_original.txt
+Version 2. Plain text. ASCII only.
+
+
+TABLE OF CONTENTS
+
+   0. What this document is
+   1. The problem
+   2. The answer
+   3. How this compares with earlier work
+   4. Notation and the tools we borrow
+   5. The shape of the proof in eight steps
+   6. Doubling, anchors, probes, and the difference polynomial
+   7. The induction goal
+   8. The base case: a period-avoiding word
+   9. The step: a Gaussian window and an arc test
+  10. Shuffle: merging the copies
+  11. Center Fourier expansion: an admissible mask
+  12. Radial compactification
+  13. Stopping: from masks to phase parameters
+  14. Interpolation and the trace statistic
+  15. Counting traces
+  16. General alphabets
+  17. What is and is not proved
+  18. Glossary
+  19. A reading guide
+  20. References
+
+
+========================================================================
+0. WHAT THIS DOCUMENT IS
+========================================================================
+
+This is a readable companion to a research paper about trace
+reconstruction. The paper proves an upper bound on how many independent
+deletion traces are needed to determine an unknown string of length n.
+
+The original is written for specialists. This version keeps every step
+and every constant, but explains each one in plain words. A reader who
+knows what a sequence is, what a probability is, and what a polynomial
+is should be able to follow the whole argument.
+
+Two warnings.
+
+First, this is a proof of an information-theoretic statement. It says:
+this many traces contain enough information to identify the string. It
+does not give a fast algorithm for extracting the string from the
+traces. The paper is explicit about this and so is this document.
+
+Second, the constants are enormous (10^100 appears). They are
+bookkeeping, chosen so that many inequalities are obviously true, not
+because anybody believes they are tight. Read them as "some fixed
+number large enough". The interesting content is in the exponents.
+
+
+========================================================================
+1. THE PROBLEM
+========================================================================
+
+Imagine a long string of symbols: a piece of DNA, or a line of text
+copied by a careless scribe.
+
+Nature makes a copy by walking along the string and, independently at
+each position, keeping the symbol with probability p and deleting it
+with probability q = 1 - p. What is left is called a trace. A trace is
+a subsequence of the original: the surviving symbols in their original
+order, with no record of where the deletions happened, and with no
+labels on the survivors saying which original positions they came from.
+
+You are given many independent traces. You are also told p and the
+original length n. You must recover the original string.
+
+  Question. How many traces do you need?
+
+Two words to fix.
+
+  Worst case means the bound must hold for every possible original
+  string, not merely for typical ones. An adversary picks the hardest
+  string.
+
+  Sample complexity means the number of traces. It does not mean the
+  running time of whatever program processes them.
+
+A tiny example. Take n = 4 and x = 0110, with p = 3/4. The retention
+pattern (keep, keep, delete, keep) has probability (3/4)^3 (1/4) and
+produces the trace 010. The pattern (delete, keep, keep, delete)
+produces 11. The pattern (keep, keep, keep, keep) produces 0110. The
+pattern (delete, delete, delete, delete) produces the empty trace.
+
+If p is small, most traces are short, and each trace tells you very
+little. The whole difficulty of the subject is that p may be as small
+as 1/n, in which case a typical trace has length about 1.
+
+Two features of the problem make it hard.
+
+  The traces do not tell you where the deletions were. If they did, one
+  trace would trivially suffice.
+
+  Two different strings can produce traces that are easy to confuse. A
+  string with many repeated symbols is harder than a random string.
+
+
+========================================================================
+2. THE ANSWER
+========================================================================
+
+Throughout, log means natural logarithm unless another base is stated,
+and exp(t) means e to the power t.
+
+THEOREM 1 (main bound). Let n >= 2 be an integer and let 0 < p <= 1.
+For every binary string x of length n, there is a reconstruction rule
+that recovers x from independent deletion traces with probability at
+least 2/3, provided the number of traces is at least
+
+    exp( O( p^{-1} (log n)^3 (1 + log log(2n))^6 ) ).
+
+The O(.) hides an absolute constant that does not depend on n, on p, or
+on x. The same number of traces works for all x simultaneously. The
+rule may depend on n and on p (both of which are known) but not on x.
+
+THEOREM 2 (finer form). Put q = 1 - p and
+
+    ell_*  =  1 + log(1/q)
+    X      =  1 + log(n) / ell_*.
+
+Then the logarithm of the number of traces needed is at most
+
+    O( p^{-1} (log n) X^2 (1 + log X)^6 ).
+
+THEOREM 3 (low deletion). Suppose q <= n^{-epsilon} for some fixed
+epsilon > 0. Then either q = 0, in which case one trace suffices, or
+ell_* >= 1 + epsilon log n, so X <= 1 + 1/epsilon, while p >= 1/2 for
+large n. Hence polynomially many traces suffice; the degree of the
+polynomial may depend on epsilon.
+
+THEOREM 4 (general alphabets). The same asymptotic bounds hold for
+strings over an arbitrary alphabet, assuming the surviving symbols are
+observed exactly.
+
+Sanity check on sizes. Fix p = 1/2 and n = 10^9. Then log n is about
+20.7, (log n)^3 is about 8900, log log(2n) is about 3.05,
+(1 + log log(2n))^6 is about 1250, and the product is about 1.1 * 10^7.
+So the theorem promises fewer than exp(2.2 * 10^7) traces. That is a
+finite number, and the shape of the exponent is the point. A trivial
+bound is 2^n, which here is 10^{3 * 10^8}: vastly larger.
+
+Vocabulary. A function of n is polynomial if it is at most n^C for some
+fixed C. It is quasipolynomial if it is at most exp((log n)^C) for some
+fixed C. Quasipolynomial growth sits strictly between polynomial and
+exponential: for every fixed C and every fixed c > 0, exp((log n)^C)
+grows faster than n^c and slower than exp(n^c).
+
+Three things the theorem does not say.
+
+  It is not a matching lower bound. The true number of traces needed
+  might be much smaller.
+
+  It is not an efficient algorithm. See section 17.
+
+  For fixed p in (0,1) the bound stays quasipolynomial. It does not
+  become polynomial in n. Getting polynomial for any fixed p is open.
+
+
+========================================================================
+3. HOW THIS COMPARES WITH EARLIER WORK
+========================================================================
+
+The previous quantitative quasipolynomial estimate is due to
+Burudgunte, Valiant, and Wang, cited as BVW. Their Theorem 43 states a
+quasipolynomial bound with an unspecified log-power c and a p^{-7/3} in
+the exponent.
+
+If you unwind their proof (their Section 8) you find concrete
+prescriptions:
+
+    b_old   = ceil( log_{1.1} log_2 n )
+    p_base  = 3^{-b_old} min(p, 1/4)
+    pair-test bound  =  4 tau_base^{-2 C^{b_old}}   for some C >= 1
+    log(1/tau_base)  =  constant * d_base^{1/3} p_base^{-1/3}
+    d_base  =  max( p_base^{-6}, O(1) )
+
+Even if you ignore the C^{b_old} multiplier entirely, the inverse
+retention term alone forces a log-power of at least
+
+    (7/3) log_{1.1}(3)  >  26
+
+for fixed p. The present result improves on that proved estimate. It is
+not a claim that no other optimization of BVW's approach could do
+better, and it does not go below quasipolynomial order for fixed
+0 < p < 1.
+
+What is genuinely new.
+
+  The core idea is kept from BVW: test relations between phases using
+  products of Fourier coefficients.
+
+  The induction is different. It runs directly on generating functions
+  of the source string, instead of on the pair-test structure.
+
+  The phase argument is weighted and uses up to four factors at once.
+
+  Masks are made spectrally compact: extra low-dimensional factors are
+  propagated with a bounded frequency footprint. That lets the proof
+  relax the angle budget during the induction and spend it at the very
+  last step.
+
+  The base case keeps the period-avoiding-word idea of Chase and
+  Rubinstein.
+
+For polynomial-time bounds in the low deletion regime, see Chen, De,
+Lee, Servedio, and Sinha. See also the references at the end.
+
+
+========================================================================
+4. NOTATION AND THE TOOLS WE BORROW
+========================================================================
+
+4.1 Notation.
+
+    log          natural logarithm
+    exp(t)       e to the power t
+    a^b          a to the power b
+    |z|          modulus of the complex number z
+    Re z, Im z   real and imaginary parts
+    sum, prod    sum and product
+    inf          infinity
+    O(g), o(g)   see 4.3
+    |x|_2        Euclidean length of a vector
+    |x|_inf      largest coordinate in absolute value
+    ||mu||       total variation of a complex measure
+    sup, inf     supremum, infimum
+    1_E          indicator of the event E
+    gcd(a,b)     greatest common divisor
+
+A polynomial here is always an ordinary polynomial in one complex
+variable z. A quantity is analytic in a region if it is given there by
+a convergent power series. A measure is a rule assigning a complex
+number to each nice set, additively; its total variation is the largest
+possible value of the sum of absolute values of the pieces, over all
+finite partitions.
+
+4.2 Seven standard facts.
+
+  FACT 1 (geometric series). If |z| < 1 then sum_{m>=0} z^m = 1/(1-z),
+  and sum_{m>=0} |z|^m = 1/(1-|z|).
+
+  FACT 2 (Cauchy-Schwarz). |sum_i x_i y_i|^2 <= (sum_i |x_i|^2)
+  (sum_i |y_i|^2).
+
+  FACT 3 (union bound). For any events A and B, P(A or B) <= P(A) +
+  P(B).
+
+  FACT 4 (Hoeffding). Let S be the average of N independent random
+  variables, each in [0,1]. Then for every t > 0,
+
+      P( |S - E S| >= t ) <= 2 exp(-2 N t^2).
+
+  So to resolve a gap of size t you need about log(1/delta)/t^2
+  samples, where delta is the error you are willing to tolerate.
+
+  FACT 5 (Poisson). If f is analytic and nonzero on a disk, then log|f|
+  is harmonic there, so its value at the centre is a weighted average
+  of its boundary values, with the Poisson weight
+
+      (1 - r^2) / (2 pi (1 + r^2 - 2 r cos(angle)))
+
+  at radius r. We only use one consequence: a large value at one
+  interior point forces a comparable value somewhere on any arc that
+  carries enough Poisson weight. Boundary zeros are harmless; apply the
+  inequality to log(|f| + delta) and let delta tend to 0.
+
+  FACT 6 (Hadamard three-lines). If G is analytic and |G| <= 1 in the
+  vertical strip a <= Re s <= b, then log sup_{Re s = t} |G| is a
+  convex function of t in [a,b]. Consequence: a lower bound at one
+  interior line plus an upper bound at both edges gives a lower bound
+  at the other edge, and the price is the ratio of the distances.
+
+  FACT 7 (Fine and Wilf). If a word w has periods p and q and
+  |w| >= p + q - gcd(p,q), then w has period gcd(p,q).
+
+  A period of a word of length L is a positive integer delta such that
+  every pair of positions at distance delta carries the same symbol,
+  for as long as both positions lie inside the word. Every word
+  trivially has every period delta >= L.
+
+4.3 Big-O and little-o.
+
+  "f(n) = O(g(n))" means there is a constant C, depending only on
+  quantities that are explicitly fixed and not on n, such that
+  |f(n)| <= C g(n) for all sufficiently large n.
+
+  "f(n) = o(g(n))" means f(n)/g(n) tends to 0 as n tends to infinity.
+
+  In this paper, every O(.) and o(.) statement is uniform over the
+  remaining parameters: the channel probabilities in the stated range,
+  the induction level, the choice of pair, and so on.
+
+  "For all sufficiently large n" means there is an absolute threshold
+  n_0 such that the conclusion holds for n >= n_0. These thresholds are
+  never computed, and they are always far smaller than the actual size
+  of n in any application.
+
+
+========================================================================
+5. THE SHAPE OF THE PROOF IN EIGHT STEPS
+========================================================================
+
+Here is the whole argument at a glance. Each step is expanded in a
+later section.
+
+  STEP 1. Double the input. Prepend a long block of zeros that
+  everybody knows. This makes room to work and puts the first mismatch
+  far from the left end. Section 6.
+
+  STEP 2. Look at several positions at once. A probe picks indices
+  i_1 < ... < i_k, tests a predicate at each, and may force some
+  adjacent pairs to be consecutive. Weighting by z to the power of the
+  last index minus the mismatch position gives a polynomial H(z).
+  Section 6.
+
+  STEP 3. Set up an induction. At stage j the polynomial is large at a
+  point near z = 1, at radius exp(-a_j). Each stage moves a much closer
+  to 0, i.e. closer to the unit circle. Section 7.
+
+  STEP 4. Base case. Build a probe out of a period-avoiding word whose
+  occurrences are far apart, so H has the shape 1 - eta z^u plus a
+  small tail; the Poisson inequality then supplies a pivot. Section 8.
+
+  STEP 5. Step. Multiply by a Gaussian window, then run a phase test on
+  the arc of radius exp(-a_j): either a product of two, three, or four
+  Fourier coefficients is already large, or the deficit budget would be
+  exceeded. The budget is a Cauchy-kernel vertex-cover statement.
+  Section 9.
+
+  STEP 6. Shuffle. Expand the products. Each copy contributes its own
+  tuple; merge all copies into one big tuple with ties allowed. The
+  phases collapse into one outer phase and r-1 inner phases in the
+  differences between latest offsets. Section 10.
+
+  STEP 7. Make the mask admissible. A Fourier expansion in the outer
+  offset converts the Gaussian window into a compactly supported
+  frequency measure, giving a legitimate mask of the new level.
+  Sections 11 and 12.
+
+  STEP 8. Stop and count. Expand all masks, pick one frequency
+  combination, interpolate the loose-edge parameters with Hadamard
+  three-lines, build a bounded trace statistic whose expectation
+  differs between the two candidates, and apply Hoeffding plus a union
+  bound over all 2^n rivals. Sections 13, 14, 15.
+
+
+========================================================================
+6. DOUBLING, ANCHORS, PROBES, AND THE DIFFERENCE POLYNOMIAL
+========================================================================
+
+6.1 Small cases.
+
+  n = 1. About 1/p traces suffice, because each trace either shows the
+  single symbol or not.
+
+  2 <= n <= some fixed constant. Collect ceil(p^{-n} log 3) traces.
+  With probability at least 2/3 at least one trace has full length, and
+  then you can simply read off x.
+
+  p < 1/n with n >= 2. The same full-length strategy costs at most
+  exp(O(p^{-1} log n)). Indeed, with s = n p <= 1,
+
+      n log(1/p) = p^{-1} s (log n + log(1/s)) = O(p^{-1} log n).
+
+  q < 1/n with n >= 2. Then p^n >= (1 - 1/n)^n >= 1/4, so a constant
+  number of traces suffices by the same strategy.
+
+So assume from now on that p >= 1/n and q >= 1/n.
+
+6.2 Doubling.
+
+Prepend a known block of zeros of length n to each candidate. A trace
+of the extended input is simulated from a trace of the original input
+by prepending an independent deletion trace of the zero block. From
+here on the letter n denotes the doubled length. At the very end switch
+back to the original length; the exponent changes only by an absolute
+factor.
+
+Fix two distinct extended binary candidates x and y. They share the
+known zero prefix. Let d >= n/2 be their first mismatch, using 0-based
+indices.
+
+6.3 The constants.
+
+All of these are absolute constants or simple expressions in n, p, q.
+They look arbitrary. They are chosen once and never changed.
+
+    D        = 10^14                 a safety constant
+    epsilon  = 10^{-5}               the mask decay rate
+    ell_*    = 1 + log(1/q)
+    b        = ceil( log_2( 1 + log n / ell_* ) )
+    L_h      = 2^{b-h}               for 0 <= h <= b
+    M_h      = 4^{b-h}               for 0 <= h <= b
+    a_0      = exp(-10^16) / (D L_0)
+    t_h      = a_{h+1} = D q L_h a_h^2
+    P_0      = ceil(1 / a_0)
+    R_h      = D q (h+1)^2 M_h a_h^2
+    B_j      = 10^100 ell_* 8^j (b+1)^3
+    f(u)     = exp(u^2 / 20)
+
+What each one is for.
+
+  ell_* measures how much a single trace carries. It is large exactly
+  when p is small. It appears everywhere as the cost of seeing one
+  symbol.
+
+  b is the number of induction stages. For fixed p and large n it
+  grows like log log n; more precisely, 2^b is about log(n)/ell_*.
+
+  a_h is the radius parameter at stage h. It shrinks super-
+  exponentially: setting v_h = D q L_h a_h gives v_0 = q exp(-10^16)
+  and v_{h+1} = v_h^2 / 2, so v_h = 2 (v_0/2)^{2^h}, and a_h decays
+  even faster. In particular a_b n < .0001.
+
+  t_h = a_{h+1} is the decay rate that level-h masks may use. Since a
+  is decreasing in the index, t_h >= a_j for every h < j.
+
+  P_0 is the length parameter of the period-avoiding word. It is
+  O(2^b), so log(2 P_0) = O(b).
+
+  R_h is the decay rate of the compact representation of a level-h
+  mask, and R_h / t_h = (h+1)^2 M_h / L_h >= 1.
+
+  B_j is the log-scale accuracy demanded at stage j. It multiplies by 8
+  at each stage, but 8^b is only about X^3.
+
+Easy consequences, used repeatedly:
+
+    b >= 1;
+    ell_* (2^b - 1) >= log n, hence ell_* (b+1) -> infinity, hence
+      B_0 -> infinity uniformly;
+    a_{h+1}/a_h = v_h <= v_0 = q exp(-10^16), which is far below .001;
+    log(1/a_h) <= 10^18 (b + 2^h) ell_*;
+    P_0 = O(2^b), so log(2 P_0) = O(b), independent of ell_*.
+
+6.4 Probes.
+
+A tuple probe of order k >= 1 consists of
+
+    indices     0 <= i_1 < ... < i_k < n,
+    predicates  chi_e : {0,1} -> {0,1}, for e = 1,...,k,
+    edges       the pairs (i_e, i_{e+1}) for e = 1,...,k-1.
+
+The value of the probe at that tuple is the product of the numbers
+chi_e(x_{i_e}) over e.
+
+Some edges are designated exact. An exact edge carries the extra
+factor 1_{i_{e+1} - i_e = 1}; it forces the two indices to be
+consecutive and contributes nothing otherwise. All other edges are
+called loose.
+
+The block count A is one plus the number of loose edges. Equivalently,
+A is the number of maximal runs of consecutive forced indices. Note
+that different blocks need not be separated by gaps of size greater
+than one; they can touch.
+
+6.5 Masks.
+
+A probe at stage j also carries finitely many masks of levels h < j.
+
+A mask of level h uses r-1 differences, with 2 <= r <= 4:
+
+    g_s = i_{b_s} - i_{c_s}      for s = 1,...,r-1,
+
+for some chosen indices 1 <= c_s <= b_s <= k. All of them are
+nonnegative by the ordering, and one may be zero if the two endpoints
+coincide.
+
+A mask is a factor
+
+    K(g) * prod_{s=1}^{r-1} exp(i beta_s g_s),
+
+where the beta_s are real with |beta_s| <= 10^4 a_h, and K may be
+complex. K must satisfy, for all g_s >= 0,
+
+    (M1)  |K(g)| <= 2 exp( - epsilon t_h (g_1 + ... + g_{r-1}) ),
+
+and must also have a compact representation
+
+    (M2)  K(g) = exp( - R_h (g_1 + ... + g_{r-1}) )
+                 * int_{R^{r-1}} exp(i xi . g) mu(d xi),
+
+with mu a complex measure supported on the cube |xi|_inf <= C R_h and
+total variation
+
+    ||mu|| <= exp( C (R_h / t_h) B_h ).
+
+Here C is a large absolute constant, the same at every level. Its
+existence follows from the construction, and one value serves for all
+stages.
+
+How to read (M1) and (M2).
+
+  (M1) says that a mask is negligible unless all of its differences are
+  small, of order 1/t_h. This is what keeps the probe's sums bounded.
+
+  (M2) says that a mask is an average of pure phases with bounded
+  frequencies. In other words, a mask behaves like a finite combination
+  of honest phase factors, so that later steps can treat it as a tuple
+  with extra phases. The total variation is the price of that
+  approximation, and it is exponential in (R_h/t_h) B_h.
+
+A difference g_s covers exactly the edges (i_e, i_{e+1}) inside its
+interval, counting each edge once; a zero difference covers nothing.
+
+The masks' difference intervals are how the induction remembers
+things. At each stage, the loose edges of the new probe must be covered
+by masks, either old ones or the one new mask created at that stage.
+
+6.6 Latest-anchor arrays and the difference polynomial.
+
+Let W_x(i_1,...,i_k) be the product of all bit, exact-gap, and mask
+factors of a probe. Define
+
+    s_x(m) = sum over 0 <= i_1 < ... < i_k < n with i_k = d + m
+             of W_x(i_1,...,i_k),
+
+and define s_y(m) the same way with y. Invalid latest positions
+contribute zero. Now define the difference polynomial
+
+    H(z) = sum_m ( s_x(m) - s_y(m) ) z^m.
+
+Key observation. For m < 0 the condition i_k = d + m forces every index
+to be less than d. On that region x and y agree, so each term cancels
+against its counterpart. Hence H has no negative powers. It is an
+ordinary polynomial.
+
+This is the whole point of the latest-anchor convention. The latest
+index is either at the mismatch or to the right of it; anything to the
+left has already been decided and cancels.
