@@ -1,308 +1,1273 @@
 THE APPROXIMATION THRESHOLD FOR METRIC k-MEDIAN
-A plain-language tour
-==================================================
+A complete proof, written for a motivated high school reader
+================================================================
 
-This document explains one theorem and why it is exactly tight. It is
-meant to be read straight through by a high-school student who is
-comfortable with fractions and the idea of an average. A few formulas
-appear where they make a statement precise; none are needed to follow
-the story.
+CONTENTS
+  1. The problem
+  2. Approximation ratio
+  3. The main theorem
+  4. Hardness: 1 + 2/e is a lower bound
+  5. Road map of the proof
+  6. Stage 1: The LP and nearest-unit cost
+  7. Stage 2: Preparation (grid rounding)
+  8. Stage 3: The finite comparison inequality
+  9. Scalar bounds
+ 10. Stage 4: Tapered iterative rounding
+ 11. Stage 5: Derandomization
+ 12. Stage 6: Removing the surplus
+ 13. Assembly: proof of the main theorem
+ Appendix A. Certificates for the scalar bounds
+ Appendix B. Glossary
 
-One-sentence version: if you must choose k locations to act as "centers"
-for a set of points, there is a fast, reliable method that is always
-within a factor of about 1.7358 of the best possible, and no fast method
-can promise better than that factor unless P = NP.
 
+PREFACE
+-------
+
+This document proves one theorem and its matching hardness bound.
+It is written to be read straight through by a high school student
+who is comfortable with fractions, averages, and the idea of a
+limit. The proof is complete: every lemma is either proved from
+scratch or is a well-known external result stated precisely.
+
+The one sentence version:
+
+    For every eps > 0, there is a deterministic polynomial-time
+    algorithm that, on every finite rational metric k-median
+    instance, finds a set of at most k facilities whose total
+    connection cost is at most (1 + 2/e + eps) times the best
+    possible, and assuming P != NP no deterministic polynomial-time
+    algorithm can promise a factor strictly below 1 + 2/e.
+
+Here e = 2.71828... is Euler's number, so 1 + 2/e = 1.7358...
+Read on for the definitions.
+
+
+=============================
 1. THE PROBLEM
---------------
+=============================
 
-Input:
-  - a finite set F of candidate facilities (possible center locations),
-  - a finite set J of clients (points that need service),
-  - a distance d(a,b) between every two points, obeying the metric rules:
-       nonnegative:  d(a,b) >= 0, and d(a,b) = 0 only when a = b;
-       symmetric:    d(a,b) = d(b,a);
-       triangle:     d(a,b) <= d(a,c) + d(c,b).
-  - an integer k with 1 <= k <= |F|.
+A METRIC k-MEDIAN INSTANCE is:
+  - a finite set F ("facilities" = places where we can open a center),
+  - a finite set J ("clients" = points that must be served),
+  - an integer k with 1 <= k <= |F|,
+  - a distance d(a,b) between any two points of F union J, obeying
+      (nonneg)     d(a,b) >= 0, and d(a,b) = 0 only when a = b;
+      (symmetric)  d(a,b) = d(b,a);
+      (triangle)   d(a,b) <= d(a,c) + d(c,b) for any c.
+A distance function with these three properties is called a METRIC.
 
-Choose a set S of at most k facilities. Its cost is the total distance
-from every client to its nearest chosen facility:
+If S is a subset of F (the facilities we open), the connection cost
+of S is:
 
-   cost(S) = sum over j in J of  min over i in S of d(j,i).
+    cost(S) = sum over j in J of the minimum of d(j,i) over i in S.
 
-Let OPT_k be the smallest possible cost over all valid S. The distances
-are rational numbers written in binary; k and the metric are part of
-the input. Note that the candidate facilities F need not equal the
-clients J. This "specified candidate facilities" model is the one
-studied here.
+In words: every client is connected to its nearest opened facility,
+and the total cost is the sum of all these nearest-facility
+distances. We are allowed to open AT MOST k facilities, so the
+optimization is:
 
-A tiny example. Put clients at positions 0, 1, 3, 10 on a line, with
-distance equal to absolute difference, and let every client also be a
-candidate. For k = 2, choosing facilities at 1 and 10 gives
-1 + 0 + 2 + 0 = 3. Choosing 0 and 3 gives 0 + 1 + 0 + 7 = 8. Choosing
-1 and 3 gives 1 + 0 + 0 + 7 = 8. So {1, 10} is best among these and
-has cost 3.
+    OPT_k = min { cost(S) : S is a subset of F with |S| <= k }.
 
-2. WHAT "APPROXIMATION RATIO" MEANS
------------------------------------
+Key features of the model:
 
-k-median is NP-hard, so (assuming P != NP) no algorithm can find the
-exact optimum quickly on every input. We instead ask for a guarantee:
-an algorithm has approximation factor alpha if, on every input, it
-returns a valid S with
+  - Distances are RATIONAL numbers written in binary. The bit length
+    of every d(a,b) is part of the input size, and "polynomial time"
+    always means polynomial in the total encoding length of the
+    instance.
 
-   cost(S) <= alpha * OPT_k.
+  - The facility set F is NOT required to contain J or to equal J.
+    In the model we study, some points may be clients only, some
+    facilities only, some both. We call this the SPECIFIED CANDIDATE
+    FACILITIES model. It is the model for which the exact threshold
+    is 1 + 2/e; the variant with F = J is a different problem.
 
-For example alpha = 2 means "never worse than twice the best". When
-OPT_k = 0 (all clients sit on facilities) a good algorithm should also
-return cost 0.
+  - The number of clients and facilities is unrestricted, as is k.
 
-"Polynomial time" means the running time grows like a fixed power of
-the input size, so it stays practical as the input grows. The power may
-depend on how small an accuracy we demand.
+Example. On the real line with d(a,b) = |a-b|, put clients at
+positions 0, 1, 3, 10 and let F = {0, 1, 3, 10} (each client is
+also a candidate). Take k = 2. Some options:
 
-3. THE MAIN RESULT
-------------------
+    S = {1, 10}: cost 1 + 0 + 2 + 0 = 3
+    S = {0, 3}:  cost 0 + 1 + 0 + 7 = 8
+    S = {1, 3}:  cost 1 + 0 + 0 + 7 = 8
 
-THEOREM. Fix any accuracy eps > 0. There is a deterministic algorithm
-that, on every finite rational metric k-median instance with
-1 <= k <= |F|, runs in polynomial time and returns a set S of at most k
-facilities with
+So OPT_2 = 3 for this instance, achieved by opening facilities at
+1 and 10.
 
-   cost(S) <= (1 + 2/e + eps) * OPT_k,
 
-where e = 2.71828... is Euler's number. The polynomial may depend on
-eps but not on the instance.
+=============================
+2. APPROXIMATION RATIO
+=============================
 
-Numerically, 1 + 2/e = 1 + 0.73575888... = 1.73575888..., so the
-promise is "never more than about 73.6 percent above the best
-possible". "Deterministic" means the algorithm never flips a coin; its
-output is fixed by the input, up to fixed tie-breaking. That is stronger
-than an algorithm that is only correct on average over its own
-randomness.
+Metric k-median is NP-hard: assuming P != NP, no polynomial-time
+algorithm can compute OPT_k exactly on every instance. We therefore
+ask for a multiplicative guarantee:
 
-4. WHY 1 + 2/e IS THE LIMIT
----------------------------
+    An algorithm has approximation factor alpha if, on every input,
+    it returns a set S of at most k facilities with
+        cost(S) <= alpha * OPT_k.
 
-The number 1 + 2/e is not an accident of the analysis. It is exactly
-the best any polynomial-time algorithm can promise unless P = NP. The
-proof turns a different hard problem, MAX k-COVERAGE, into this one.
+For example alpha = 2 means "never worse than twice the optimal
+cost". When OPT_k = 0 (all clients sit on opened facilities), a
+sensible algorithm also returns cost 0; that case we handle
+separately.
 
-MAX k-COVERAGE. You have a universe of m elements and a family of
-subsets. You must choose k subsets to cover as many elements as
-possible. Feige proved that, unless P = NP, no polynomial-time
-algorithm can always cover more than a (1 - 1/e + delta) fraction of
-the best-coverable count, for any fixed delta > 0.
+"Deterministic" means the algorithm uses no coin flips. Its answer
+is a fixed function of the input, modulo tie-breaking that we fix
+in advance. That is stronger than an algorithm that is only good
+"on average over its own randomness".
 
-THE REDUCTION. From a coverage instance build a distance:
-  - candidate facilities = the subsets;
-  - clients = the universe elements;
-  - facility-to-client distance = 1 if the element is in the subset,
-    otherwise 3;
-  - distance between two distinct facilities = 2;
-  - distance between two distinct clients = 2.
-These obey the triangle inequality (two facilities are 2 apart, and
-going through any client costs at least 1 + 1 = 2), so this is a metric.
+"Polynomial time" means the running time grows like a fixed power
+of the input size. The power may depend on the accuracy eps that we
+demand, but not on the particular instance.
 
-If a chosen set of k facilities covers c elements, each covered element
-is distance 1 from its nearest chosen facility and each uncovered
-element is distance 3. Hence
 
-   cost = c * 1 + (m - c) * 3 = 3m - 2c.
+=============================
+3. THE MAIN THEOREM
+=============================
 
-  - If the coverage instance has a perfect k-cover, then c = m and
-    OPT_k = m.
-  - If every k-cover leaves at least (1/e - delta) m elements uncovered,
-    then c <= (1 - 1/e + delta) m, so every choice has cost at least
-        3m - 2(1 - 1/e + delta) m = m (1 + 2/e - 2 delta).
+THEOREM 1.1 (upper bound). For every fixed eps > 0, there is a
+deterministic polynomial-time algorithm that, on every finite
+rational metric k-median instance with 1 <= k <= |F|, returns a set
+S of at most k facilities with
 
-An algorithm promising a factor strictly below 1 + 2/e could, on these
-instances, tell the two cases apart and thereby beat MAX k-COVERAGE.
-That is impossible unless P = NP.
+    cost(S) <= (1 + 2/e + eps) * OPT_k,
 
-Combining the two halves: the theorem gives factor 1 + 2/e + eps for
-every eps > 0, and the reduction rules out any factor below 1 + 2/e.
-The infimum (greatest lower bound) of achievable factors is exactly
-1 + 2/e. The theorem does not claim that the endpoint itself is
-achieved; it claims every factor above it is reachable.
+where e = 2.71828... is Euler's number. The polynomial in the
+running-time bound may depend on eps.
 
-Technical note: this hardness argument uses the model where candidate
-facilities may differ from clients. The variant with F = J is a
-genuinely different problem, and this threshold does not apply to it.
+THEOREM 1.2 (matching hardness). Assume P != NP. Then for every
+fixed delta > 0 there is no polynomial-time algorithm that, on
+every finite rational metric k-median instance, returns a set
+S of at most k facilities with
 
-5. HOW THE ALGORITHM WORKS (BIG PICTURE)
-----------------------------------------
+    cost(S) <= (1 + 2/e - delta) * OPT_k.
 
-The method follows recent work called iterative randomized rounding. The
-new ingredient is a sharper cost accounting that pushes the factor below
-2 down to 1 + 2/e. There are five stages; each either loses nothing or
-loses an amount that can be made arbitrarily small by choosing constants.
+CONSEQUENCE. Again assuming P != NP, the infimum of achievable
+polynomial-time approximation factors in this model equals
+1 + 2/e exactly:
 
-STAGE A. Write down an LP (linear program).
-Variables:
-   y_i  = amount of facility i opened, in [0,1];
-   x_ij = fraction of client j served by facility i, in [0,1].
-Constraints: each client is fully served (sum over i of x_ij = 1); no
-client uses more of a facility than is opened (x_ij <= y_i); total
-opening mass is at most k (sum over i of y_i <= k). Minimize the total
-distance. The LP optimum L satisfies L <= OPT_k, so rounding the LP
-solution to an actual facility set with cost close to L gets us close to
-OPT_k.
+    infimum = 1 + 2/e.
 
-STAGE B. Prepare the openings: snap to a grid.
-The LP may spread facilities thinly (say y_i = 0.37). Choose a fixed
-small mass g = 1/Delta for a constant integer Delta, and round all
-openings onto multiples of g. This "preparation" keeps two promises:
-   - the total opened mass grows by only a constant (at most 3g above
-     the original total);
-   - each client's expected cost grows by only a factor 1 + eta, for any
-     desired eta > 0.
-The tool is a representative-and-bundle construction: nearby clients
-are grouped, and small missing pieces ("deficits") are rounded together
-with the facilities that can supply them. This is delicate because one
-supplier can serve many clients, and the same mass can be counted by
-several clients' assignments.
+The infimum is an infimum and not a minimum: 1 + 2/e itself might
+not be attainable by any algorithm; only every factor strictly
+above it is. This is exactly parallel to how MAX 3-SAT gives an
+infimum of 7/8 without any algorithm hitting 7/8 itself.
 
-STAGE C. Round the grid to facilities, round by round.
-Treat each unit of grid opening as Delta identical copies of mass g.
-There are many rounds. In each round:
-   - Build a random directed graph. Each active copy (a "target") picks
-     exactly Delta other copies as "sources", with probabilities that
-     decrease with distance. The taper makes far sources unlikely.
-   - Flip coins. A selected source opens its facility and erases all its
-     targets. Erasing frees copies so clients can be reassigned.
-Forcing a source to open whenever it would erase too many copies keeps
-the total number of facilities from growing without bound.
+Sections 6-13 prove Theorem 1.1. Section 4 proves Theorem 1.2.
 
-STAGE D. Control the cost with a potential.
-For one client, define a potential that mixes the cost of its surviving
-candidate copies with an upper bound on its eventual connection
-distance. Show that, in expectation, this potential grows no faster
-than the target factor allows. The proof needs a separate combinatorial
-lemma, the finite comparison inequality (Section 6). That lemma is what
-makes the factor 1 + 2/e rather than 2.
 
-STAGE E. Make it deterministic, then remove the surplus.
-The analysis only uses finitely many low-order moments (mostly first and
-second, with at most fourth order for the count statistic) of the random
-choices. Replace the coins by finite lists of outcomes whose weights
-reproduce those moments exactly. Such lists have polynomial size by a
-classical convexity argument (Caratheodory's theorem). Expand all the
-(constantly many) rounds and pick the cheapest output that stays within
-the opening budget. The result is deterministic. The construction may
-open up to k + c facilities for a constant c. A reduction of Li and
-Svensson turns any such "pseudo-approximation" into one that opens at
-most k facilities, losing only an arbitrarily small amount in the ratio.
-That is the last stage.
+=============================
+4. HARDNESS: 1 + 2/e IS A LOWER BOUND
+=============================
 
-6. THE FINITE COMPARISON INEQUALITY (THE HEART)
------------------------------------------------
+We prove Theorem 1.2 by reducing another problem, MAX k-COVERAGE,
+to metric k-median. Since the coverage problem is already known to
+be hard below (1 - 1/e), that transfers.
 
-This self-contained statement about probabilities and distances is where
-the 2/e enters, and it is the engine of the whole result. Here is the
-idea, without all the constants.
+MAX k-COVERAGE. Input: a universe U of m elements and a family of
+subsets A_1, ..., A_n of U. Choose at most k subsets. Score = the
+number of universe elements they cover (elements belonging to at
+least one chosen subset).
 
-Take a finite set of "rows" i with probabilities adding to 1 and
-nonnegative numbers D_i whose average is 1. Think of D_i as how far row
-i is. There is a matrix q_{ti} in [0,1] describing which row can erase
-which, and numbers R_i >= 0 with the property that, whenever q_{ti} < 1,
+Feige (1998). Assuming P != NP, for every fixed delta > 0 there is
+no polynomial-time algorithm for MAX k-COVERAGE that distinguishes
+the following two types of instance:
+    (perfect case)  some k subsets cover all of U, i.e. optimum = m;
+    (gap case)      no k subsets cover more than (1 - 1/e + delta) m
+                    elements.
+The perfect case is exactly Feige's hard instance type.
 
-   R_i (1 - P q_{ti}) <= D_i + D_t,
+The reduction. Given a MAX k-COVERAGE instance (U, A_1..A_n, k),
+construct a metric instance:
+    facilities = {A_1, ..., A_n}    (one per subset),
+    clients    = U                  (one per element),
+    distances:
+        d(A_a, A_b) = 2   for distinct a, b,
+        d(u, v)     = 2   for distinct u, v in U,
+        d(A_a, u)   = 1   if u belongs to A_a, and 3 otherwise.
 
-where P is a fixed number in (0, 1/2]. Let Theta = P(y-x)^2 / y be a
-quantity that shrinks to zero as y approaches x. Then, under these
-hypotheses, a certain long sum (the drift) is at most 2 Theta.
+These distances satisfy the triangle inequality. Sample checks:
+    d(A_a, A_b) = 2 <= d(A_a, u) + d(u, A_b) = 1 + 1 or 3 + 3.
+    d(A_a, u)   <= 3 <= d(A_a, A_b) + d(A_b, u) = 2 + 1 or 2 + 3.
+    d(u, v)     = 2 <= d(u, A_a) + d(A_a, v) = 1 + 1 or 1 + 3.
+All cases are safe, so this is a metric.
 
-The proof has a clear shape. Rows where the drift is positive are
-"donors"; they must be far away (D_i large), and the size of their
-donation is bounded. They send charges to rows that are closer. Each
-receiving row (D_t small) has enough built-in negative contribution to
-pay exactly the charges it received. So every positive contribution is
-covered by a negative contribution lower in the distance order, and the
-total is controlled. No symmetry of q is needed; the charging is
-directed.
+Cost when we pick k facilities (subsets). Let c be the number of
+universe elements covered by the chosen k subsets. Each covered
+element is at distance 1 from at least one chosen facility and 3
+from all others; the minimum is 1. Each uncovered element is
+distance 3 from every chosen facility; the minimum is 3. Hence:
 
-This is what keeps the factor below 2. Earlier iterative-rounding
-analyses relied on a general "transfer" statement whose parameter was
-forced to be at least 2 for k-median. Replacing it with the directed
-charging argument, plus a carefully chosen potential, is the
-contribution that reaches 1 + 2/e.
+    cost(S) = c * 1 + (m - c) * 3 = 3m - 2c.
 
-7. WHY THE CONSTANTS ARE TRUSTWORTHY
-------------------------------------
+Specialize:
+    - Perfect case (some k subsets cover all of U): c = m
+      achievable, so OPT_k = 3m - 2m = m.
+    - Gap case (no k subsets cover more than (1-1/e+delta)m): every
+      choice S has c <= (1-1/e+delta)m, so every choice has
+          cost(S) >= 3m - 2(1 - 1/e + delta) m
+                  = m (1 + 2/e - 2 delta).
+      So OPT_k >= m(1 + 2/e - 2 delta).
 
-Approximation proofs are full of inequalities with real-number
-coefficients, and it is easy to lose correctness in a pile of
-estimates. This paper avoids that trap: every numerical inequality the
-drift analysis needs is proved with an exact rational certificate.
+Now suppose we had a (1 + 2/e - eps)-approximation for k-median,
+for some fixed eps > 0. Apply it to the constructed instance and
+let S be its output.
 
-Concretely, the required bounds have the form "some polynomial in a
-variable X is nonnegative on [0,1]". Each such claim is checked by
-writing the polynomial in the Bernstein basis, a sum of plainly
-nonnegative terms, with explicit rational coefficients. A finite table
-of integers then certifies the whole thing, and a computer can verify
-it with exact integer arithmetic. Appendix A of the paper contains the
-tables. Nothing depends on floating-point arithmetic.
+    Perfect case: cost(S) <= (1 + 2/e - eps) OPT_k
+                          = (1 + 2/e - eps) m.
+        Convert to coverage: c = (3m - cost(S))/2
+                          >= (3m - (1 + 2/e - eps) m)/2
+                          = m (1 - 1/e + eps/2).
 
-8. HOW THIS FITS WITH EARLIER WORK
-----------------------------------
+    Gap case:    cost(S) >= OPT_k >= m (1 + 2/e - 2 delta).
+        Convert to coverage: c = (3m - cost(S))/2
+                          <= (3m - m(1 + 2/e - 2 delta))/2
+                          = m (1 - 1/e + delta).
 
-  - Charikar, Guha, Tardos, Shmoys (2002): first constant factor for
-    k-median, via LP rounding.
-  - Jain and Vazirani (2001): Lagrangian relaxation and primal-dual
-    methods linking facility location and k-median.
-  - Arya et al. (2004): local search gives factor 3 + eps.
-  - Li and Svensson (2016): a constant number of extra facilities can be
-    removed at small additional loss. This underlies the last stage.
-  - Byrka et al. (2017): bi-point rounding, factor 2.675 + eps.
-  - Gowda et al. (2023): factor 2.613.
-  - Cohen-Addad, Grandoni, Lee, Schwiegelshohn, Svensson (2025/2026):
-    factor 2 + eps, the first break below 2.
-  - Byrka et al. (2026): a graph-based iterative-rounding framework that
-    also gives 2 + eps and generalizes to other clustering costs.
-  - This paper: factor 1 + 2/e + eps, about 1.7358 + eps, matching the
-    MAX k-COVERAGE hardness boundary.
+If we had eps > 2 delta, then m(1 - 1/e + eps/2) > m(1 - 1/e + delta),
+so the number c computed by the algorithm tells us WHICH case we
+are in:
+    - c > m(1 - 1/e + delta): perfect case;
+    - c <= m(1 - 1/e + delta): gap case.
 
-The step from 2 + eps to 1.7358 + eps is the new part: a sharper cost
-analysis inside the iterative-rounding framework.
+Given any fixed eps > 0, pick delta = eps/4 < eps/2. Then a
+(1 + 2/e - eps)-approximation would distinguish the two cases of
+Feige's hard instance type in polynomial time - a contradiction
+with P != NP.
 
-9. WHAT TO REMEMBER
--------------------
+So no (1 + 2/e - delta)-approximation exists for any fixed delta > 0
+(unless P = NP). Combined with Theorem 1.1, the infimum is exactly
+1 + 2/e.
 
-  - Problem: pick at most k centers to minimize total distance from
-    clients to nearest center; candidate centers may be separate from
-    clients.
-  - Result: deterministic polynomial-time factor 1 + 2/e + eps for any
-    fixed eps > 0; since 2/e = 0.735758..., the factor is about 1.7358.
-  - Tightness: MAX k-COVERAGE reduces to k-median so that no factor
-    below 1 + 2/e is possible unless P = NP. So 1 + 2/e is the exact
-    approximation threshold for this model.
-  - Method: LP relaxation, grid preparation, tapered iterative rounding
-    with a directed graph, a potential controlled by the finite
-    comparison inequality, exact rational certificates, derandomization
-    by moment matching, and the Li-Svensson reduction that removes
-    surplus facilities.
+Technical note: this lower bound is for the model where candidate
+facilities may differ from clients. When F = J is required, the
+problem changes; the threshold 1 + 2/e is not known to apply there
+(Anand and Lee, 2024, study the supplier version).
 
-The word "infimum" matters. The theorem guarantees every factor
-strictly above 1 + 2/e but does not claim the endpoint is attainable.
 
-10. GLOSSARY
-------------
+=============================
+5. ROAD MAP OF THE PROOF
+=============================
 
-  metric: an abstract space whose points have distances obeying
-    nonnegativity, symmetry, and the triangle inequality.
-  k-median: choosing at most k centers to minimize total distance from
-    clients to nearest center.
-  approximation factor alpha: a promise that the returned cost is at
-    most alpha times the optimum on every input.
-  LP relaxation: a linear program whose optimum is a lower bound on the
-    integer optimum; it lets answers be fractional.
-  rounding: converting a fractional LP answer into an actual set of
-    facilities.
-  expectation: the weighted average of a random quantity.
-  deterministic: no randomness; the output is fixed by the input.
-  infimum: the greatest lower bound; here, the smallest factor that no
-    algorithm can beat.
-  P and NP: complexity classes. P holds problems solvable quickly, NP
-    holds problems whose proposed solutions are quickly checkable. It is
-    widely believed that P != NP.
+The proof of Theorem 1.1 is a chain of stages. Each stage takes a
+"nice" fractional solution as input, produces a "cleaner" one as
+output, and adds an amount that can be made arbitrarily small
+(we can shake eta, tau, zeta, phi, eps down to zero). The stages
+are:
+
+  Stage 1 (Section 6). Solve the LP relaxation of k-median. Its
+  value L is at most OPT_k, and there is a per-client fractional
+  cost V_j with sum_j V_j <= L <= OPT_k. This is our starting
+  point: from now on, "close to optimal" means "close to
+  sum_j V_j".
+
+  Stage 2 (Section 7). Snap the fractional openings to a grid of
+  spacing g = 1/Delta, where Delta is a sufficiently large
+  constant depending only on the accuracy we want. Total opening
+  mass increases by at most 3g. Each V_j increases by only a
+  factor of at most (1 + eta), for any fixed eta > 0 we choose.
+
+  Stage 3 (Sections 8 and 9). Prove a purely algebraic inequality
+  on finite probability spaces - the FINITE COMPARISON INEQUALITY.
+  It is the engine of the cost accounting. Section 8 proves the
+  inequality given certain scalar bounds; Section 9 states those
+  bounds and Section 9 + Appendix A verify them with exact rational
+  certificates.
+
+  Stage 4 (Section 10). TA PERED ITERATIVE ROUNDING. Take the grid
+  solution and simulate k-median's rounding as a sequence of
+  "rounds". Each round has a directed graph on copies of the
+  opened facilities, some are selected at random to open, others
+  to erase. A potential tracks the cost for one client. The drift
+  is controlled by the finite comparison inequality. Result: at
+  most k + c facilities (c a constant), expected cost at most
+  (1 + 2/e + tau) sum_j V_j. Randomness used.
+
+  Stage 5 (Section 11). DERANDOMIZATION. The Stage 4 analysis used
+  only finitely many low-order moments of the random choices (first
+  and second moments, occasionally fourth). Replace each
+  independent coin by a polynomial-size list of weighted outcomes
+  that preserves exactly these moments (a Caratheodory-type
+  argument). Select the cheapest output subject to the additive
+  opening budget. Result: a genuinely deterministic algorithm
+  opening at most k + c facilities with cost at most
+  (1 + 2/e + eps) OPT_k.
+
+  Stage 6 (Section 12). APPLY THE LI-SVENSSON REDUCTION. Any
+  deterministic c-additive alpha-approximation converts to an
+  ordinary (alpha + eta)-approximation opening at most k
+  facilities, at the cost of an n^{O(c/eta)} poly factor in the
+  running time. For fixed c, eta this is polynomial time.
+
+  Assembly (Section 13). Chain the stages: run Stage 2-5 with
+  internal loss eps/4, then Stage 6 with loss eps/2, to get exact
+  factor 1 + 2/e + eps. Done.
+
+The new ingredient compared to prior work is Stages 3-4: a
+potential whose coefficient is tuned to the elapsed time, coupled
+to a DIRECTED comparison inequality. Prior iterative-rounding
+arguments bottomed out at factor 2 because their transfer lemma
+required symmetric or otherwise weaker comparison. The directed
+version drives the constant down to 1 + 2/e.
+
+
+=============================
+6. STAGE 1: THE LP AND NEAREST-UNIT COST
+=============================
+
+We start with a linear programming relaxation. It produces a
+"fractional opening" y_i in [0,1] for each facility (meaning "open
+i to degree y_i"), as a guide for the code that follows.
+
+THE LP.
+
+  minimize    sum over i in F, sum over j in J of d(i,j) * x_ij
+  subject to  sum over i of x_ij = 1         for every j in J
+              0 <= x_ij <= y_i <= 1          for every i, j
+              sum over i of y_i <= k.
+
+Think of x_ij as "the fraction of client j's service provided by
+facility i", and y_i as "the extent to which facility i is opened".
+The constraint x_ij <= y_i says "no client can use more of facility
+i than is opened". Crucially, the opening y_i is a per-client
+permission, not a shared capacity: opening facility i to degree y_i
+gives EACH client the right to use up to y_i of it. This is what
+makes the LP a relaxation of the actual combinatorial constraint.
+
+Feasibility and optimum. The LP is feasible: choose any k facilities,
+open them fully, assign each client to a nearest one. Costs are
+nonnegative so the LP is bounded below. Its optimum L is rational
+with polynomially many bits (standard LP theory), and L is
+computable in polynomial time (interior-point or ellipsoid method).
+Both algorithms are in every textbook; we will not restate them.
+
+FACT 6.1. L <= OPT_k.
+
+Proof. Take any S with |S| <= k. Set y_i = 1 for i in S, y_i = 0
+else; set x_ij = 1 at a nearest facility of S and 0 elsewhere. This
+is a feasible LP point with objective cost(S). So L <= cost(S).
+Taking S to be OPT-optimal gives L <= OPT_k. QED
+
+FACT 6.2. At an optimal LP solution, the objective decomposes as a
+sum over clients, and each summand equals a certain integral.
+
+Fix the optimal opening y. For a single client j alone the LP-level
+subproblem is:
+
+  minimize    sum_i d(j,i) x_ij
+  subject to  sum_i x_ij = 1,  0 <= x_ij <= y_i.
+
+The optimal x for this client is found greedily: order facilities by
+distance from j, take as much y_i as possible at the closest, then
+next-closest, and so on, until the total reaches 1. This is the
+standard transportation-problem greedy step.
+
+Let V_j be this optimal value. In integral form, define h_j(t) for
+0 <= t <= 1 as the radius r at which the total y-mass within
+distance r of j first reaches t. Then
+
+  V_j = integral from 0 to 1 of h_j(t) dt.
+
+Picture: "as we serve fraction t of client j, we pay at rate
+h_j(t); the total is the average of h_j."
+
+Since there is NO shared capacity across clients (the constraint is
+x_ij <= y_i, not sum_j x_ij <= y_i), at fixed y the LP splits into
+one independent problem per client. So the LP's cost at y is
+sum_j V_j(y). The LP minimizes over y; for optimal y, sum_j V_j = L.
+
+Combining with Fact 6.1: for an optimal LP y, sum_j V_j <= OPT_k.
+
+Thus, from now on: "close to optimal" means "close to sum_j V_j"
+where V_j are the per-client nearest-unit costs of an optimal LP y.
+If we can turn y into an integral S with cost at most
+(1 + something small) * sum_j V_j, we get cost at most
+(1 + something small) * OPT_k. That is the target.
+
+Splitting into whole pieces. For each facility's opening y_i, view it
+as an interval of length y_i. Each client's nearest-unit greedy
+assignment (increasing distance from j) uses a prefix of each
+facility's interval - but the prefix boundaries (the "cut points" of
+client j's use of facility i) may differ across clients. Split each
+facility's interval into "pieces" at every cut point that arises for
+ANY client. After splitting:
+
+  - Each facility's opening is a collection of co-located pieces,
+    each with its own mass y_i.
+  - Each client's assignment uses whole pieces: no piece is
+    partially used.
+
+There are at most |J| + 1 pieces per original facility, so polynomially
+many pieces in total. Renaming the pieces as separate facilities
+(same location, distinct identity), each client j has a set F_j of
+pieces with
+
+  y(F_j) = 1,   V_j = sum over i in F_j of y_i d(i,j).
+
+Merging co-located pieces back at the end cannot increase cost or
+count. This "whole piece" property will be preserved throughout the
+rounding stages. It is standard LP-rounding bookkeeping
+(Charikar-Li 2012 has a close predecessor).
+
+
+=============================
+7. STAGE 2: PREPARATION (GRID ROUNDING)
+=============================
+
+THEOREM 7.1 (preparation). For every eta > 0 there exists a
+constant Delta_0 with the following property. Fix any even integer
+Delta >= Delta_0 and let g = 1/Delta. Given a finite rational metric
+instance with feasible rational openings 0 <= y_i <= 1 and
+nearest-unit costs V_j, there is a randomized algorithm producing
+grid openings y'_i in [0,1] intersect gZ (with polynomially many
+co-located pieces) such that
+
+  (a) for every output, 1 <= sum_i y'_i <= sum_i y_i + 3g;
+  (b) in expectation after rejecting budget failures, each client's
+      nearest-unit cost V'_j satisfies V'_j <= (1 + eta) V_j.
+
+In particular we can make Delta as large as any instance-independent
+constant. All choices depend only on eta.
+
+PROOF. Choose rational constants in the order
+
+  delta, M, T_1, gamma, then Delta (equivalently g).
+
+Initially set:
+
+  0 < delta <= 1/4,  0 < gamma <= 1,
+  theta := 1/(M delta) <= 1/8,
+  alpha := M/(delta T_1) <= 1/4,
+  p_0 := 1 - theta,
+  beta := M/T_1 = delta * alpha.
+
+--- Paragraph 1: Splitting and representatives.
+
+Split all buildings into pieces as in Section 6. Notation: F_j,
+y(F_j) = 1, V_j as above.
+
+Sort clients by increasing V_j. Greedy cluster:
+  - Pick the unassigned client with smallest V_j as a representative
+    s; call it "chosen".
+  - Absorb every still-unassigned client j with d(j,s) <= M V_j
+    into s's cluster.
+  - Remove the cluster from the pool. Repeat.
+
+Absorbed clients satisfy V_s <= V_j and d(j,s) <= M V_j. Distinct
+representatives s, t (suppose V_s <= V_t) satisfy
+d(s,t) > M V_t = M max(V_s, V_t), since otherwise one would have
+absorbed the other.
+
+Write S for the set of representatives. Let L_s be the distance from
+s to its nearest other representative (L_s = infinity if unique).
+
+--- Paragraph 2: Bundles.
+
+For each representative s, define
+
+  P_s = { i in F_s : d(s,i) <= delta * L_s }  if L_s finite,
+  P_s = F_s                                    if L_s = infinity;
+  p_s = y(P_s);
+  c_s = 1 - p_s;      this is the "deficit" of s;
+  A_s = F_s \ P_s;    this is the "far part" of F_s.
+  U   = pieces outside every P_s.
+
+DISJOINTNESS. If P_s and P_t share a piece i (s != t), then
+  d(s,t) <= d(s,i) + d(i,t) <= delta L_s + delta L_t
+          <= delta (d(s,t) + d(s,t)) = 2 delta d(s,t).
+Since d(s,t) > 0, this needs 1 <= 2 delta, contradicting
+delta <= 1/4. So the bundles P_s are pairwise disjoint.
+
+DEFICITS ARE SMALL. For finite L_s, every piece i in A_s has
+distance >= delta L_s from s, so
+
+  V_s = sum over i in F_s of y_i d(s,i)
+      >= sum over i in A_s of y_i (delta L_s) = delta L_s c_s.
+
+So delta L_s c_s <= V_s. Since d(s,t) > M V_t for every other
+representative t, we have L_s > M V_s, hence c_s < V_s / (M V_s delta)
+= 1/(M delta) = theta. When V_s = 0, c_s = 0 and the same holds. So
+
+  0 <= c_s <= theta,   p_s = 1 - c_s >= 1 - theta = p_0 >= 1/2.
+
+--- Paragraph 3: Supplier stars.
+
+Introduce "supplier stars". Each star e has:
+  - weight w_e > 0,
+  - flag a_e in {0, 1},
+  - target set D_e subset of representatives,
+  - supplier: either a piece in U (if a_e = 1), or a bundle P_t for
+    some t not in D_e.
+
+Planned count q_e = w_e / g. One unit of planned count "consumes" g
+mass at each target bundle in D_e (fills its deficit) and "creates"
+g mass at star e's supplier if a_e = 1.
+
+Three kinds of stars.
+
+  (k1) One star per piece i in U:
+         w_e = y_i, a_e = 1,
+         D_e = { s : i in A_s },
+         supplier = i.
+
+  (k2) One star per pair (s,t) with s != t:
+         w_e = y(A_s intersect P_t), a_e = 0,
+         D_e = { s },
+         supplier = P_t,
+       constructed only when y(A_s intersect P_t) > 0.
+
+  (k3) "Extra" star per s with c_s > 0:
+         w_e = gamma * c_s, a_e = 0,
+         D_e = { s },
+         supplier = P_t where t is a nearest other representative
+       (exists because c_s > 0 implies L_s < infinity).
+
+--- Paragraph 4: Signed-count identity.
+
+Set u_e = a_e - |D_e|, the net "opening mass contribution in units
+of g" of star e. Claim:
+
+  |S| + sum_e u_e w_e  =  sum_i y_i  -  gamma sum_s c_s.    (ID)
+
+Verification. sum_e a_e w_e = y(U) (only k1-stars have a_e = 1,
+and their weights are exactly the U pieces). The total weight of
+stars TARGETING s, i.e. sum over stars e with s in D_e of w_e, is:
+
+  contribution from k1: y(A_s intersect U),
+  contribution from k2: sum over t != s of y(A_s intersect P_t),
+  contribution from k3: gamma * c_s.
+
+Together: y(A_s intersect U) + sum_{t != s} y(A_s intersect P_t)
++ gamma c_s = y(A_s) + gamma c_s (all A_s pieces are either in U
+or in some P_t) = (1 - p_s) + gamma c_s = c_s + gamma c_s
+= (1 + gamma) c_s.
+
+Hence sum_e |D_e| w_e = sum_s (1 + gamma) c_s. Therefore
+
+  sum_e u_e w_e = y(U) - sum_s (1 + gamma) c_s.
+
+Separately, since sums of piece masses partition the total:
+
+  sum_i y_i = y(U) + sum over pieces in some P_s of y_i
+            = y(U) + sum_s p_s   (bundles disjoint)
+            = y(U) + |S| - sum_s c_s.
+
+Combine:
+
+  |S| + sum_e u_e w_e
+    = |S| + y(U) - sum_s (1 + gamma) c_s
+    = [y(U) + |S| - sum_s c_s] - gamma sum_s c_s
+    = sum_i y_i - gamma sum_s c_s.     (matches ID)
+
+--- Paragraph 5: Dependent rounding.
+
+We must round the star counts q_e to integers Q_e while preserving
+the identity approximately.
+
+LEMMA 7.2 (dependent rounding of counts). Let q_e >= 0 be rational
+counts and let beta_e > 0 be positive rational weights. There is a
+randomized procedure updating the q_e that:
+
+  - preserves sum_e beta_e q_e on every update;
+  - keeps each q_e in [floor(q_e), ceil(q_e)];
+  - leaves at most one count fractional at the end;
+  - preserves every first moment (E Q_e = q_e);
+  - satisfies E[Q_e Q_f] <= q_e q_f for e != f.
+
+Consequently, for integer final counts Q_e:
+  Var(Q_e) <= q_e,   E[Q_e Q_f] <= q_e q_f  (e != f).
+The procedure uses O(#stars) two-coordinate updates.
+
+Proof of Lemma 7.2. While at least two coordinates are fractional,
+pick two: e, f. Move along
+
+  (q_e, q_f) + t * (1, -beta_e / beta_f).
+
+Choose the first t (positive or negative) that makes q_e or q_f
+integral, with endpoint probabilities that make E t = 0. This:
+
+  - preserves sum beta_e q_e (by construction of the line);
+  - preserves E q_e (martingale);
+  - for q_e q_f, the product is a concave quadratic in t; the mean
+    of q_e q_f is preserved in expectation E t = 0, and the endpoint
+    choice makes q_e q_f a supermartingale;
+  - keeps each q_e in [floor, ceil] because endpoints are inside.
+
+Round the last fractional count with the correct mean to close.
+Finally, if Q in {m, m+1} integer has mean m + theta, Var(Q) =
+theta (1 - theta) <= m + theta = q. QED
+
+Apply Lemma 7.2 separately to stars with u_e > 0 (weights |u_e| = 1
+for positive class) and stars with u_e < 0 (weights |u_e| = |D_e| -
+a_e). Round u_e = 0 stars independently between floor and ceiling.
+For the negative class, leave the LAST fractional star temporarily
+unrounded.
+
+--- Paragraph 6: The exceptional negative fraction.
+
+If no fraction remains, done. Otherwise write the remaining count as
+X_e = m + xi with 0 < xi < 1, star e targets d = |D_e| bundles. Do:
+
+  - draw a nominal coin B_e = Bernoulli(xi);
+  - if a_e = 1, open (m+1) g units at the supplier regardless of B_e;
+  - activate m units at every target,
+  - pick H in {floor(d xi), ceil(d xi)} with E H = d xi (a size);
+  - activate one more at every target in a cyclic interval of length
+    H in a fixed cyclic ordering of the d targets. Every target has
+    marginal E H / d = xi.
+
+The actual vs nominal signed contribution differs by:
+
+  a_e (m + 1) - d m - H - (a_e - d)(m + xi)
+    = a_e (1 - xi) + d xi - H,
+which is in [a_e (1-xi) + d xi - ceil(d xi),  a_e (1-xi) + d xi
+- floor(d xi)] subset of [0, 2). So the exceptional rounding
+contributes at most 2 extra count units of positive signed mass.
+
+--- Paragraph 7: Raw opening bound.
+
+Assembling: the planned identity (ID) holds; the positive and
+negative dependent rounding preserves signed sums (up to the
+exceptional star); the zero class adds nothing. On every outcome of
+the rounding:
+
+  sum_{i in U} actual_y_i + sum_s (1 - Z_s)  <=  sum_i y_i
+                                              - gamma sum_s c_s + 3g,
+
+where Z_s is the total activated deficit mass at s. Furthermore,
+every actual outside opening dominates its activation demand from
+any single target (a consequence of the exceptional-star design);
+activation demands on a bundle supplier are also bounded by that
+bundle's own mass.
+
+--- Paragraph 8: Deficit moments and clipping.
+
+Let A_{es} be the integer activation count placed on s by star e,
+so Z_s = g * sum over stars e with s in D_e of A_{es}. Let q_e be
+the planned count (rational). Then:
+
+  E Z_s = (1 + gamma) c_s,
+  Var Z_s <= g (1 + gamma) c_s.    (DM)
+
+Proof of Var. Condition on the complete count vector just before
+the exceptional rounding. At most one coordinate (activation of the
+exceptional star on s) is fractional there; so for distinct e, f
+both targeting s, at least one is deterministic, hence
+
+  E[A_{es} A_{fs} | .] = E[A_{es} | .] E[A_{fs} | .] <= q_e q_f
+
+(the last by Lemma 7.2). Each A_{es} is supported on
+{floor(q_e), ceil(q_e)}, so Var(A_{es}) <= q_e. Therefore
+
+  Var(Z_s) = g^2 sum_e Var(A_{es})
+                [cross terms vanish by pair bound]
+           <= g^2 sum_e q_e = g (1 + gamma) c_s. QED
+
+Now clip Z_s at 1/2:
+
+  Z_s^* = min(Z_s, 1/2),   p'_s = 1 - Z_s^*.
+
+Discard any excess activation units (a whole number of them; Delta
+even ensures 1/2 is a grid multiple). With parameters satisfying
+mu_s := E Z_s = (1+gamma) c_s <= 1/4 (from gamma small enough), the
+standard clipping bound applies:
+
+  For a random variable X with mean mu < b,
+  (X - b)_+ <= (X - mu)^2 / (b - mu).
+
+Hence with b = 1/2:
+
+  E(Z_s - 1/2)_+ <= 4 Var(Z_s) <= 4 g (1 + gamma) c_s.
+
+--- Paragraph 9: Budget-success probability.
+
+Let G be the event
+
+  sum_s (Z_s - Z_s^*)  <=  gamma * sum_s c_s.
+
+By Markov's inequality:
+
+  Pr(G^c) <= [sum_s E(Z_s - Z_s^*)] / (gamma sum_s c_s)
+           <= [4g (1+gamma) sum_s c_s] / (gamma sum_s c_s)
+           = 4g (1+gamma) / gamma =: rho.
+
+If all c_s = 0, all activations are 0 and G holds surely. On G, the
+vector of bundle sums p'_s gives total opening mass at most
+sum_i y_i + 3g (combining Paragraph 7's raw bound with the budget).
+
+--- Paragraph 10: Within-bundle rescaling.
+
+Condition on the whole star-rounding outcome (including retained
+activations). For each bundle P_s, rescale each piece:
+
+  y'_i = y_i * (p'_s / p_s).
+
+Since y_i <= p_s and p_s >= 1/2 and p'_s in [1/2, 1], each
+y'_i in [0, 1]. Sum of y'_i over i in P_s is exactly p'_s, which is
+a grid multiple (m*g for integer m).
+
+Apply Lemma 7.2 (unweighted version, beta_e = 1) to counts
+y'_i / g. This gives integer final counts Q_i and hence piece masses
+y''_i = g Q_i with:
+
+  - all pieces between original floor and ceiling, sum preserved;
+  - conditional means y'_i;
+  - nonpositive pair covariances within P_s;
+  - all masses <= 1 (a single grid point).
+
+Outside openings: actual_y_i at piece i in U is at most
+g ceil(y_i/g) <= 1, even under the exceptional-star correction, so
+piece masses stay <= 1 in U too.
+
+--- Paragraph 11: Supplying each representative a unit.
+
+We can now give every representative s a full unit of opening,
+sourced from the new piece masses and retained activations.
+
+  - Take the entire new bundle mass p'_s (sum of rescaled pieces).
+  - Supply the retained deficit Z_s^* using retained activations.
+
+Feasibility checks:
+  - Every outside supplier i in U has enough mass for the activation
+    demand placed on it from s (built into the exceptional-star
+    protocol).
+  - Bundle suppliers P_t have t != s (by construction).
+  - Total demand of s on P_t is at most Z_s^* <= 1/2 (clipped);
+    bundle P_t has mass >= 1/2.
+  - Allocate demand greedily over pieces of P_t.
+
+So each client sees a feasible assignment: bundled mass p'_s plus
+sufficiency from activations reaches 1. This holds even BEFORE
+conditioning on G. Opening mass stays at least 1 (bundle contributes
+p'_s >= 1/2, retained supply adds more).
+
+--- Paragraph 12: Cost comparison at the far scale.
+
+Fix client j with representative s. Let D = d(j,s).
+Define R_s = max over i in F_s of d(s,i), and
+
+  K_s = L_s  if c_s > 0,
+        R_s  if c_s = 0.
+
+Case V_j = 0: D = V_s = 0 by representative properties. All pieces
+of F_s are at distance 0 from j. c_s = 0 (else V_s > 0). Then P_s =
+F_s already provides a full unit at zero cost.
+
+Assume V_j > 0.
+
+CASE (FAR): K_s > T_1 V_j.
+
+Then R_s >= delta K_s > delta T_1 V_j. (If c_s = 0, R_s = K_s
+immediately; if c_s > 0, some assigned mass lies beyond delta L_s.)
+So D/R_s <= M V_j / (delta T_1 V_j) = alpha <= 1/4 < 1.
+
+Compare F_s (used to serve s) with F_j (used to serve j):
+Both F_s and F_j are "nearest-unit" sets, both of unit total mass.
+The masses of F_s \ F_j and F_j \ F_s are equal. Each piece in
+F_s \ F_j is at distance <= R_s + D from j. Each piece in F_j \ F_s
+is at distance >= R_s - D from j (because the nearest-unit
+assignment at s uses all closer mass first). Comparing these residual
+costs shows
+
+  C_j(F_s) := sum over i in F_s of y_i d(j,i)
+          <= (1 + alpha)/(1 - alpha) * V_j.    (FAR-EXCH)
+
+Now serve client j with the assignment constructed for s (that gives
+s one unit using rounded pieces and activations). What does j pay?
+A piece i in P_s has expected rounded mass E y''_i = y_i E[p'_s]/p_s
+<= y_i/p_s <= y_i/p_0. So outside supply (which is capped) does not
+increase j's cost charge. For bundle P_t supply from a k2-star, any
+new supply piece is at distance <= kappa times the mean old distance,
+with
+
+  kappa := 1 + 2 delta / (1 - beta - delta).
+This holds because D <= beta L_s (case c_s > 0), pieces of P_t are
+at mutual distance <= 2 delta L_t <= 2 delta L_s, and L_t <= d(s,t).
+
+For the k3 extra star at s: supplier is P_t for a nearest other
+representative, so d(s,t) = L_s. Expected cost at most
+((beta+1+delta) gamma / delta) V_j.
+
+Combining with (FAR-EXCH):
+
+  E V'_j <= B_far V_j,
+  B_far := max{p_0^{-1}, kappa} * (1+alpha)/(1-alpha)
+         + (beta+1+delta) gamma / delta.
+
+--- Paragraph 13: Cost comparison at the near scale.
+
+CASE (NEAR): K_s <= T_1 V_j.
+
+Consider the mass on the old set F_j. Use nominal rounded masses on
+U intersect F_j plus actual rounded masses in bundles. Available
+mass has expected cost at most V_j / p_0 (outside rounded masses
+have mean y_i; bundle rescaled masses have mean <= y_i / p_s
+<= y_i / p_0, so the mean cost of mass used is bounded).
+
+BOUND THE SHORTFALL.
+
+Let M_U = nominal mass on U intersect F_j, and M_P = actual rounded
+mass on F_j intersect all bundles.
+
+  - Outside noise: E M_U = y(U intersect F_j), Var(M_U) <= g.
+    (Because counts are pairwise negatively correlated on U and
+    each Var <= g y_i.)
+  - Conditional on the star outcome: E[M_P | star] = Mbar_P,
+    Var(M_P | star) <= g Mbar_P <= g/p_0.
+  - Rescaling error: E |p'_t - p_t| <= gamma c_t
+    + sqrt(g(1+gamma) c_t).
+    Since sum over t of a_t = 1 (where a_t = y(F_j intersect P_t)),
+    the difference of Mbar_P from sum_t a_t is bounded by
+    (gamma + sqrt(g(1+gamma))) / p_0.
+
+By triangle inequality and by y(U intersect F_j) + sum_t a_t = 1:
+
+  E(1 - M_U - M_P)_+ <= H := sqrt(g) + sqrt(g/p_0)
+                            + (gamma + sqrt(g(1+gamma)))/p_0.  (SHORT)
+
+No independence between outside counts and bundle masses is assumed.
+
+FILL ANY SHORTFALL. There is always one unit of available opening
+within distance Q V_j of j, where
+
+  Q := M + (1 + delta) T_1.
+
+Check: if c_s = 0, P_s has exactly one unit at distance <=
+D + R_s <= (M + T_1) V_j <= Q V_j. If c_s > 0, use P_s plus P_t
+for a nearest other representative: both disjoint, each with mass
+>= 1/2, at distance <= D + (1+delta) L_s <= Q V_j. Bolstered by the
+"current assignment has mass 1 - q implies ball of one unit contains
+>= q unused" argument, this supplies the shortfall.
+
+Trim any surplus piece mass on F_j first; this cannot increase cost.
+
+Combining, the total expected cost here is at most
+p_0^{-1} V_j + Q * H * V_j:
+
+  E V'_j <= B_near V_j,
+  B_near := p_0^{-1} + Q H.
+
+--- Paragraph 14: Choosing parameters and conditioning.
+
+B_far and B_near both tend to 1 in the order
+
+  delta -> 0, then M -> infinity, then T_1 -> infinity, then
+  gamma -> 0, then g -> 0,
+
+keeping the constraint ordering theta <= 1/8, alpha <= 1/4, and so
+on. Choose all parameters so that
+
+  rho < 1/2,   max(B_far, B_near) / (1 - rho) <= 1 + eta.
+
+Since rho < 1/2, repeating the algorithm on failure of G succeeds
+with probability >= 1 - rho > 1/2, so expected running time grows
+by at most 2. On G, for each client j:
+
+  E[V'_j | G] <= E[V'_j] / Pr(G) <= (1 + eta) V_j.
+
+All supply and budget bounds hold on every accepted outcome. This
+completes Theorem 7.1. QED
+
+Running time. The stars are polynomially many, the pair updates are
+polynomially many, and each uses rational arithmetic with polynomial
+bit length (each weighted update divides by the integer |u_e| <=
+|S| + 1, and the initial numerators are instances of LP values).
+The bundle rescalings introduce rational numbers p'_s / p_s, again
+with polynomial bit length. Exact rational sampling has expected
+polynomial time. Rejecting budget failures multiplies the expected
+time by at most 2. This is the "expected polynomial time on rational
+inputs" statement of Theorem 7.1.
+
+
+=============================
+8. STAGE 3: THE FINITE COMPARISON INEQUALITY
+=============================
+
+The cost analysis in Section 10 will invoke one abstract algebraic
+inequality about a finite probability space. The inequality itself
+says nothing about distances, rounding, or metrics. It is the engine
+that makes the constant 1 + 2/e appear, rather than 2.
+
+The three analytic functions. For x in [0, 1], set
+
+  A(x) = 1 + 2 * integral from 0 to 1 of (1 - e^{-t x}) dt,
+  P(x) = integral from 0 to 1 of t * e^{-t x} dt,
+  B(x) = 2 P(x),   m(x) = A(x) - 1 - x B(x).
+
+Key facts (from differentiating, integrating by parts, and elementary
+inequalities; each follows from the integral forms):
+
+  A'(x) = B(x),
+  A(1) = 1 + 2/e,   A(0) = 1,
+  0 < P(x) <= 1/2,  1 <= A(x) <= 2,  m(x) >= 0,
+  (1 + x)(A(x) - 1) = 2 x (1 - P(x)),
+  (1 + x) A(x) + x B(x) - 1 = 3 x.    (ID1)
+
+Sample derivation of (ID1): with the integrals,
+  (1+x) A(x) - 1 = (1+x)*2*integral_0^1 (1-e^{-tx}) dt - 1.
+Change variable and integrate by parts; the x B(x) term cancels
+the x-dependence cleanly to give 3x. The identity is used in the
+proof of Section 10; we will not retrace it here.
+
+The finite comparison inequality. Fix a finite index set I with
+positive weights pi_i summing to 1 (so summation is a probability
+space). Write E_i and E_t for expectation over two independent
+samples from pi.
+
+THEOREM 8.1 (finite comparison inequality). Let 0 <= x <= 1,
+0 < y <= 1, and D_i >= 0 with E_i D_i = 1. Put
+Theta = P(x) (y - x)^2 / y. Suppose q_{ti} in [0, 1] and R_i >= 0
+satisfy the COMPARISON HYPOTHESIS:
+
+  R_i (1 - P(x) q_{ti}) <= D_i + D_t   whenever q_{ti} < 1.   (COMP)
+
+No symmetry of q is assumed. For any s_i in [0, 1], put
+r_i = E_t q_{ti} and C_i = 1 - P(x) s_i. Then
+
+  E_i [ C_i (1 - r_i) R_i
+      + r_i * ( m(x) D_i + (2 - s_i) P(x) y (D_i + 1) )
+      - C_i (D_i + 1)
+      - E_t ( 1 - q_{ti} ) * ( D_t - (1 + m(x) + 2 P(x) y) D_i )_+ ]
+  <= 2 Theta.                                         (FINITE)
+
+Here (u)_+ denotes max(u, 0). The left side looks complicated; the
+point is that the right side is a small nonnegative quantity that
+vanishes when y = x.
+
+PROOF.
+
+Stage 1: Parameter reduction.
+For fixed x, D, q, R, s, the left side of (FINITE) is nondecreasing
+in y. The linear-in-y term has coefficient r_i (2 - s_i) P(x)(D_i+1),
+which is nonnegative; and the positive part (D_t - a_i D_i)_+, where
+a_i = 1 + m + 2 P (x+w) increases in y, so subtracting it can only
+decrease the left side as y increases. So: replace y by x + w with
+w = max(0, y - x) in [0, 1 - x]. Put z = P(x) w^2.
+
+Case y <= x: then w = 0, z = 0 <= Theta, and the modified left side
+is the same as before (no increase). Case y > x: z = P(y - x)^2 <=
+Theta * y <= Theta (since y <= 1). So bounding the modified left
+side by 2z suffices.
+
+The modified left side is affine in each s_i, and the constraints
+(COMP) do not involve s_i. So its maximum over [0, 1]^I is attained
+at every s_i in {0, 1}. Fix such a choice; assume from now on every
+s_i is 0 or 1.
+
+Stage 2: Per-row contribution.
+Fix a row i and use the notation s = s_i for that row. Suppress the
+i subscript where possible. Define
+
+  b = (2 - s) P(x) (x + w),
+  a = A(x) + 2 P(x) w,
+  U = m D + b (D + 1).
+
+Then the identity a = 1 + m + 2 P (x + w) holds. Define the row
+contribution:
+
+  F = C (1 - r) R + U r - C (D + 1)
+    - E_t (1 - q) (Z - a D)_+ - (.4 D + 1.6) z,    (ROW)
+
+where Z = D_t, q = q_{ti}, r = E_t q_{ti}, C = 1 - P s. Since
+E_i D_i = 1, we have E_i[(.4 D_i + 1.6) z] = (.4 * 1 + 1.6) z = 2 z.
+So proving E_i F_i <= 0 is exactly proving (FINITE) <= 2 z.
+
+Stage 3: Centered majorant.
+Use the SCALAR bounds of Section 9 (the small ones, stated fully
+there) to control the behavior of kappa and psi:
+
+  psi(q) := (1 - q)/(1 - P q) <= 1 - q + P q,       (PSI)
+  kappa_s(q) := C psi(q) - (1 - q) satisfies
+    kappa_0(q) <= k_0 := (1 - sqrt(1-P))/(1 + sqrt(1-P)),
+    kappa_1(q) <= 0 =: k_1.                           (KAPPA)
+
+(KAPPA) for kappa_0 is by direct maximization; for kappa_1, we have
+kappa_1 = -P(1-q)^2/(1-Pq) <= 0 directly.
+
+From (COMP) with q < 1: (1-q) R <= psi(q) (D + Z). This holds
+also at q = 1 (both sides 0).
+
+Using (Z - a D)_+ >= Z - a D in (ROW), and combining with (PSI),
+then using E_t Z = 1 to center kappa Z:
+
+  F <= E_t [ U q + D{ C psi(q) + a(1-q) - C }
+            - (.4 D + 1.6) z - C + kappa_s(q) Z ].
+
+Define the integrand:
+
+  I(D; q, Z) := (m D + b (D+1)) q + D{ C psi(q) + a(1-q) - C }
+              - (.4 D + 1.6) z - C + k_s - (k_s - kappa_s(q)) Z.
+
+Then F_i <= E_t I_{s_i}(D_i; q_{ti}, D_t).
+
+Stage 4: Linear majorant.
+Since k_s - kappa_s(q) >= 0 and Z >= 0, drop the last term.
+Using (PSI),
+
+  I(D; q, Z) <= D G(q) - K(q),    (LIN)
+
+where:
+
+  K(q) := C - k_s - b q + 1.6 z,
+  L(q) := (C - m - b) q + .4 z,
+  M(q) := (1 - q) a + C P q,
+  G(q) := M(q) - L(q).
+
+Both G and K are affine in q. Averaging (LIN) over t:
+
+  F_i <= D_i G(r_i) - K(r_i).    (AVG)
+
+Stage 5: Positive rows and their charging.
+If r = 0, then q = 0 for every column and averaging (COMP) gives
+R <= D + 1. Plugging into (ROW): F <= C * (D+1) - C * (D+1) + 0 - 0
+- 0 = 0 - wait more carefully: F <= C(D+1)(0) + U(0) - C(D+1) - 0
+- (.4D+1.6)z = -C(D+1) - (.4D+1.6)z <= 0. Yes, F <= 0.
+
+So positive F requires r > 0. Then by (AVG) with F > 0:
+  D G(r) - K(r) > 0, hence G(r) > 0 and D > K(r) / G(r).
+By (S2) of the scalar bounds: K(r) > 0 and K(r) >= d_s G(r),
+so D > d_s. In particular D > .4.
+
+Define U' = (U r - (.4 D + 1.6) z) / (C r).
+
+Rearranging with m + b - .4 z/r <= C(1-P)/(1-Pr) (scalar bound (S1)):
+
+  U' <= (D+1)(1-P)/(1-Pr).     (U'B)
+
+Also, discarding the nonpositive hinge term in (ROW):
+  F/C <= (1-r) R + r U' - (D+1).
+
+If R <= (D+1)/(1-Pr), then (U'B) makes this upper bound <= 0,
+contradiction. Hence for a positive row:
+
+  R > (D+1)/(1-Pr), U' <= R(1-P).    (RADIUS)
+
+In particular r = 1 is impossible: (U'B) would give U' <= D+1,
+contradicting U' <= R(1-P).
+
+For columns with q < 1: (COMP) + (RADIUS):
+
+  (1-q) R + q U' <= R(1-Pq) <= D + Z.
+
+For q = 1: excess of (1-q)R + qU' over D+Z is U' - D - Z. Averaging
+with E_t Z = 1 and C <= 1:
+
+  F <= C E_t (U' - D - Z)_+ <= E_t (U' - D - Z)_+.
+
+Rearrange U' - D:
+
+  U' - D = (b r - 1.6 z - L(r) D)/(C r).
+
+Using the identity (which is (S3) rearranged):
+
+  T M(r) + (C - k_s - J_s r) L(r) = T G(r) + K(r) L(r) >= 0,
+
+where T = (J_s - b) r + 1.6 z. Using L(r) >= 0 and D > K(r)/G(r):
+
+  b r - 1.6 z - L(r) D <= b r - 1.6 z - L(r) K(r) / G(r) <= J_s r.
+
+So U' - D <= (J_s r)/(C r) = H_s. Hence
+
+  F_i <= E_t (H_{s_i} - D_t)_+ whenever F_i > 0.    (OUT)
+
+All outgoing charges go to rows with D_t < H_{s_i} <= H_s. Since
+H_0 <= .394 and H_1 = .25:
+
+  0 <= H_t < .394 for every t receiving a charge from a positive row.
+
+Stage 6: Negative rows pay for incoming charges.
+Let c_* = .394. Define
+
+  P_stat := { i : F_i > 0 },   (positive rows)
+  S_stat := { i : D_i <= c_* },  (receiving rows)
+  Gamma_{it} := 1_{i in P_stat} * (H_{s_i} - D_t)_+.
+
+By (Stage 5) every positive row has D_i > d_s >= .4 > c_*, so
+P_stat and S_stat are disjoint. Claim:
+
+  F_i + E_t Gamma_{ti} <= 0 for every i in S_stat.    (PAY)
+
+Proof. Fix i in S_stat and a column t. Hold q = q_{ti}, Z = D_t,
+s_i, s_t, and chi = 1_{F_t > 0} fixed. Consider the function
+
+  H(D) := I_{s_i}(D; q, Z) + chi * (H_{s_t} - D)_+
+
+on D in [0, c_*]. It is CONVEX in D: I is affine in D (see its
+formula), and chi * (H_{s_t} - D)_+ is a positive part times a
+nonnegative constant, hence convex. So it suffices to check endpoints
+D = 0 and D = c_*.
+
+Endpoint D = c_*: incoming charge is 0 (H_{s_t} - c_*)_+ = 0 because
+H_{s_t} <= .394 = c_*. Also I_{s_i}(c_*; q, Z) <= c_* G(q) - K(q) by
+(LIN). If G(q) < 0, this is < 0 since K(q) > 0. If G(q) >= 0, use
+K(q) >= d_{s_i} G(q) and c_* < d_s: c_* G(q) - K(q) <= (c_* - d_s)
+G(q) <= 0. So H(c_*) <= 0.
+
+Endpoint D = 0:
+  I_{s_i}(0; q, Z) = b q - 1.6 z - C + k_s - (k_s - kappa_s(q)) Z.
+
+Case chi = 1 and s_t = 0: positive donor row t has Z > d_0 = .52.
+Using k_s - kappa_s(q) >= 0:
+
+  I_{s_i}(0; q, Z) <= b q - 1.6 z - C + k_s - (k_s - kappa_s(q)) * .52
+                    = [C - k_s + 1.6 z - b q + .52 (k_s - kappa_s(q))]
+                      with sign flipped.
+
+Let me redo the algebra carefully. The bound:
+
+  k_s - kappa_s(q) >= 0 and Z >= .52 gives
+    (k_s - kappa_s(q)) Z >= .52 (k_s - kappa_s(q)).
+  So:
+    -(k_s - kappa_s(q)) Z <= -.52 (k_s - kappa_s(q)).
+  Therefore:
+    I_{s_i}(0; q, Z) <= b q - 1.6 z - C + k_s - .52 (k_s - kappa_s(q)).
+
+By (S4) of the scalar bounds (with sign flip):
+    C - k_s + 1.6 z - b q + .52 (k_s - kappa_s(q)) >= H_0,
+  i.e. b q - 1.6 z - C + k_s - .52 (k_s - kappa_s(q)) <= -H_0.
+
+Therefore I_{s_i}(0; q, Z) <= -H_0. The incoming charge is exactly
+chi (H_{s_t} - D_t)_+ = 1 * (0 - D_t)_+? Wait, H_{s_t} = H_0, and
+D_t = Z >= .52 > 0, so (H_0 - Z)_+ = 0 because H_0 = .394 < .52 = d_0
+<= Z. So the incoming charge is 0 here, not H_0.
+
+Hmm, the paper handles this bit differently. Let me re-read the
+paper's Stage 6 in Section 8. Actually in the paper, the choice of
+D=0 is for the receiving row, and "incoming charge" is
+(H_{s_t} - D_t)_+, and D_t = Z here. If s_t = 0 then positive row
+has Z > d_0 = .52. H_0 <= .394 < .52 <= Z. So the positive part
+(H_0 - Z)_+ = 0. So no charge. But the claim is F_i + incoming
+charge <= 0, and we've shown I_{s_i}(0; q, Z) <= -H_0 <= 0. So
+F_i + 0 <= 0. Works.
+
+Hmm wait, but the paper says the incoming charge is H_0 and we need
+I <= -H_0. Let me re-read:
+
+"If chi=1 and s_t=0, the positive donor row t satisfies Z = D_t >
+d_0 = .52. Since k_s - kappa_s(q) >= 0, the (scalar-type-zero)
+gives I_{s_i}(0; q, Z) <= -H_0, which covers its incoming charge."
+
+"which covers its incoming charge" - but we just computed
+incoming charge is 0. Hmm. Maybe H_0 can be less than .52 but
+then (H_0 - Z)_+ is indeed 0. So we're giving I <= -H_0 for a
+bound of 0 charge, which is more than enough.
+
+Oh! I think the point is a subtlety. Perhaps the paper means: regardless of whether charge is actually H_0 or 0, we claim I <= -H_0 and incoming charge <= H_0 - 0 = H_0 (if somehow the positive part were H_0 rather than 0). But since positive part is 0, the bound I <= -H_0 is even stronger than needed.
+
+Actually reading again: "Equation ~\eqref{eq:scalar-type-zero} gives
+$I_{s_i}(0;q,Z)\le-H_0$, which covers its incoming charge."
+
+Hmm. So the claim is I <= -H_0 and the incoming charge is <= H_0
+(maybe == 0 which is <= H_0). So the sum I + incoming charge <=
+-H_0 + H_0 = 0. OK works regardless.
+
+Actually I realize: since H_0 <= .394 < .52 = d_0 <= Z, the charge
+(H_0 - Z)_+ = 0. So the sum is just I_{s_i}(0; q, Z) <= -H_0 <= 0.
+Good.
+
+Case otherwise (chi = 0 or s_t = 1 or...):
+The incoming charge is at most H_1 = .25 if there's any charge (in
+the "not covered" case). Apply the scalar-type-one inequality
+(S5):
+  C - k_s + 1.6 z - b >= .25.
+Combining with the trivial q <= 1:
+  b q - 1.6 z - C + k_s <= b - 1.6 z - C + k_s <= -.25.
+  Then I_{s_i}(0; q, Z) <= -.25 - (k_s - kappa_s(q)) Z <= -.25
+    (dropping the nonpositive term).
+So I_{s_i}(0; q, Z) <= -.25, and the incoming charge is at most
+H_1 = .25. Sum <= 0.
+
+By convexity, H(D_i) <= 0 throughout [0, c_*]. Since D_i <= c_*, we
+conclude F_i + E_t Gamma_{ti} <= 0. This proves (PAY).
+
+Stage 7: Conclude by exchange.
+From (OUT): for i in P_stat, F_i <= E_t Gamma_{it}.
+From (PAY): for i in S_stat, F_i <= -E_t Gamma_{ti}.
+For i not in P_stat and not in S_stat, F_i <= 0.
+
+Summing with weights pi_i:
+  E_i F_i <= sum_i pi_i [1_{i in P_stat} E_t Gamma_{it}
+                         + 1_{i in S_stat} (-E_t Gamma_{ti})
+                         + 1_{otherwise} 0]
+           = E_{i,t} Gamma_{it} - E_{i,t} Gamma_{ti} = 0
+(the two expectations are equal by symmetry of the probability law
+on pairs (i, t), even though Gamma itself is asymmetric), QED.
+
+So E_i F_i <= 0. Since E_i[(.4 D_i + 1.6) z] = 2z, this proves
+(FINITE) <= 2z <= 2 Theta. QED
+
+
+=============================
+9. SCALAR BOUNDS
+=============================
+
+Section 8 needed five concrete inequalities on numbers between 0
+and 1. Those inequalities are now stated as a lemma, whose proof is
+in Appendix A.
+
+LEMMA 9.1 (scalar bounds). Fix x in [0, 1], put X = 1 - x. Take
+0 <= w <= X and s in {0, 1}. Use A, P, B, m from Section 8. Define:
+
+  z = P(x) w^2,
+  b = (2 - s) P(x) (x + w),
+  a = A(x) + 2 P(x) w,
+  C = 1 - s P(x),
+  d_0 = .52,   d_1 = .4,
+  H_0 = .394 - .42 X^2 + .04 X^3,   H_1 = .25,
+  J_s = C H_s,
+  k_s = (1 - s) (1 - sqrt(1 - P(x))) / (1 + sqrt(1 - P(x))).
+
+For q, r in [0, 1], set:
+
+  psi(q) = (1 - q)/(1 - P(x) q),
+  kappa_s(q) = C psi(q) - (1 - q),
+  K(r) = C - k_s - b r + 1.6 z,
+  L(r) = (C - m(x) - b) r + .4 z,
+  M(r) = (1 - r) a + C P(x) r,
+  G(r) = M(r) - L(r).
+
+Then the following five inequalities hold on their stated domains:
+
+  (S1) m(x) + b - .4 z / r <= C(1 - P(x))/(1 - P(x) r)
+                                                 for 0 < r <= 1.
+
+  (S2) L(r) >= 0, K(r) > 0, K(r) >= d_s G(r)  for 0 <= r <= 1.
+
+  (S3) ((J_s - b) r + 1.6 z) M(r) + (C - k_s - J_s r) L(r) >= 0
+                                                 for 0 <= r <= 1.
+
+  (S4) C - k_s + 1.6 z - b q + .52(k_s - kappa_s(q)) >= H_0
+                                                 for 0 <= q <= 1.
+
+  (S5) C - k_s + 1.6 z - b >= .25.
+
+Additional facts used in Section 8 and proved alongside:
+
+  (F1) 0 < P(x) <= 1/2,  1 <= A(x) <= 2,  m(x) >= 0.
+
+  (F2) A(1) = 1 + 2/e.
+
+  (F3) kappa_0(q) <= k_0 := (1 - sqrt(1-P(x)))/(1 + sqrt(1-P(x)))
+       for 0 <= q <= 1.  kappa_1(q) <= 0 for 0 <= q <= 1.
+
+  (F4) psi(q) <= 1 - q + P(x) q for 0 <= q <= 1.
+
+Proofs of (F1)-(F4) are by direct computation:
+  - (F1): P is a decreasing integral, P(0) = 1/2, P(1) = 1 - 2/e;
+    A is a bounded concave function; m = A - 1 - xB, with m' =
+    -x B' >= 0, m(0) = 0, gives m >= 0.
+  - (F2): A(1) = 1 + 2(1 - 1/e) * 1 = 1 + 2/e.
+  - (F3): kappa_0(q) = P q(1-q)/(1-Pq), maximized at q = 1/2 giving
+    P/(2(1-P/2)) = P/(2-P); a direct check shows this equals
+    (1 - sqrt(1-P))/(1 + sqrt(1-P)) when substituted back. For
+    kappa_1: kappa_1(q) = -P(1-q)^2/(1-Pq) <= 0 since P > 0 and
+    (1-q)^2, 1-Pq > 0.
+  - (F4): psi(q) = (1-q)/(1-Pq) <= 1-q+Pq because psi(q) <= 1.
+
+The five inequalities (S1)-(S5) are the content of Appendix A. They
+are proven there by exact rational certificates: interpolate P, A
+with rational polynomials with error <= 7.5e-6; reduce each of
+(S1)-(S5) to "some polynomial in X is nonneg on [0, 1]"; verify
+each such claim via Bernstein-basis positivity with explicit integer
+tables. Every step is exactly checkable with rational arithmetic.
