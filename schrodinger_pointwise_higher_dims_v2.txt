@@ -1,322 +1,3892 @@
+================================================================================
+ENDPOINT POINTWISE CONVERGENCE FOR THE SCHRODINGER EQUATION IN HIGHER DIMENSIONS
+a reader's companion to the 2026 paper
+================================================================================
 
+This file is a guided tour of the paper "Endpoint pointwise convergence for
+the Schrodinger equation in higher dimensions" (September 2026). It is aimed
+at a curious, motivated high school reader and does not assume any background
+in real analysis, harmonic analysis, or measure theory.
+
+Our rule: whenever a term of art appears for the first time, we stop and
+explain it. We do not reproduce every constant inside every long estimate;
+we do give the precise statement of every lemma and theorem, the logic of
+every proof, and the actual key computation whenever it is short. A reader
+who follows this file will understand what is proved, why each ingredient is
+there, and exactly where each outside theorem is used. When a step in the
+paper is a long but mechanical chase of constants, we say precisely which
+inequality has to be chased and why it closes; we never pretend a hard step
+is obvious.
+
+How to read this file:
+
+    PART I and PART II are for everyone. Read them first.
+    PART III is background: Fourier transform, wave packets, fractality,
+      multilinear Kakeya and restriction, polynomial partitioning, projection
+      theorems, decoupling, and information theory. Skip whatever you know.
+    PART IV is the proof: roughly one chapter per paper section, plus three
+      chapters for the three geometric pieces of the hardest section. Every
+      chapter has the same shape: what the step proves, the big idea, the
+      precise statement you can quote, and where it is used.
+    PART V is aftermath: what the theorem means, what is still open, a
+      glossary, and a short list of sources.
+
+Bracketed tags like "[paper Sec 3]" point at the matching chapter of the
+paper. The paper's own file names (packets.tex, frame.tex, and so on) are
+mentioned where useful.
+
+A word on honesty. This companion describes a very long, very technical
+proof. It summarizes the paper faithfully and states every step, but a
+summary cannot re-verify every inequality. The source of truth is the
+paper. Where this companion is more explicit than the paper (the strategy in
+plain language, the "why is this step needed" remarks), that is a bonus, not
+a replacement.
+
+
+================================================================================
+PART I: THE QUESTION
+================================================================================
+
+
+1.  A SMALL STORY ABOUT WAVES
 --------------------------------------------------------------------------------
-PART 16. A GUIDED TOUR OF THE SOURCE FILES
+
+Drop a stone into a still pond. A ripple spreads out. If you knew the exact
+shape of the water at the instant of impact, you would in principle know the
+shape at every later instant; the wave simply propagates. The Schrodinger
+equation describes the same kind of thing for waves in n-dimensional space
+(the physical case is n = 3; n = 1 and n = 2 are the training wheels).
+
+The subtlety is at time zero. Suppose the surface at t = 0 is a messy,
+sloshy jumble. At any time t > 0 the wave is smooth, because it has evolved.
+As t shrinks to 0, does the smooth wave "return" to the messy data at each
+point of space? Usually yes, except possibly at some unlucky points.
+
+Carleson's pointwise convergence problem asks exactly this: for which initial
+data does the smooth-at-t>0 evolution return to the raw data at almost every
+point x, as time goes to zero? "Almost every x" (almost everywhere, a.e.)
+means: at every x except possibly a set of measure zero. This is the precise
+sense in which "most points" recover the data while an exceptional "thin"
+set may fail.
+
+The answer depends on how rough the initial data is allowed to be. Rougher
+data means wilder high-frequency oscillations, a more violent interaction
+near t = 0, and a larger chance some point is unlucky. The whole subject is
+about locating the exact threshold of roughness at which convergence holds.
+
+
+2.  SCHRODINGER'S EQUATION, CONCRETELY
 --------------------------------------------------------------------------------
 
-The original paper is a LaTeX manuscript split across several files. This part
-says what each file does, so a curious reader can go straight to the part they
-care about. The "original" text file is a concatenation of all of them; the
-file names below are the actual .tex names.
+The free Schrodinger equation in n space dimensions is
 
-paper.tex
-  The document assembly. It sets the title ("Endpoint pointwise convergence for
-  the Schrodinger equation in higher dimensions", author OpenAI, dated
-  September 24, 2026), the abstract, and the table of contents, and it pulls in
-  the section files in order: introduction, packets, frame, fractal,
-  transverse, sparse, weak, endpoint. The bibliography follows.
+    i (d/dt) u(x,t)  =  -Laplacian u(x,t)         x in R^n, t in R,
 
-preamble.tex
-  All the LaTeX setup: theorem environments, the notation macros (\R, \Z,
-  \norm, \abs, \dd, and so on), the package list (amsmath, tikz, hyperref,
-  cleveref, natbib), and the dimension bookkeeping. Read this only to learn the
-  notation macros.
+where u(x,t) is a complex-valued wave, x = (x_1,...,x_n), and
 
-tooling-driver.tex
-  A build wrapper (it sets pdf metadata and inputs paper.tex). Nothing
-  mathematical.
+    Laplacian  =  (d/dx_1)^2 + ... + (d/dx_n)^2
 
-introduction.tex  (Section 1)
-  The problem, the definitions (Fourier transform, H^s norm, Gaussian
-  regularization U_a, Lebesgue point f*), the statement of the main theorem,
-  a full history of the Carleson problem with all references, and the roadmap
-  of the three principal steps (frame estimate; geometric induction; common
-  time tree). This is the best entry point to the paper.
+is the sum of the second derivatives. The initial condition is
+u(x,0) = f(x). For nice enough f (say, smooth and decaying fast at infinity)
+there is a unique solution, and it is given by a Fourier integral. Write xi =
+(xi_1,...,xi_n) for the frequency (momentum) variable, x.xi = x_1 xi_1 + ... +
+x_n xi_n for the dot product, |xi|^2 = xi.xi, and f_hat for the Fourier
+transform of f (defined in Chapter 11). Then
 
-packets.tex  (Section 2)
-  The packet dictionary and the packet inequalities:
-    - packet conventions (scale N, frequency label v, native cell T, energy E);
-    - weighted endpoint multilinear Kakeya (the Guth/BCT theorem);
-    - He's robust hyperplane projection theorem;
-    - the BUFFERED refined decoupling lemma (the repair of the Singh-Singh-
-      Parmar collar gap, proved here in every dimension);
-    - weighted estimates with arbitrary auxiliary weights B_b;
-    - local linear and local multilinear estimates;
-    - sampling preserves the envelope exponent; weighted transport through a
-      hierarchy;
-    - the NEAR-CAUCHY theorem (the sharp N-lossless point count) and its
-      polynomial starting bound.
+    S(t) f(x)  =  (2 pi)^{-n}  INT_{R^n}  e^{ i x.xi - i t |xi|^2 }
+                                   f_hat(xi)  d xi.
 
-frame.tex  (Section 3)
-  The transverse frame estimate f:frame in k dimensions, the reversal of it
-  (the thing that would happen if the bound failed), the reduction to exact
-  packets, the finite scale trees and selection lemma, the amplitude-ratio
-  PROFILES, the smoothing argument for the subpower case, the positive-path
-  direction law, the angular pruning lemma, ball inflation, the binary slope
-  rigidity lemma, midpoint closure, the location of the full-slope interval,
-  the subpower left-limit lemma, and the final incidence contradiction. This
-  is the single most technical section.
+Do not worry if this looks scary; Chapter 11 explains every symbol. For now
+read it as: the data f is a superposition of plane waves e^{i x.xi} indexed by
+frequency xi, and the plane wave of frequency xi steadily picks up the phase
+factor e^{-i t |xi|^2} as time advances. The operator S(t) is "run the wave
+for time t". It is exactly the evolution for initial data f, and it preserves
+the L^2 size of the data (unitarity, Chapter 11).
 
-fractal.tex  (Section 4)
-  Compact arrays and admissible measures; the Du-Zhang fractal input in squared
-  form; the weighted fractal norm with occupancy gain; exact Fourier layers;
-  the power-loss norm for compact arrays; coarse decoupling inside a strip and
-  exact transport powers; and the codimension-two strip saving (the real power
-  gain that the whole endpoint rests on). This is the section that actually
-  produces the endpoint exponent n/(n+1) in the fractal norm.
+The question of this paper is then, in one line:
 
-transverse.tex  (Section 5)
-  The transverse saving in every fixed dimension: the impossibility statement
-  t:transverse (no countersequence with high mass and transverse packets); the
-  multilinear estimates with polynomial transversality dependence; the pruned
-  incident-tube model; the information profiles F, G_i; the single common
-  profile lemma; the robust planar projection block test; the finite
-  alternation lemma; and the growing-degree partitioning contradiction
-  ("no full-to-empty block"). This is where the information calculus is first
-  used in the paper proper.
+    Q.  For which f does  S(t) f(x) -> f(x), as t -> 0+, at almost every x?
 
-sparse.tex  (Section 6)
-  The sparse estimate s:sparse and its proof by the broad/narrow iteration:
-  the local functional T_beta; the geometric alternative (broad vs narrow);
-  the broad gain via the transverse saving; narrow transport and the exact
-  cancellation; stopping; the terminal square-root-scale gain from Du-Zhang;
-  and the summation with the chosen order of parameters. This is the engine
-  that works when D is a positive power of L.
+The answer is given in terms of how much "roughness" f is allowed, measured
+by a Sobolev exponent (next chapter).
 
-weak.tex  (Section 7)
-  The lossless weak estimate w:weak, with the unit density chi and the
-  sparsity D. It contains the order of choices, the easy ranges, and the
-  reduction to the active range, then pulls in the three geometric section
-  files below. This is the longest logical section.
 
-angular.tex  (Section 7, first input)
-  The angular induction lemma w:angular: the narrow-set estimate covering both
-  the codimension-two strip and the quadratic sublevel set (the second
-  fundamental form detector), with its geometric iteration, the transport
-  functional, the recombination over macro cubes, and the terminal
-  induction/gain calculation. This is the "curvature detector."
-
-wall.tex  (Section 7, second input)
-  Heavy bins and the reduction to broad heavy incidences; tube coordinates and
-  the incidence-mass bound; polynomial partitioning into a wall; the regular
-  graph pieces with derivative bounds; the line tests; and the affine plate
-  covering proposition w:geometry. This is where a curved wall is proved flat.
-
-flattening.tex  (Section 7, third input)
-  Assigning packets to plates; the dyadic inverse width h; the density bands;
-  the two energy budgets (per time bin and global density-weighted); the frame
-  cutoff verification; the tuple bound (the frame estimate in k = n-1); and
-  the summation that produces the final lambda^2 M_Y bound and closes both
-  inductions. This is where the geometry meets the frame estimate.
-
-endpoint.tex  (Section 8)
-  The transition from frequency-local maximal bounds to the actual theorem:
-  compact layers; the short-time estimate; the dual square sum on one time
-  tree; the local L^1 endpoint maximal estimate; the Gaussian local-integral
-  lemma; and the final representative construction, including the careful
-  ordering of limits. This is where the main theorem is actually proved.
-
-forced_profiles.tex, time_tree.tex
-  TikZ figures. The first shows the two forced shapes of the amplitude-ratio
-  profiles (the "power case" and the "subpower case"). The second shows the
-  heavier-child path in one common dyadic time tree. They are worth looking at
-  while reading frame.tex and endpoint.tex respectively.
-
-references.bib
-  The bibliography. It is unusually complete for a paper of this kind and is
-  the place to find the exact statements of every external input.
-
+3.  SMOOTHNESS AND THE SOBOLEV EXPONENT
 --------------------------------------------------------------------------------
-PART 17. GLOSSARY
+
+Roughness is measured in Sobolev spaces. For a real number s, the H^s norm
+of a function f on R^n is
+
+    ||f||_{H^s}^2  =  (2 pi)^{-n}  INT_{R^n}  ( 1 + |xi|^2 )^s
+                                         |f_hat(xi)|^2  d xi.
+
+In words: multiply the energy at frequency xi by (1+|xi|^2)^s, so high
+frequencies are weighted more heavily. A large s means high frequencies are
+strongly penalized, i.e. f is very smooth. s = 0 is just the L^2 norm
+(up to the same constant). Larger s means the allowed data is smoother; as
+s drops, rougher and rougher data is admitted.
+
+The main result of this paper is that convergence holds down to the exact
+value
+
+    s_n  =  n / ( 2 (n+1) ),        for every n >= 3.
+
+For n = 3 this is 3/8, for n = 4 it is 2/5, and so on. This number is not
+arbitrary; it is forced from both sides (Chapter 9). Two features of s_n
+matter for the whole narrative:
+
+    - It sits strictly between 0 and 1/2. It is a "rough" regime. In
+      particular the data is not assumed continuous: functions in H^{s_n}
+      can be unbounded on sets of positive measure.
+
+    - It is an "endpoint". The paper proves convergence for every f in
+      H^{s_n}, not merely for every f in H^s with s > s_n. The endpoint is
+      where the estimates have zero slack, and it is exactly the place the
+      harder parts of the proof are engineered to reach.
+
+One more word: the paper proves the theorem for complex-valued f. Real-valued
+is the special case everyone pictures, but complex data is what the Fourier
+method handles cleanly, and it is strictly more general.
+
+
+4.  WHY ONE DIMENSION IS A THEOREM AND HIGHER DIMENSIONS ARE HARD
 --------------------------------------------------------------------------------
+
+In one dimension the story is complete and old. For n = 1 the endpoint is
+s_1 = 1/4. Carleson (1980) proved convergence for H^{1/4}(R), and Dahlberg-
+Kenig (1982) proved that below 1/4 there are counterexamples. So in one
+dimension, convergence holds exactly for s >= 1/4, endpoint included.
+
+For higher n, convergence at a given s is a strictly harder question. The
+reason is dispersion. The free evolution spreads a sharp packet of waves out
+over wider and wider regions as time grows, and it does so more slowly in
+higher dimensions in a certain precise sense. Near t = 0 the high-frequency
+pieces can arrange themselves to concentrate again, and the geometry of
+"where can many frequency pieces pile up at time t" becomes genuinely n-
+dimensional.
+
+Historically, for n >= 2, progress came in stages:
+
+    - Sjolin (1987) and Vega (1988): convergence for s > 1/2 in every
+      dimension. Half a derivative was the first natural threshold.
+    - The plane n = 2 was attacked with bilinear and restriction methods:
+      Bourgain (1995), Moyua-Vargas-Vega (1996), Tao-Vargas (2000),
+      Tao (2003), culminating in Lee (2006) with s > 3/8.
+    - Bourgain (2013) reached s > 1/2 - 1/(4n) in dimensions n >= 3.
+    - Bourgain (2016) produced the counterexample that rules out every
+      s < n/(2(n+1)) in every dimension n >= 2. This made
+      s_n = n/(2(n+1)) the universal conjectured threshold.
+    - Du, Guth, Li (2017) reached the endpoint 1/3 for n = 2.
+    - Du, Guth, Li, Zhang (2018) reached s > (n+1)/(2(n+2)) in higher
+      dimensions, the first dent below 1/2.
+    - Du, Zhang (2019) reached s > n/(2(n+1)) in higher dimensions. This
+      is the immediate predecessor: every exponent strictly larger than the
+      conjectured endpoint.
+
+Until this paper, for n >= 3 the endpoint s = s_n itself was open. The
+conjecture was that it should hold. This paper proves it. The plane n = 2
+endpoint is the subject of the companion planar paper, not this one.
+
+
+5.  THE STATE OF THE ART BEFORE THIS PAPER
+--------------------------------------------------------------------------------
+
+Read this chapter as the map before the journey.
+
+Bourgain's counterexample (2016) gives a lower bound: if s < n/(2(n+1)),
+there is initial data f in H^s for which the evolution does not converge at
+points of a set of positive measure. Hence no exponent below s_n can work.
+
+Du and Zhang (2019) give a one-sided upper bound: for every s > n/(2(n+1)),
+convergence holds. Their proof introduced (among other things) a sharp higher-
+dimensional maximal estimate, and it is the point of departure for this paper.
+But a sharp inequality for every s > s_n does not, by itself, give the
+endpoint s = s_n, because at s = s_n all the epsilon-slack is gone.
+
+The gap between "every s > s_n" and "s = s_n" is not just a nuisance. Many
+techniques lose an arbitrarily small power of the large scale N. If a proof
+loses N^eps for every eps > 0, it can prove "every s > s_n" but never the
+endpoint. The main novelty of this paper is a collection of estimates with
+zero loss at the endpoint: the near-Cauchy theorem, the buffered refined
+decoupling, the transverse frame estimate, and the codimension-two strip
+saving (all explained in Part IV). These are the tools that let the endpoint
+close.
+
+The companion paper does the same job in the plane n = 2. This paper is for
+n >= 3, and the n-dimensional geometry is genuinely harder: the "transverse"
+configuration of wave packets is a simplex of n+1 pieces, not 3.
+
+
+================================================================================
+PART II: THE MAIN THEOREM, AND WHAT IT REALLY SAYS
+================================================================================
+
+
+6.  THE MAIN THEOREM, STATED EXACTLY
+--------------------------------------------------------------------------------
+
+As explained in Chapter 2, for rough f the Fourier integral defining S(t) f
+need not converge at a point. So we cannot simply write "S(t) f(x) -> f(x)";
+we must say how the expression is given a meaning. The paper's choice is:
+
+  - First smooth the data slightly. For a > 0 define the Gaussian-regularized
+    evolution
+
+        U_a f(x,t)  =  (2 pi)^{-n} INT_{R^n}
+                        e^{ i x.xi - i t |xi|^2 - a |xi|^2 }
+                        f_hat(xi)  d xi.
+
+    The extra factor e^{-a |xi|^2} cuts off frequencies above |xi| ~ a^{-1/2}.
+    For every a > 0 the integral converges absolutely, U_a f is smooth, and
+    U_a f is the exact evolution of the smoothed data U_a f(.,0).
+
+  - Then let a -> 0, and see whether the regularized evolutions settle down to
+    a single limit function u.
+
+  - Finally let t -> 0 and see whether u(.,t) returns to the data.
+
+The theorem is that this procedure works, for every f in H^{s_n}, on one
+fixed full-measure set of x, uniformly in t in the open interval (0,1).
+
+To state the size of the exceptional set precisely: a subset E of R^n has
+full measure if its complement has Lebesgue measure zero. "For almost every
+x" is shorthand for "for every x in some full-measure set E".
+
+There is one more piece of bookkeeping. For f in L^1_loc(R^n) and a point x,
+the Lebesgue value of f at x is
+
+    f*(x)  =  lim_{r -> 0}   (average of f over the ball B(x,r))
+
+provided the limit exists. By Lebesgue's differentiation theorem it exists
+for almost every x, and f* = f almost everywhere. So f* is a "canonical
+representative" of f, defined pointwise, that equals f almost everywhere.
+
+THEOREM (main theorem of the paper). Fix n >= 3 and put
+s_n = n / (2(n+1)). For every f in H^{s_n}(R^n) there exist a set
+E subset R^n of full measure and a complex-valued function u(x,t) on
+E x (0,1) such that:
+
+    (a)  For every x in E,
+               sup_{0 < t < 1} | U_a f(x,t) - u(x,t) |  ->  0
+         as a -> 0+. In words, the regularized evolutions converge to u
+         uniformly in t on the open interval 0 < t < 1.
+
+    (b)  For every x in E,
+               u(x,t)  ->  f*(x)   as t -> 0+.
+         In words, u returns to the Lebesgue value of the data at time 0.
+
+    (c)  Consequently, for every x in E and every path t_a -> 0+,
+               lim_{a -> 0}  U_a f(x, t_a)  =  f*(x)  =  f(x)   (a.e. x).
+         In particular, convergence holds simultaneously for all times.
+
+This is the sharp form for which the paper is written. The abstract sums it
+up as: for initial data in H^{s_n}, the free Schrodinger evolution converges
+almost everywhere to the initial data, the evolution being defined by
+removing Gaussian regularization on one full-measure set, uniformly over
+0 < t < 1.
+
+Three remarks on the statement.
+
+  - Part (a) is where all the analysis lives. It is a maximal, uniform,
+    "on every point of E simultaneously" statement, and the paper ultimately
+    reduces it to a maximal inequality for a single frequency-localized
+    problem, with a constant that does not depend on the frequency.
+
+  - Part (b) is essentially a Lebesgue differentiation argument, but it needs
+    part (a) plus a small amount of extra care about how the regularizer a
+    and the time variable t interact. Chapter 30 handles this.
+
+  - Part (c) is the reason the theorem is stated with "for every path
+    t_a -> 0". Because (a) is uniform in t in (0,1), the limit as a -> 0 of
+    U_a f(x, t_a) does not depend on how t_a varies with a.
+
+
+7.  WHY THE ORDER OF LIMITS MATTERS
+--------------------------------------------------------------------------------
+
+You might ask: why not define the evolution as the limit of S(t) f(x) as
+t -> 0 for each fixed x, using the Fourier integral directly? The reason is
+that for f in H^{s_n}, with s_n > 0 but very small, the Fourier integral for
+S(t) f(x) at a fixed t > 0 is not absolutely convergent. The data f is only
+L^2, and the multiplier e^{-i t |xi|^2} does nothing at infinity. So S(t) f
+itself is an L^2 object, not a function, and "evaluate at x" is meaningless
+at the point level without extra structure.
+
+The Gaussian factor e^{-a |xi|^2} fixes both problems at once:
+
+  - It makes the frequency integral absolutely convergent, so U_a f is an
+    honest function of (x,t), smooth in both variables.
+
+  - It smooths the data at scale a^{1/2}. At frequencies |xi| << a^{-1/2}
+    the factor e^{-a |xi|^2} is ~ 1. So U_a f is the true evolution of the
+    data with frequencies above ~ a^{-1/2} gently removed.
+
+The order of limits that the theorem uses is: remove the smoothing first
+(a -> 0, uniformly in t), then take time to zero. If instead you tried to
+interchange a -> 0 and t -> 0, you would not get a well-defined limit,
+because at time t the plane wave of frequency xi carries the factor
+e^{-i t |xi|^2}, which for |xi| ~ a^{-1/2} sees phase ~ t/a; altering the
+relative rate of a and t can pick out any phase at all. So the order of
+limits is not an aesthetic choice. It is what makes the statement true and
+canonical.
+
+The reader who is used to convergence-almost-everywhere statements from
+elliptic or heat-flow theory should note: the reason the paper uses the
+Gaussian version is not because the unregularized claim is known to be
+false, but because it is the version that the additive combinatorics and
+packet analysis actually delivers. The unregularized pointwise convergence at
+s = s_n is a stronger statement that is not attempted here. For the plane,
+the analogous unregularized statement at s = 1/3 is what the companion
+planar paper proves. (See Chapter 32.)
+
+
+8.  SHARPNESS: WHY s_n = n/(2(n+1)) IS EXACTLY RIGHT
+--------------------------------------------------------------------------------
+
+There are two halves to "exact".
+
+    (a) Sharpness from below. Bourgain (2016) constructed, for every
+        s < n/(2(n+1)), data f in H^s and a set of x of positive measure
+        on which the evolution does not converge to f. So no s < s_n can
+        work. This bound holds in every dimension n >= 2.
+
+    (b) Sharpness from above. This paper proves convergence at s = s_n,
+        hence a fortiori at every s > s_n.
+
+Together: the endpoint of convergence is exactly s_n, and the present paper
+reaches it.
+
+It is worth understanding the shape of Bourgain's counterexample, because it
+is the reason the number n/(2(n+1)) appears. The construction is a
+concentration of high-frequency mass near a codimension-2 set (a point in the
+plane, a line in three dimensions). Near such a set, wave packets can be
+arranged so that the phases align at every short time, but at each fixed
+point the phases do not align once the regularization is removed. This is a
+"fractal" obstruction. Its scale is dictated by the codimension of the
+concentration set, which in turn produces the exponent n/(2(n+1)): the
+denominator n+1 is the sum of the spatial dimension n and the codimension 1
+of the "time direction" as a coordinate, and the powers in the counterexample
+come from the volume growth of n-dimensional balls inside R^{n+1} spacetime.
+
+There is no stronger counterexample. The conjecture from Bourgain 2016 onward
+has been: convergence holds at s = s_n. This paper proves the conjecture.
+
+One caution about the word "endpoint". An endpoint statement is qualitatively
+harder than the corresponding "every s > s_n" statement. If you have a family
+of estimates whose constants blow up as s -> s_n from above, you have no
+endpoint. The entire architecture of this paper is engineered to produce
+estimates whose constant is finite at s = s_n. That is the deep content.
+
+
+9.  THE NON-ENDPOINT THEOREM, AND WHY THE ENDPOINT RESISTS STANDARD ARGUMENTS
+--------------------------------------------------------------------------------
+
+It is worth stating the Du-Zhang (2019) result cleanly, because it is the
+closest point of comparison.
+
+THEOREM (Du-Zhang 2019). Fix n >= 3. For every s > n/(2(n+1)) and every
+f in H^s(R^n), the free evolution S(t) f converges to f almost everywhere
+as t -> 0+.
+
+The proof of this theorem has the following shape. Let N be a large
+frequency cutoff, and let P_N be the frequency projector onto |xi| ~ N. The
+goal is a maximal estimate
+
+    || sup_{0<t<1}  | P_N S(t) f | ||_{L^p(B(0,1))}  <=  C_eps  N^{s + eps}
+                                                              || P_N f ||_2
+
+for some finite p and every eps > 0. This is a "frequency-local maximal
+estimate with an epsilon loss". Given such an estimate, one localizes to a
+ball, sums over dyadic N via a Borel-Cantelli argument, and concludes
+convergence a.e. on the ball. The epsilon loss is absorbed by the
+summability in N, because (at exponent s strictly bigger than s_n) the
+N^{s - s_n} decay dominates.
+
+At the endpoint s = s_n, this scheme fails for two separate reasons:
+
+  1. The epsilon loss is fatal. If you lose N^eps at the endpoint, then the
+     N^{s_n} growth and the N^eps loss cannot be summed, and the
+     Borel-Cantelli argument gives nothing. So an endpoint proof needs an
+     estimate with NO epsilon loss.
+
+  2. The Borel-Cantelli argument must hold on EVERY unit ball, not just a
+     fixed one, or the conclusion "a.e. convergence" fails at the boundary
+     between balls. This is a localization issue, and it has to be handled
+     uniform in the location of the ball.
+
+The present paper's architecture solves (1) with four lossless estimates
+(Chapter 10 lists them), and (2) with a common time tree and a careful
+Gaussian regularization argument (Chapters 29 and 30). The lossless estimates
+are where the depth lives; the localization and the time-tree argument are
+delicate but essentially bookkeeping once the lossless estimates are in hand.
+
+
+10.  STRATEGY AT 30,000 FEET: THE THREE BIG MOVES
+--------------------------------------------------------------------------------
+
+The proof splits into three big moves, and it is useful to hold all three in
+your head before diving into any of them.
+
+  MOVE A. Reduce the theorem to a frequency-local maximal estimate at the
+  endpoint, with no epsilon loss.
+
+  This is a statement about the solution of the Schrodinger equation whose
+  initial data has frequency only near |xi| ~ N, and whose time interval is
+  of length 1/N (much shorter than the natural frequency-local time). The
+  reduction lives in Chapters 29 and 30. Statement:
+
+      For every f with frequency near |xi| ~ N, every unit ball Omega,
+      and every time interval I of length 1/N,
+
+          || sup_{t in I} | S(t) f | ||_{ L^{p, infinity}(Omega) }
+              <=  C  N^{s_n}  ||f||_2,
+
+      where p > 2 is some fixed exponent, and the constant C does not
+      depend on N, Omega, or I. (Here L^{p, infinity} is weak L^p,
+      defined in Chapter 27.)
+
+  MOVE B. Prove Move A, by descending into a hierarchy of packet estimates
+  and a geometric induction. This is the entire middle of the paper, and
+  it is where the real content is. It splits into three further parts:
+
+      B1. Fractal and transverse-saving estimates. Chapters 21-23. These
+          give the input: high density of packets at a point forces their
+          frequencies to be spread out (transverse), and transversality buys
+          a quantitative saving.
+
+      B2. Sparse iteration. Chapters 23 and 24. Combined with fractal and
+          decoupling inequalities, the transverse saving becomes a genuine
+          power saving D^{-c_s} in a "sparsity parameter" D. This is the
+          sparse estimate (Chapter 24).
+
+      B3. Geometric induction. Chapters 25-28. This upgrades the sparse
+          estimate (sparsity level D a small positive power of N) to the
+          full range 1 <= D <= N, by reducing a general maximal estimate to
+          the frame estimate applied in dimension n-1. This is the hardest
+          and most novel part.
+
+  MOVE C. Assemble Move A across frequencies on a single "time tree", and
+  convert the result to pointwise convergence a.e. via a Gaussian
+  approximate identity. Chapters 29 and 30.
+
+The three moves fit together as follows. Move C needs Move A as a black box.
+Move A is proved by Move B. Move B decomposes into B1, B2, B3, each of which
+relies on a family of packet, fractal, and geometric inequalities proved in
+Chapters 19-23. Everything upstream of Move B is standard in spirit (it is
+the Du-Zhang engine with lossless replacements); almost all of the novel
+content is in B3, i.e. in the transverse frame estimate and its use.
+
+
+11.  WHAT IS NEW: THE FOUR INGREDIENTS THAT BUY THE ENDPOINT
+--------------------------------------------------------------------------------
+
+The whole point of the paper is to reach the exact endpoint s = s_n. Every
+place a proof normally loses N^eps has to be replaced by an estimate with no
+loss. The paper introduces four such replacements. Memorize these; they are
+the four reasons the paper exists.
+
+  (i)  THE NEAR-CAUCHY THEOREM [paper Sec 2, packets.tex]. A point count
+       lemma for frequency-localized wave packets, at the sharp exponent q_k
+       = 2(k+2)/k, with no N^eps. It says: if you have many high points of a
+       sum of packets, then their frequencies are nearly orthogonal, and you
+       can count them. This is the "packet algebra" of the paper, and it
+       replaces the epsilon-losing point counts in prior work.
+
+  (ii) BUFFERED REFINED DECOUPLING [paper Sec 2, packets.tex]. A version of
+       Bourgain-Demeter decoupling that pays a fixed small power of the
+       buffering scale, not N^eps. The reason it is needed: in the paper's
+       iterative arguments, decoupling has to be applied inside itself, and
+       each inner application must be lossless relative to the outer one.
+       This repairs a "collar gap" in the Singh-Singh-Parmar paper, and is
+       proved in every dimension in the present paper (Lemma p:buffered-
+       refined).
+
+  (iii) THE TRANSVERSE FRAME ESTIMATE [paper Sec 3, frame.tex]. The most
+       novel single ingredient. It is a transverse maximal estimate in k
+       dimensions, closely tied to the geometry of the paraboloid. Its main
+       content: k+1 transversally arranged wave packets cannot concentrate at
+       many points if each packet is individually large. This is the engine
+       of B3. Chapters 21 and 28.
+
+  (iv) THE CODIMENSION-TWO STRIP SAVING [paper Sec 4, fractal.tex]. A
+       quantitative gain available for wave packets whose frequencies lie in
+       a thin neighborhood of an affine (n-2)-plane (subspace of codimension
+       two in frequency space). It is the reason the geometric induction can
+       reduce dimension from n to n-1 (Chapters 22 and 28).
+
+The rest of the proof is the Du-Zhang machinery, with two other technical
+repairs (a general Du-Guth-Li-Zhang multilinear restriction estimate, and a
+lossless endpoint version of the Du-Zhang fractal estimate). These are
+standard in spirit, and are explained in Chapter 23.
+
+With the four ingredients in hand, the proof is a long but structured
+argument: packet hierarchy -> transverse saving -> sparse estimate ->
+geometric induction -> short-time maximal estimate -> frequency summation ->
+Gaussian representative -> theorem.
+
+
+================================================================================
+PART III: BACKGROUND YOU NEED
+================================================================================
+
+This part is the toolbox. If a chapter feels obvious, skip it. If a chapter
+feels hard, read the first two paragraphs and come back later. The paper only
+uses a handful of facts from classical analysis, but each fact has to be
+available before Part IV can make sense.
+
+
+12.  THE FOURIER TRANSFORM: SPLITTING A WAVE INTO PURE FREQUENCIES
+--------------------------------------------------------------------------------
+
+Think of a musical note. A cellist bowing one string produces a single pitch,
+but plucking the same string produces a mixture, and any mixture can be
+written as a sum of pure tones. The Fourier transform is the same operation
+for a function of position. It decomposes f into "pure frequencies" xi.
+
+Formally, for f : R^n -> C which is smooth and decaying fast at infinity,
+
+    f_hat(xi)  =  INT_{R^n}  f(x)  e^{- i x . xi}  d x.
+
+The inverse operation is
+
+    f(x)  =  (2 pi)^{-n}  INT_{R^n}  f_hat(xi)  e^{ i x . xi}  d xi.
+
+Two operations are important:
+
+  - The Fourier transform almost preserves energy: Plancherel's identity
+    says  ||f||_{L^2} = (2 pi)^{-n/2} ||f_hat||_{L^2},  with the same
+    constant for f and f_hat. The whole "energy" picture of the paper is
+    built on this.
+
+  - Differentiation becomes multiplication. If D_j = d/d x_j, then
+    the Fourier transform of D_j f is i xi_j f_hat. Hence "smoothness" is
+    "decay of f_hat at infinity", and this is why the Sobolev norm in
+    Chapter 3 is a weighted L^2 norm of f_hat.
+
+For all the fancy objects in the paper, this is the mental model: high
+frequencies correspond to fast spatial oscillation, low frequencies to slow
+spatial variation.
+
+
+13.  HOW A SINGLE FREQUENCY MOVES: GROUP VELOCITY AND WAVE PACKETS
+--------------------------------------------------------------------------------
+
+A single "pure frequency" xi, viewed as a function of (x,t), is
+
+    e^{ i x . xi - i t |xi|^2 }.
+
+We can rewrite the phase as
+
+    x . xi - t |xi|^2  =  (x - 2 t xi) . xi  +  t |xi|^2.
+
+The time-dependent constant t |xi|^2 is a phase; the spatial argument is
+x - 2 t xi. This says: at time t, the plane wave of frequency xi has the
+same spatial profile as at time 0, translated by 2 t xi. So the wave moves
+with velocity
+
+    v(xi)  =  2 xi     (this is called the group velocity).
+
+Consequence: each frequency has a definite direction and speed. A packet
+of waves with frequencies in a small ball around xi travels almost like a
+single rigid object moving at speed 2 xi. The direction vector
+
+    v_vec(xi)  =  (2 xi, 1)   in  R^{n+1}
+
+is important. Its last coordinate is 1 because the packet moves forward in
+time at unit time-normalized rate; the first n coordinates give the
+direction in space. This is the vector whose determinant conditions appear
+in Chapter 16.
+
+
+14.  NATIVE COORDINATES: MAKING A PACKET LOOK THE SAME AT EVERY SCALE
+--------------------------------------------------------------------------------
+
+The Schrodinger equation has a scaling symmetry. If u(x,t) solves it, so
+does a rescaled copy. The scaling is:
+
+    x  ->  x / N,      t  ->  t / N^2,
+
+together with a corresponding rescaling of the amplitude. This "parabolic
+scaling" reflects the parabolic relation between space and time: even
+though the equation looks like it has first order in t and second order in x,
+the natural length scale for time is (length)^2.
+
+A wave packet of "scale N" with central velocity v occupies, at a fixed
+time, a spatial ball of radius ~ N, and its frequency support is a ball of
+radius ~ 1/N centered at v. In time it survives for duration ~ N^2. This is
+the "unit packet" of the paper.
+
+The paper expresses this using "native coordinates": for a fixed scale N
+and velocity v,
+
+    X_{N,v}(x,t)  =  ( (x - 2 v t) / N ,   t / N^2 ).
+
+In these coordinates, a packet at scale N and velocity v occupies a unit
+box (of side ~ 1) centered at the origin. The "packet" is then a single
+fixed function of X, and every N-packet at every v is just that same
+function translated in X.
+
+Native coordinates are used everywhere in the paper. They are why the
+statement "a packet is a compact array" makes sense; see Chapter 22.
+
+
+15.  MEASURING SIZE: LEBESGUE, BALL GROWTH, AND FRACTAL DIMENSION
+--------------------------------------------------------------------------------
+
+Physics would like to say "the set of points where the wave has size at
+least lambda has size such-and-such". But this set may be a fractal: neither
+empty nor full, with non-integer dimension. The paper measures sizes with a
+positive Borel measure mu, and controls "which sets can mu give mass to" via
+a "ball growth inequality":
+
+    mu(B(z,r))  <=  m r^n     for every z in R^{n+1} and every r >= 1.
+
+Interpretation: mu assigns mass at most m r^n to any ball of radius r. This
+says mu is n-dimensional inside the (n+1)-dimensional spacetime. If mu were
+n-dimensional Lebesgue measure, this bound would hold with m = volume of
+the unit ball. If mu were the counting measure on an n-dimensional set (for
+example, a spacetime surface), the bound would hold with some m.
+
+The parameter m is the "ball parameter". It is the first scalar that
+controls every estimate.
+
+There is a second important property: the "tube moment condition". Fix the
+trajectory of a single packet of scale L, which is the set
+
+    { (x,t) : |x - y_alpha - 2 t omega_alpha| <= L }
+
+(isotropic in x, time bounded). The "tube moment" of mu on this trajectory
+is
+
+    INT  (1 + |x - y_alpha - 2 t omega_alpha| / L)^{-M}  d mu(x,t),
+
+where M is a fixed large constant. The paper requires this to be at most
+m L^{n+1} / D, for a fixed sparsity parameter D (Chapter 22). When D is
+large, mu "avoids" the packet's trajectory. When D = 1, the condition is
+just a consequence of the ball growth inequality (up to a constant).
+
+Together, m and D control: how much mass, how focused. Both have to be
+tracked through the entire proof because each estimate produces a new m and
+D.
+
+
+16.  TRANSVERSALITY: WHEN DIRECTIONS ARE GENUINELY DIFFERENT
+--------------------------------------------------------------------------------
+
+Two directions are "transverse" if they are genuinely different, not nearly
+parallel. The precise notion: a collection of directions is transverse if
+the determinant of the corresponding direction vectors is bounded away from
+zero.
+
+For a frequency xi in R^n, let v_vec(xi) = (2 xi, 1) as in Chapter 13. A
+collection of n+1 frequency sets U_1, ..., U_{n+1} (each a subset of R^n) is
+"delta-transverse" if for all choices of xi_j in U_j,
+
+    | det( v_vec(xi_1), ..., v_vec(xi_{n+1}) ) |  >=  delta  >  0.
+
+The determinant here is the (n+1)-by-(n+1) determinant of the matrix whose
+jth column is v_vec(xi_j).
+
+Geometric meaning. The vector v_vec(xi) is tangent to the parabola
+xi |-> (2 xi, |xi|^2). The n+1 vectors v_vec(xi_1), ..., v_vec(xi_{n+1}) are
+transverse iff they span R^{n+1}. The determinant is a "volume" of the
+spanned simplex. It is small if some pair of directions nearly coincides or
+if the directions lie near a lower-dimensional plane.
+
+In every transverse-saving argument, the procedure is:
+
+    - Take n+1 families of wave packets, all of high amplitude on a common
+      dense set of points. Show that either (i) their directions cluster
+      into a lower-dimensional affine subspace (the "narrow" case), or (ii)
+      they are transverse.
+
+    - In case (ii), apply the transverse estimate (Kakeya or refined
+      Strichartz) and get a saving.
+
+    - In case (i), reduce to a lower-dimensional problem (by an inductive
+      argument on the dimension of the subspace) or use decoupling directly.
+
+The "simplex lemma" (paper Lemma s:simplex) is the exact statement: given
+n+1 sets of frequencies, either they lie in a neighbourhood of a hyperplane,
+or a fixed small subset has bounded-below determinant. Its proof is a
+Gram-Schmidt argument. It is a combinatorial fact, not an analytic one.
+
+
+17.  MULTILINEAR KAKEYA: MANY TUBES IN MANY DIRECTIONS
+--------------------------------------------------------------------------------
+
+Kakeya problems ask how much space can be covered by thin tubes in many
+directions. The multilinear Kakeya theorem (Bennett-Carbery-Tao 2006, with
+later weighted forms by Guth) is the fundamental estimate, and it is the
+"soft" transverse estimate used everywhere in the paper.
+
+Statement (simplest version). Let d >= 2. For j = 1, ..., d let T_j be a
+family of infinite cylinders of radius h in R^d, with unit direction vector
+e(T) for T in T_j. Suppose
+
+    | det( e(T_1), ..., e(T_d) ) |  >=  theta   >  0
+
+for every tuple (T_1, ..., T_d) in T_1 x ... x T_d. Then for any nonnegative
+weights c_j(T),
+
+    INT_{R^d}  prod_{j=1}^d
+                  ( sum_{T in T_j}  c_j(T)  1_T )^{1/(d-1)}  d z
+      <=  C_d  theta^{-1/(d-1)}  h^d  prod_{j=1}^d
+                                     ( sum_{T in T_j} c_j(T) )^{1/(d-1)}.
+
+What this says. On the left, we count the size of the "interaction region":
+for each point z, we take the number of j-tubes of T_j covering z, raise each
+to the power 1/(d-1), multiply the d factors, and integrate. On the right,
+h^d is the volume of a tube cross-section times length, and the last factor
+is the "cost" (sum of weights). The estimate says: the tubes cannot
+pigeonhole into a small region -- the mass remains controlled.
+
+The determinantal transversality condition is what makes the estimate true.
+If some pair of direction families coincided, tubes in those families could
+overlap completely and the estimate would fail.
+
+The paper's weighted form (Proposition p:kakeya) is exactly the one shown
+in the paper's Section 2. The "lattice version" of it (for unit cube sums
+rather than integrals) is also needed and follows from the integral version
+by summing over cubes.
+
+The reason multilinear Kakeya is central: it is the one transverse estimate
+that is entirely elementary in spirit (a combinatorial incidence argument),
+which makes the whole edifice "close" without invoking deep restriction
+theory in every step.
+
+
+18.  REFINED STRICHARTZ AND ITS BUFFERED VERSION
+--------------------------------------------------------------------------------
+
+Strichartz estimates are the L^p analogues of Plancherel for the Schrodinger
+equation. The classical Strichartz estimate is
+
+    ||U f||_{L^q(R^{n+1})}  <=  C  ||f||_{L^2(R^n)}         U f = S(t) f,
+
+for the "admissible" pairs (q, p) satisfying q = 2(n+2)/n when p = 2. In the
+paper the exponent is q_k = 2(k+2)/k with k = n; this is the endpoint of
+admissibility.
+
+Refined Strichartz. A refined estimate gains a factor when the packets have
+been placed in a "transverse" configuration. The Du-Guth-Li-Zhang 2018
+result proves a multilinear refined Strichartz estimate: given n+1
+transverse families of packets, the number of high unit-cube incidences is
+bounded by an appropriate product of coefficient energies times a
+subpolynomial loss. The subpolynomial loss is "N^{eps}", and this is what
+blocks the endpoint.
+
+Buffered refined decoupling (paper Lemma p:buffered-refined). This is the
+paper's lossless replacement. The estimate says: for packages buffered with
+an extra scale Lambda = R^vartheta, the constant is bounded by R^{eps} times
+a fixed power of the buffer, not by a generic N^{eps}. The gain is a fixed
+positive power of the buffer, which is exactly what iterating decoupling
+inside itself requires. The proof is a substantial multi-scale induction in
+the paper's Section 2, modeled on Singh-Singh-Parmar and Brady, and it is
+where the "collar gap" repair happens. In this companion we state the lemma
+and use it as a black box; the reader who wants the full induction can
+follow the paper's Section 2 line by line.
+
+The key point to remember: without the buffered version, every inner use of
+decoupling would lose N^{eps}, and after a few iterations you would be over
+budget. With the buffered version, the loss is at most a fixed positive
+power of the buffer (a much smaller quantity in the relevant range), and
+it sums.
+
+
+19.  DECOUPLING (BOURGAIN-DEMETER)
+--------------------------------------------------------------------------------
+
+Decoupling is the fundamental estimate behind all modern restriction theory.
+The idea: if a function H has Fourier support split into delta-caps J of a
+surface, then the L^p norm of H behaves like the l^2 sum (in J) of the L^p
+norms of the pieces, for p up to a critical exponent.
+
+Precise statement for the paraboloid. Fix k >= 1 and let J range over
+squares of side N^{-1/2} whose union covers the frequency box in R^k. For a
+field H = sum_J H_J with each H_J supported in a fixed enlargement of the
+cap J, and 2 <= p <= q_k where
+
+    q_k  =  2(k+2)/k,
+
+Bourgain-Demeter (2015) proves
+
+    || H ||_p  <=  C_eps  N^eps  ( sum_J  || H_J ||_p^2 )^{1/2}.
+
+This is a "square-root" estimate: any overlap between the caps J and J' in
+L^p is at most the l^2 sum, up to a tiny N^eps loss. The exponent q_k is
+sharp; above it the estimate is false without an extra loss.
+
+Important constant features:
+
+  - The loss is N^eps. For endpoint arguments this is fatal; it must be
+    replaced by something with better dependence on N. The paper's
+    "buffered refined decoupling" (Chapter 18) is exactly this replacement.
+
+  - There is a "local weighted" form useful in practice. Fix a lattice cube
+    Q_s of side s. Then for 2 <= p <= q_k,
+
+        || H ||_{L^p(Q_s)}
+            <=  D_{delta,L,k,p}  s^delta  (  sum_J  || H_J ||_{L^p(w_{Q_s,L})}^2 )^{1/2}
+
+    with  w_{Q_s,L}(z) = (1 + dist(z,Q_s)/s)^{-L}.  The cost is s^delta, a
+    fixed small power of the cube side, not N^eps.  For the paper's
+    purposes this is the relevant form (paper Lemma p:bd-local).
+
+  - The decoupling exponent q_k can be below 1 in the exponent of the norm
+    of the sum; that is why the paper repeatedly splits products into
+    bounded-overlap color classes and uses l^2 / Holder bookkeeping.
+
+The phrase "decoupling inequality" describes the whole family of estimates
+that let you pull the Fourier pieces of H apart, compute the pieces one at a
+time, and reassemble at the end. It is a very powerful reduction: instead of
+estimating a complicated sum H, you estimate each H_J separately. The cost
+is the tiny N^eps (or s^delta) factor, and everything in the endpoint proof
+is devoted to controlling that cost.
+
+
+20.  POLYNOMIAL PARTITIONING (GUTH-KATZ)
+--------------------------------------------------------------------------------
+
+Polynomial partitioning is the geometric engine behind all modern incidence
+estimates. The idea: given a set of M points and an integer parameter D,
+there is a nonzero polynomial P of degree at most D whose zero set divides
+R^n into "sign cells", none of which contains too many points.
+
+Precise statement (Guth 2016, Guth-Katz 2015). Fix dimensions n >= 1. Let
+A subset R^n be a finite set of M distinct points and let D >= 1. Then
+there exists a nonzero real polynomial P of degree <= D such that each
+"sign cell" of P (each connected component of a set where P has a fixed
+sign) contains at most
+
+    C_n  M / D^n
+
+of the points. The constant C_n depends only on n.
+
+Complementary fact (Wongkew 1993). A real algebraic variety of codimension
+c has a tubular neighbourhood of radius r that has volume at most a
+polynomial in r, depending on the degree and codimension. This is used to
+control how much mass a partition's zero set can hold.
+
+The polynomial partitioning theorem is used in the same way as the
+multilinear Kakeya: it gives a "soft" geometric estimate that the proof
+uses whenever the frequencies cannot be further simplified. The paper needs
+it in the transverse saving (Chapter 35) and in the wall decomposition
+(Chapter 39). It is a deep theorem by itself (it required work by Guth,
+Guth-Katz, and many others), but it is used at a fixed "level" in the
+present proof: it is the classifier of the partition, not the source of the
+saving.
+
+The finite-set partition theorem is exactly what the paper cites from
+Guth-Katz. The integrable-density continuous version is from Guth 2016
+Restriction (Theorem 1.4).
+
+
+21.  PROJECTION THEOREMS: HOW A SET LOOKS FROM A RANDOM DIRECTION
+--------------------------------------------------------------------------------
+
+A projection theorem answers: for a set A in R^d and a direction v, how
+many cells does A cover in the projection onto the hyperplane v^perp? If A
+is spread out in R^d, then most projections of A should be "bijective" up
+to a small loss. The theorem says this: unless the direction v is very
+special, the projection does not collapse much.
+
+The paper uses a specific robust form of this, due to He (2020). Let A be
+a set in a unit ball in R^d, and let Delta > 0 parametrize a fine grid.
+For a small eta > 0, suppose:
+
+  (i)  The number of Delta-cells meeting A is between Delta^{-alpha+eta}
+       and Delta^{-alpha-eta} for some 0 < alpha < d.
+
+  (ii) The set A has non-concentration: A cap B(x,r) contains at most
+       Delta^{-eta} r^rho times as many Delta-cells as A itself, for all
+       Delta <= r <= 1 and some rho > 0.
+
+  (iii) nu is a probability law on unit directions (kernel directions) that
+        has the same nonconcentration  nu{v : |v . w| < r} <= Delta^{-eta} r^rho
+        for every |w| = 1 and all Delta <= r <= 1.
+
+Under these hypotheses, He's theorem guarantees that some direction v in
+the support of nu projects A bijectively up to a fixed power:
+there is gamma > 0 such that for every subset A' of A whose Delta-cell count
+is at least Delta^eta of that of A,
+
+    N_Delta( pi_{v^perp} A' )  >=  Delta^{-(d-1) alpha / d - gamma}.
+
+This is the "robust" form: the conclusion holds uniformly for every
+sufficiently large subset A' of A, not only for A itself. The price is the
+extra slack eta in the hypotheses and gamma in the conclusion.
+
+Why the paper needs it. The transverse saving's proof (Chapter 35) has to
+rule out the case where the packet directions are all "almost contained" in
+a hyperplane. The projection theorem is what makes this exclusion rigorous:
+if they were all close to a hyperplane, their projection onto the normal
+direction would be small, but the non-concentration hypothesis (Lemma t:rank)
+violates that. It is a piece of "linear algebra plus Dirichlet principle",
+not a deep restriction-theoretic input. It is quoted from He's paper and
+used as a black box.
+
+
+22.  COMPACT ARRAYS, ENERGY AND SPARSITY
+--------------------------------------------------------------------------------
+
+The wave packets introduced in Chapter 14 are the core objects of the whole
+proof. They are formalized as "compact arrays":
+
+    U(X,T)  =  sum_alpha
+                 c_alpha  e^{ i ( X . omega_alpha - T |omega_alpha|^2 ) }
+                 phi( X - y_alpha - 2 T omega_alpha,  T ).
+
+Breakdown:
+
+  - alpha indexes the packets. The label alpha = (omega_alpha, y_alpha) is a
+    frequency omega_alpha in a fixed bounded frequency box, together with a
+    spatial intercept y_alpha.
+
+  - phi is a single fixed compact profile: a bump function that decays
+    rapidly away from the unit ball and has a fixed number of derivatives
+    bounded. It is the same profile for every alpha. It is what makes the
+    sum an array of packets rather than a generic superposition.
+
+  - c_alpha is a complex coefficient.
+
+  - The phase e^{i(X . omega_alpha - T |omega_alpha|^2)} is the carrier
+    wave; the profile phi(.) slides along with the group velocity as
+    expected (Chapter 13).
+
+The coefficient energy of U is
+
+    E(U)  =  sum_alpha  | c_alpha |^2.
+
+This is the L^2-squared size of the input. It is constant under most of the
+operations the paper performs. It plays the role of "how much total data
+is here".
+
+Two useful basic properties:
+
+  - Supremum bound. By Cauchy-Schwarz and bounded phase-space multiplicity,
+        || U ||_{infinity}  <=  C  E(U)^{1/2}.
+    So amplitude is controlled by energy.
+
+  - Energy summable under translation. Translating a packet by a constant
+    changes its phase but not its energy. This is used everywhere.
+
+Now the sparsity parameter D. The measure mu on spacetime satisfies:
+
+  (a) Ball growth:  mu(B(z,r)) <= m r^n for every z and r >= 1.
+  (b) Tube moment:  for every label alpha,
+        INT (1 + |x - y_alpha - 2 t omega_alpha| / L)^{-M} d mu(x,t)
+              <=  m L^{n+1} / D.
+
+Interpretation. D measures how much mu avoids the packet trajectories.
+When D is large (up to ~ L^tau for the sparse estimate, then up to ~ L for
+the full weak estimate), each individual trajectory sees very little mass.
+When D is small (near 1), mu is dense and the tube moment is just a
+consequence of ball growth.
+
+The compact array + measure + sparsity parameter (U, mu, D) is the principal
+input to the sparse estimate (Chapter 36), and, with more structure, to the
+weak estimate (Chapters 37-41). All the work of the proof goes into
+controlling this "amount of concentration" (D) and turning it into a
+saving.
+
+
+23.  INFORMATION THEORY: BITS OF A POINT, BITS OF A DIRECTION
+--------------------------------------------------------------------------------
+
+Chapter 5 of the paper uses a language that is unusual in harmonic analysis:
+entropy and conditional information. The reason is that the transverse
+saving's proof needs to compare, at a fixed scale, how much information a
+sampled point gives about the direction of a wave through it. This is
+exactly an information-theoretic question, and the language makes the
+argument clean.
+
+Shannon entropy. For a finite set A with probability p_A(a), the entropy in
+base Lambda > 1 is
+
+    I_Lambda(A)  =  - ( 1 / log Lambda )   sum_a  p_A(a)  log p_A(a).
+
+In words: I_Lambda(A) "counts" the number of Lambda-ary possibilities for A.
+If A has at most Lambda^{C+o(1)} values, then I_Lambda(A) <= C + o(1). If A
+is deterministic, I_Lambda(A) = 0.
+
+Conditional information. For two finite labels A and B,
+
+    I_Lambda(A | B)  =  I_Lambda(A, B)  -  I_Lambda(B).
+
+Interpretation: I_Lambda(A|B) counts how many additional Lambda-ary choices
+A has, given B. If B determines A up to Lambda^{o(1)} labels,
+I_Lambda(A|B) = o(1). If A is independent of B, I_Lambda(A|B) = I_Lambda(A).
+
+The two facts the paper uses constantly:
+
+  - Chain rule. I_Lambda(A,B | C) = I_Lambda(A|C) + I_Lambda(B | A,C).
+
+  - Conditioning reduces information. I_Lambda(A|B) <= I_Lambda(A).
+
+The "profiles". The transverse saving proof uses a "countersequence": a
+sequence of configurations parameterized by a large scale L, in which the
+quantities of interest take values near their limiting extremal profiles.
+For each exponent s in [0,1], the resolution Lambda^{-s} defines a level of
+scale, and:
+
+  - F(s)  is the limiting (base-L) information of the sampled spatial cell
+    X_s at that resolution.
+
+  - G_i(s)  is the same information, but conditioned on one of the n+1
+    incident tube directions T_i.
+
+  - G_i'(s)  is the same, but conditioned on an alternative tube i'.
+
+These functions are nondecreasing in s and Lipschitz with constants that are
+dimension-dependent but fixed. The "profile increments"
+
+    F(s+t) - F(s),     G_i(s+t) - G_i(s)
+
+are the marginal bits of position at the finer scale, and by the chain rule
+they are exactly the information that the finer position provides about the
+coarse position. Controlling them is the whole content of the rigidity part
+of the transverse saving (Chapters 35-37).
+
+The reason the paper uses base-L information (not natural log): the constants
+become clean. If a quantity has L^{C+o(1)} labels, its base-L information is
+C + o(1), and no epsilon bookkeeping is needed.
+
+
+================================================================================
+PART IV: THE PROOF
+================================================================================
+
+One chapter per paper section, plus three extra chapters for the three pieces
+of the hardest section (paper Sec 7), plus one extra chapter for the two
+"smoothing" pieces of the frame estimate. Each chapter has the same shape:
+what the step proves, the big idea, the precise statement, and where it is
+used. We are now in the main body of the proof.
+
+
+24.  SECTION 2: THE PACKET TOOLBOX, AND THE NEAR-CAUCHY THEOREM
+--------------------------------------------------------------------------------
+
+The paper's Section 2 is where the packet-level estimates live, and every
+later section depends on it. We have already introduced compact arrays
+(Chapter 22) and the central exponents; here is the cast of characters.
+
+  - Fixed dimensions. Write
+
+        m = k+1,    p_k = 2(k+1)/k = 2m/k,   q_k = 2(k+2)/k = 2(m+1)/k.
+
+    The exponent p_k is the linear Strichartz end for the Schrodinger
+    equation in k dimensions. The exponent q_k is the endpoint of the
+    Bourgain-Demeter decoupling inequality in k dimensions (Chapter 19).
+    They differ by a constant in the exponent.
+
+  - A packet sum V(x,t) = sum_T s_T f_T(x,t), where T ranges over a finite
+    index set of N-scale packets (fixed profile, fixed frequency box). The
+    envelope of V at a point z is
+
+        B(z)^2  =  sum_T  s_T^2  w_T(z),
+
+    where w_T(z) = (1 + d_T(z))^{-P} with P a fixed large envelope exponent
+    and d_T the native distance to the packet's cell (Chapter 22).
+
+  - The "high set" of V at level lambda is the set of unit cubes Q where
+    |V| is >= lambda * (its envelope) on some point of Q. The count of such
+    cubes is what the packet estimates control.
+
+The claims in Section 2 that we quote as black boxes:
+
+  - The multilinear Kakeya estimate (Chapter 17, Proposition p:kakeya).
+
+  - The robust hyperplane projection theorem (Chapter 21, Proposition
+    p:projection, due to He 2020).
+
+  - The buffered refined decoupling lemma (Chapter 18, Lemma
+    p:buffered-refined, proved in the paper).
+
+  - The weighted packet estimates and their hierarchical versions, which
+    we state in the next chapter (Propositions p:weighted and p:hierarchy).
+
+  - The local linear and local multilinear estimates (Chapter 25).
+
+  - The near-Cauchy theorem (below).
+
+THEOREM (near-Cauchy; paper Theorem p:near-cauchy). Fix k >= 3, fix the
+frequency box and packet profile. There is a finite p_* such that for every
+p > p_*, there is a constant C_p with: for every N-scale packet sum V on a
+ball B_R of radius R, and every set Y of unit cubes on which V equals its
+envelope at some point up to a fixed constant factor,
+
+        | Y |  <=  C_p  R^p   ( sum_T  s_T^2 ).
+
+The infimum p_* is at most q_k = 2(k+2)/k.
+
+So for every eps > 0 the exponent p = q_k + eps works. In words: even
+though a packet sum can pile up coherently on many unit cubes, the number
+of high cubes is at most R^{q_k + eps} times the square of the input L^2
+size. Non-coherent Cauchy would give |Y| ~ sum s_T^2; coherent packet sums
+can be much worse than Cauchy, but the worsening is bounded by a fixed power
+of R.
+
+The name. If V is a single packet, |Y| <= S trivially. The point of the
+theorem is that even adding many packets coherently, the count of high unit
+cubes is at most a fixed power of R bigger than the obvious one. In this
+sense the theorem says "packet sums are close to Cauchy in a point count".
+It is the point count that lets the paper run induction on packet scales.
+
+Sketch of the proof. We indicate the strategy; the details are a long
+induction in the paper's Section 2.
+
+  1. By the "polynomial start" lemma (paper p:polynomial-start), p_* is
+     finite: some finite power of R suffices trivially.
+
+  2. Suppose p_* > q_k. Then there is a sequence of configurations with
+     ratio |Y| / S approaching R^{p_* - o(1)}; this is a "counterexample" to
+     any exponent below p_*.
+
+  3. From the counterexamples, choose coarse and fine scales K, N as in
+     the proof (Chapter 25) and assemble the fine packets into coarse ones.
+     Use the weighted packet estimates to control how the fine amplitudes
+     relate to the coarse amplitudes.
+
+  4. At a typical point of Y, get a lower bound on the number of incident
+     coarse packets (Cauchy-Schwarz). Compare with the point count for
+     coarse packets and get a contradiction unless p_* <= q_k.
+
+  5. The precise constants follow from the Cauchy estimate (Chapter 25) and
+     the near-Cauchy's use of the "occupancy" p:occupancy-upper.
+
+The reason the near-Cauchy theorem is important: it is the point-count input
+the sparse estimate (Chapter 37) uses to control how many high cubes a
+packet sum can have at a given scale. Without it, the sparse iteration
+cannot close.
+
+
+25.  SECTION 2: WEIGHTED PACKET ESTIMATES AND LOCAL CAUCHY
+--------------------------------------------------------------------------------
+
+The last pieces of Section 2 that the paper uses throughout are a family of
+weighted L^p estimates for packet sums. They are the "hard analysis" of the
+paper, and they quantify how the envelope B controls the full sum V.
+
+Weighted packet estimate (paper p:weighted). Fix 2 < p <= q_k, weights
+b_T >= 0 with the convention that b_T = 0 forces s_T = 0, and put
+B_b(z)^2 = sum_T b_T^2 w_T(z). Then for every eps > 0,
+
+    INT  B_b(z)^{2-p} | sum_T f_T(z) |^p  d z
+        <=  C_eps  N^eps  N^{k+2}  sum_T  s_T^p  b_T^{2-p}.
+
+Interpretation: if we "pay" the packet sum by its weighted L^p mass with a
+positive-definite weight B_b^{2-p}, the cost is bounded by the sum of
+individual packet contributions. When p = 2 this is trivially an L^2
+identity. When p > 2, the extra power of p is paid by N^eps and the
+frequency-localization volume N^{k+2}.
+
+Hierarchical form (paper p:hierarchy). Take nested scales K < K' with bounded
+ratio. Assemble K'-scale packets into K-scale packets. If a_T is the
+amplitude of a K-scale parent packet and b_T is its weight, and similarly
+for K'-scale packets a_{T'} and b_{T'}, then for every eps > 0,
+
+    sum_T  K^{k+2}   a_T^p    b_T^{2-p}
+        <=  C_eps  (K'/K)^eps
+            sum_{T'}  (K')^{k+2}   a_{T'}^p    b_{T'}^{2-p}.
+
+The weighted p-energy is preserved when coarsening, up to (K'/K)^eps.
+This is the "energy transport" estimate. It says you can move up the
+packet hierarchy without losing.
+
+Two local estimates. These are the "Cauchy at a point" bounds:
+
+  Local linear (paper p:local-linear). Suppose V(x,t) = sum_T f_T(x,t) is
+  a sum of N-scale packets, with all frequencies in a fixed bounded box.
+  Let B(z) be the envelope. Then for every p > p_k = 2m/k, and every ball D
+  of radius N centered at a fixed point, and every witness z in D,
+
+        || V ||_{L^p(D)}  <=  C_p  N^{k/2}  B(z).
+
+  So the pointwise envelope at one point controls the L^p norm on the whole
+  packet neighborhood. This is the "local Cauchy" bound.
+
+  Local multilinear (paper p:local-multilinear). With m = k+1 fields
+  V_1, ..., V_m transverse with determinant >= delta > 0, and with any
+  choice of witness points z_j in D,
+
+        || prod_{j=1}^m  |V_j|^{1/m} ||_{L^p(D)}
+            <=  C_p  delta^{-C_p}  N^{k/2}  prod_{j=1}^m  B_j(z_j)^{1/m}.
+
+  The transversality costs a polynomial factor in delta^{-1}, but the
+  bound is otherwise pointwise in the envelopes.
+
+These local estimates are used in the sparse estimate (Chapter 37) to
+bound how much mass can pile up on a "broad" collection of packets. They
+are also used in the frame estimate (Chapter 26) exactly once, at a key
+step. The powers N^{k/2} are the natural "packet size" factor.
+
+The reader should think of these estimates as the "Cauchy-Schwarz at every
+scale" that makes the packet algebra close. The buffered refined decoupling
+of Section 2 is what supplies the missing N^eps absorption to reach the
+exponents p = p_k and q_k without loss. We quote both as black boxes and
+use them as they are used in the paper.
+
+
+26.  SECTION 3: THE TRANSVERSE FRAME ESTIMATE (STATEMENT AND IDEA)
+--------------------------------------------------------------------------------
+
+This is the deepest single estimate of the paper. It is also the estimate
+that most visibly distinguishes the proof from its predecessors, and it is
+what makes the endpoint close.
+
+Physical idea. Suppose we have m = k+1 transverse families of wave packets,
+all at the same scale h, and suppose at many points of spacetime each family
+has a "big" packet through it (amplitude >= A_i, envelope <= 1). The claim
+is: this cannot happen too often. The number of such points is bounded by a
+factor reciprocal to the "geometric mean amplitude" of the fields.
+
+In symbols, the theorem is:
+
+THEOREM (transverse frame; paper Theorem f:frame). Fix k >= 2, c > 0, and
+fixed packet bounds C_0. There is a finite integer P_0 such that for every
+fixed P >= P_0, there is a finite integer J_0 and a constant C (all
+depending only on k, c, C_0, P and the fixed conventions) with the
+following property.
+
+Let h >= 2, let m = k+1, and let V_1, ..., V_m be scale-h packet sums on a
+common time interval of length at most C_0 h^2. Suppose their normalized
+compact profiles have derivatives through order J_0 bounded by C_0, and let
+Xi_i denote the frequency-label sets of the i-th family. Assume:
+
+  (i)   bounded phase-space counting of the packet family;
+
+  (ii)  transverse determinant:  for all xi_i in Xi_i (i = 1, ..., m),
+
+            | det( v_vec(xi_1), ..., v_vec(xi_m) ) |  >=  delta  >  0,
+
+        with v_vec(xi) = (2 xi, 1) in R^{k+1} (Chapter 13);
+
+  (iii) envelope exponent P (so w_T(z) = (1 + d_T(z))^{-P}).
+
+Let Y be a set of distinct unit cubes in spacetime, and for every Q in Y
+and every i, let z_{i,Q} be a witness point in Q with
+
+        | V_i(z_{i,Q}) |  >=  A_i   >=  h^c,
+        B_i(z_{i,Q})^2 = sum_T  s_{i,T}^2  w_T(z_{i,Q})  <=  1.
+
+(Here the packets s_{i,T} are the packe-ts of the i-th family.)
+
+Define
+
+        H_i  =  A_i^{2/k},        H_g  =  ( prod_{i=1}^m H_i )^{1/m},
+        D_i  =  h^{k+2}  sum_T  s_{i,T}^2.
+
+Then
+
+        |Y|  <=  C  delta^{-C}  H_g^{-2}  sum_{i=1}^m  D_i / A_i^2.
+
+What this says. The number of high points |Y| is bounded by a "gain" factor
+H_g^{-2}, multiplied by the total energy of the families (sum D_i / A_i^2).
+The bigger the amplitudes A_i, the smaller H_g (since H_g = geometric mean
+of A_i^{2/k}), and hence the smaller the bound. If some fields are small,
+H_g is small; if all fields are big, H_g is big, but the transverse
+determinant assumption still makes the fields "spread out" and there is a
+contradiction unless the number of points is small.
+
+Why k+1 fields, not fewer? The number k+1 is forced by the geometry of the
+paraboloid in R^{k+1}. Fewer than k+1 transverse fields can concentrate;
+k+1 is the minimum needed for the "simplex volume" to be positive. This is
+why the frame estimate is in dimension k (or, in the geometric induction of
+Section 7, in dimension k = n-1, with m = n).
+
+Where the frame estimate is used. Chapters 39-41 will use the frame estimate
+in dimension k = n-1 to control a "plate case" of the geometric induction.
+That is, the frame estimate is the engine that makes the codimension-one
+reduction work: packets that are concentrated near a codimension-one
+"plate" are, after flattening along the plate, a k = n-1 dimensional frame
+configuration.
+
+Strategy of proof. We cannot reproduce the full proof; it is 25 pages of
+the paper. Instead, we sketch the four logical steps. They are:
+
+  A. REDUCTION TO EXACT PACKETS AND h-BALANCE (Chapter 27). One may assume
+     the packets are exact, smooth solutions of the Schrodinger equation,
+     with fixed derivative orders. From the failed estimate, one derives
+     that all H_i are within h^{o(1)} of H_g and all |Y| H_i^{k+2} / D_i
+     are within h^{o(1)} of 1. This "h-balance" is a strong equality.
+
+  B. AMPLITUDE-RATIO PROFILES AND BINARY RIGIDITY (Chapter 28). Decompose
+     each field down to a fine packet scale. Define a real-valued "amplitude
+     ratio profile" f_i(s) along the packet hierarchy, and prove a binary
+     rigidity: f_i' is either 0 or -k/2 at almost every slope. This is the
+     most technical part.
+
+  C. ANGULAR PRUNING (Chapter 29). Use the codimension-two strip saving
+     (Chapter 32) to prove that for a specific parameter l (a scale in the
+     hierarchy), the direction law of the packets satisfies
+     nonconcentration in every affine hyperplane. Then use He's projection
+     theorem (Chapter 21) to extract a direction that survives.
+
+  D. INCIDENCE CONTRADICTION (Chapter 30). Use the strong nonconcentration
+     from step C to contradict the h-balance of step A. This completes the
+     proof.
+
+The four steps are precisely where each input is used, and each one is a
+small paper of its own. We will go through them at the level of "which
+estimate is invoked and why".
+
+
+27.  SECTION 3: REDUCTION TO EXACT PACKETS, AND THE h-BALANCE
+--------------------------------------------------------------------------------
+
+Step A of the frame estimate proof has two pieces.
+
+First piece: exact-packet reduction (paper Lemma f:exact). The frame estimate
+is stated for "compact arrays of scale h". The reduction says: it suffices to
+prove the estimate for exact paraboloid extensions. That is, replace each
+packet f_T by the exact solution S(t)(of the appropriate native profile).
+The difference between the compact packet and its exact counterpart is at
+most a fixed number of derivatives times a rapid decay factor, which the
+envelope power P absorbs. The reduction thus loses only constants depending
+on P and the fixed profile order.
+
+Second piece: suppose the estimate fails. Then there are counterexamples
+with |Y| much larger than the asserted bound. By picking a subsequence
+that violates every fixed constant and every fixed inverse power of delta,
+one obtains a sequence with h -> infinity and delta = h^{-o(1)}. The
+"absolute Cauchy" inequality gives H_i <= C h (each amplitude is bounded by
+the total energy squared, and total energy is bounded by the input squared).
+Then Proposition p:weighted (Chapter 25) gives, for each i,
+
+        |Y|  <=  h^{o(1)}  D_i  H_i^{-k-2}.
+
+Combining this with the failure of the frame estimate gives the h-balance:
+
+    (HB1)   H_i / H_g  =  h^{o(1)}   for every i,         (all fields equal)
+    (HB2)   |Y|  H_i^{k+2} / D_i  =  h^{o(1)}  for every i, (all balanced)
+
+Read the h-balance as: any counterexample has all fields with essentially the
+same H_i and each contributing equally to the point count. This is a strong
+constraint: no field can be much bigger or smaller than the others. The rest
+of the proof of the frame estimate shows that the h-balance is inconsistent
+with the amplitude-ratio structure of the fields.
+
+The h-balance is derived purely from the weighted packet estimates, so it
+inherits the endpoint strength: the constants are exact, no eps loss.
+
+The reader can think of the h-balance as the "invariant" the rest of the
+proof must destroy. Each subsequent step (profile rigidity, angular
+pruning, incidence) develops a stronger consequence of transversality and
+shows that at least one of (HB1) and (HB2) fails in a specific way.
+
+
+28.  SECTION 3: AMPLITUDE-RATIO PROFILES, AND THEIR ONE-DIMENSIONAL STRUCTURE
+--------------------------------------------------------------------------------
+
+Step B of the frame estimate proof is the extraction of a one-dimensional
+"amplitude-ratio profile" from each field, and the proof that this profile
+has rigid structure.
+
+Setup. Fix a field V and its scale-h packets s_T. For a relative scale
+s in [0,1], consider the packets of scale h^s (a coarser scale inside the
+original scale-h packet decomposition). Write kappa(s) for that width
+(kappa(0) = 1 is the top scale, kappa(1) = h is the finest). For each
+s, define:
+
+  - r_s = the "local amplitude" of the field on the relevant packet at
+    that scale, after removing the natural factor kappa(s)^{-k/2} coming
+    from packet normalization.
+
+  - The amplitude-ratio profile
+        f(s)  =  log_Lambda ( r_s / (A * kappa(s)^{-k/2}) )
+    where A is the original witness amplitude at scale h and Lambda is the
+    fixed base (Lambda = h in the "power case", Lambda = S in the
+    "subpower case" -- see below).
+
+The profile f(s) is real-valued and can be positive or negative. It is
+defined by the packet decomposition, and its values are recorded at every
+dyadic scale.
+
+The two cases. Exactly one of the following is proved to hold (paper
+forced_profiles.tex has a picture):
+
+  POWER CASE:  Lambda = h,    kappa(s) = h^s.
+  SUBPOWER CASE:  Lambda = S,  kappa(s) = H_i S^s,
+
+for a fixed parameter S with S = h^{o(1)}, and for a parameter H_i that
+encodes the field's amplitude at scale 1. In the power case, the scale
+hierarchy is dyadic in h. In the subpower case, the packet widths grow
+more slowly, with exponent S^{o(1)}. The dichotomy is forced by the
+constraints on the profiles below; there is nothing to choose.
+
+Basic properties. From the definitions and the packet algebra (Chapter 25):
+
+  - Lipschitz:  f(s) - f(s') <= (n+1)|s - s'| + o(|s - s'|)  for
+    s' < s. The constant n+1 comes from the "bounding" of profiles by the
+    ambient dimension.
+
+  - Endpoint bounds:  f(1) >= 0  and  f(0) <= k e_i / 2  (in the subpower
+    case), with e_i the "cutoff" parameter. The profiles are zero at
+    s = 0 in the power case.
+
+  - Limits. In the power case, f(s) -> 0 as s -> 0 (the profile has a
+    "left limit" 0 at the top of the hierarchy). In the subpower case, the
+    left limit is -ks/2 as s -> -infinity for an appropriate extension.
+
+Classification of points. At a differentiability point s of f (which exists
+almost everywhere by the Lipschitz property):
+
+  - s is a FULL-SLOPE point if  f'(s) = -k/2.
+  - s is a ZERO-SLOPE point if  f'(s) = 0.
+
+The "log-derivative of M_s" is zero at full-slope points and k+2 at
+zero-slope points (where M_s is the local occupancy count associated to the
+profile at scale s; it measures the number of high unit cubes the packets
+of this profile contribute around a point).
+
+THEOREM (midpoint closure; paper Lemma f:midpoint). For almost every pair
+of full-slope points l < a in one field, the midpoint (l+a)/2 is also a
+full-slope point. As a consequence, the full-slope set of each field is an
+interval (possibly empty, possibly the whole [0,1]) modulo null sets.
+
+The proof is a clever Lagrangian-interpolation argument: if the midpoint
+were a zero-slope point, one could build a small chain of scale changes
+that would force a "free" gain of information, contradicting the chain
+rule for the sampled profiles. The reader who wants the details can look
+at the paper's Section 3, "The location of the full-slope interval".
+
+THEOREM (left limit; paper Lemma f:left-limit). In the subpower case, the
+leftmost differentiability point of any full-slope interval is not a
+"boundary" point of a zero-slope region: the profile must actually achieve
+slope -k/2 at the left endpoint of any full-slope region. In particular,
+subpower profiles with 0 < e_i < 1 cannot have a full-slope region that
+"starts later" than s = 0; they must start at s = 0.
+
+The proof is a "bottom-up" analysis: from the fact that the profile is
+bounded by 0 at s = 0 in the subpower case, and by the Lipschitz condition,
+the slope at the left endpoint of any negative-slope region has a forced
+value related to the derivative of M_s.
+
+What these two lemmas give. The profile f is now known to be:
+
+  - a Lipschitz function that is zero to the left of any full-slope region;
+  - a function whose derivative is -k/2 on an interval [s_0, s_1]
+    (possibly with s_0 = 0 and/or s_1 = 1), and 0 outside;
+
+  - in the power case, f is either identically zero or is of the form
+    f(s) = (k/2)(s_H - s)_+ for a "transition scale" s_H in (0, 1] (the
+    forced profile in forced_profiles.tex).
+
+The one-dimensional structure is total: an amplitude profile is basically
+a "ramp" from 0 down to some negative value, with a single slope limit
+-k/2 and two flat ends. This is very restrictive, and it is exactly what
+the incidence contradiction in Chapter 30 exploits.
+
+We have deferred the proof that "the profile is either entirely zero-slope,
+or has a full-slope interval." That is the content of the binary rigidity
+theorem, which uses the angular test -- the next chapter.
+
+
+29.  SECTION 3: ANGULAR PRUNING AND THE BINARY RIGIDITY
+--------------------------------------------------------------------------------
+
+Step C of the frame estimate proof is where the codimension-two strip
+saving enters, and where the profile slope is forced to be exactly -k/2.
+
+The angular test (paper Lemma f:angular). Fix a field, a scale l in the
+hierarchy, and a finite mesh of 0 < v <= u with l+Cu < e_i. Suppose that
+on this mesh, the profile drops by at least xv:
+
+        f(l)  -  f(l+v)  >=  x v,        for some fixed x > 0.
+
+Then, for a small eta > 0 depending only on x and k, one may restrict the
+hierarchy so that:
+
+  - At typical (Z, tau_l), the new conditional direction law assigns mass
+    at most Lambda^{-eta v + o(1)} to every affine hyperplane strip of
+    width Lambda^{-v} in the native frequency coordinates of tau_l.
+
+  - At a much smaller precision v_0 << v, the sampled active l-cells also
+    have "broad witnesses" for their original pre-modification fields:
+    k+1 cap groups whose directions are transverse throughout their
+    supports (determinant >= Lambda^{-C v_0}) and each of magnitude at
+    least Lambda^{-C v_0} r_l b_{tau_l}(Z) at a point within native
+    distance Lambda^{C v_0} of the cell.
+
+The two assertions are not independent: the first is the "quantitative
+angular information" (the direction law avoids hyperplanes), the second is
+a "pre-modification certificate" that lets later arguments use the original
+packets without the pruning.
+
+Sketch of the proof. Fix a cap, its parent box, and a mesh value v. Do the
+following, from coarsest to finest v:
+
+  (i) Choose a macro box of side Lambda^{3u}. Since all descendant widths
+      are <= Lambda^{2u + o(1)}, the ratios of descendant weights to the
+      current weight are bounded above and below by Lambda^{o(1)} on such
+      a box. So the direction law is "almost invariant" across the macro
+      box.
+
+  (ii) For each mesh v, greedily remove all (l+v)-caps intersecting an
+       enlarged hyperplane neighborhood of width Lambda^{-2 eta v} whose
+       reference measure is at least Lambda^{-2 eta v}. The cost:
+       a hyperplane neighborhood of width Lambda^{-2 eta v} can hold at
+       most Lambda^{2 eta v} caps, and this is a fixed saving.
+
+  (iii) Show that the omitted hyperplane contribution is cheap at level l.
+        This uses:
+          - the profile assumption (that the profile drops at rate x);
+          - the recorded ratio class of f:selection;
+          - H\"older with the measure b_T^2 |T|;
+          - the "plate-supported" version of Proposition p:weighted at
+            exponent q' = 2(k+1)/(k-1) > q_k;
+        and obtains a bound of the form
+
+            ( omitted planes contribution ) <= Lambda^{-c v}.
+
+        The key inequality is a negative power budget: the omitted planes
+        contribute a fixed inverse power of Lambda to the total, and the
+        fixed positive exponent c is chosen after the other parameters.
+
+The codimension-two strip saving (Chapter 32 of this companion) is used
+implicitly here: it is what makes the "plate-supported" packet estimate
+sharp enough to give the negative power. Without it, the cost of a
+hyperplane contribution would be too big by a power.
+
+Binary rigidity (paper Lemma f:binary). Under the same hypotheses, the
+profile f has only two possible slopes: at almost every differentiability
+point s, either f'(s) = 0 or f'(s) = -k/2.
+
+The proof structure is:
+
+  (a) The angular test, applied at every mesh value of v, shows that the
+      "profile slope" of any scaling interval [s, s+v] is at least the
+      "gain" x = -f'(s) as far as the direction nonconcentration is
+      concerned. Since nonconcentration has a fixed upper bound (the
+      number of lambda-caps in a hyperplane strip is at most Lambda^{something}),
+      a positive slope x > 0 forces the profile increment to be
+      dominated by the "full" increment k v / 2 (the maximal possible
+      drop of the local amplitude by the packet normalization).
+
+  (b) Conversely, midpoint closure (Chapter 28) forces full-slope sets to
+      be intervals: once a "partial" slope 0 < x < k/2 holds on an
+      interval, one can find full-slope points on either side that
+      contradict the intersection structure.
+
+  (c) Combining, the slope is either 0 (well inside the "no-drop" region)
+      or k/2 (well inside the "full-drop" region). Intermediate slopes are
+      impossible.
+
+We compress the proof substantially. The full details take the paper about
+8 pages, and the reader who wants to follow them should read the paper's
+Section 3, "Angular pruning inside one profile block".
+
+What this gives. Now every profile f is a "two-slope" function: zero to the
+left, then a linear ramp of slope -k/2, then zero again. The transition
+points s_0 < s_1 are the only interesting scale parameters. This is much
+stronger than the Lipschitz-plus-midpoint statement of Chapter 28.
+
+
+30.  SECTION 3: THE INCIDENCE CONTRADICTION, AND THE END OF THE FRAME ESTIMATE
+--------------------------------------------------------------------------------
+
+Step D of the frame estimate proof. We now have, from Chapters 27-29:
+
+  - h-balance:  H_i / H_g = h^{o(1)}  and  |Y| H_i^{k+2}/D_i = h^{o(1)}
+    (all fields "equal and balanced").
+
+  - profiles: each field f_i is a two-slope function with slope 0 or -k/2,
+    a full-slope interval [s_0, s_1], and endpoints 0 / -(k/2)(1-s_1).
+
+  - angular pruning: for each field at the appropriate scale (in the
+    transition region of the profile), the direction law is strongly
+    non-concentrated in every affine hyperplane of width Lambda^{-v}.
+
+  - broad witnesses: at a much finer precision v_0, the l-cells have
+    k+1 transverse cap groups with comparable amplitude.
+
+Contradiction. The end of the frame proof is a direct counting argument
+using the angular pruning and the properties of the profile at the
+"incidence" level.
+
+The key step is to extract, from the surviving masks (the ones left after
+the angular pruning of Chapter 29), a set of original scale-h packets with
+two properties:
+
+  (a) Each surviving mask has an "original amplitude" lower bound
+
+          a_T^{orig}  >=  c  S  H^{-k/2},
+
+      where S is a scale parameter related to the transition point of the
+      field profile, and H is the local amplitude bound. The constant c
+      is universal.
+
+  (b) The total original integrated square energy of all surviving masks
+      is at most
+
+          sum_{T} |a_T^{orig}|^2  <=  C  H^{k+2}  |Y|  Lambda^{-o(1)},
+
+      by the "original-energy" bound at the top of the frame estimate.
+
+Combining (a) and (b), each surviving mask contributes at most
+(1/|Y|) S^{-2} to the total, so summing over all masks and using the
+original-amplitude lower bound gives
+
+        D_i  =  sum_T  |a_T|^2   >=   c  |Y|  S^2  H_i^{k+2}  Lambda^{-o(1)}.
+
+On the other hand, the h-balance (from Chapter 27) says
+
+        |Y|  H_i^{k+2}  /  D_i  =  h^{o(1)},
+
+i.e.,  D_i  <=  |Y|  H_i^{k+2}  h^{o(1)}.  So we have the two inequalities:
+
+        D_i  >=  c |Y| S^2 H_i^{k+2} Lambda^{-o(1)}
+        D_i  <=  |Y| H_i^{k+2} h^{o(1)}.
+
+Together:
+
+        c S^2 Lambda^{-o(1)}  <=  h^{o(1)}.
+
+In the POWER case, Lambda = h and S = h^{s_0} for the transition scale
+s_0 in (0, 1]. Since s_0 > 0, S^2 = h^{2 s_0}, which grows like h^{c_0}
+for a constant c_0 > 0; the inequality fails for h sufficiently large.
+
+In the SUBPOWER case, Lambda = S and S^2 = Lambda^2. The inequality becomes
+Lambda^2 Lambda^{-o(1)} <= Lambda^{o(1)}, which fails for any base
+Lambda > 1 as h grows (with the subpower relation between h and S).
+
+This contradiction proves the frame estimate.
+
+The whole frame estimate is now proved except for the technical estimates
+(the fixed constants, the profile derivative orders, the phase-space
+counting, the sharp derivative bounds) that enter every step. Those are
+finite and the paper handles them in the "tooling" parts of Section 3.
+
+Where does the frame estimate go next? Into Section 7 (Chapters 40-44),
+where it is applied in dimension k = n-1 to control the "plate case" of
+the geometric induction. The frame estimate, plus the codimension-two
+strip saving, is Section 7's engine.
+
+
+31.  SECTION 4: FRACTAL NORMS AND THE DU-ZHANG INPUT
+--------------------------------------------------------------------------------
+
+We now begin the "fractal" machinery that converts a sparse measure into a
+square function estimate. It is the descending step that gives Sections 6
+and 7 the estimates they need. The main input is Du-Zhang 2019's fractal
+estimate; the paper's contribution in Section 4 is a weighted version and
+a strip saving.
+
+Exponents. Define
+
+        beta  =  2 / (n+1),
+        e     =  n^2 / (n+1),
+        gamma_n  =  2n / ( (n+1)(n+2) ).
+
+These are the canonical exponents of the fractal machinery. The exponent
+beta is the homogeneity of the fractal norm in the measure; e is the
+critical smoothness in the Du-Zhang paper; gamma_n is the "gain per
+density" exponent in the weighted fractal estimate.
+
+The Du-Zhang input in squared form (paper Theorem d:dz-input). Let Q be a
+collection of distinct unit cubes in a ball of radius S >= 1. Suppose their
+counting function in every ball of radius r >= 1 is bounded by Gamma r^n,
+and that their number in any ball of radius sqrt(S) is at most lambda_0.
+Then for every eps > 0,
+
+        sum_{q in Q}  sup_q | E g |^2
+            <=  C_eps  S^eps
+                Gamma^{4/((n+1)(n+2))}
+                lambda_0^{gamma_n}
+                S^{gamma_n}
+                || g ||_2^2.
+
+Interpretation: if the set Q is "n-dimensional" (counting bounded by
+Gamma r^n) and "not too concentrated" (bounded lambda_0 cubes per
+sqrt(S)-ball), then the L^2 mass of the wave on Q is bounded by its
+L^2 size, with a small overcount that depends on Gamma and lambda_0. This
+is the refined Strichartz estimate.
+
+Squares and occupancy. The exponent gamma_n is exactly the gain from
+"fewer cubes per sqrt(S)-ball". If lambda_0 were 1 (one cube per
+sqrt(S)-ball), the bound would be much better; the gamma_n factor captures
+this quantitatively.
+
+Weighted version (paper Proposition d:fractal). Suppose mu is supported in
+a ball of radius CS, satisfies the ball growth inequality mu(B(z, r)) <= m
+r^n, and additionally
+
+        mu(B(z, sqrt(S)))  <=  d  m  S^{n/2},      S^{-A_0} <= d <= 1,
+
+for a fixed A_0. Then
+
+        sum_q  mu(q)^{beta}   sup_q | E g |^2
+            <=  C_{eps, A_0}  m^beta
+                S^{n/(n+1) + eps}  d^{gamma_n}  || g ||_2^2.
+
+With d = 1 the estimate reduces to the unweighted Du-Zhang bound. The
+factor d^{gamma_n} is the "occupancy gain": the smaller d is (i.e., the
+more evenly mu is distributed at scale sqrt(S)), the better the bound is.
+Setting d = 1 recovers no gain; setting d small recovers a fixed power
+since gamma_n > 0.
+
+Why this exponent pattern. The exponent n/(n+1) is the "sharp" fractal
+exponent that the maximal estimate has to beat; the exponent gamma_n =
+2n/((n+1)(n+2)) is the gain from lambda_0; the ratio Gamma / lambda_0 is
+what the counting hypotheses encode. The formula is not arbitrary: it is
+what the Du-Zhang refined Strichartz estimate produces, and it cannot be
+improved (a known sharpness example).
+
+Instantiation for compact arrays (paper Corollary d:power-loss). If U is a
+compact array of scale L, mu satisfies the ball growth inequality on a
+spacetime box of side O(L^2), then for every eps > 0 and sufficiently many
+fixed profile derivatives,
+
+        sum_q  mu(q)^{beta}  sup_q | U |^2
+            <=  C_eps  m^beta  L^{2n/(n+1) + eps}  E(U).
+
+This is the "compact array" version of the Du-Zhang estimate. It differs
+from the unweighted version by L^{eps} (an unavoidable epsilon loss in the
+compact array form) and no lambda_0 factor; the lambda_0 is encoded in
+the compact array structure. The exponent 2n/(n+1) is the "endpoint of the
+fractal estimate for compact arrays".
+
+The reader may notice: the fractal exponent here (2n/(n+1)) is the same as
+2 - e (since e = n^2/(n+1) and 2n/(n+1) = 2 - n/(n+1); and n/(n+1) =
+(2n)/(2(n+1))... let me not belabor). It is the fractal exponent that
+comes out of Du-Zhang's theorem and is what the paper calls "sharp at
+the endpoint".
+
+Where these are used. The compact-array estimate (Corollary d:power-loss)
+is used in Section 6 (Chapter 38) to close the "terminal" step of the
+sparse estimate: when the broad/narrow iteration reaches its final scale,
+the remaining packet exceeds the Du-Zhang bound by a fixed power, and the
+sparse estimate is closed. The weighted version (Proposition d:fractal)
+is used in Section 4's strip saving (Chapter 33) and in Section 7's
+geometric induction (Chapters 40-44).
+
+
+32.  SECTION 4: COMPACT LAYERS AND EXACT LAYERS
+--------------------------------------------------------------------------------
+
+The Du-Zhang fractal estimate (Chapter 31) is a statement about
+Eg -- the exact extension of a function g on R^n. The paper's packet
+framework, however, works with compact arrays U (Chapter 22). We need a
+bridge between the two: given an exact extension Eg, decompose it into
+compact arrays; given a compact array, realize it as a sum of exact layers.
+
+The bridge is the following.
+
+THEOREM (compact layers; paper Lemma e:compact-layers). Let g be a
+function on R^n with bounded frequency support and let L >= 1. On the
+time range |T| <= C L^2, the extension Eg(x, T) can be written as a sum
+
+        Eg  =  sum_{q in Z^n}  U_q
+
+of compact arrays U_q of scale L. For any prescribed finite profile
+derivative order J and any A > 0, the arrays can be chosen with uniformly
+bounded C^J native profiles, and their coefficient energies satisfy
+
+        E_q  <=  C_{A,J}  <q>^{-2A}  ||g||_2^2,
+
+where <q> = (1 + |q|^2)^{1/2}.
+
+Key consequence: the layer energies are summable, sum_q E_q <= C ||g||_2^2
+(up to a constant depending on A, J). Moreover, each fixed q has uniformly
+bounded phase-space multiplicity, so the packet-algebra bookkeeping can be
+applied to the whole sum.
+
+Interpretation. The exact extension is a "global" object: at each
+spacetime point, it is determined by all of g. To fit it inside the
+compact-array box, we have to allow the sum over q. The q = 0 layer
+captures most of the mass (where g is closest to the spacetime box), and
+higher q layers account for far-away contributions. The decay <q>^{-2A}
+pays for those.
+
+Why the decomposition exists. In native variables (X, T) with the
+L-scaling from Chapter 14, the exact field Eg is a smooth function of a
+vector (eta, zeta) in Fourier space. Split eta = q + theta with q in Z^n
+and theta in the unit box; split zeta = u - |eta|^2 with u in R. The
+change of variables is exact, and the Fourier inversion assembles U_q as a
+sum over q of compact-array terms:
+
+        U_q(X,T)  =  sum_alpha c_{q, alpha} e^{i(X . omega_q - T |omega_q|^2)}
+                        phi( X - y_{q,alpha} - 2 T omega_q ).
+
+The weights in the Fourier split are chosen to be Schwartz-decaying, so
+each E_q gets a decay factor <q>^{-2A}.
+
+Reverse direction, for local arguments. The paper also uses the reverse:
+a compact array U = sum_alpha c_alpha phi_alpha may be treated as a sum of
+exact layers, each supported in a small neighborhood, so that the fractal
+machinery of Chapter 31 applies to each layer separately. This is
+essentially the same decomposition run in reverse, with the roles of U and
+Eg interchanged.
+
+Both directions are used in Section 4 and thereafter. The reason is
+simple: fractal estimates want exact extensions, packet estimates want
+compact arrays, and the layer decomposition lets us pass freely between
+the two at summable cost.
+
+
+33.  SECTION 4: THE CODIMENSION-TWO STRIP SAVING
+--------------------------------------------------------------------------------
+
+This is the fourth of the four new ingredients introduced in Chapter 11.
+It is what lets the geometric induction reduce dimension from n to n-1,
+by exploiting the case where packet frequencies concentrate near a
+codimension-two affine plane.
+
+THEOREM (codimension-two strip saving; paper Proposition d:strip). Fix
+0 < alpha < 1/8. Suppose g has bounded frequency support contained in an
+O(S^{-alpha})-neighborhood of an affine (n-2)-plane in R^n, and let Q be a
+collection of unit cubes in a ball of radius S >= 1, with
+
+        #(Q cap B(z, r))  <=  m_0   r^n     for every ball B(z, r), r >= 1.
+
+Fix any b with beta < b < 2/n (recall beta = 2/(n+1)). Then there is
+c_0 > 0, depending only on the fixed dimension and b (and NOT on alpha),
+such that for every eps > 0,
+
+        sum_{q in Q}  sup_q | E g |^2
+            <=  C_{alpha, eps}   m_0^b   S^{ n/(n+1) - c_0 alpha + eps }
+                                    || g ||_2^2.
+
+Compare with the unweighted Du-Zhang bound (Chapter 31), which would
+be m_0^beta S^{n/(n+1)+eps} ||g||_2^2. The strip saving has:
+
+  - m_0^b replacing m_0^beta (b > beta, so a more generous measure budget);
+
+  - S^{-c_0 alpha} replacing 1 in the exponent (a genuine power saving).
+
+The saving is the point: as long as m_0 is not too large (say m_0 ~
+S^{o(1)} or a fixed power small enough), the S^{-c_0 alpha} gain is a net
+win. The m_0^b allows for a slightly larger measure parameter on the left
+side, which is the price.
+
+Idea of the proof. The (n-2)-plane is a codimension-two affine subspace.
+Its orthogonal complement has dimension two. In frequency space, the
+support of g is a thin slab of width H = S^alpha around this plane.
+
+  Step 1. Decouple the frequencies into "transverse caps" of size K^{-1}
+  for a dyadic parameter K, chosen later. At the finest relevant level,
+  the transverse frequency support has size H = S^alpha.
+
+  Step 2. On each K^2-cube, apply the strip decoupling estimate
+  (d:strip-decoupling). This is a refined-decoupling estimate tailored to
+  strip-supported fields; it bounds the L^P norm on a K^2-cube by an l^2
+  sum over the caps, at the cost of K^eps. Its content is a version of
+  Bourgain-Demeter for strip-supported fields, in the spirit of refined
+  Strichartz.
+
+  Step 3. Transport. Under parabolic rescaling (Chapter 14), the strip
+  condition is preserved (Chapter 34 of this companion has the transport
+  lemma d:transport). Iterate.
+
+  Step 4. Close. Each rescaling step replaces the exponent by beta - b,
+  which is strictly negative. The number of rescaling steps is J, and each
+  step also incurs the K^{C_*} of the terminal estimate; choosing J large
+  makes the net factor K^{-(b-beta)/2}, hence a power saving S^{-c_0 alpha}
+  in the original scale.
+
+The precise exponent arithmetic is this. Suppose we rescale by H = K^J
+(the strip width) in J steps. The transport factors per step are:
+
+  - Jacobian of parabolic rescaling: K^{2 - (n+2) b}   (from the map Phi)
+  - measure parameter inflation: K^{(n+1) b}           (measure growth)
+  - terminal estimate at scale T = S/H^2:  K^{-2n/(n+1)}
+
+Multiplying:
+
+        K^{2 - (n+2)b}  *  K^{(n+1)b}  *  K^{-2n/(n+1)}
+            =  K^{2 - b - 2n/(n+1)}
+            =  K^{beta - b},
+
+where in the last equality we used beta = 2/(n+1). Since b > beta, this
+factor is strictly less than 1. Iterating J times and using the K^{C_*}
+of the terminal estimate gives K^{-(b-beta)/2} when J is large enough.
+Since K^J = H = S^alpha, this is S^{-(b-beta)alpha/2}. Setting
+c_0 = (b-beta)/2 proves the theorem.
+
+One subtlety: the K^{C_*} from the terminal estimate must be beaten by J
+large enough. This is possible because C_* is independent of J (it comes
+from the fixed dimensional exponents of the fractal estimate at scale T).
+The reader who wants to see the constant-tracking should read the paper's
+Section 4, "Stopping and the terminal square-root-scale gain".
+
+Why this theorem is not in Du-Zhang. The Du-Zhang paper uses the
+codimension-two structure in its final argument, but not as a black-box
+theorem of the form stated above. The present paper needs the quantitative
+version because it will apply the saving inside a recursion. That is why
+the paper proves it explicitly in Section 4.
+
+Where it is used. In Section 3, the strip saving supplies the "negative
+power budget" of the angular test (Chapter 29). In Section 7, it supplies
+the strip case of the geometric induction (Chapter 43). It is the "second
+transverse" saving, complementary to the frame estimate.
+
+
+34.  SECTION 4: COARSE FUNCTIONALS, THE TERMINAL ESTIMATE, AND THE STRIP
+      DECOUPLING LEMMA
+--------------------------------------------------------------------------------
+
+The last three pieces of Section 4 are the bookkeeping for the strip
+saving. They are technical but all have the same shape: sell the strip
+structure, buy a fixed power saving.
+
+1. Coarse functional. For dyadic K >= 2, 0 < b < 1, and P = 2/(1-b),
+define
+
+        T_b(V, nu)  =  sum_{Q in Q_{K^2}}  nu(Q)^b  || V ||_{L^P(Q)}^2,
+
+where Q_{K^2} ranges over the lattice of K^2-cubes in spacetime. This is
+the "K^2-cube version" of the fractal norm.
+
+2. Terminal estimate (paper d:terminal-functional). On one such K^2-cube,
+
+        T_b(V', nu')  <=  C_eps  K^{C_*}  T^{n/(n+1) + eps}
+                                    (m')^b  || child input ||_2^2,
+
+where C_* is a fixed exponent independent of J, and m' is the ball growth
+parameter of nu'.
+
+Why is this true. We replace the field norm on each K^2-cube by the
+"volume factor" times a unit-cube witness for the supremum, and move the
+mass of the K^2-cube to that witness. The resulting measure has ball
+parameter at most C K^{2n} m'. Since b >= beta, its b-th power is at most
+(C K^{2n} m')^{b - beta} times its beta-th power. Applying the weighted
+fractal estimate (Chapter 31) at scale T to the moved masses, absorbing
+the K factors into C_*, gives the terminal estimate.
+
+The important feature: C_* does not depend on J (the number of rescaling
+levels). It depends only on dimension and on b. This is what makes the
+strip saving "iterable" J times without losing.
+
+3. Strip decoupling lemma (paper d:strip-decoupling). Group a
+strip-supported field V = sum_theta V_theta by frequency-label bins of
+side K^{-1}. Suppose the field's Fourier support lies in a fixed
+enlargement of a strip near an affine (n-2)-plane, and lies within a
+vertical distance O(K^{-2}) of the paraboloid. Then for each K^2-cube Q
+and every 2 <= P <= q_{n-2} = 2n/(n-2),
+
+        || V ||_{L^P(Q)}^2
+            <=  C_eps K^eps  sum_theta sum_{a in Z^{n+1}}
+                  <a>^{-A}  || V_theta ||_{L^P(Q + K^2 a)}^2.
+
+This is decoupling "along the strip": the transverse factor K^{-1} is
+small enough that the caps decouple with only K^eps loss. The RHS is a
+bounded-overlap sum of translated cubes; it is what lets us move to the
+child scale in the transport lemma (d:transport, in the paper).
+
+Why "codimension two"? A strip near an (n-2)-plane has two transverse
+directions. The decoupling is in those two directions. The transverse
+paraboloid structure (Chapter 14) is exactly what Bourgain-Demeter
+decouples, up to the q_{n-2} exponent. That is the numerical reason for
+the exponent 2n/(n-2) in the lemma.
+
+4. Packet expansion (paper d:packet-expansion). An exact extension can be
+localized to spatial boxes of side T with summable input energies. This
+lemma (used inside the strip saving) says that "cutting the extension to a
+spatial box of side T" costs an exponentially small tail; the local norm
+is controlled by incident input. It is bookkeeping but important: without
+it, the sum over K^2-cubes in the terminal estimate would not close.
+
+Together these four pieces turn the strip saving into a proved theorem.
+Section 4 is, in effect, the technical heart of the "transverse savings"
+side of the paper, and the frame estimate (Section 3) is the technical
+heart of the "frame" side. The two meet in Section 7.
+
+
+35.  SECTION 5: THE TRANSVERSE SAVING IN EVERY DIMENSION
+--------------------------------------------------------------------------------
+
+This is the second of the paper's two big internal savings (the first was
+the frame estimate of Section 3). The frame estimate proves a saving in
+dimension k. The transverse saving proves a saving in dimension n,
+exploiting the same transversality idea but in a "pruned tube model"
+setting, and it does not require the frame estimate. Together the two
+savings power the sparse estimate (Chapter 37) and the geometric induction
+(Chapters 40-44).
+
+Statements and form.
+
+THEOREM (transverse saving; paper Proposition t:transverse). Fix a bounded
+frequency region in R^n. There are c > 0 and L_0 < infinity (depending only
+on the region and n) such that the following configuration is impossible
+for L >= L_0.
+
+Let Q be distinct unit lattice cubes in a ball of radius L^2 in R^{n+1},
+with
+
+        # Q >= L^{2n - c},     #(Q cap B(z, r)) <= L^c r^n  (r >= 1).
+
+Let f_1, ..., f_{n+1} have ||f_i||_2 <= 1 and frequency support in the
+fixed region, with
+
+        sup_q | E f_i | >= L^{-e - c}       (q in Q, 1 <= i <= n+1),
+
+recall e = n^2/(n+1). Then it is IMPOSSIBLE that every choice of one
+frequency from each of the n+1 supports has direction determinant at least
+L^{-c} in absolute value.
+
+Read it as: no matter how you choose f_1, ..., f_{n+1}, if they are that
+high on a very dense set Q of cubes, then some tuple of frequencies is
+degenerately close to a lower-dimensional plane (determinant L^{-c}). The
+transversality is not compatible with the concentration.
+
+Why the exponent e shows up. L^{-e} = L^{-n^2/(n+1)} is the amplitude at
+which a unit-L^2 wave is "naturally" as high as it can be on density "L^{2n}
+cubes" (the volume of Q). It is the critical threshold where the
+concentration problem is at its hardest. Below L^{-e-c} the fields are
+smaller, and the theorem is easier (smaller levels trivially spread out);
+above L^{-e+c} the Du-Zhang-type estimates already forbid the
+concentration. The case at the boundary is where the theorem bites.
+
+The proof, in outline. We prove the theorem by contradiction.
+
+  Step 1. Multilinear Kakeya with weights. Given a hypothetical
+  configuration, apply Proposition p:kakeya (Chapter 17) to the tube
+  families corresponding to the f_i. This forces the configuration to have
+  a "pruned tube model": there is a probability distribution on tubes
+  (each tube a packet trajectory of some f_i), and a random variable
+  (X, Y) in the tube model, such that:
+      - X is roughly uniform on the "body" and Y is a
+        "tube-distance" coordinate.
+      - Every tuple (T_1, ..., T_{n+1}) with independent sampled pairs
+        (X_i, Y_i) has |det(v_vec direction)| >= L^{-c}.
+      - Each tube T_i has length ~ L^2 and width ~ L^2 / (fill).
+
+  Step 2. Random variable sampling. From the tube model, define a family
+  of informative labels X_s (position at scale L^{-s}) and T_i (the tube
+  parameter). For each s in [0, 1], consider the information content
+  F(s), G_i(s), G_i'(s) defined in Chapter 23. These are the "profiles"
+  of the transverse problem.
+
+  Step 3. Rigidity. The information profiles obey:
+      - F(s+t) - F(s) = sum_i [G_i(s+t) - G_i(s)] + o(t) + o(1),
+      - the same for G_i' versus G_i,
+      - endpoint bounds: F(1) = n, G_i(1) = G_i'(1) = n/(n+1).
+  The second equality is the "single common profile" (Chapter 36).
+
+  Step 4. Angular restriction. Using the codimension-two strip saving
+  (Chapter 33), prove that the sum
+      sum_i [G_i(s+t) - G_i(s)]
+  obeys a codimension-two upper bound c_0 t. This gives a lower bound on
+  the "angular increment" of the profiles.
+
+  Step 5. Binary derivative + alternation. Combine step 4 with the
+  well-known "block comparison" lemma (Chapter 36) to show that at any
+  differentiation point, either no angular increment happens (a "full
+  slope point") or all angular increment happens (a "zero slope point"),
+  with no intermediate values. This is the binary derivative.
+  The full-slope set of any coordinate profile is an interval.
+
+  Step 6. Full-to-empty jump. The binary derivative plus the endpoint
+  inequalities forces a positive-probability event: there is some block of
+  scales [s, s+b] on which the coordinate profile is "full" everywhere at
+  the top (u) and "empty" everywhere at the bottom (v). This is the
+  "full-to-empty jump" (t:jump).
+
+  Step 7. Contradiction via partitioning. The full-to-empty jump is
+  impossible. The proof uses polynomial partitioning (Chapter 20) to
+  cover the point set with sign cells; a detailed incidence argument
+  (t:no-jump) shows that under the jump hypothesis, the sign cells cannot
+  cover the mass. This is a nontrivial incidence geometry argument.
+
+Steps 1-2 and 4 are the "transverse saving" proper; steps 3 and 5-6 are
+information theory bookkeeping; step 7 is the final combinatorial
+contradiction. The next two chapters go through these steps.
+
+Why the theorem is important. The transverse saving is used in two ways:
+
+  - In Section 6 (sparse estimate), it supplies the "broad gain" bound
+    that controls what happens when a collection of high points carries
+    a genuinely transverse set of packet directions.
+
+  - In Section 7 (geometric induction), it is the input to the "wall"
+    and "plate" arguments, alongside the frame estimate and the strip
+    saving.
+
+Both uses are quantitative: they need the shape of the exponents, not just
+the truth of the theorem.
+
+
+36.  SECTION 5: INFORMATION PROFILES AND THE COMMON-PROFILE THEOREM
+--------------------------------------------------------------------------------
+
+We continue the transverse saving's proof. Step 3 (profiles) is the
+information-theoretic core. Chapter 23 introduced the machinery; here we
+see it applied.
+
+Setup. Fix a random sample (X, Y, T_1, ..., T_{n+1}) from the pruned tube
+model. The labels are:
+
+  - C = parent cube of X_t, a size-L^{-t} cube in the ambient position
+    space.
+
+  - X_s = position of X at resolution L^{-s}, for 0 <= s <= t.
+
+  - T_i = the tube parameter of the i-th field, i = 1, ..., n+1.
+
+  - T_i' = an "alternative tube" (a reference tube independent of the
+    original choice; used to define the conditional profile G_i').
+
+The profile functions are:
+
+        F(s)  =  I(X_s),                 conditional information on nothing
+        G_i(s)  =  I(X_s | T_i),         conditional on tube i
+        G_i'(s)  =  I(X_s | T_i'),       conditional on alternative i
+
+All information is base-L. The natural "volume" bound on labels (L^{ns}
+possible positions at resolution L^{-s}) gives F(s) <= ns for all s, and
+an endpoint F(1) = n.
+
+Endpoints and Lipschitz.
+
+  - F(s) >= ns (Chapter 23, from the growth of the model).
+  - F(1) = n and G_i(1), G_i'(1) >= n/(n+1) (from the positivity of the
+    tube marginal probability and the density assumption).
+
+  - All profiles F, G_i, G_i' are nondecreasing and Lipschitz with
+    constants n and 1 respectively. So they have derivatives almost
+    everywhere.
+
+Block comparison (paper Lemma t:additivity). For any scale block
+[s, s+t] and any reference list of tubes,
+
+        sum_{i=1}^{n+1}  [G_i(s+t) - G_i(s) - ell_i]
+            <=  F(s+t) - F(s) - ell,
+
+where ell and ell_i are the "conditioning costs" of including a whole
+block of reference bins. The block comparison is the "chain rule at
+block level":
+
+        F(s+t) - F(s)  >=  sum_i  [G_i(s+t) - G_i(s)]  - cost.
+
+Making the block size b_* small, the cost becomes small and we get the
+"information-increment replacement":
+
+        F(s+t) - F(s)  =  sum_i [G_i(s+t) - G_i(s)]  + negligible.
+
+Cardinality coincidence. The profiles satisfy a further "coordinate
+subset" fact: for any subset A of coordinates, the sum over i in A of
+G_i increments is at most F increment minus remaining, up to exchange
+costs. This is what lets us localize to a single direction without fixing
+the other n-1.
+
+THEOREM (single common profile; paper Theorem t:common-profile). At almost
+every s, the profiles agree:
+
+        G_i(s) = G_j(s) = G(s)  for all i, j,
+        F(s) = (n+1) G(s).
+
+Proof strategy. Use the block comparison inequality, the coordinate subset
+identity, and the fact that at the endpoint the two sides are equal (both
+equal n/(n+1) per coordinate). Combining:
+
+  - If on some block, the j-th coordinate profile G_j has strictly
+    smaller increment than G_i for i != j, then the coordinate subset
+    identity is violated (the subset {j} increment would need to be
+    larger than the total). This forces G_i - G_j <= o(1) uniformly.
+
+  - A standard "sum of nonnegative" argument closes to exact equality.
+
+The details use several intermediate lemmas:
+
+  - The "restricted determination" (paper t:block-comparison): for a
+    scale increment [s, s+t], the extra information in X_{s+t} given X_s
+    and the tube direction is bounded by the corresponding coordinate,
+    up to a conditioning cost.
+
+  - The "block comparison and telescoping costs" (paper t:additivity):
+    conditioning on individual reference bins costs only O_n(b_*) per
+    block, so summing over blocks loses only O_n(b_*) total.
+
+These are, in effect, elementary estimates about chain rules on finite
+partitions. The reason they have to be tracked carefully is that they
+hold with constants that are dimension-dependent but uniform in the
+sample size, and the limiting information profile has to be derived from
+the finite-scale version carefully.
+
+What the common-profile theorem gives. Now we have a SINGLE function G
+such that F = (n+1) G, and G(1) = n/(n+1), F(1) = n, both achieved at
+s = 1. So G is a nondecreasing Lipschitz function with G(1) = n/(n+1) and
+G(0) = 0. The whole transverse saving's information content is captured
+by this single one-dimensional function G.
+
+The geometrical content of G. By construction, G(s) is the base-L
+information of position given one of the tube directions. An increment
+G(s+t) - G(s) measures how much more information position carries at the
+finer scale s+t given the tube T_i. Because the tube is constrained to
+pass through the sampled point, the increment at resolution L^{-(s+t)} is
+exactly the "extra" position information contributed by the resolving of
+scale.
+
+The endpoint inequality from Chapter 35 (from codimension-two) will say
+that sum_i (G_i(s+t) - G_i(s)) <= c_0 t, i.e. the total conditional
+increment is bounded by a constant c_0 < 1. But F increment = (n+1) times
+G increment, so sum_i increment * (n+1)/... -- this forces a constraint
+that is violated unless something specific happens. That is the jump,
+which the next chapter rules out.
+
+
+37.  SECTION 5: ANGULAR RESTRICTION, BINARY DERIVATIVE, AND THE JUMP
+--------------------------------------------------------------------------------
+
+We now finish the transverse saving proof.
+
+Step 4: angular restriction. Fix a scale block [s, s+t]. The common-profile
+theorem (Chapter 36) says F increment = (n+1) times G increment. The
+codimension-two strip saving (Chapter 33) supplies a constraint in the
+opposite direction:
+
+LEMMA (angular sum bound). In the pruned tube model, for every block
+[s, s+t],
+
+        sum_{i=1}^{n+1} [G_i(s+t) - G_i(s)]  <=  c_0 t + o(t),
+
+where c_0 < 1 is a fixed constant (related to the factors in Chapter 33).
+
+The reason the codimension-two strip saving enters here: any
+configuration in which the sum on the left has a bigger derivative than
+c_0 would give a quantitative saving in the tube model that contradicts
+the Du-Zhang machinery. That is, if the profile increments were large,
+we would be in the strip saving regime (packets concentrating near an
+(n-2)-plane in the direction space), and the strip saving provides a
+strict improvement.
+
+Sketch. Suppose the sum had larger derivative. Then there is a
+macroscopic coordinate j such that the "direction variable" concentrates
+near a hyperplane. By the codimension-two structure of the (n+1)-tuple,
+this puts the direction into a "codim-2 stratum", and the strip saving
+applies with a fixed gain c_0 t. Contradiction. (The precise reduction
+uses the projection theorem of He 2020, which is why Chapter 21 was
+included.)
+
+Step 5: binary derivative. Combine the angular sum bound with the block
+comparison and the "single common profile" theorem to show:
+
+LEMMA (binary derivative; paper Lemma t:binary). At almost every s,
+G'(s) is either 0 (a "zero slope point") or G'(s) = 1/(n+1) (a "full
+slope point" of G).
+
+Proof sketch. If G'(s) were strictly between 0 and 1/(n+1), then the
+angular sum bound would be violated by a small bi-linear interpolation
+argument (choose two scales inside the block, average the two angular
+bounds, and use the chain rule to force an intermediate value). More
+concretely, the projection theorem lets us extract a "good direction" on
+any subset of the point set of sufficiently large cardinality; applied
+to the profile, this forces a specific binary structure.
+
+COROLLARY (binary alternation). The set of full-slope points of G is an
+interval; G is a "ramp" that is 0 on the left, increases linearly at rate
+1/(n+1) on an interval [s_0, s_1], and is 0 again on the right. In
+particular, F = (n+1) G is a ramp of the same shape, scaled by n+1.
+
+This corollary is exactly the "profile rigidity" of the frame-estimate
+world (Chapter 28), now obtained in the tube setting. The two worlds
+(frame, transverse) both eventually force profiles to be two-slope
+functions.
+
+Step 6: full-to-empty jump (paper t:jump). The endpoints F(1) = n and
+G(1) = n/(n+1) together with the binary alternation force a specific
+event: there is a block [s, s+b] of scales such that at the coarse
+scale s the profile is at "full" level (F(s) = ns, G(s) = n/(n+1) s),
+and at the fine scale s+b it is at "empty" level (F(s+b) = (n+1)*0, G(s+b)
+= 0). This is not quite literally "F(s+b) = 0"; the "empty" of the jump is
+a specific quantitative statement at a scale b < 1/8. The details are in
+the paper's Section 5, "Block comparison, additivity, and coordinate
+subsets" (the jump lemma t:jump).
+
+Step 7: partitioning contradiction (paper t:no-jump). The key claim is
+that the full-to-empty jump is IMPOSSIBLE. The proof is an incidence
+geometry argument using polynomial partitioning.
+
+Sketch. Assume a full-to-empty jump on a small block. Choose the partition
+parameter P = K^{1/2 - eta} (a specific power of the ambient K). By
+polynomial partitioning with parameter P, cover the point set with sign
+cells of the partition. Each cell contains few points by construction.
+
+  - "Good" endpoints: at scales s and s+b, most of the point set has
+    profile in the "full" or "empty" range. Cells that contain good
+    endpoints have bounded mass.
+
+  - "Central line crossing": the tubes cross each sign cell along a
+    central line, and each central line meets O_n(P) cells. So the mass
+    that is "seen" by the tubes as they traverse the cells is bounded by
+    the cell structure.
+
+  - Combine: the number of good endpoints in cells the tubes visit is at
+    most (mass per cell) * O_n(P) * (number of cells), and the mass
+    per cell is bounded by the partition. This gives a bound on the pairs
+    of "good off-wall" endpoints in the same cell. The bound is too
+    small to be compatible with the jump's lower bound, giving a
+    contradiction.
+
+The full proof of the no-jump lemma is a 5-page incidence argument in the
+paper. We have indicated the structure and the role of the partition.
+
+What this completes. Steps 1-7 together prove the transverse saving
+(Theorem t:transverse). The four pieces (multilinear Kakeya, information
+theory, codimension-two strip saving, polynomial partitioning) are all
+invoked at their sharp endpoints, and the exponents track without loss.
+
+The transverse saving does not need the frame estimate. It uses the tube
+geometry of n+1 transverse families directly. It is a coarser result than
+the frame estimate (it is about D = 1 configurations in n dimensions, not
+about packets at scale h in k = n-1), and where it applies it is simpler.
+In Section 6 (next chapters), it provides the "broad" gain of the sparse
+estimate, and in Section 7 it is one of the two engines of the geometric
+induction.
+
+
+38.  SECTION 6: THE SPARSE ESTIMATE
+--------------------------------------------------------------------------------
+
+Section 6 (sparse.tex) is the bridge between the geometric savings of
+Sections 3-5 and the geometric induction of Section 7. It converts the
+transverse savings (which give a gain when the packet frequencies are
+transverse) into a single, quantitative estimate over the whole packet
+array. The name "sparse" is that D, the sparsity parameter (Chapter 22),
+governs the size of the saving.
+
+Statement.
+
+PROPOSITION (sparse estimate; paper Proposition s:sparse). Fix the
+spacetime dimension n+1. There is c_s > 0, depending only on dimension
+and the fixed frequency box, with the following property.
+
+Fix tau > 0 and D with
+
+        L^tau <= D <= L.
+
+Let U be a full-dimensional compact array of scale L with coefficient
+energy E = sum_alpha |c_alpha|^2, and let mu be a nonnegative measure on
+the native time range of U satisfying:
+
+  - ball growth:  mu(B(z, r)) <= m r^n   for all z and r >= 1;
+
+  - tube moment:  for every nonzero label alpha,
+        INT (1 + |x - y_alpha - 2 t omega_alpha|/L)^{-M} d mu(x, t)
+              <= m L^{n+1} / D.
+
+(Recall M is a fixed large constant from Chapter 22.)
+
+Then, for sufficiently many bounded profile derivatives,
+
+        sum_{q unit cube}  mu(q)^{beta}  sup_q |U|^2
+            <=  C_tau  m^beta  L^{2n/(n+1)}  D^{-c_s}  E.
+
+Here beta = 2/(n+1) (Chapter 31). The constant C_tau may depend on tau
+(the lower bound on D) but not on L, D, U, or mu.
+
+The same estimate holds with U replaced by any fixed finite number of its
+derivatives, with the same exponent.
+
+What it says. Given a measure that avoids each packet trajectory by a
+factor D (the tube moment condition), the beta-fractal sum of U is
+strictly smaller than the "ambient" bound m^beta L^{2n/(n+1)} E by a
+fixed power of D. The saving D^{-c_s} is the point of the sparse estimate,
+and it is what Section 7 uses to close the induction, with D being the
+scale parameter along a hierarchy.
+
+Where the estimate is used. The sparse estimate is the main tool in
+Section 7. In that section, configurations with D >= L^tau are "already
+handled" (the sparse estimate applies); configurations with D < L^tau
+need the deeper geometric induction (Chapters 40-44). So the sparse
+estimate's role is to handle the "large D" region of the problem, so that
+only 1 <= D <= L^tau needs the hard work.
+
+Structure of the proof. The proof has three parts, and we describe them
+here at the level of what each part does.
+
+Part (i): localization and Fourier layers. On the time range of interest,
+localize U to boxes of side L^2 (there are boundedly many by the growth
+assumption). Decompose U into exact Fourier layers (Chapter 32), one for
+each integer frequency-index q in Z^n and each time-frequency u in R,
+with summable weights. Each layer is a compact array that "lives" on the
+same spacetime box.
+
+Part (ii): broad/narrow iteration. At each iteration level j, we have a
+compact array U_j of scale L/K^j (where K is a dyadic scale chosen at the
+end), and a measure nu_j with ball growth m_j and sparsity D_j. We split
+U_j into broad and narrow parts using the simplex lemma (Chapter 16):
+
+  - broad part: contains n+1 subfields whose directions are transverse
+    with determinant at least c K^{-n} (the simplex bound for K-caps);
+
+  - narrow part: the rest of the frequency content.
+
+For the broad part, apply the transverse saving (Theorem t:transverse,
+Chapter 35) at the current scale. This gives a fixed inverse-power gain
+of L^{-c_b/2} for the broad contribution at this level.
+
+For the narrow part, iterate to level j+1 by applying the transport
+(parabolic rescaling, Chapter 4). The narrow prefactor is at most
+C h^{-beta} per level, where h = K^j (the amount of "narrowing").
+
+Part (iii): terminal and summation. At a terminal node, the current
+scale is small enough that the fractal estimate (Chapter 31) applies
+directly, giving a gain of (l/D_j)^{theta_n} (where l is the current
+scale and D_j the current sparsity). The terminal scale is where the
+measure's tube moment condition kicks in fully.
+
+Summation over the tree. Because each leaf has a positive power saving in
+either c_b or theta_n, and the branching structure loses only the fixed
+prefactor C^j (with j bounded by log(L) / log(K) = O(1/tau)), the leaves
+sum to at most D^{-c_s} times the top.
+
+We describe the summation more precisely in the next chapter. The point
+to remember: the broad/narrow iteration is a strict adaptation of
+Bourgain-Guth 2011 and Du-Zhang 2019; the innovation is the terminal
+gain and the constant tracking from the sparse parameter D.
+
+Relation to other estimates. The sparse estimate does not use the
+frame estimate (Section 3). It uses:
+
+  - the transverse saving (Section 5),
+  - the exact-layer decomposition (Section 4),
+  - the compact-array fractal estimate (Section 4),
+  - the parabolic transport / narrow decoupling (Section 4).
+
+So Section 6's proof rests entirely on Sections 4 and 5, plus the packet
+machinery of Section 2. The frame estimate (Section 3) and the strip
+saving (Section 4) are used only in Section 7, not here. This is why the
+paper develops the frame estimate early and the sparse estimate later:
+they are logically independent sections that meet in Section 7.
+
+
+39.  SECTION 6: THE NARROW PREFACTOR, THE TERMINAL GAIN, AND THE SUMMATION
+--------------------------------------------------------------------------------
+
+We continue the sparse estimate's proof. This chapter is the bookkeeping.
+
+The narrow prefactor. Each narrow step costs a factor h^{-beta}, where
+h = K^j is the total rescaling factor up to level j. Recalling
+beta = 2/(n+1), this is h^{-2/(n+1)}. For h large (k many levels of
+narrowing), this is a real loss.
+
+The broad gain. Each broad step gains at least l^{-c_b} for some fixed
+c_b > 0 (from the transverse saving; the constant depends only on
+dimension and the simplex bound K^{-n}). And l = current scale, so at the
+bottom of the tree the gain is substantial.
+
+The terminal gain. At the terminal scale l, the measure mu_j has tube
+moment parameter D_j (from the direct pushforward, Chapter 34). The
+fractal estimate at scale l gives
+
+        sum_q mu_j(q)^{beta} sup_q |V|^2
+            <=  C l^{n/(n+1) + eps} (min(1, D_j))^{gamma_n} m_j^beta E_j.
+
+The "terminal gain" comes from D_j being at least D_0 = L^tau for our
+starting D, and growing as we iterate (each step multiplies by a factor
+from K^{n+1}). For the fractal-estimate bound at terminal, we get a
+gain at least (l/D)^{theta_n} for some fixed theta_n > 0 (this is proved
+by organizing the local mass at the terminal mass bound
+m_j l^{n+1}/D).
+
+Combining. Define
+
+        a_*  =  min(c_b/2, theta_n/2),
+        c_s  =  a_* / 8.
+
+Then a leaf has either
+
+  - a broad gain of l^{-c_b} times the narrow prefix h^{-beta}, which is
+    l^{-c_b} * h^{-beta} <= (L/l)^{-c_b/2} * L^{-a_*}, after adjusting the
+    exponents by the choice of the dyadic K in the tree; or
+
+  - a terminal gain of (l/D)^{theta_n} times the narrow prefix, which is
+    (l/D)^{theta_n} * L^{-a_*} in the same way.
+
+In both cases the net gain is at least L^{-a_*}. With c_s = a_*/8, we
+have a uniform slack of a factor of 8, which absorbs every fixed
+polynomial constant (from the branching factor, from the localization,
+from the Sobolev reduction).
+
+The exact exponent arithmetic (paper proof of s:sparse). At each level,
+the relevant factors are:
+
+  - Jacobian of parabolic rescaling:  K^{2 - (n+2)beta}  (loss)
+  - measure parameter inflation:      K^{(n+1)beta}      (loss)
+  - narrow decoupling prefactor:      K^{-beta}           (loss)
+  - fractal-estimate factor:          K^{-2n/(n+1)}       (gain)
+
+Multiplying gives
+
+        K^{2 - (n+2)beta} * K^{(n+1)beta} * K^{-beta} * K^{-2n/(n+1)}
+            =  K^{2 - 2beta - 2n/(n+1)}  (using (n+2)beta = (n+1)beta + beta)
+
+and with beta = 2/(n+1), we get
+
+            =  K^{2 - 4/(n+1) - 2n/(n+1)}
+            =  K^{2 - (2n+4)/(n+1)}
+            =  K^{2 - 2 - 2/(n+1)}
+            =  K^{-2/(n+1)}
+            =  K^{-beta}.
+
+So the product at each step is exactly K^{-beta}, i.e. a fixed inverse
+power per step. Multiplied by the number of steps (= log(L)/log(K) =
+1/v), the cumulative is K^{-beta * 1/v} = L^{-beta}, i.e. a fixed power of
+L, if v is chosen to make beta/v = a positive constant. That is the "clean"
+case; in the actual proof the four factors are not all applied at every
+step (they apply to different parts of the tree), and the exponent
+tracking is more delicate. But the cancellation
+K^{2 - (n+2)beta} K^{(n+1)beta} K^{-beta} K^{-2n/(n+1)} = K^{-beta} is the
+core "algebraic miracle" that makes the sparse iteration close.
+
+The precise statement of the sparse estimate at the end (from the paper's
+proof of s:sparse):
+
+        a_* = min{ c_b/2, theta_n/2 },        c_s = a_* / 8.
+
+Every leaf gains D^{-a_*} before its small losses, and the terminal K
+factors absorb into a fixed polynomial. The exponent c_s is the
+paper's "sparse exponent", and it is what Section 7 uses.
+
+Where the sparse estimate "ends". For D >= L^tau, the sparse estimate is
+strictly better than the "trivial" bound (D^{-c_s} is a genuine saving
+for L large). For 1 <= D <= L^tau, the sparse estimate's D^{-c_s} is
+cancelled by the constant C_tau and the estimate becomes useless. This is
+why Section 7 must handle the "small D" case directly via the geometric
+induction.
+
+The three sections (3, 5, 6) interlock like this:
+
+  - Section 5 (transverse saving) supplies the broad gain.
+  - Section 4 (fractal + strip saving) supplies the terminal gain and the
+    narrow transport.
+  - Section 6 (sparse estimate) packages them into a single D^{-c_s}.
+  - Section 3 (frame estimate) is not used in Section 6. It is used in
+    Section 7, specifically in the "plate" case of the geometric
+    induction (Chapters 40-44).
+
+The reader who wants to follow the details: the paper's Section 6 is a
+straightforward adaptation of Bourgain-Guth 2011 and Du-Zhang 2019, with
+the exponents and the terminal gain tracked. The novel content is the
+terminal estimate (which uses the Du-Zhang input in the squared form of
+Chapter 31) and the exponent bookkeeping (which is where the constants
+c_s, c_b, theta_n are pinned down).
+
+
+40.  SECTION 7: THE WEAK ESTIMATE: STATEMENT AND EASY RANGE
+--------------------------------------------------------------------------------
+
+Section 7 (weak.tex) is the longest and heaviest section. It proves the
+frequency-local weak L^p maximal estimate at the endpoint, which is then
+used in Section 8 to get pointwise convergence. This is where the frame
+estimate (Section 3), the strip saving (Section 4), and the sparse
+estimate (Section 6) are all needed.
+
+Statement.
+
+THEOREM (weak estimate; paper Theorem w:weak). Fix the spacetime
+dimension n+1 >= 4 (so n >= 3). There is a finite p_0 (depending only on
+n) and fixed exponents a, c_0 > 0 with the following property.
+
+For every p with p_0 < p < infinity, there is a constant C_B = C_B(p),
+such that for every compact array U of scale L with coefficient energy
+E(U) = sum |c_alpha|^2, every measure mu on the native time range
+satisfying:
+
+  (i) ball growth:    mu(B(z, r)) <= m r^n    for all z and r >= 1;
+
+  (ii) unit density:  mu(B(z, 1)) <= m chi     for a fixed chi in (0, 1];
+
+  (iii) tube moment with sparsity D: for every nonzero label alpha,
+        INT (1 + |x - y_alpha - 2 t omega_alpha|/L)^{-M} d mu
+              <= m L^{n+1} / D,
+
+and every g > 0,
+
+        mu{ |U| >= chi^a g L^{-e} }
+            <=  C_B  m L^{2n}  g^{-p}  D^{-c_0}  E(U)^{p/2},
+
+where e = n^2/(n+1) (Chapter 31).
+
+The theorem has four independent parameters: L (the packet scale), D
+(tube moment), chi (unit density at scale 1), and g (the level). p is
+free (must be > p_0); a and c_0 are fixed by n. The point is that the
+constants do not depend on L, D, chi, g.
+
+What it says. If a packet field U is larger than the critical amplitude
+chi^a g L^{-e}, then the measure of the level set is strictly smaller
+than the "ambient" bound m^beta L^{2n} times a fixed power of g and a
+fixed power of D. The factor D^{-c_0} is the whole point of the sparse
+estimate. The factor g^{-p} is the "level gain".
+
+The easy range. Split by the values of chi and D:
+
+  - SMALL CHI. If chi <= L^{-tau_chi} for a fixed small tau_chi > 0, then
+    the amplitude chi^a g L^{-e} is small compared to g L^{-e}, and the
+    "clean" bounds for small amplitude suffice. In fact the trivial
+    bound mu{category} <= mu(all) contributes nothing for small enough
+    chi, and one can use the sparse estimate (Chapter 38) directly with
+    the effective chi-small improvement.
+
+  - LARGE D. If D >= L^tau for a fixed small tau > 0, the sparse
+    estimate (Chapter 38) applies and gives D^{-c_s}. So for these
+    parameter ranges, Theorem w:weak follows from Chapter 38.
+
+So the difficult range is:
+
+        L^{-tau_chi} <= chi <= 1     and     1 <= D <= L^tau.
+
+The "geometric" or "many-point" case: the measure is neither very sparse
+nor very concentrated away from the tube trajectories. This is where the
+geometric induction runs.
+
+Reduced form. Theorem w:weak reduces to the following "geometric level
+estimate":
+
+        For chi in [L^{-tau_chi}, 1], D in [1, L^tau], and g bounded
+        below by a fixed power (chi-dependent) and above by L^{C_g}:
+            mu{|U| >= chi^a g L^{-e}}  <=  C_B m L^{2n} g^{-p} D^{-c_0} E^{p/2}.
+
+This is what the next four chapters prove.
+
+Exponent order. The constants and the order in which they are chosen
+matter, because the proof uses each exponent at a specific step. The
+order (from the paper, w:eq-ab):
+
+  (i) Fix b with beta < b < 2/n. Fix a small delta > 0, and set
+        2a = 1 - b + delta,    zeta = 1 - beta - 2a = b - beta - delta.
+      (So zeta > 0 and 2a + beta + delta = 1 - ... well, zeta is positive
+      by the choice b > beta and delta small.)
+      Then choose J large enough that the angular lemma (Chapter 41)
+      holds with a fixed gain exponent c_2 > 0.
+
+  (ii) Fix a small unit-density cutoff v_0 > 0. The margin
+        n - 1/2 - e = (n-1)/2(n+1) > 0
+      allows the "frame cutoff" power (the boundary between small-density
+      cases and the frame saturation bound) to be fixed here.
+
+  (iii) Fix sigma > 0 much smaller than uc_2 and c_s (with u determined
+      below). This is the "sparse slack" used to absorb the smaller
+      factors in the summation.
+
+  (iv) Fix the frame estimate's parameters (profile orders, extension
+      constants, and so on). Choose the "u" small enough.
+
+  (v) Reduce u further if the frame estimate's costs require it.
+
+  (vi) Choose p (the level exponent) after all of the above, taking
+      p-2 small compared with the exponents c_2, sigma, c_s.
+      Finally, choose the induction constant C_ind > C'_B.
+
+The pivotal inequality is:
+
+        C_g (p-2) + sigma < c_s / 2.
+
+Since C_g is fixed by geometry, p-2 can be made small enough for this to
+hold. This is where the "easy range" (small chi) and "hard range"
+(geometric) are glued: the same inequality must hold in both.
+
+Strategy. The geometric induction proceeds as follows:
+
+  1. Reduce to a "heavy" subset of the level set where at each point the
+     Fourier angular sectors ("bins") carry most of the coefficient mass
+     in a small number of bins. (Chapter 42.)
+
+  2. At each such point, either the heavy bins are transverse (a genuine
+     (n-1)-simplex), or they lie near an affine (n-2)-plane (a "wall").
+     (Chapter 42.)
+
+  3. Transverse case: apply the frame estimate (Section 3) in dimension
+     n-1. This is the deepest step and where the frame estimate is
+     finally used. (Chapter 43.)
+
+  4. Wall case: apply the strip saving (Section 4) to sell the (n-2)
+     concentration, and then the angular lemma (Section 7-angular) to
+     bound the curvature of the wall. Either the wall has large second
+     fundamental form (angular), or it is locally a plate (flattening).
+     (Chapters 41 and 43.)
+
+  5. Sum the contributions against the measure mu, using two energy
+     budgets (one per time bin, one global with density weights). Close
+     with the induction constant. (Chapter 44.)
+
+The four pieces are interleaved: the plate-case frame estimate (step 3)
+needs the heavy-bin reduction (step 1), and the wall-case strip saving
+(step 4) needs the angular lemma (step 4) which uses the strip saving.
+
+
+41.  SECTION 7: THE ANGULAR INDUCTION AND THE DETECTION OF CURVATURE
+--------------------------------------------------------------------------------
+
+The key piece of the wall case is a self-contained lemma about "how much
+does the heavy bin field curve", which uses the strip saving quantitatively.
+This is the angular induction.
+
+Setup. Suppose at each point of Y, a field V (a "heavy" component of U)
+has magnitude >= lambda, and V is supported in a small frequency cap
+around a fixed vector. So V is a "narrow-band field". The level set Y is
+a subset of spacetime.
+
+Tangent plane. For the frequency cap, there is a natural "affine (n-2)-
+plane" H, roughly the tangent to the paraboloid at the frequency of the
+cap. Locally, the field is (approximately) a function of the "transverse"
+coordinates to H. The "wall" is the codimension-1 surface where it is
+as big as lambda.
+
+Second fundamental form. The derivative of the heavy-bin directions
+across H is the "shape" of the wall. Its second fundamental form (Hessian
+of the surface in the "shape" coordinates) either is large or is small.
+
+Large Hessian. If the second fundamental form is large, the wall curves
+sharply. Along a curve crossing the wall, the second derivative of the
+heavy-bin amplitude with respect to the transverse parameter is at least
+a threshold. This forces the level set Y to be small: the curvature
+(effectively, the phase modulation from the parabolic structure) rapidly
+decorrelates the wavelets.
+
+Small Hessian. If the second fundamental form is small, the wall is
+locally close to a hyperplane (a "plate"). Along the wall, the
+configuration resembles an (n-1)-dimensional problem, and the frame
+estimate applies after flattening.
+
+Quantitative form (paper w:angular). There is a fixed exponent c_2 > 0
+such that: if the heavy field is not contained in a single quadratic
+neighborhood (radius R^{-1} around the plate; see below) at scale R, then
+the measure of Y is reduced by a factor R^{-c_2} compared to its natural
+size.
+
+Setup of the "quadratic neighborhood". The reference quadratic
+neighborhood is defined by a specific bounded polynomial of degree 2
+with coefficients controlled by the "shape" of the wall. A configuration
+"inside" the quadratic neighborhood is exactly the plate case (small
+Hessian). A configuration "outside" is the "large second fundamental
+form" case.
+
+Why the strip saving enters. To prove w:angular, one must detect a
+curvature in the wall. The detection uses the codimension-two strip
+saving (Chapter 33) in the following way. Compact the heavy field at scale
+R. If it stays inside a quadratic neighborhood, it is "plate-like"; if
+not, the second derivative is quantitatively large. Then project to the
+codim-2 subspace (transverse to the wall) and use the strip saving to
+bound the projection: the projected configuration is a "strip-saved"
+configuration with saving R^{-c_0}, and the angular gain c_2 is a fraction
+of that strip-saving exponent.
+
+The sublevel estimate (paper w:wall). With the strip saving, the "large
+curvature" case gives a direct measure bound:
+
+        mu({|V| >= lambda, heavy bins not in quadratic neighborhood})
+            <=  R^{-c_2} mu({|V| >= lambda}).
+
+This is what allows the induction to keep making progress: at each step,
+either the field is well-approximated by a quadratic neighborhood (plate
+case), or its measure is reduced by R^{-c_2} (angular case).
+
+Structure of the argument (sketch).
+
+  - Fix the "reference hyperplane" H (from the tangent cap). Choose a
+    basis of the transverse directions and the "shape" parameter.
+
+  - Suppose the heavy field is NOT in the quadratic neighborhood. Then
+    the second fundamental form at some point of Y is at least a
+    threshold (in the shape coordinates).
+
+  - Use the parabolic rescaling (Chapter 4) and the strip saving
+    (Chapter 33) in the "transverse" directions to convert the large
+    second derivative into a strict measure saving.
+
+  - The saving is at least R^{-c_2}, where c_2 depends only on the
+    dimensions and on the given simplex bounds.
+
+The proof is about 8 pages in the paper. The reader who wants the full
+argument should look at the paper's Section 7, "Angular induction".
+
+Two important things to know:
+
+  - The angular lemma is stated at a FIXED scale R (with R = K^J for
+    the fixed dyadic parameters). It is applied once at each level of
+    the induction, at the corresponding scale. So the induction combines
+    angular lemmas at multiple scales.
+
+  - The curvature dichotomy (large Hessian vs. plate) is what forces the
+    wall to be "piecewise affine". Either curvature is large (angular
+    handles), or it is small (plate handles). There is no intermediate
+    case, because the transition is sharp (bounded below by 1/R and
+    bounded above by 1/R, with a gap of R^{small}).
+
+This is the geometric heart of the paper: the "curved ruled wall" that
+defeated naive codimension-two arguments in earlier work is now handled by
+combining angular (for curvature) and flattening (for plates).
+
+
+42.  SECTION 7: HEAVY BINS AND THE HEAVY-BIN REDUCTION
+--------------------------------------------------------------------------------
+
+We continue Section 7. This chapter reduces the level set to a "heavy"
+portion on which a few Fourier angular bins carry most of the mass, and
+then presents the transverse/plate dichotomy for the heavy bins.
+
+Heavy bins. Fix the current compact array U (of scale L) and the level
+lambda. Split the frequency support of U into R^{-1}-caps (angular
+sectors), with R = K^J the fixed dyadic parameter from Chapter 40's
+exponent choice.
+
+For each cap b, let E_b be the coefficient energy in bin b, and let b_T
+be the effective envelope. Define the "heavy bins" at a point z:
+the caps b with |V_b(z)| >= W(z) * (sum of amplitudes over b, times a
+threshold). Here W(z) is the local weighted square mass (Chapter 22).
+
+Roughly, a heavy bin is one that supplies at least a fixed fraction of
+the mass of U at z. Because the total weighted mass is 1 by normalization,
+the number of heavy bins is bounded by a fixed constant (like 1/eta with
+eta the fraction threshold).
+
+Heavy-bin reduction (paper Lemma w:heavy-reduction). There is a subset
+Y' of Y with mu(Y') >= c M_Y such that, at each point of Y':
+
+  (i) the heavy-bin field is >= lambda/2 in magnitude;
+
+  (ii) the heavy-bin centers are not contained in a strip of any fixed
+       large constant times R^{-1} about an affine (n-2)-plane, nor in
+       a single quadratic neighborhood of w:angular's form;
+
+  (iii) every heavy bin supplies >= W/2 of its weighted coefficient
+        square mass from trajectories within distance X^{C_w} L.
+
+In particular, some n heavy bins have direction vectors (2 omega, 1)
+whose n-volume is at least R^{-C} throughout the bins.
+
+What each clause does.
+
+  (i) is a "clean" reduction: at most half the points can lose half the
+  magnitude, and we take the surviving set.
+
+  (ii) is the important geometric clause. It says the heavy bins are
+  "not all almost in a codim-2 plane". If they WERE in a codim-2 plane,
+  we would be in the wall case (Chapter 41's angular lemma handles it
+  separately); the reduction removes this case, so we may assume from
+  now on that the heavy bins are genuinely transverse (contain an
+  n-simplex of positive volume).
+
+  (iii) is a "local mass" clause: most of the heavy bin's weighted mass
+  comes from trajectories within distance X^{C_w} L of the point. This
+  is used to apply the frame estimate, which requires the envelopes
+  to be concentrated near the point.
+
+Sketch of the proof. For each bin, restrict mu|_Y to the macros where
+that bin is "light" (contributes less than a threshold). Because R^4 is
+much smaller than L, the weight is comparable at the macro center and at
+each point of the macro. So the total contribution of the "light" part
+of any bin is at most a fixed fraction of the mass. Summing over the
+finitely many "light" cases and taking the complement gives the "heavy"
+subset.
+
+Then clause (ii): apply the quadratic-neighborhood removal (the angular
+lemma's alternative). The subset excluded by clause (ii) is exactly the
+"quadratic / plate" case, which will be handled separately. So we can
+assume the good clause (ii) without loss.
+
+Clause (iii): similar local restricted-measure argument, at the scale
+X^{C_w} L.
+
+Consequence. At each point of Y' (the heavy subset), there are n+1 heavy
+bins whose direction vectors (2 omega, 1) have full (n+1)-volume. In
+particular, they are transverse with determinant >= c R^{-C} (the fixed
+simplex bound for R-caps). This is the configuration to which the frame
+estimate will be applied.
+
+The "wall" (Chapter 41) case. What if, contrarily, the heavy bins WERE in
+a codim-2 plane? Then the angular lemma applies and either:
+
+  - the angular gain R^{-c_2} reduces the measure, or
+
+  - the heavy field is confined to a quadratic neighborhood (a "plate"),
+    and the plate case is handled by flattening (Chapter 43).
+
+So the heavy-bin reduction removes the wall; either the heavy subset
+survives and is transverse, or we are in a wall/plate configuration. The
+geometric induction handles both cases at each step.
+
+The "budget" bookkeeping. The paper tracks two things:
+
+  - The MEASURE budget: mu(Y) can only decrease along the induction, so
+    we can sum contributions at each level without double counting.
+
+  - The ENERGY budget: the coefficient energy E(U) is preserved by
+    projection and localization (with a fixed constant factor), and is
+    the "numerator" of the bound.
+
+  - The HEAVY-BIN budget: the heavy-bin mass condition ensures that the
+    weight W(z) is comparable to the sum over heavy bins, so when we
+    discard light bins we lose only a fixed fraction.
+
+Combining, the heavy-bin reduction preserves both budgets up to fixed
+constants, so the estimate we get on Y' transfers to Y with only a
+constant loss.
+
+
+43.  SECTION 7: FLATTENING AND THE FRAME ESTIMATE IN DIMENSION n-1
+--------------------------------------------------------------------------------
+
+We continue Section 7. This is where the frame estimate (Section 3) is
+finally plugged into the geometric induction.
+
+The plate case. From the heavy-bin reduction (Chapter 42), one of two
+things holds at each point of the heavy subset Y':
+
+  (a) The heavy bins are contained in a thin strip about an affine
+      (n-2)-plane (a "plate" of frequency codimension 2).
+
+  (b) The heavy bins are NOT in such a strip; their direction vectors
+      (2 omega, 1) span a full (n+1)-simplex (determinant at least
+      c R^{-C}).
+
+In case (b), the frame estimate (Chapter 26) applies directly in
+dimension n, with m = n+1 transverse fields. That is the "generic"
+case, and it is the only place the full frame estimate is applied as-is.
+
+In case (a), the field is trapped near a lower-dimensional surface: the
+heavy bins, though individually of bounded volume, have collapsed into a
+codim-2 subspace. The generic transversality condition fails. The
+geometric induction must "flatten" along the plate, reducing the problem
+by one dimension, and reapply the frame estimate in dimension k = n-1.
+
+Flattening.
+
+Let V be the codim-2 affine subspace. Its normal space N has dimension
+2. Choose coordinates:
+    u in V: an (n-1)-vector;
+    v, w in R: the two normal coordinates.
+
+The heavy field is approximately u-independent near the plate (that is
+what "plate" means: the field is roughly constant along V). Parabolic
+rescaling along the plate direction:
+
+    u  ->  u / b_1,      t  ->  t / b_1^2,
+
+with b_1 = L/h (hence b_1 h = L), turns the plateau into a parabolic
+rescaled problem in (n-1)+1 dimensions, with the two normal directions
+as separate "fields".
+
+Why k = n-1 and m = n. The plate is (n-1)-dimensional. The (n+1) heavy
+bins satisfy one linear constraint (their simplex lies in the normal
+space, which is 2-dimensional, so the sum of their projections onto any
+common hyperplane in N is constrained). This leaves (n+1) - 1 = n
+independent transverse directions. The frame estimate in dimension k
+requires m = k+1 fields. Setting k = n-1 gives m = n. Exactly right.
+
+Why the frame estimate applies after flattening. Its hypotheses are:
+
+  - common scale h. After rescaling, all packets have the same native
+    scale in the flattened coordinates.
+
+  - transverse determinant >= c R^{-C}. This is heavy-bin clause (ii)
+    verbatim, in the flattened coordinates.
+
+  - envelopes bounded at witnesses. This is heavy-bin clause (iii).
+
+So the frame estimate applies, and gives a bound on the number of high
+cells in the flattened problem.
+
+The tuple bound.
+
+A "tuple" is a local unit configuration in the flattened problem: one
+witness per heavy bin, one normal slab of width h (an n-dimensional slab
+in the original), one time bin of duration L^2/N (equivalently b_1^2 h^2
+in the flattened coordinates).
+
+LEMMA (tuple bound; paper Lemma w:tuple). For each tuple, the level-set
+measure satisfies
+
+    lambda^2 M_0
+        <=  C  R^C  (1 + sum_i ell_i)^C  m chi^{1-beta}
+            h^{n + 2n/(n+1)}
+            ( prod_i (d_{ell_i} E_i) )^{beta/n}
+            ( sum_i E_i )^{1-beta}.
+
+Where:
+  - M_0 is the tuple's cell measure (the mass of mu on the tuple);
+  - d_{ell_i} is a density parameter for the i-th direction, bounded by
+    ell_i in a dyadic hierarchy;
+  - E_i is the coefficient energy of the i-th bin;
+  - beta = 2/(n+1) is the fractal homogeneity.
+
+Idea of the tuple bound. Partition the two normal directions into slabs
+of width h and depth b_1 h = L. For each slab, the mass of mu on the
+slab is bounded by the unit-density condition (Chapter 40):
+
+    mu(slab)  <=  m chi^{1-beta}  L^n   (up to bounded constants).
+
+Then apply the frame estimate in the flattened coordinates:
+
+    |high cells in the slab|  <=  H_g^{-2}  sum_i D_i / A_i^2,
+
+where the flattened field has common scale h, and:
+
+    A_i  =  lambda  d_{ell_i}^{1/2}         (amplitude, augmented by
+                                             direction density),
+    D_i  =  h^n  E_i                         (coefficient energy, up
+                                             to h^n per packet),
+    H_g  =  ( prod_i  A_i^{2/(n-1)} )^{1/n}  (frame-estimate "geometric
+                                             mean" of amplitudes).
+
+The (prod_i (d_{ell_i} E_i))^{beta/n} (sum_i E_i)^{1-beta} energy factor
+appears when the amplitudes are reweighted by the fractal measure on the
+tuple. The h^{n + 2n/(n+1)} factor is the product of:
+
+  - h^n: unit-cube count in the (n+1)-dim ambient;
+  - h^{2n/(n+1)}: the fractal dimension factor of the tuple.
+
+The (1 + sum_i ell_i)^C cost is the number of dyadic bands in the
+summation over "narrow" regions; bounded overlap per band. The R^C is the
+accumulated frame-estimate cost (R^\delta factors, simplex counts, band
+counts). Both are absorbed in the h^{small} slack and the D^{-c_s/2}
+margin at the end (next chapter).
+
+Where the "saving" comes from. The tuple bound alone does not yet give a
+saving. The saving comes from combining:
+
+  - the frame estimate's H_g^{-2} factor, which is a "transverse" gain;
+  - the density-weighting of the tuple's mass, which is bounded by the
+    ball growth condition;
+  - the D-sparsity of the underlying measure (mu's tube moment).
+
+The product of these three gives the D^{-c_s/2} factor that appears in
+the final w:eq-finalL2 (Chapter 44).
+
+We do not reproduce the full proof of the tuple bound here. The reader
+can find it in the paper's Section 7, "Flattening and the frame estimate
+in the lower dimension". The key point for the narrative: the frame
+estimate is not used directly in n dimensions in the plate case, but in
+n-1 dimensions after the (n-2)-plate has been "flattened out".
+
+
+44.  SECTION 7: TWO ENERGY BUDGETS AND THE CLOSURE OF BOTH INDUCTIONS
+--------------------------------------------------------------------------------
+
+Step 7 of Section 7. We have the tuple bound (Chapter 43) and must now
+sum it over all tuples, all time bins, and all slabs, against two
+independent energy budgets. This gives the final w:eq-finalL2 estimate,
+which closes both inductions of Theorem w:weak.
+
+The two energy budgets.
+
+BUDGET 1 (per time bin). Fix a time bin of length T = L^2/N (or the
+flattened analogue). The total coefficient energy of all bins active
+in this time bin is bounded by a fixed power of N times E(U):
+
+    sum_{i : bin i active at this time}  E_i  <=  C N^{C_1} E(U).
+
+BUDGET 2 (density weighted). Weighted by the measure mu and by the
+density parameter chi, the total coefficient sum across all bins is
+bounded by the same E(U) times a fixed power of R:
+
+    sum_{i, slabs}  mu(slab_i)  chi^{-1}  E_i  <=  C R^{C_2} E(U).
+
+Why two. The frame estimate's right-hand side is
+
+    (prod_i E_i)^{beta/n} (sum_i E_i)^{1-beta}.
+
+When the E_i are all comparable, budget 1 (a simple (sum E_i) bound)
+suffices. When they vary, budget 2 (a weighted bound) is needed.
+Together, the two budgets give, uniformly in the energy distribution,
+
+    (prod_i E_i)^{beta/n} (sum_i E_i)^{1-beta}  <=  C E(U) (bounded).
+
+Summation over tuples.
+
+The tuple class is partitioned by the dyadic "ell" values (density) into
+O(log L)^n classes. In each class:
+
+  - Budget 1 bounds the energy sum.
+  - The frame-estimate factor H_g^{-2} bounds the "spread" cost.
+  - mu-mass per tuple is at most m chi^{1-beta} L^n.
+
+Summing over the (polynomially many) tuples in the class:
+
+    lambda^2 M_class  <=  C_B  m chi^{1-beta}  h^{n + 2n/(n+1)}
+                              E(U)  * h^{-n}  b_1^{2n/(n+1)}  * (slack).
+
+Slab summation. The two normal directions partition into b_1^{-1} slices
+each, giving b_1^{-n} slabs per unit normal volume. Density rescaling
+contributes b_1^{2n/(n+1)} (fractal-norm transformation from flattened to
+original).
+
+Scale-factor collapse. The three scale factors combine:
+
+    h^{n + 2n/(n+1)}  *  b_1^{-n}  *  b_1^{2n/(n+1)}
+        =  h^{n + 2n/(n+1) - n}  *  b_1^{2n/(n+1)}
+        =  h^{2n/(n+1)}  *  b_1^{2n/(n+1)}
+        =  (h b_1)^{2n/(n+1)}
+        =  L^{2n/(n+1)},          since h b_1 = L.
+
+This is the same "algebraic miracle" as in Chapter 39's exponent
+bookkeeping, manifesting again in the summation.
+
+Final assembly (w:eq-finalL2).
+
+Summing over classes, using the two budgets, and applying the
+scale-factor collapse:
+
+    w:eq-finalL2:  lambda^2 M_Y  <=  C_B  m chi^{1-beta}
+                                         L^{2n/(n+1)}
+                                         D^{-c_s/2}.
+
+The D^{-c_s/2} is EXACTLY half of the sparse estimate's D^{-c_s}
+(Chapter 38). The factor 1/2 is there because not all of Y survives the
+heavy-bin reduction with full mass; clause (i) preserves only a fraction,
+so we lose a factor of 2 in the exponent and then again at Chebyshev.
+
+Recalling that a fixed fraction of M_Y remained from the heavy-bin
+reduction, and adjusting chi^{...} accordingly, gives w:eq-finalL2.
+
+Closing the outer induction (on level).
+
+The strong hypothesis of w:weak involves the parameters p, m, chi, D, g,
+and the induction constant C_ind. The outer induction is on the level
+parameter gamma = lambda L^e / chi^a.
+
+  - Base case: gamma <= 1. Then the level set is empty or trivial; the
+    bound holds trivially.
+
+  - Inductive step: assume w:weak holds at level gamma' = gamma - delta,
+    and prove at level gamma. Use w:eq-finalL2 (via frame estimate,
+    sparse estimate, two-budget summation) as the engine. Suppose the
+    theorem fails at level gamma. Then w:eq-counterlevel (the
+    "counterlevel" statement) yields a configuration whose gamma-parameter
+    is at least gamma. Apply the geometric induction of Section 7 (this
+    chapter): the flatten/wall/frame cases reduce to level gamma - delta,
+    contradicting the induction hypothesis, unless C_ind is huge.
+
+  - Closing: choose C_ind (the induction constant) larger than C_B in
+    w:eq-finalL2. Then the counterlevel is impossible, and the theorem
+    holds at level gamma.
+
+Closing the inner induction (on sparsity).
+
+The inner induction is on the sparsity parameter D. In the sparse
+estimate (Chapter 38), the case D >= L^tau is handled directly. For
+D < L^tau, the geometric induction reduces to smaller sparsity. This is
+the sequence of "reduce D, recurse":
+
+  - Start with D_0 = L^tau (initial sparsity).
+  - Each level of the induction reduces D by a factor (from heavy-bin
+    reduction).
+  - At the terminal level (D ~ L^{C_s sqrt(log L)} ~ L^{o(1)}), apply the
+    Du-Zhang fractal estimate directly (Chapter 31) with the square-root
+    occupancy, closing the recursion.
+
+The exponent sigma = c_s/2 in w:weak is fixed by the inner induction's
+final gain.
+
+The choice of p. Finally, p must satisfy:
+
+  - p > max(p_0, q_{n-1})  (so the p-th moment is available);
+
+  - p large enough that Chebyshev's inequality at the very end of the
+    "summation against mu" step gives a good bound.
+
+The exponent order (Chapter 40's "order of choices") fixes p > 2 after
+all other exponents. This ensures the Chebyshev argument at the very end
+is tight.
+
+Theorem w:weak is proved.
+
+
+================================================================================
+PART V: THE ENDPOINT (SECTION 8)
+================================================================================
+
+
+45.  SECTION 8: THE COMMON TIME TREE AND THE SHORT-TIME ESTIMATE
+--------------------------------------------------------------------------------
+
+Section 8 (endpoint.tex) uses the weak estimate (Chapter 40) to prove the
+main theorem (Chapter 6). There are three pieces:
+
+  - A "common time tree" that sums the weak estimate over frequencies
+    and time intervals.
+
+  - An L^1 endpoint maximal estimate that follows.
+
+  - A Gaussian representative construction that finishes the theorem.
+
+This chapter is the time tree.
+
+The frequency-local short-time estimate. Let N >= 1, let f_N be a
+function on R^n whose Fourier transform is supported in a fixed annulus
+around |xi| ~ N (say dilated by N of a fixed annulus). The Schrodinger
+evolution S(t) f_N is frequency-localized to scale N.
+
+The weak estimate (Chapter 40) applied at scale L = N^2 (choosing the
+measure mu as Lebesgue restricted to a unit ball) gives:
+
+PROPOSITION (short-time estimate; paper Proposition e:short-time). Let
+p be the exponent from Theorem w:weak, and let s_n = n/(2(n+1)). Then
+for every unit ball Omega subset R^n, every time interval I of length
+1/N (centered anywhere), and every N-frequency-localized f_N,
+
+        ||  sup_{t in I} | S(t) f_N |  ||_{L^{p, infinity}(Omega)}
+            <=  C  N^{s_n}  || f_N ||_2,
+
+where the constant C does not depend on N, Omega, or I.
+
+What makes it "short-time". The time interval has length 1/N, not 1.
+Why the short interval: at scale N, the wave packet of frequency N moves
+a distance ~ N over time 1/N. So over time 1/N, the packet has "just
+barely" displaced; on a unit ball, the wave is not fully "spread".
+
+Summing time intervals. To go from time intervals of length 1/N to the
+full interval [0, 1], we partition [0, 1] into N intervals of length 1/N.
+For each interval, we have the short-time estimate. Setting I = [j/N,
+(j+1)/N], summing over j = 0, ..., N-1, using the subadditivity of
+supremum and the "many intervals" bound, we get the "long-time" version:
+
+        || sup_{0 < t < 1} | S(t) f_N | ||_{L^{p,infty}(Omega)}
+            <=  C N^{1/p + s_n} || f_N ||_2  (or N^{s_n} * N^{1/p} * ...).
+
+Actually, the "long-time" version is: for every unit ball Omega and every
+f_N,
+
+        || sup_{0 < t < 1} | S(t) f_N | ||_{L^{p,infty}(Omega)}
+            <=  C N^{1 + s_n} || f_N ||_2 / N  =  C N^{s_n} || f_N ||_2,
+
+where the "1/N" piece comes from sup_{t in I} being <= a convex
+combination of |S(t) f_N|, via the short-time estimate at each interval.
+The exact bookkeeping: sum over N intervals of length 1/N of the
+short-time bound is at most N * (short-time bound) / |I|^{1/p}? Actually,
+the right formulation is an L^p estimate over a partition of [0,1]; the
+short-time estimate is on each interval, and "sum" in L^p is bounded by
+(subadditivity) sum_j ||sup_{t in I_j}||_p. So:
+        ||sup_{0<t<1}|S(t) f_N|||_p <= sum_j ||sup_{t in I_j}|S(t) f_N|||_p
+                                       <= N * C N^{s_n} ||f_N||_2.
+Hmm, the N factor is bad. But we get to use weak L^p on Omega, not over the
+time interval. So the summation over time intervals gives a factor, but
+the localization of sup over t within each dyadic interval at scale N is
+"interpolated". Actually, the paper's Section 8 does not use this crude
+summation; it uses a "time tree".
+
+The common time tree. The idea: use ONE common dyadic tree for all
+frequencies, so that summing over N does not multiply costs. Specifically:
+
+  - Dyadic tree: at each level j = 0, 1, ..., log_2 N, split each time
+    interval into two. The tree has depth O(log N).
+  - For each frequency N, associate N to one specific "leaf" of the tree
+    (via a measurable function from R to {0, 1}^N).
+  - At each node of the tree, sum the frequency-localized sup over the
+    frequencies assigned to that node.
+
+This is the "single measurable time graph for all frequencies". The
+result (paper m:eq-roadmap-maximal in introduction) is:
+
+        int_Omega  sup_{0 <= t < 1} | S(t) f(x) | dx  <=  C || f ||_{H^{s_n}},
+
+initially for compactly supported f, uniformly in translated unit balls
+Omega.
+
+This is the L^1 maximal estimate at endpoint.
+
+Why it is at L^1 (not L^p). The exponent s_n is the critical one. The
+maximal operator with this Sobolev input is bounded from H^{s_n} to
+weak L^1. The L^1 (or weak L^1) version is what we need for the
+frequency summation.
+
+The "summation by the time tree" is the main content of Section 8's
+first part. Its details are about the correct exponents and avoiding
+N^eps losses: the tree assigns frequencies to dyadic levels in a way that
+is "measurable" in t, so that the summation sup_t is controlled by the
+disjoint dyadic-tree structure.
+
+What is "common" about the tree. If each frequency N had its own dyadic
+tree (e.g., aligned per-frequency), the summation over N would lose a
+factor that grows with N. Using a COMMON tree (fixed a priori) means that
+the summation over frequencies at each node uses the SAME dyadic interval
+for all frequencies in that node, and the estimates add up. This is why
+the proposal in Du-Zhang (individual trees) does not give the endpoint
+and the paper's common tree does.
+
+This completes the frequency summation. The next chapter states the L^1
+endpoint estimate it gives.
+
+
+46.  SECTION 8: THE L^1 ENDPOINT MAXIMAL ESTIMATE
+--------------------------------------------------------------------------------
+
+We continue Section 8. The time tree sums frequencies and time intervals,
+returning the L^1 maximal estimate.
+
+THEOREM (endpoint maximal estimate; paper e:local-endpoint or m:eq-
+roadmap-maximal). Let s_n = n/(2(n+1)). For every compactly supported
+f in H^{s_n}(R^n), and every unit ball Omega subset R^n,
+
+        int_Omega   sup_{0 <= t < 1}  | S(t) f(x) |  dx  <=  C  || f ||_{H^{s_n}},
+
+with C independent of f and Omega.
+
+The endpoint L^1 maximal estimate is the crux of Section 8. It is
+"endpoint" because (a) it uses the exact exponent s_n (no epsilon slack),
+and (b) it is at L^1 (the sharpest integrability, since s_n is exactly
+the threshold). The Du-Zhang proof at s > s_n would give L^p with p > 1
+at exponent s + eps; here we get L^1 at exactly s_n.
+
+Proof structure.
+
+From the time tree (Chapter 45), a maximal estimate at frequency N:
+
+        ||sup_{0 < t < 1} |P_N S(t) f| ||_{L^p, infinity(Omega)}
+            <=  C N^{s_n} ||f||_2.
+
+for p = p from Theorem w:weak (a fixed finite p > 2), uniform in Omega.
+
+Then use the "square function" or "Littlewood-Paley" structure:
+
+        ||f||_{H^{s_n}}^2  =  sum_N  N^{2 s_n} ||P_N f||_2^2.
+
+The maximal operator sup_t |S(t) f| roughly splits as a sum over N of
+the maximal operators sup_t |P_N S(t) f|, but summing L^p weak bounds
+across N is nontrivial (a "square function" or "Littlewood-Paley"
+argument is needed).
+
+Actually, the paper uses a "square function" argument: the maximal
+operator sup_t |S(t) f| is bounded in L^1 by the L^2 norm of its
+"frequency-averaged" version, and the frequency-averaged version is
+summable over N via the maximal estimate. The bookkeeping uses the
+"square function" bound:
+
+        ||sup_t |S(t) f| ||_{L^1}  <=  C || (sum_N  N^{2 s_n} |P_N S(t) f|^2 )^{1/2} ||_{L^1}
+
+with some appropriate time-integral version, and then the L^2 sum over N
+is controlled by the maximal estimate.
+
+Details. The reader who wants the precise exponents should read the
+paper's Section 8, "Short-time estimate, time tree, and local L^1
+endpoint maximal estimate". The key estimates are:
+
+  - The short-time weak L^p estimate at frequency N (Chapter 45).
+
+  - The "time tree" summation over frequencies and time intervals,
+    avoiding N^eps losses (the tree is common).
+
+  - The "square function" bookkeeping to convert the L^p maximal
+    estimate over frequencies to L^1.
+
+  - The exact constant tracking to have no eps loss.
+
+What the L^1 endpoint estimate gives. It is the input to the Gaussian
+representative construction (Chapter 47). From the L^1 estimate and
+Borel-Cantelli, one gets that S(t) f converges to f a.e. on a full-measure
+set. But the L^1 estimate alone is not quite enough for the theorem's
+"Gaussian regularization on one full-measure set uniformly in t" form;
+that requires extra care, which the paper handles in Chapter 47.
+
+
+47.  SECTION 8: THE GAUSSIAN REPRESENTATIVE AND THE MAIN THEOREM
+--------------------------------------------------------------------------------
+
+We finish Section 8 and the paper. This is where the main theorem
+(Chapter 6) is actually proved.
+
+Setup. Let f in H^{s_n}(R^n). We want to define a representative u(x, t)
+of the evolution, on a full-measure set E subset R^n, such that:
+
+        (a) sup_{0 < t < 1} | U_a f(x, t) - u(x, t) | -> 0 as a -> 0+;
+        (b) u(x, t) -> f*(x) as t -> 0+;
+
+for every x in E.
+
+Approximation by compactly supported smooth data. Let f_k be a sequence
+of compactly supported smooth functions in H^{s_n} with f_k -> f in
+H^{s_n}. For each k, S(t) f_k is a smooth function of (x, t) on R^n x
+(0, 1), because f_k is compactly supported.
+
+For each k, define:
+        E_k  =  { x : sup_{0 < t < 1} | S(t) f_k(x) | < infinity }
+              =  R^n  (for smooth f_k).
+
+But we need a "good set" for each k, on which convergence to f_k is
+controlled. The L^1 endpoint estimate (Chapter 46) provides this: the
+operator sup_t |S(t)(f - f_k)| has L^1 bound C ||f - f_k||_{H^{s_n}}.
+Chebyshev / Borel-Cantelli on the operator sup_t |S(t)(f_{k+1} - f_k)|
+gives that, on a full-measure set E, the series of sup_t |S(t)(f_{k+1} -
+f_k)| is summable. Hence S(t) f_k(x) converges uniformly in t for each x
+in E, to a limit u(x, t).
+
+The set E. Construct E as follows: for each integer m (a "level" of the
+Borel-Cantelli argument), define
+
+        A_m  =  { x : sup_t |S(t)(f_{m+1} - f_m)(x)| > 2^{-m} }.
+
+By the L^1 endpoint maximal estimate, |A_m| <= C 2^m ||f_{m+1} - f_m||_{H^{s_n}}.
+Choose f_k so that ||f_{k+1} - f_k||_{H^{s_n}} <= 2^{-k} after taking
+||f - f_k||_{H^{s_n}} <= 2^{-k} in a suitable summation scheme. Then
+sum_m |A_m| < infinity, so by Borel-Cantelli, A_m occurs finitely often
+for a.e. x. On the complement E (a full-measure set), we have
+
+        sup_t |S(t)(f_{m+1} - f_m)(x)| <= 2^{-m} for all large m,
+
+so the sequence S(t) f_k(x) is uniformly convergent in t. Define
+u(x, t) = lim_k S(t) f_k(x) for x in E, t in (0, 1). Then (a) holds
+with U_a f replaced by S(t) f (and by extension for U_a).
+
+The uniform-in-t conclusion. Because the convergence is uniform in t,
+u(x, t) is continuous in t on (0, 1) for each x in E.
+
+Gaussian regularization. The paper also needs to show that U_a f -> u
+as a -> 0, uniformly in t, on the same full-measure set E. This is
+NOT an immediate consequence of S(t) f_k convergence, because U_a f is
+defined via Gaussian smoothing.
+
+The key input is the "Gaussian approximate identity" (paper Lemma
+e:gaussian-local): for a measurable function M and any a > 0, the
+convolution K_a * M is finite everywhere, and at every Lebesgue point x
+of M, K_a * M(x) -> M(x) as a -> 0. The proof is just the standard
+Lebesgue differentiation theorem, applied to the symmetric Gaussian kernel.
+
+Apply this lemma to M = sup_{0 < t < 1} |u(x, t)|. The result: for a.e. x
+on E, we have
+
+        U_a u(x, .) -> u(x, .) as a -> 0, uniformly in t.
+
+Combined with U_a f being a smooth approximation of u (from (a) for the
+compact-supported approximation), this completes part (a) of the
+theorem.
+
+The Lebesgue value part (b). Part (b) needs u(x, t) -> f*(x) as t -> 0.
+For the approximate sequence f_k, S(t) f_k(x) -> f_k(x) as t -> 0 for
+smooth f_k. So u(x, t) -> f(x) as t -> 0, provided u is the "correct"
+limit. The Lebesgue value f*(x) appears because the full-measure set E
+on which convergence holds is best described in terms of Lebesgue
+differentiation. The paper's Section 8, "One representative and all real
+times", is where this identification is made.
+
+The endpoint theorem. The main theorem (Chapter 6) is now proved:
+
+        For f in H^{s_n}(R^n), n >= 3, there is a full-measure set E and a
+        function u(x, t) on E x (0, 1) such that (a), (b), (c) of Chapter 6
+        hold.
+
+The order of limits in the theorem (a -> 0 uniformly, then t -> 0) is
+exactly what the construction gives.
+
+Why the construction is "Gaussian". The Gaussian e^{-a|xi|^2} is chosen
+because it is a bounded smooth cutoff that commutes with the evolution
+in a clean way, and its approximate-identity lemma (e:gaussian-local) is
+elementary. Any other smooth cutoff would work equally well; the Gaussian
+is picked for exponential decay and clean constants.
+
+Why the theorem is "uniform in t". Uniformity is what makes U_a f -> u
+hold simultaneously in t, so that the order of limits in the theorem is
+a -> 0 first, then t -> 0, and the result is deterministic. Without
+uniformity, one could get different limits along different paths.
+
+Why "one full-measure set". The set E is constructed once (Borel-Cantelli
+on the sum over k of A_m), and all three parts (a), (b), (c) hold on the
+SAME E. This is stronger than "for a.e. x there exist times t where
+convergence holds"; it is "for a.e. x, convergence holds in t uniformly
+on (0, 1)".
+
+This completes the proof of the main theorem. Section 8 is the
+culmination of the paper. Its inputs are:
+
+  - The weak estimate (Section 7, Chapter 40).
+  - The time tree (Chapter 45).
+  - The L^1 endpoint maximal estimate (Chapter 46).
+  - The Gaussian approximate-identity lemma (e:gaussian-local).
+
+Section 8 is, in a sense, the most "classical" section of the paper:
+once the weak estimate is in hand, the analysis is standard (Borel-Cantelli,
+Lebesgue differentiation, approximate identities). The hard work is all in
+Sections 2-7.
+
+
+================================================================================
+PART VI: WHAT IT MEANS: SUMMARY AND AFTERMATH
+================================================================================
+
+
+48.  WHAT THE PAPER PROVES, IN ONE PARAGRAPH
+--------------------------------------------------------------------------------
+
+For every spatial dimension n >= 3, and every initial data f in the
+Sobolev space H^{s_n}(R^n) with s_n = n/(2(n+1)), the free Schrodinger
+evolution of f converges to f almost everywhere as time goes to zero.
+The precise statement: there is a set E subset R^n of full measure and a
+complex-valued function u(x, t) on E x (0, 1) such that the Gaussian-
+regularized evolutions U_a f(x, t) converge to u(x, t) uniformly in t as
+a -> 0, and u(x, t) converges to the Lebesgue value of f as t -> 0, for
+every x in E. Equivalently, lim_{a -> 0} U_a f(x, t_a) = f*(x) for every
+path t_a -> 0+ and every x in E. This is the sharp endpoint of Carleson's
+problem in higher dimensions; the exponent s_n = n/(2(n+1)) cannot be
+improved (Bourgain 2016). In dimensions n = 1 and n = 2 the corresponding
+endpoint theorems are due to Carleson (1980) and Du, Guth, Li (2017)
+respectively; the planar case is treated in the companion paper.
+
+Read more compactly: the conjecture that the Sobolev exponent for
+almost-everywhere pointwise convergence is exactly s_n = n/(2(n+1)) is
+now a theorem in every dimension n >= 1, with n = 1 classical, n = 2
+the planar companion paper, and n >= 3 the present paper.
+
+
+49.  WHAT REMAINS OPEN
+--------------------------------------------------------------------------------
+
+A few natural questions are not settled by the paper.
+
+1. The unregularized version. The main theorem is stated for the Gaussian-
+   regularized evolution U_a f, with the limit a -> 0 taken uniformly in
+   t. The stronger statement, that the unregularized S(t) f also converges
+   pointwise a.e. at the endpoint (without any smoothing), is not
+   claimed here for n >= 3. In the plane, the unregularized version is
+   what the companion paper proves; but the higher-dimensional statement
+   is open as far as this companion knows. This is one of the most natural
+   remaining questions and would require more structure than the maximal
+   estimate alone.
+
+2. The order of limits and admissible classes. The paper takes the limit
+   a -> 0 first, then t -> 0. Other natural orders (t -> 0 first for each
+   fixed a, then a -> 0) might give different limit points; the sharpest
+   admissible version of the problem is precisely what the paper settles.
+   Relatedly, it is natural to ask whether the theorem extends from
+   H^{s_n}(R^n) to other function spaces (Besov, Triebel-Lizorkin, and so
+   on). The maximal estimate does have Sobolev-differentiability
+   parameters, and the paper's weak estimate can be extended with minor
+   modifications, but a systematic treatment is not attempted here.
+
+3. Quantitative endpoint. The paper gives a qualitative a.e. convergence
+   statement; the "quantitative endpoint" version (some measure of the
+   rate of convergence or the size of the exceptional set in terms of the
+   size of the Sobolev norm) is a more delicate question. For the
+   non-endpoint case some quantitative statements are available in the
+   literature; the endpoint is not yet similarly understood.
+
+4. Lower dimensional and other equations. Endpoints in n = 1 (classical)
+   and n = 2 (planar companion) are settled. Analogues for other
+   dispersive equations (wave equation, Klein-Gordon, KdV, and so on) are
+   partially known but not in the same general form. The endpoint
+   phenomenon is specific to the parabolic scaling of Schrodinger; each
+   equation has its own geometric issues.
+
+5. The frame estimate in more general settings. The transverse frame
+   estimate (Section 3) is tied to the paraboloid. Generalizations to
+   other hypersurfaces of positive curvature would be an interesting
+   project, and could be relevant to endpoint problems for other
+   dispersive equations.
+
+6. Simpler proofs. The present proof is long. It is natural to ask
+   whether the same conclusion can be reached by a shorter route, perhaps
+   via a refined version of the Du-Zhang argument combined with new
+   insight. No shorter proof is known to this companion.
+
+7. Sharp constants. The constants in the paper are effectively
+   computable but not sharp. Optimal constants for the endpoint maximal
+   estimate are likely related to the sharp form of the refined
+   Strichartz estimate (Du-Guth-Li-Zhang 2018), which is itself an open
+   problem in some dimensions.
+
+
+50.  GLOSSARY
+--------------------------------------------------------------------------------
+
+Notation from the paper, listed alphabetically by symbol.
 
 Almost everywhere (a.e.):
-  Everywhere except on a set of measure zero.
+    For every point except possibly a set of measure zero.
 
-Ball parameter / growth (m):
-  A measure mu has ball parameter m if mu(B(z,r)) <= m r^n for all centers z
-  and all r >= 1. It says the measure does not concentrate more than n-
-  dimensional Lebesgue measure would.
+Ball growth / ball parameter (m):
+    A measure mu has ball parameter m if mu(B(z, r)) <= m r^n for all
+    centers z and all r >= 1. This says mu "does not concentrate more
+    than n-dimensional Lebesgue measure would".
+
+beta:
+    beta = 2/(n+1). The homogeneity of the fractal norm in the measure.
+
+Bourgain-Demeter decoupling:
+    A family of estimates (Decoupling, Chapter 19) at exponent
+    q_k = 2(k+2)/k, bounding the L^p norm of a field by the l^2 sum
+    over its frequency caps.
+
+Buffered refined decoupling (paper Sec 2):
+    A lossless version of decoupling that pays only a fixed power of a
+    buffering scale, instead of N^eps. Proved in the paper, replaces
+    the epsilon-losing decoupling needed for the endpoint.
+
+Carleson's theorem (1D):
+    For f in H^{1/4}(R), the free Schrodinger evolution converges to f
+    a.e. (Carleson 1980). Sharp by Dahlberg-Kenig (1982).
+
+Common time tree (paper Sec 8):
+    A single dyadic tree of time intervals, used for the frequency
+    summation in the endpoint argument, so that summing over frequencies
+    does not lose an N^eps factor.
 
 Compact array / packet:
-  A piece of a wave localized in both space and frequency. A scale-N packet
-  with frequency label v lives in its native unit cube under the map
-  X_{N,v}(x,t) = ((x - 2vt)/N, t/N^2).
+    A piece of a wave localized in space and frequency. A packet of
+    scale N with frequency label v lives in a native unit cell of the
+    parabolic rescaling X_{N,v}(x, t) = ((x - 2vt)/N, t/N^2). The
+    paper uses compact arrays (Chapter 22) to organize wave packets.
+
+D (sparsity parameter):
+    The tube moment parameter appearing in the sparse estimate
+    (Chapters 22, 38). Large D means mu "avoids" each packet
+    trajectory; small D means mu is dense on packets.
 
 Decoupling:
-  A family of inequalities (Bourgain-Demeter) saying that a wave with separated
-  frequency pieces has L^p size comparable to the l^2 sum of the sizes of the
-  pieces, for p up to the decoupling exponent q_k = 2(k+2)/k.
+    The inequality ||H||_p <= N^eps (sum_J ||H_J||_p^2)^{1/2} for fields
+    with Fourier support split into caps J, valid for p up to
+    q_k = 2(k+2)/k (Bourgain-Demeter 2015).
 
-Density parameter (chi):
-  The local mass of the measure, mu(B(z,1)) <= m chi. It interpolates between
-  a spread-out measure (small chi) and a concentrated one (chi near 1).
+Du-Zhang fractal estimate:
+    A refined Strichartz estimate at each compact scale, with the
+    square-root-scale occupancy gain built in (Chapter 31). The
+    starting point for the paper.
 
-Endpoint:
-  The exact value s = s_n of the exponent, not a value strictly larger. The
-  difficulty is that no epsilon slack is available.
+e:
+    e = n^2/(n+1). The critical amplitude exponent in the transverse
+    saving and in the weak estimate.
 
-Fractal norm / weighted fractal estimate:
-  The sum over cubes of mu(cube)^beta sup_cube |field|^2, controlled by the
-  input energy. beta = 2/(n+1) is the fractal exponent giving the endpoint.
+Envelope (B = B_b):
+    The "square-root sum" of a packet family, B(z)^2 = sum_T s_T^2
+    w_T(z). Controls the size of a packet sum at every point.
 
-Frame estimate:
-  The transverse saving in k = n-1 dimensions that says k+1 transversally
-  independent big packet fields cannot concentrate. Its proof is the
-  amplitude-profile/incidence argument of Part 12.
+Fourier layer:
+    A component of a compact array after a Fourier split; used to
+    apply the Du-Zhang estimate (Chapter 32).
 
-Gaussian regularization (U_a):
-  The Schrodinger evolution with the extra Fourier factor e^{-a|xi|^2}. It
-  makes the evolution of general L^2 data well defined; the theorem is about
-  removing it (a -> 0).
+Frame estimate (paper Sec 3):
+    The main "transverse packet" saving: k+1 transverse fields of
+    packets cannot concentrate at many unit cubes if each is large.
+    Proved by the profile/incidence argument (Chapters 26-30).
+
+gamma_n:
+    gamma_n = 2n/((n+1)(n+2)). The Du-Zhang "density gain" exponent.
 
 Heavy bin:
-  A 1/R frequency bin whose weighted coefficient energy at a macro cube is at
-  least a threshold W = X^{-P_0} m L^{n+1}/M_Y. Heavy bins are what the
-  geometric induction tracks.
+    A Fourier angular sector that carries at least a fixed fraction
+    of the weighted coefficient mass of the field at a point
+    (Chapter 42).
 
 H^s (Sobolev space):
-  Functions whose frequencies are damped by |xi|^s; equivalently the norm
-  integral (1+|xi|^2)^s |fhat|^2 dxi. Higher s means smoother. The endpoint
-  here is s_n = n/(2(n+1)).
+    The space of functions f whose Fourier transform satisfies
+    INT (1+|xi|^2)^s |f_hat(xi)|^2 d xi < infinity.
 
-Lebesgue point / f*:
-  A point x where the average of f over a ball around x settles to a definite
-  value f*(x). Almost every point is a Lebesgue point.
+Iitaka (no; that is a different paper):
+    (A note: the reader who saw the Iitaka companion in the same
+    directory should know that this companion is about Schrodinger's
+    equation, not Iitaka fibration. The corpus contains many such
+    companions; this one is self-contained.)
 
-Multilinear Kakeya:
-  The theorem bounding the overlap of d families of tubes that are pairwise
-  transverse. In this paper it gives the frame estimate its geometric content.
+Information (base L):
+    I_Lambda(A|B) = H(A,B) - H(B), in base Lambda. Counts Lambda-ary
+    possibilities for A given B. Used in Section 5 (transverse saving).
 
-Near-Cauchy theorem:
-  The sharp point count |Y| <= C R^{q_k+eps} sum s_T^2 for points where the
-  field is a fraction N^{k/2}/R of its trivial Cauchy size. It is proved by
-  the scale-separation/occupancy contradiction of Part 8.5.
+Lebesgue value (f*):
+    f*(x) = lim_{r -> 0} average of f over B(x, r). Equals f(x) for
+    a.e. x (Lebesgue differentiation theorem).
 
-Polynomial partitioning:
-  The Guth-Katz theorem giving a low-degree polynomial whose sign regions
-  split any finite point set evenly. Its zero set is the "wall."
+Littlewood-Paley:
+    The decomposition of a function into dyadic frequency annuli, and
+    the corresponding square function. Used in the L^1 endpoint
+    maximal estimate (Chapter 46).
 
-Projection theorem:
-  He's discretized projection theorem: a fat fractal set has a projection of
-  comparably large size in some direction. It is used as the final
-  contradiction device.
+Multilinear Kakeya (BCT/Guth):
+    The estimate integral of product of tube weights at exponent
+    1/(d-1) bounded by a polynomial in the weights, subject to a
+    determinant transversality condition (Chapter 17).
 
-Sparse estimate / sparsity (D):
-  The gain D^{-c_s} obtained when the sparsity parameter D (a measure of how
-  spread out the measure is relative to packet tubes) is a positive power of L.
+Native coordinates:
+    X_{N,v}(x, t) = ((x - 2 v t)/N, t/N^2). The parabolic rescaling
+    that makes a scale-N packet at velocity v a unit box.
 
-Strip saving:
-  The genuine power gain S^{n/(n+1) - c_0 alpha} when the input frequency
-  support lies in a thin codimension-two strip of width S^{-alpha}. This is
-  the technical engine that closes the endpoint.
+near-Cauchy theorem (paper Sec 2):
+    A point count at exponent q_k for compact packet sums (Chapter 24).
 
-Time tree:
-  One dyadic decomposition of the time interval [0,1), shared by all
-  frequencies. The "heavier-child" path and the convexity-deficit telescoping
-  make the frequency sum converge without an extra logarithm.
+p_k, q_k:
+    p_k = 2(k+1)/k = 2m/k (linear Strichartz end);
+    q_k = 2(k+2)/k (Bourgain-Demeter decoupling end). Here m = k+1.
 
-Transverse / transversality:
-  k+1 frequencies v_1,...,v_{k+1} are delta-transverse when the parallelepiped
-  of their paraboloid directions (2v_i,1) has volume at least delta. Nonzero
-  transversality means "genuinely different directions."
+Polynomial partitioning (Guth-Katz):
+    The decomposition of a point set by a degree-D polynomial into
+    sign cells of mass at most C_n * (points) / D^n. Used in the
+    transverse saving's no-jump lemma (Chapter 37).
+
+s_n:
+    s_n = n/(2(n+1)). The critical Sobolev exponent for a.e. pointwise
+    convergence of the Schrodinger equation in R^n.
+
+Sparse estimate (paper Sec 6):
+    sum_q mu(q)^beta sup_q |U|^2 <= C m^beta L^{2n/(n+1)} D^{-c_s} E
+    for D >= L^tau (Chapter 38). Converts transverse savings into a
+    power of D^{-c_s}.
+
+Strip saving (paper Sec 4):
+    For fields supported near an affine (n-2)-plane, a power saving
+    S^{-c_0 alpha} beyond the unweighted Du-Zhang estimate
+    (Chapter 33).
+
+Transversal / transverse:
+    A configuration of direction vectors with determinant bounded
+    away from zero (Chapter 16).
+
+Transverse saving (paper Sec 5):
+    The theorem that n+1 transverse unit amplitude fields cannot
+    concentrate on a dense set of cubes at the amplitude L^{-e}
+    (Chapter 35).
 
 Tube moment condition:
-  The condition that each packet tube carries at most m L^{n+1}/D of the
-  measure, with D the sparsity. It rules out measure concentrating on a single
-  packet tube.
+    The condition INT (1+|x - y_alpha - 2 t omega_alpha|/L)^{-M}
+    d mu(x, t) <= m L^{n+1}/D for every packet trajectory. This is
+    the "sparsity" of mu at scale L (Chapter 22).
+
+U_a f:
+    The Gaussian-regularized evolution:
+    U_a f(x, t) = (2 pi)^{-n} INT e^{i x xi - i t|xi|^2 - a|xi|^2}
+                                f_hat(xi) d xi.
 
 Unit density (chi):
-  See "density parameter."
+    The parameter chi in mu(B(z, 1)) <= m chi. chi = 1 is "dense",
+    chi << 1 is "sparse". Controls the amplitude threshold chi^a g L^{-e}.
 
-Wall / plate:
-  The wall is the zero set of the degree-X^C polynomial partitioning the level
-  set. The small-Hessian argument shows each piece of the wall is near an
-  affine hyperplane; that hyperplane is a PLATE, and the frame estimate is
-  applied on plates in one fewer dimension.
+Wall:
+    A codimension-1 hypersurface on which a heavy packet field is in
+    "transition" — approximately as big as lambda — and which is not
+    locally affine. Either the wall has large second fundamental form
+    (angular case) or it is locally a plate (frame case). See Section 7.
 
-Weak L^p / L^{p,infinity}:
-  A size condition weaker than L^p: the measure of {|f| > lambda} decays like
-  lambda^{-p}. The whole geometric part produces a weak L^p maximal bound with
-  p > 2, and the endpoint sum converts it into the L^1 maximal estimate.
+Weak estimate (paper Sec 7):
+    The endpoint frequency-local maximal estimate at L^p: the main
+    output of Sections 3-7 (Chapter 40).
 
-Key exponents (all fixed by the dimension):
-  s_n = n/(2(n+1))     the endpoint Sobolev exponent;
-  beta = 2/(n+1)        the fractal weight exponent;
-  e  = n^2/(n+1)        the scaling exponent in the level;
-  q_k = 2(k+2)/k        the decoupling exponent;
-  p_k = 2(k+1)/k        the multilinear/frame exponent;
-  gamma_n = 2n/((n+1)(n+2))  the Du-Zhang fractal exponent.
 
---------------------------------------------------------------------------------
-PART 18. HONEST NOTES ON THE STATUS OF THE RESULT
+51.  SOURCES
 --------------------------------------------------------------------------------
 
-This document describes a specific manuscript. It is worth being clear about
-what is fully established and what a careful reader should check.
+Primary.
 
-What the paper claims.
-  The manuscript claims a complete proof that, for every integer n >= 3 and
-  every f in H^{n/(2(n+1))}(R^n), the free Schrodinger evolution converges
-  almost everywhere to f as t -> 0+, in the precise sense of Part 5, namely a
-  single full-measure set, uniform in t, with Gaussian regularization removed
-  simultaneously for all real times in [0,1). Combined with Bourgain's
-  counterexample (which shows failure for smaller s) and with Carleson's
-  one-dimensional result, this would settle the entire Carleson pointwise
-  convergence problem: convergence holds exactly for s >= n/(2(n+1)) in every
-  dimension. (For n = 2, the endpoint is claimed in the companion planar paper,
-  not here; this paper is about n >= 3.)
+The paper.
+    "Endpoint pointwise convergence for the Schrodinger equation in
+    higher dimensions", September 24, 2026. Author: OpenAI (per the
+    paper's own header). This companion is a readers' guide to it.
 
-What is genuinely new here, as described by the paper.
-  - The buffered refined-decoupling lemma, repaired in all dimensions (fixing
-    the collar gap flagged by Singh-Singh-Parmar).
-  - The near-Cauchy theorem with its N-lossless R^{q_k} count.
-  - The transverse saving in every fixed dimension (Part 12).
-  - The quadratic-sublevel narrow estimate that detects the second fundamental
-    form, and the resulting flattening into affine plates (Part 13).
-  - The two-parameter (scale/sparsity) induction and the two energy budgets
-    that make the endpoint close.
+Predecessors on which the paper is built.
 
-What depends on external inputs.
-  - Du-Zhang (2019) fractal/maximal estimate.
-  - Bourgain-Demeter decoupling (2015).
-  - Du-Guth-Li-Zhang multilinear refined Strichartz (2018).
-  - Bennett-Carbery-Tao / Guth multilinear Kakeya, and Tao's multilinear
-    curved Kakeya.
-  - He's discretized projection theorem.
-  - Guth-Katz polynomial partitioning and Wongkew's tubular neighborhood bound.
-  - The planar companion PSE2026 for the "limiting information calculus" and
-    "block comparison and telescoping costs" lemmas and the time-tree
-    mechanism.
+Carleson 1980.
+    Some analytic problems related to statistical mechanics. In
+    Euclidean Harmonic Analysis (Proc. Sem. Univ. Maryland 1979),
+    Lecture Notes in Math 779, Springer.
 
-  These are all cited with explicit theorem locators. A serious verification
-  would have to confirm that each is applied in its stated range and with the
-  stated constants, especially the "buffered" repair and the planar lemmas.
+Dahlberg and Kenig 1982.
+    A note on the almost everywhere behavior of solutions to the
+    Schrodinger equation. In Harmonic Analysis (Minneapolis 1981),
+    Lecture Notes in Math 908, Springer.
 
-How to read the correctness claim.
-  This guide faithfully summarizes the paper as it is written. It does not
-  independently re-prove every inequality (that is not something a summary
-  can do). A proof of this size and technical depth can only really be
-  certified by sustained expert reading of the actual manuscript, ideally with
-  independent checks of the external inputs. If you are using this result, cite
-  the paper and treat its proof as the source of truth, not this guide.
+Sjolin 1987.
+    Regularity of solutions to the Schrodinger equation. Duke Math
+    Journal 55(3): 699-715.
 
-Why the result would matter if correct.
-  The Carleson pointwise convergence problem is a central question in harmonic
-  analysis with a long history and many deep partial results. Settling the
-  endpoint in all dimensions would close the problem completely. It would also
-  demonstrate that the endpoint version of the Schrodinger maximal estimate
-  (as opposed to the strict inequality) is true, which is the technically
-  difficult and previously open case. The proof techniques -- the lossless
-  packet algebra, the near-Cauchy bound, the transverse frame estimate, the
-  curvature-driven flattening, and the single time tree -- are likely to be
-  useful in adjacent endpoint problems as well.
+Vega 1988.
+    Schrodinger equations: pointwise convergence to the initial data.
+    Proc. AMS 102(4): 874-878.
 
-One-line summary.
-  For n >= 3, every f in H^{n/(2(n+1))}(R^n) has an almost-everywhere
-  Schrodinger evolution to f as t -> 0+, at the exact Sobolev exponent, on one
-  time-independent full-measure spatial set, uniformly over the time interval.
+Bourgain 2013.
+    On the Schrodinger maximal function in higher dimension. Proceedings
+    of the Steklov Institute 280(1): 46-60.
 
-================================================================================
-END OF DOCUMENT
-================================================================================
-APPEND-PROBE-7f3a
+Bourgain 2016.
+    A note on the Schrodinger maximal function. Journal d'Analyse
+    Math (2016). The counterexample for s < n/(2(n+1)).
+
+Du, Guth, Li 2017.
+    A sharp Schrodinger maximal estimate in R^2. Annals of Math,
+    Theorems 1.1-1.2. The planar endpoint (s > 1/3, plus endpoint).
+
+Du, Guth, Li, Zhang 2018.
+    Pointwise convergence of Schrodinger solutions and multilinear
+    refined Strichartz estimates. Forum Math Sigma, Theorems 1.1 and 4.2.
+
+Du and Zhang 2019.
+    Sharp L^2 estimate of the Schrodinger maximal function in higher
+    dimensions. Annals of Math, Theorem 1.1. The non-endpoint predecessor
+    s > n/(2(n+1)).
+
+Du, Li 2024.
+    Recent improvements in higher-dimensional maximal estimates
+    (Theorems 1.1-1.2), for other L^p ranges.
+
+Pan, Sun, Tan 2026.
+    Bessel-potential extension, still assuming s > n/(2(n+1)) at p = 2
+    (Theorems 1.3-1.4).
+
+Technical inputs.
+
+Bennett, Carbery, Tao 2006.
+    On the multilinear restriction and Kakeya conjectures. Acta Math.
+    Multilinear Kakeya.
+
+Bourgain and Demeter 2015.
+    The proof of the l^2 decoupling conjecture. Annals of Math.
+    Decoupling.
+
+Bourgain and Guth 2011.
+    Bounds on oscillatory integral operators based on multilinear
+    estimates. GAFA. The broad-narrow paradigm underlying Chapter 38.
+
+Guth 2010.
+    The endpoint case of the Bennett-Carbery-Tao multilinear Kakeya
+    conjecture. Acta Math. Weighted multilinear Kakeya.
+
+Guth 2016 (Restriction).
+    A restriction estimate using polynomial partitioning. JAMS.
+
+Guth and Katz 2015.
+    On the Erdos distinct distances problem in the plane. Annals.
+    Polynomial partitioning, finite-set version.
+
+He 2020.
+    Robust hyperplane projection estimate. Cited in Chapter 21.
+
+Singh, Singh, Parmar 2026.
+    Refined decoupling, cited for the "collar gap" repair in Section 2.
+
+Wongkew 1993.
+    Volumes of tubular neighbourhoods of real algebraic varieties.
+    Pacific J. Math. Cited for the tubular volume bound.
+
+Basu 2014.
+    Algorithms in real algebraic geometry: a survey. arXiv:1409.1534v1.
+    Cited for real algebraic background.
+
+Tao 2020.
+    Multilinear estimate for the paraboloid patch, Theorem 1.7.
+    Used for the multilinear Strichartz exponent.
+
+Companion.
+
+Planar version: "planar_schrodinger_endpoint_v2.txt". The companion
+paper for n = 2. Uses many of the same ideas (frame estimate, transverse
+saving) adapted to the planar case, and covers the endpoint 1/3.
+
+Sibling docs in the same directory.
+
+The file "Uniform-Pluricanonical-Iitaka-Fibrations-complete-standalone-
+equivalent-explainer-for-16-year-olds-with-nothing-missing-ascii.txt"
+uses a different format ("Exercise: question / answer" pairs) at the same
+level of accessibility. The present companion is longer, uses linear
+prose, and does not follow the Q&A format. A reader who likes one format
+may like the other; they are independent.
+
+A final note.
+
+This companion is meant to be read alongside the paper, not instead of
+it. Every step in Part IV corresponds to a proof in the paper, and in
+each case the paper is the authoritative version. Where this companion
+is more explicit than the paper, that is a bonus, not a substitute.
+
+If you are the reader who has read all the way:
+
+  - The single most technical input is the frame estimate (Section 3,
+    Chapters 26-30). If you have followed Chapters 26-30, you have
+    understood the hardest part of the paper.
+
+  - The two savings (frame, transverse) are logically independent and
+    meet only in Section 7.
+
+  - The endpoint is bought by the absence of N^eps factor in each of the
+    four "buying" ingredients (near-Cauchy, buffered refined decoupling,
+    frame estimate, strip saving). Each one replaces a lossy standard
+    inequality with a lossless version.
+
+  - The final theorem (Chapter 47) is, once the weak estimate is in
+    hand, essentially classical analysis (Borel-Cantelli, Lebesgue
+    differentiation, approximate identities).
