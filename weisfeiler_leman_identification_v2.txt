@@ -1,0 +1,1952 @@
+================================================================================
+IDENTIFYING A GRAPH BY WEISFEILER-LEMAN REFINEMENT
+A complete and accessible exposition
+================================================================================
+
+This document rewrites the paper "The complexity of identifying a graph
+by Weisfeiler-Leman refinement" (September 25, 2026) for a reader who is
+comfortable with basic graph theory but has not seen WL refinement
+before. Every theorem, lemma, and proof of the original is retained. The
+technical statements are unchanged. Proofs are rewritten to lead with
+the key idea, then say what the pieces are, then verify the pieces. Long
+case checks that are routine are compressed to "the reason this works."
+Comparisons to prior published work are folded into a short
+"Background" note (see Sec. 1.1) rather than repeated throughout.
+
+The result is: deciding the Weisfeiler-Leman dimension of a graph is
+EXPTIME-complete. That is the whole headline. The bulk of this document
+explains what the statement means and why it is true.
+
+--------------------------------------------------------------------------------
+WHAT YOU SHOULD ALREADY KNOW
+--------------------------------------------------------------------------------
+
+We use a small amount of notation without re-defining it every time:
+
+  G, H        : graphs (finite, undirected, no self-loops)
+  V(G), E(G)  : vertex set, edge set
+  n           : number of vertices in the input graph
+  m           : number of bits of the input word driving the reduction
+  G ~ H       : G and H are isomorphic (equal up to relabeling vertices)
+  in          : "is an element of"
+  forall      : "for every"
+  exists      : "there exists"
+  <=, >=      : the usual order
+  F_2         : the field {0,1} with arithmetic modulo 2, so 1+1=0
+  {{ ... }}   : multiset ("bag"): order irrelevant, repetition counted
+  |S|         : number of elements in the set S
+  N(v)        : the set of neighbors of vertex v (its "neighborhood")
+  deg(v)      : the degree of v, equal to |N(v)|
+
+If any of those feel unclear, the glossary at the end defines each one in
+detail.
+
+--------------------------------------------------------------------------------
+CONTENTS
+--------------------------------------------------------------------------------
+
+  0.  Headline
+  1.  The identification problem, in plain words
+  2.  WL refinement, from the ground up
+  3.  Equivalence, identification, and WL dimension
+  4.  The bijective game
+  5.  Why the game equals k-WL at k+1 slots
+  6.  Dimension is monotone
+  7.  Matching vertices have equal degrees
+  8.  The easy half: this all sits inside EXPTIME
+  9.  The hard half: an outline before any details
+ 10.  Encoding comparisons as a graph: schemas, wires, blocks
+ 11.  Every equivalent mate is a G(beta)
+ 12.  Isomorphism equals a global offset
+ 13.  What every winning game guarantees: image consistency
+ 14.  Lifting sums around a cycle
+ 15.  The global-offset criterion
+ 16.  Small supports and wrapping addresses
+ 17.  Exact projection
+ 18.  Translations become a winning strategy
+ 19.  Building the computation from a monotone circuit
+ 20.  Acceptance: every equivalent mate is isomorphic
+ 21.  Rejection: one small twist
+ 22.  Polynomial-size output
+ 23.  The main theorem
+ 24.  Writing the dimension in unary
+  Glossary
+  Bibliography
+
+The structure is:
+
+  Sections 1-3 say what the problem is.
+  Sections 4-8 set up the tools and prove the upper bound.
+  Section 9 is the roadmap of the reduction.
+  Sections 10-22 build the reduction.
+  Sections 23-24 state the final result.
+
+If you only want the shape of the argument, read 0, 1, 3, 8, 9, 23.
+
+================================================================================
+0.  HEADLINE
+================================================================================
+
+Given a graph G and a positive integer k (written in binary), decide
+whether k is large enough that Weisfeiler-Leman refinement at dimension
+k already tells G apart from every nonisomorphic k-equivalent graph.
+Write WLdim(G) for the least such k. Then:
+
+    The decision problem "is WLdim(G) <= k?" is EXPTIME-complete.
+
+EXPTIME is the set of problems solvable in time 2^(poly(n)). "Complete"
+means this identification problem is as hard as any other problem in
+EXPTIME, under deterministic polynomial-time reductions.
+
+Even when k is written in unary (as a string of 1's, so k is bounded by
+the source input length), the problem remains EXPTIME-complete. So the
+hardness is not driven by k being an exponentially large number written
+in binary. The hardness is in the graph.
+
+================================================================================
+1.  THE IDENTIFICATION PROBLEM, IN PLAIN WORDS
+================================================================================
+
+You have a graph G. You have a tool, the WL algorithm at dimension k,
+that tries to prove two graphs are not isomorphic. Given enough
+dimension, that tool can always succeed. The question is: how much
+dimension does it need before it can do the job on G?
+
+Wait carefully: "do the job on G" means the tool succeeds at telling G
+apart from EVERY graph that is not isomorphic to it. To make the
+question finite, we only consider graphs with the same number of
+vertices.
+
+For example: a path on 4 vertices and a cycle on 4 vertices have the same
+vertex count (4). Neither is isomorphic to the other. WL at dimension 1
+already tells them apart by vertex degree. So dimension 2 is certainly
+enough for the path P_4. Dimension 1 suffices too.
+
+A cycle of length n is NOT caught by dimension 1 (every vertex looks the
+same throughout the refinement). But it is caught at dimension 2 (the
+tuples have enough resolution). Other "regular" graphs need higher
+dimension.
+
+So WLdim(G) measures how much information you need to isolate G from
+every structurally-different graph of the same size. Small dimension for
+"easy" graphs, larger for "hard-to-distinguish" graphs.
+
+The decision problem: given (G, k), decide whether WLdim(G) <= k.
+
+The headline says: this problem is EXPTIME-complete.
+
+-----------------------------------------
+1.1  Background
+-----------------------------------------
+
+WL refinement originates in Weisfeiler and Leman's 1968 work on graph
+canonization [WL1968]. The link between WL, counting logic, and pebble
+games made it central in finite model theory [CFI1992, KN2019]. Related
+complexity results for identification and pair equivalence:
+
+  - Arvind, Kobler, Rattan, Verbitsky proved P-hardness for dimension
+    ONE identification [AKRV2017].
+  - Lichter, Rassmann, Schweitzer extended fixed-dimension P-hardness to
+    every k >= 2, and proved NP-hardness when k is part of the input,
+    even for simple uncolored graphs [LRS2025].
+  - Variable-dimension pair equivalence was independently shown
+    coNP-hard [Seppelt2024, LRS2025].
+
+The present paper completes the picture: for input-dimension
+identification, the answer is EXPTIME-complete, not NP and not anything
+smaller.
+
+================================================================================
+2.  WL REFINEMENT, FROM THE GROUND UP
+================================================================================
+
+WL refinement is a coloring process. We color the vertices (or tuples of
+vertices, for higher dimension), and refine colors round by round until
+they stabilize.
+
+-----------------------------------------
+2.1  Dimension 1: ordinary neighbor-color refinement
+-----------------------------------------
+
+Start with every vertex of G having color RED.
+
+Round 1: give each vertex v the color
+
+    (RED,  {{color_0(w) : w in N(v)}}).
+
+In words: v's new color records (a) its old color, and (b) the multiset
+of colors of its neighbors from the previous round.
+
+Round 2: same rule, using round-1 colors in place of round-0 colors:
+
+    color_2(v) = ( color_1(v),  {{color_1(w) : w in N(v)}} ).
+
+Continue. Two vertices end up in the same round-s class iff their
+"neighborhood descriptions up to round s" are the same. Because color_2
+contains color_1 contains color_0, the partition generated by color_s
+refines the partition generated by color_{s-1}: no class can expand,
+only split.
+
+Colors stabilize after at most n rounds, where n = |V(G)|, because the
+partition can split at most n-1 times (one vertex alone in a class).
+
+For two graphs G and H, run the same process on both, SHARING color
+names. Write G ==_1 H iff, at every round, the multisets of vertex
+colors agree between G and H.
+
+-----------------------------------------
+2.2  Dimension k >= 2: tuples with the joint-update rule
+-----------------------------------------
+
+For dimension k >= 2, the objects that get colored are k-tuples: ordered
+lists v = (v_1, ..., v_k) of vertices of G, repetition allowed. So there
+are |V(G)|^k many objects.
+
+Round 0: the initial color chi^G_0(v) records two things:
+
+    - which positions hold the same vertex (v_i = v_j or not);
+    - which pairs of positions are adjacent (v_i v_j in E(G) or not).
+
+Round s+1: the color of v is:
+
+    ( chi^G_s(v),
+      {{ ( chi^G_s(v[1<-z]), chi^G_s(v[2<-z]), ...,
+           chi^G_s(v[k<-z]) )   :   z in V(G) }} )
+
+where v[i<-z] means "v with its i-th position replaced by z." The
+resulting object is a multiset of k-long LISTS of colors: a multiset
+over z of the k-vector of replacement colors.
+
+The words JOINT UPDATE are the technical name for this. The alternative,
+which is NOT what we do, would be a "list" of k separate multisets
+(one per coordinate). The joint convention is strictly stronger and is
+what the game treats below with k+1 slots.
+
+Two graphs G, H of the same order are k-equivalent, written G ==_k H,
+iff at every round the multisets of k-tuple colors agree between G and
+H.
+
+================================================================================
+3.  EQUIVALENCE, IDENTIFICATION, AND WL DIMENSION
+================================================================================
+
+Two definitions:
+
+    k-WL IDENTIFIES G   iff   for every graph H with |V(H)| = |V(G)|,
+                              G ==_k H  ==>  G ~ H.
+
+    WLdim(G) = least positive k that identifies G.
+
+Some observations:
+
+  - If k >= n = |V(G)|, k-WL identifies G. Take the k-tuple that lists
+    all n vertices once and then arbitrarily repeats the first one for
+    the remaining positions. Its round-0 color already encodes the whole
+    graph: it records every equality among vertices and every adjacency.
+    Two graphs of order n whose color-histogram at dimension k agrees
+    include that specific tuple in the "same color" comparison. Across
+    graphs that means an actual structure-preserving bijection. So
+    WLdim(G) <= n.
+
+  - For n = 1, WL_1 identifies the single vertex trivially, so WLdim <= 1.
+
+The WLdim measures how much work is needed to distinguish a particular
+graph. Small regular graphs (cycles, strongly regular graphs) can need
+larger dimension. Random graphs are typically caught at low dimension.
+
+The theorem says: given G and k, deciding WLdim(G) <= k is EXPTIME-hard.
+
+================================================================================
+4.  THE BIJECTIVE GAME
+================================================================================
+
+The algebraic definition above is awkward to prove things with. We swap
+it for a two-player game in which the combinatorial structure is
+transparent.
+
+Fix two graphs G and H with |V(G)| = |V(H)| > 0. Fix a positive integer
+K = number of "pair slots."
+
+Position: at most K pairs (v, w), one per occupied slot, with v in V(G)
+and w in V(H). The same v or the same w can occur in multiple slots.
+
+One ROUND:
+
+  1. Spoiler chooses a vacant slot.
+  2. Duplicator names a bijection f : V(G) -> V(H).
+  3. Spoiler chooses v in V(G).
+  4. The chosen slot gets the pair (v, f(v)).
+
+Additionally, Spoiler may discard occupied pairs at any time (making
+those slots vacant again).
+
+Winning condition: Duplicator wins when every occupied pair
+(v_i, w_i), (v_j, w_j), satisfies
+
+    v_i = v_j    iff   w_i = w_j,
+    v_i v_j in E(G)   iff   w_i w_j in E(H).
+
+So the occupied pairs must always exhibit a partial isomorphism. If
+Duplicator has a strategy that survives every sequence of Spoiler's
+choices, we say "Duplicator wins the game with K slots."
+
+Spoiler tries to build an obstruction: always tries to make the pairs
+incompatible. Duplicator has to always hand back a bijection that
+extends the currently consistent set.
+
+The whole reason we introduce this game is:
+
+    k-equivalence of G and H   =   Duplicator wins with k+1 slots.
+
+That is Lemma 1 below. Note the "+1."
+
+================================================================================
+5.  WHY THE GAME EQUALS k-WL AT k+1 SLOTS
+================================================================================
+
+LEMMA 1. Let G, H have equal positive order, and let k >= 2. Then:
+
+    G ==_k H   iff   Duplicator wins the bijective game with k+1 slots.
+
+Furthermore, if Duplicator wins with at least 2 slots, then G ==_1 H
+(ordinary dimension-1 equivalence).
+
+-----------------------------------------
+5.1  Key idea
+-----------------------------------------
+
+Run WL refinement "in parallel" on the tuple tables V(G)^k and V(H)^k,
+giving matching color names whenever the same "definition" appears in
+both.
+
+Two facts about the joint-update rule are used:
+
+  (a) Coordinate permutations preserve equality. If chi^G_s(v) =
+      chi^H_s(w) for k-tuples v, w and sigma is any permutation of
+      positions, then chi^G_s(sigma v) = chi^H_s(sigma w). This follows
+      from the initial types and induction: the joint-update multiset is
+      invariant under reordering the tuple, and the coordinate
+      permutation just permutes the components of each replacement
+      vector.
+
+  (b) A stable color class carries a matching bijection. If v and w
+      have equal round-s colors with s a stable round, then within each
+      vector-of-replacement-colors class, we can pair up the underlying
+      vertices: the multiset of replacement vectors is the same for
+      both v and w, so vertices that appear in "the same replacement
+      vector" can be matched.
+
+With those two facts:
+
+  (==>) If G ==_k H, pick a pair v, w of equal-color k-tuples (they
+  exist because color histograms are equal and both orders are
+  positive). Use (b) to attach one extra vertex per tuple from the
+  matching bijection, obtaining (k+1)-tuples v+, w+ whose "delete any
+  one common slot" projections are all - up to a common coordinate
+  permutation - equal-color k-tuples. Duplicator maintains exactly that
+  pair of (k+1)-tuples as the invariant. At every round, to fill the
+  spare slot, Duplicator announces the bijection from (b). Whichever
+  vertex Spoiler picks, "delete the spare" is unchanged, "delete any
+  other slot" is a coordinate permutation of a replacement pair. The
+  invariant survives. This proves a winning strategy.
+
+  (<==) Given a winning strategy with k+1 slots. Induct on the round s
+  that the refinement has stabilized. At every history ending with k
+  occupied pairs (i.e. one spare empty), the two k-tuples share a
+  common ordering of their vertices with equal round-s colors. The base
+  s=0 = partial isomorphism is the game's winning condition. The step:
+  fill the spare, Duplicator announces f, Spoiler picks some source
+  vertex; Spoiler may then discard one of the old slots, which is a
+  coordinate-deletion of an equal-color pair by induction. The strategy
+  matches all k replacement colors simultaneously for the same f, so
+  the whole joint vector matches and the next-round color agrees.
+
+  Fill k slots from scratch in a fixed order. The succession of
+  announced bijections (invert the first one to find the source of any
+  target anyway) gives a bijection V(G)^k -> V(H)^k that sends every
+  tuple to one with the same color at every round. So the color
+  histograms agree, giving G ==_k H.
+
+  Final claim (which will also be useful later): if Duplicator wins
+  with at least 2 slots, run the same inductive argument on
+  vertex-color refinement at every history with exactly 1 occupied
+  pair. One more slot is enough to compare the neighbor-color
+  multisets, giving G ==_1 H.
+
+================================================================================
+6.  DIMENSION IS MONOTONE
+================================================================================
+
+LEMMA 2. For positive integers j <= k, G ==_k H implies G ==_j H.
+Consequently, WLdim(G) <= k iff k-WL identifies G.
+
+Proof. From equal histograms at dimension k we get |V(G)|^k = |V(H)|^k,
+hence |V(G)| = |V(H)|; if that is zero, the claim is trivial, so assume
+positive.
+
+By Lemma 1, G ==_k H iff Duplicator wins with k+1 slots. Restricted to
+any j+1 <= k+1 slots, the same strategy still wins (Duplicator ignores
+the extra slots). For j = 1, the final clause of Lemma 1 applies.
+
+For "consequently": if some j <= k identifies G, then G ==_k H implies
+G ==_j H implies G is isomorphic to H, so k-WL identifies G too.
+Conversely, "WLdim(G) <= k" literally means "exists j <= k that
+identifies G."
+
+================================================================================
+7.  MATCHING VERTICES HAVE EQUAL DEGREES
+================================================================================
+
+LEMMA 3. In every history following a winning strategy (with at least
+2 slots), matched vertices have equal degrees. Consequently, every
+bijection announced by the strategy preserves degrees.
+
+Proof. Take any currently matched pair (v, w). Fill one more slot;
+Duplicator announces f: V(G) -> V(H). Let u range over V(G). Every pair
+(u, f(u)) must be consistent with the fixed (v, w). So u is adjacent to
+v iff f(u) is adjacent to w. In other words, f sends N_G(v) onto N_H(w)
+bijectively. That is a bijection between two sets, so their cardinalities
+are equal: deg(v) = deg(w).
+
+For the "consequently": for each vertex v, its pair (v, f(v)) under the
+announced f satisfies the same, so deg(f(v)) = deg(v).
+
+This lemma is what lets us "recover forgotten colors." Section 10 will
+encode vertex colors as degrees; Lemma 3 then says that any equivalent
+mate automatically respects those colors.
+
+================================================================================
+8.  THE EASY HALF: THIS ALL SITS INSIDE EXPTIME
+================================================================================
+
+PROPOSITION 1. The problem "given a graph G (adjacency matrix) and
+positive binary integer k, decide WLdim(G) <= k" belongs to EXPTIME.
+
+Proof.
+
+Step 0. Check the input is a well-formed graph. O(n^2) time on an
+n-vertex matrix. Reject bad input.
+
+Step 1. Compare k to n = |V(G)|. If k >= n, accept. Reason: a k-tuple
+listing all vertices (with repeats to fill) has a round-0 color that
+already determines the whole graph; two such tuples with equal colors
+give an isomorphism.
+
+Step 2. Now 1 <= k < n. Enumerate every labeled simple graph H on n
+vertices. For each H, check two conditions:
+
+    (i)   G ==_k H        (color histograms equal at every round)
+    (ii)  G is NOT isomorphic to H
+
+If any such H exists, REJECT (WLdim > k). Otherwise ACCEPT (WLdim <= k).
+
+Correctness is Lemma 2 (monotonicity): WLdim(G) <= k iff no
+nonisomorphic k-equivalent H exists.
+
+Complexity. The number of labeled simple graphs on n vertices is
+2^(C(n,2)), exponential in n. Testing G ~ H is naively n!, exponential
+in n log n. Testing G ==_k H: run k-WL refinement on 2 n^k entries,
+for at most 2 n^k rounds (colors refine, never merge). Each round's
+signature has 1 + n * k entries; sorting and renaming is polynomial in
+n^k. So equivalence is poly in n^k, hence poly in n^n, hence
+exponential in a polynomial in n.
+
+Total: 2^(C(n,2)) * (n! + poly(n^n)). This is exponential in a
+polynomial of the input length (n^2 matrix entries + log k bits). Well
+inside EXPTIME.
+
+So the upper bound holds.
+
+================================================================================
+9.  THE HARD HALF: AN OUTLINE BEFORE ANY DETAILS
+================================================================================
+
+The real content is EXPTIME-hardness. Given any EXPTIME language L and
+any input word w of length m, we produce, in deterministic polynomial
+time in m, a pair (G, r) with G a graph and r a polynomial-in-m
+dimension, such that:
+
+    w in L   ==>   WLdim(G) <= r   (so r-WL identifies G)
+    w not in L ==> WLdim(G) > r    (some nonisomorphic H with G ==_r H)
+
+Then any EXPTIME language reduces to the WLdim problem in poly time.
+
+The graph G is built so that "one twist on the square bits" corresponds
+to "one accepting computation of M on w." There are four main construction
+ideas, each a whole section:
+
+  A. (Secs. 10-12) The graph encodes BINARY LINEAR CONSTRAINTS on some
+     "shift bits." A given bit assignment beta yields a graph G(beta).
+     If G(0) ==_r H, then H is isomorphic to G(beta) for some beta
+     (Prop. 2). And G(0) is isomorphic to G(beta) iff the shift bits
+     admit a "global offset" satisfying every square equation (Prop. 3).
+     So "isomorphism" = "linear system has a solution."
+
+  B. (Secs. 13-15) Every equivalent graph gives "image consistency":
+     nonempty sets Q_{P,a} of values, with one scalar equality per
+     comparison. This is necessary. It is not, in general, sufficient.
+     Secs. 16-18 set up the special case where necessary = sufficient:
+     the special twist where all shift bits live on one row of the
+     first r wiring rows and one end of each wire.
+
+  C. (Sec. 16-18) Exact-projection theorem: on a small collection of
+     blocks (at most r+1), every old translation has a legal extension
+     to a slightly larger one. This is what lets Duplicator preserve
+     consistency of the maintained assignment while answering new
+     placements.
+
+  D. (Secs. 19-22) Fill in the actual computation:
+     - A polynomial-size monotone circuit simulating the EXPTIME
+       machine M for T = 2^(p(m)) steps, with "product-of-bits"
+       address structure at every gate.
+     - Two-coordinate buffers use the trick that {(0,0),(1,1)} subset
+       of F_2^2 has full coordinate images but sum set {0}. That lets
+       "singleton at source" propagate to "singleton at destination"
+       without requiring matching shifts.
+     - When M accepts, all equivalent mates are isomorphic.
+     - When M rejects, one row-r self-connection at the broadcast
+       type A gives a nonempty-family of shifts whose global-offset
+       system has no solution.
+
+Combine A-D: correctness. Corollary (Sec. 24): even k in unary suffices.
+
+Everything below is filling in A-D.
+
+================================================================================
+END OF PART 1.  Sections 10-24, glossary, and bibliography appear in the
+continuation of this file.
+================================================================================
+
+================================================================================
+10.  ENCODING COMPARISONS AS A GRAPH
+================================================================================
+
+We now build the graph G used in the reduction. The construction has two
+halves:
+
+  - A "schema" describes a linear comparison you want to enforce.
+  - "Wires" and "blocks" translate a whole collection of schemas into an
+    uncolored graph.
+
+Section 10 says how to build the graph. Sections 11-12 characterize the
+graphs that are r-equivalent to it.
+
+-----------------------------------------
+10.1  Schemas
+-----------------------------------------
+
+Fix the field F = F_2 (arithmetic modulo 2). Choose integers
+
+    r >= 32,     K := r + 1.
+
+Indices i = 1, ..., r are cyclic: r+1 means 1.
+
+A "real type" P is an abstract object with a dimension d_P in {1, 2}.
+A "value at type P and address a in {0,1}^r" is an element of F^{d_P}.
+
+A "comparison schema" e consists of:
+
+    - ordered real endpoints P, R;
+    - a nonempty product domain D_e = prod_{i=1}^r D_{e,i},
+      each D_{e,i} nonempty in {0,1};
+    - coordinate injections sigma_{e,i} : D_{e,i} -> {0,1};
+    - scalar linear forms
+          lambda_{e,0} : F^{d_P} -> F,
+          lambda_{e,1} : F^{d_R} -> F.
+
+Write sigma_e(a) for the vector (sigma_{e,1}(a_1), ..., sigma_{e,r}(a_r)).
+
+Meaning: schema e "compares" lambda_{e,0} at (P, a) with lambda_{e,1}
+at (R, sigma_e(a)), for every a in D_e.
+
+Loops (P = R), parallel schemas, and zero forms are all allowed.
+
+-----------------------------------------
+10.2  Wires
+-----------------------------------------
+
+Each schema e : P -> R gets replaced by a "wire" with 4K private internal
+types, each of dimension 1. So a wire has 4K+1 links; distinct wires have
+no internal types in common.
+
+Real types plus internal types (across all wires) form the "type layout."
+For a type t, define:
+
+    A_{t,i} = {0,1}             if t is real,
+              D_{e,i}           if t is internal to wire e.
+
+These are the "allowed labels at coordinate i." Let d_t be the dimension
+of type t.
+
+At each link l (a type pair t-u with t first, u second in wire
+orientation), we want per-coordinate allowed matches. Define:
+
+    M_{l,i} = { (p, p) : p in D_{e,i} }
+                 if l is not the last link of e,
+              { (p, sigma_{e,i}(p)) : p in D_{e,i} }
+                 if l is the last link of e.
+
+At internal endpoints, the scalar form L_{l,*} is the identity on F. At
+real endpoints, it is lambda_{e,0} (first link, P side) or lambda_{e,1}
+(last link, R side).
+
+-----------------------------------------
+10.3  Readouts and blocks
+-----------------------------------------
+
+Readouts are the "wires of the graph" -- the named variables we will
+assign to F^{d_t} or F.
+
+Horizontal readout (a vector):
+    x_{i,t,p,p'} in F^{d_t}     for p in A_{t,i}, p' in A_{t,i+1}.
+
+Vertical readout (a scalar):
+    y_{i,l,p,q} in F             for (p, q) in M_{l,i}.
+
+Think of them as edges: horizontal readout x_{i,t,p,p'} connects corner
+(i, t, p) to corner (i+1, t, p'). Vertical y_{i,l,p,q} connects
+(i, t, p) to (i, u, q) where l = t-u.
+
+A "full address at type t" is a vector a with a_i in A_{t,i} for all i.
+It selects one horizontal readout per row. The "value represented at
+address a" is:
+
+    h_t(a) = sum_{i=1}^r x_{i,t,a_i,a_{i+1}}  in F^{d_t}.
+
+So the exponentially-many values h_t(a) are determined by the
+shorter tables x_{i,t,p,p'} -- the y-readouts are not part of h_t.
+
+There are two kinds of "blocks" (small local consistency conditions):
+
+  - Site block: uses just one horizontal readout x_{i,t,p,p'}.
+    Every value of x is legal. (Site blocks impose nothing.)
+
+  - Square block: for each link l = t-u, row i, and pairs
+    (p, q) in M_{l,i}, (p', q') in M_{l,i+1}, uses FOUR readouts:
+        x_t = x_{i,t,p,p'},
+        x_u = x_{i,u,q,q'},
+        y_i  = y_{i,l,p,q},
+        y_{i+1} = y_{i+1,l,p',q'}.
+
+    Choose one bit beta_B in F per square B. A valuation of the block is
+    LEGAL iff
+
+        L_{l,t}(x_t) + L_{l,u}(x_u) + y_i + y_{i+1} = beta_B.     (*)
+
+At least one of the two endpoints of any link is internal, so a square
+uses d_t + d_u + 2 <= 5 bit coordinates. Equation (*) is a nonzero
+linear equation with at most 16 solutions (the same count for beta_B = 0
+and beta_B = 1), for any assignment of the other readouts.
+
+The reason for long wires: a collection of <= K blocks uses at most K
+distinct layout links, because site blocks use none and squares use one.
+So such a collection cannot span a whole wire of 4K+1 = 4r+5 links. This
+"no short witness wraps a full wire" fact drives Section 17.
+
+-----------------------------------------
+10.4  The uncolored graph G(beta)
+-----------------------------------------
+
+First, build a COLORED graph:
+
+  1. For each bit coordinate of each readout name, create two bit-value
+     vertices, labeled 0 and 1. Give the pair a fresh color. Pairs are
+     SHARED across blocks: if the same readout name appears in multiple
+     blocks, they use the same two bit-value vertices.
+
+  2. For each block, create one "valuation vertex" per LEGAL valuation,
+     all with a fresh color specific to that block. Connect each
+     valuation vertex to the bit-value vertex for its assigned value in
+     each coordinate used by the block. No other edges.
+
+The result is bipartite: valuation vertices on one side, bit-value
+vertices on the other. Call these "base vertices." Let N = number of
+base vertices; this N is independent of the beta choices (by the
+"at most 16 per square" count).
+
+Give fresh colors to the base-vertex classes, numbered 1, ..., J.
+
+Finally erase the colors: attach j(N+1) new private leaves at every base
+vertex of color j, then "forget" the colors. The resulting uncolored
+graph is G(beta). Its order is independent of beta. G(0) is the graph
+where all square bits beta_B are zero.
+
+================================================================================
+11.  EVERY EQUIVALENT MATE IS A G(beta)
+================================================================================
+
+PROPOSITION 2 (Reconstruction of any equivalent mate). Fix comparison
+data as in Section 10, with r >= 32. Any graph H with H ==_r G(0) is
+isomorphic to G(beta) for some choice of one bit beta_B per square block.
+
+-----------------------------------------
+11.1  Key idea
+-----------------------------------------
+
+Lemma 1 provides a winning strategy from G(0) to H (with K = r+1 slots).
+The strategy's degree-preservation (Lemma 3) lets us "recover the
+forgotten colors." Once colors are back, we can identify each block and
+hence each beta_B globally, because the same two bit-value vertices are
+shared by every block that uses that coordinate.
+
+-----------------------------------------
+11.2  Details
+-----------------------------------------
+
+Base vertices of color j in G(0) have degrees in the interval:
+
+    I_j = [ j(N+1), j(N+1) + N - 1 ].
+
+These intervals are pairwise disjoint and above 1. Every other vertex
+(private leaves) has degree 1.
+
+Lemma 3 says any announced bijection preserves degrees. So H has exactly
+the same number of vertices in each I_j, exactly the same number of
+degree-1 vertices, and no vertices of any other degree. Call such
+vertices "base of color j."
+
+Every base vertex of H is reachable by a single placement (invert the
+first announced bijection). The next announced bijection must preserve
+degrees AND adjacency to that vertex, so its degree-1 neighbors are
+exactly j(N+1). Summing over all base vertices accounts for all degree-1
+vertices of H; hence all degree-1 vertices are private leaves on bases,
+none sit in a separate component. (Bases stay base-colored.)
+
+There can also be no base edge between two color classes that are never
+adjacent in G(0). Reason: any two target vertices can be reached by two
+successive placements using inverse bijections; preimages have the
+prescribed colors; partial isomorphism preserves edge tests. In
+particular, no edges are within one side of the bipartition and none to
+unrelated bit-value vertices.
+
+Now fix a block. Mark every valuation vertex, plus both bit-value
+vertices of every coordinate it uses. In a square at most 16 + 2*5 = 26
+vertices; a site is smaller. All fit in K >= 33 slots. Their images are
+distinct, preserve colors, and exhaust the corresponding color classes
+in H (we checked class sizes). So H locally looks like G(0) with colors.
+
+Label the two vertices of every bit pair in H by {0, 1}, once for all
+blocks. A local colored isomorphism may flip each bit pair independently,
+because flipped-or-not is a degree (and color) preserving operation on
+that pair.
+
+A site's valuation vertices are exactly all site valuations under these
+chosen labels.
+
+A square's local isomorphism, translated to homogeneous data via the
+coordinate flips, produces some right-hand side beta_B; the valuation
+vertices of that block are exactly the legal valuations of Equation (*)
+with that RHS. Different blocks are permitted to use different local
+flips; what is COMMON is the single global labeling of each bit pair.
+
+Combining: H is isomorphic to G(beta) for the beta_B described above.
+
+The subtle assertion being proved: an arbitrary r-equivalent H is not
+"some new structure with the same WL color histogram" but literally the
+same construction, up to a bit-flip per square.
+
+================================================================================
+12.  ISOMORPHISM EQUALS A GLOBAL OFFSET
+================================================================================
+
+PROPOSITION 3 (Isomorphisms and global offsets). For any choice of
+square bits beta, G(0) is isomorphic to G(beta) iff there exists a
+"global offset assignment" solving every square equation with its
+RHS.
+
+Definition. A global offset assignment gives:
+  - a vector in F^{d_t} to every horizontal readout x_{i,t,p,p'},
+  - a scalar in F to every vertical readout y_{i,l,p,q},
+
+with the SAME value used in all blocks that share that readout name.
+Such an assignment is "legal for beta" if Equation (*) holds at every
+square block.
+
+Note: site blocks impose no condition, so any beta-pinned assignment
+satisfying the squares simultaneously is enough.
+
+Proof idea.
+
+(=>) An isomorphism preserves degrees, so it acts on every base color
+class. Its action on each bit pair is a bit flip, i.e. a delta in F.
+Collecting these flips per readout name gives the offset vector and
+offset scalar. The image of the all-zero valuation vertex of a block of
+G(0) is adjacent to the bit-value vertices specified by these offsets,
+so its coordinates ARE the restriction of the offsets to that block.
+Legality of the image forces Equation (*) with RHS beta_B. Because bit
+pairs are shared across blocks, all those local flips are part of ONE
+global assignment.
+
+(<=) Given such a global offset assignment, we translate each bit pair
+by its own offset, and translate each block's valuation by the offsets
+on its coordinates. Linearity makes the translation a bijection from
+the homogeneous legal valuations to the shifted legal valuations of that
+block. Shared offsets preserve every valuation-bit incidence. The
+translation extends to the private leaves (whose count depends only on
+the preserved base color).
+
+================================================================================
+13.  IMAGE CONSISTENCY: WHAT EVERY WINNING GAME GUARANTEES
+================================================================================
+
+So far, Proposition 2 says any equivalent mate is G(beta). Proposition 3
+says "G(beta) is isomorphic to G(0)" is a global-solvability question.
+The next three sections extract from a winning game (of G(0) ==_r G(beta))
+a NECESSARY condition on the beta bits, and in section 16 the "special"
+case where it is also SUFFICIENT.
+
+The necessary condition is called "image consistency."
+
+-----------------------------------------
+13.1  Two more useful quantities
+-----------------------------------------
+
+Fix a schema e : P -> R and an address a in D_e. Along its wire, use
+the address a at the first endpoint and every internal type, and
+sigma_e(a) at the last endpoint. For each link l of this wire and row i,
+write B(i, l, a) for the square specified by these addresses.
+
+Define:
+
+    Delta_l(a) = sum_{i=1}^r  beta_{B(i, l, a)}
+    Delta_e(a) = sum_{l on wire e}  Delta_l(a)             all in F.
+
+Each summand belonging to row i depends only on (a_i, a_{i+1}). So
+Delta_l(a), Delta_e(a) are functions of a. They have "row-sum form"
+(preview: sum of functions on adjacent pairs of coordinates), because
+each summand depends only on two consecutive coordinates.
+
+-----------------------------------------
+13.2  Statement
+-----------------------------------------
+
+PROPOSITION 4 (Image consistency). For the construction of Section 10,
+suppose G(0) ==_r G(beta). Then there exist nonempty sets
+
+    Q_{P,a} subset F^{d_P},
+
+one for each real type P and each address a in {0,1}^r, such that for
+every comparison schema e : P -> R and every a in D_e:
+
+    lambda_{e,0}( Q_{P,a} ) = Delta_e(a) + lambda_{e,1}( Q_{R, sigma_e(a)} ).   (**)
+
+Here the notation lambda(S) means the image set {lambda(s) : s in S},
+and the equality is a set equality in F (a scalar set):
+
+    { lambda_{e,0}(v) : v in Q_{P,a}  }
+       = { Delta_e(a) + lambda_{e,1}(w) : w in Q_{R, sigma_e(a)} }.
+
+Interpretation. (**) is necessary for equivalence, and is analogous to
+"arc consistency" in constraint satisfaction: each value of one endpoint
+has some supporting value at the other endpoint for THIS comparison.
+Those supports may be different for different comparisons. In particular,
+a "self-comparison" (P = R, with the same address) does NOT force its two
+endpoint values to be equal vectors.
+
+-----------------------------------------
+13.3  How the sets Q are produced from a winning game
+-----------------------------------------
+
+Fix a winning (r+1)-slot strategy for G(0) -> G(beta).
+
+Consider histories in which Spoiler places only the all-zero valuation
+vertex of some block of G(0). The response is the valuation of the SAME
+block in G(beta); degree preservation guarantees this (base-class sizes
+match).
+
+Claim. In any such history, if two marked blocks share a readout name,
+their responses agree on that readout.
+
+Proof of claim. If they disagreed, some bit-value coordinate differs.
+Discard all pairs except those two blocks, then mark the corresponding
+bit pair (whose value is inconsistent). The zero valuation of that bit
+in G(0) is adjacent to both source blocks. But no vertex of the target
+bit pair is adjacent to both blocks (they disagree). Contradiction.
+Uses at most 3 slots.
+
+Now for a type t and a full allowed address a at t, define the "site
+ring" to be the r site blocks with readouts x_{i,t,a_i,a_{i+1}}. Mark
+their zero valuations. Let h_t be the sum (in F^{d_t}) of the response
+vectors on those readouts.
+
+Claim. Starting from this ring, and using one spare slot, we can
+transfer the sum across any incident link with matching addresses. The
+procedure places the square block of that row before discarding the old
+site pair.
+
+After all rows are replaced, using at most r+1 slots:
+  - Adjacent square responses agree on their shared vertical readout.
+  - Summing Equation (*) around the square ring cancels every vertical
+    value twice.
+
+So for the two horizontal sums h_t, h_u at link l = t-u with address a:
+
+    L_{l,t}(h_t) + L_{l,u}(h_u) = Delta_l(a).      (link identity)
+
+Replace each square by its arrival-side site (place before discarding).
+The arrival sum is copied exactly. Works in either direction. Along a
+complete wire, the internal sums are scalars and cancel (each vertical
+appears once as "y_i" and once as "y_{i+1}" between consecutive links).
+So endpoint equality is:
+
+    lambda_{e,0}( h_P ) = Delta_e(a) + lambda_{e,1}( h_R[sigma_e(a)] ).
+
+Now define:
+
+    Q_{P,a} = { h_P obtained from a zero-block-only history that ends
+                with exactly the site ring at (P, a) marked }.
+
+Nonempty: the ring can be queried from the empty position.
+
+If we continue any history realizing a value in Q_{P,a} along the wire
+(via the same small proof moves), we get one side of (**). Continuing
+backwards from Q_{R, sigma_e(a)} gives the reverse inclusion. No
+"memorylessness" or common simultaneous choice is used, so this works
+even for self-comparisons.
+
+That is the proof of Proposition 4.
+
+================================================================================
+14.  LIFTING SUMS AROUND A CYCLE
+================================================================================
+
+The next fact is purely about F-valued functions on a cyclic product.
+
+LEMMA 4 (Cycle lifting). Let r >= 3, each A_i nonempty, and let
+g_i : A_i x A_{i+1} -> F for i = 1, ..., r (cyclically). If
+
+    sum_{i=1}^r  g_i(a_i, a_{i+1}) = 0   for all a in prod_i A_i,   (***)
+
+then there exist functions Y_i : A_i -> F with
+
+    g_i(u, v) = Y_i(u) + Y_{i+1}(v)   for every i, u in A_i, v in A_{i+1}.
+
+Proof. Fix a base address b. Taking the RECTANGULAR DIFFERENCE in
+coordinates i and i+1 of (***) eliminates all but g_i, since r >= 3.
+Consequently we can write:
+
+    c_i = g_i(b_i, b_{i+1}),
+    alpha_i(u) = g_i(u, b_{i+1}) + c_i,
+    gamma_i(v) = g_i(b_i, v) + c_i,
+    g_i(u, v) = c_i + alpha_i(u) + gamma_i(v).
+
+Varying coordinate i alone from b gives:
+
+    alpha_i(u) = gamma_{i-1}(u).
+
+Evaluating at b gives sum_i c_i = 0 (that is exactly (***) at b).
+
+Choose constants C_i in F satisfying C_i + C_{i+1} = c_i cyclically:
+choose C_1 arbitrarily and recurse. The final equation holds because the
+c_i sum to zero. Set
+
+    Y_i(u) = alpha_i(u) + C_i.
+
+Then Y_i(u) + Y_{i+1}(v) = c_i + alpha_i(u) + gamma_i(v) = g_i(u, v).
+
+For a singleton factor the deviations vanish, so the same argument
+covers that case.
+
+================================================================================
+15.  THE GLOBAL-OFFSET CRITERION
+================================================================================
+
+This section connects Section 13's necessary condition to Section 12's
+isomorphism criterion.
+
+PROPOSITION 5 (Global offsets). For any right-hand sides beta in the
+Section 10 construction, all square equations admit a simultaneous
+assignment to the readout names if and only if there exist "row-sum
+functions":
+
+    h_P : {0,1}^r -> F^{d_P},   one per real type P,
+
+satisfying
+
+    lambda_{e,0}(h_P(a)) + lambda_{e,1}(h_R(sigma_e(a))) = Delta_e(a)
+       for all schemas e : P -> R and addresses a in D_e.   (GLOBAL)
+
+Equivalently, these functions exist iff G(0) is isomorphic to G(beta).
+
+Here "row-sum form" for h : A_1 x ... x A_r -> V means:
+
+    h(a) = sum_{i=1}^r  h_i(a_i, a_{i+1})
+
+for functions h_i : A_i x A_{i+1} -> V (with cyclically r+1 = 1).
+
+Note: restriction to a product subdomain preserves row-sum form, as do
+linear maps on V and pullback by coordinatewise maps of the domain. In
+particular, all functions Delta_l(\cdot), Delta_e(\cdot) defined in
+Section 13.1 have row-sum form.
+
+Proof.
+
+(=>) Suppose global offsets exist. For each real type P, sum the
+horizontal readouts around each site ring to define h_P. These are by
+construction sums of one readout per row, each readout being a function
+of the two consecutive coordinates a_i, a_{i+1}. So h_P has row-sum
+form.
+
+Sum the square equations around any link l to get the link identity
+     L_{l,t}(x_t) + L_{l,u}(x_u) = Delta_l(a)
+now for the assigned offsets. Sum along a wire: internal scalar sums
+cancel and the endpoints satisfy (GLOBAL).
+
+(<=) Suppose row-sum functions exist satisfying (GLOBAL). For each
+internal type s of wire e : P -> R, define a scalar function on D_e:
+
+    h_s(a) = lambda_{e,0}(h_P(a)) + sum_{l from P through s} Delta_l(a).
+
+This is row-sum form (each term is). The link identity holds immediately
+on the first and internal links by telescoping cancellation. It holds on
+the last link by (GLOBAL), with h_R evaluated at sigma_e(a); that latter
+function is of row-sum form in a because sigma_e is coordinatewise.
+
+Now choose a row decomposition of each function:
+  - for real-type h_P (defined on {0,1}^r): a sum of adjacent-coordinate
+    terms on the full product;
+  - for internal-type h_s (defined on the allowed product): a sum of
+    adjacent-coordinate terms on that product.
+
+Assign the chosen row-i term to all horizontal readouts of type t at
+row i. Each choice is once per type, so readouts shared between
+different incident wires already have consistent values across blocks.
+
+For a link l = t-u on wire e with matched addresses, let x_t, x_u be
+those assigned horizontal values. The residual
+
+    g_i(a_i, a_{i+1}) = beta_{B(i,l,a)} + L_{l,t}(x_t) + L_{l,u}(x_u)
+
+is a function of the two source coordinates (a_i, a_{i+1}), and the
+link identity proves the sum around the cycle is zero on D_e. So
+Lemma 4 supplies Y_i : D_{e,i} -> F with consecutive sums equal to g_i.
+Assign Y_i(a_i) to the vertical readout of link l indexed by the match
+corresponding to a_i.
+
+Well-definedness. Every vertical readout is one match; matches are
+indexed bijectively by source labels on every link (including the last,
+where sigma is an injection on D_{e,i}). Every square is at a pair of
+adjacent source labels that extends to a full address (all other product
+factors are nonempty). So the assignment really does satisfy Equation
+(*) at every square, not just along a selected collection of addresses.
+
+Different links have distinct vertical readout names, so their
+assignments are independent. Site blocks impose no additional
+constraint. We have obtained the desired global offsets.
+
+The equivalence with isomorphism is Proposition 3.
+
+Finally, an observation used later: a row-sum function on a product
+subdomain of {0,1}^r EXTENDS to a row-sum function on the full cube
+(extend each row term arbitrarily to the corresponding binary pair).
+
+================================================================================
+END OF PART 2.  Sections 16-24, glossary, and bibliography appear in the
+final continuation.
+================================================================================
+
+================================================================================
+16.  SMALL SUPPORTS AND WRAPPING ADDRESSES
+================================================================================
+
+From now on we build "translations" of readouts that correspond to
+permitted bit flips. The main tool is a family H_U of admissible
+assignments parameterized by a small collection U of blocks. Section 17
+shows these translate every legal valuation-for-G(0) into a
+legal valuation-for-G(beta), for beta in a "special twist."
+
+-----------------------------------------
+16.1  The twist we use
+-----------------------------------------
+
+Choose constants b_e in F, one per comparison schema. For a link l on
+wire e, let b_l = b_e if l is the LAST link of the wire, else 0. Let
+delta_r = 1 and delta_i = 0 for i < r. Define the SQUARE BITS
+
+    beta_B = delta_i * b_l   for a square B in row i on link l.     (T)
+
+Then Delta_e(a) = b_e for every a in D_e (the sum around the wire
+collapses: only the row-r end-link bit survives).
+
+-----------------------------------------
+16.2  Small supports are trees with short arms
+-----------------------------------------
+
+For a set U of blocks, define Gamma_U to be the graph whose vertices are
+corners and whose edges are the readout names appearing in U (repeated
+names collapse to one edge). Each block belongs to one connected
+component of Gamma_U.
+
+The "type support" of a component is the subgraph of the type layout
+consisting of its types and links.
+
+LEMMA 5. If |U| <= K, every component of Gamma_U has a type support
+that is a tree with at most one real type. A support containing no real
+type lies inside a single wire interior. A support containing a real
+type is that type plus short arms in its incident wires.
+
+Proof. A type support is connected (it is the image of a connected
+corner graph). Each square contributes at most one distinct layout
+link, sites contribute none, so a support has at most K links.
+Internal types have layout degree exactly 2. A cycle, or a path
+between two distinct real types, must traverse a complete wire of
+4K+1 links; neither fits. The rest of the description follows.
+
+The point: "small" means "cannot span a full wire."
+
+-----------------------------------------
+16.3  Aligned labels and the wrapping marker
+-----------------------------------------
+
+To compare labels at different types in a type support, fix for every
+link and boundary index an EXTENSION of the label-matching injection
+M_{l,i} to a full permutation of {0,1}. Use identity for identity
+matches and the inverse permutation when traversing backwards. Such
+extensions exist because the injections are on nonempty subsets of a
+2-element set.
+
+Choose a reference type in each support tree. Transport along unique
+paths to express every label at reference-type coordinates. These are
+the "aligned labels." Vertical edges preserve aligned labels.
+
+Markers. A horizontal edge in row i gets marker delta_i. A vertical
+edge gets marker zero. A BLOCK COLLECTION is "wrapping" if its corner
+graph has a closed walk whose marker sum, mod 2, is 1. Equivalently,
+some closed walk crosses the row-r seam an odd number of times.
+
+-----------------------------------------
+16.4  Wrapping addresses
+-----------------------------------------
+
+LEMMA 6 (Wrapping addresses). Let |U| <= r+1. Then:
+
+  1. Every wrapping subcollection of U has at least r blocks.
+
+  2. A wrapping collection of exactly r blocks has one block per row,
+     lies in a single component, and determines one full aligned
+     address at that component.
+
+  3. Every wrapping r-subcollection of U, if any, lies in the same
+     component of Gamma_U, and they all determine the same aligned
+     address there.
+
+Proof of (1). For a closed walk, let c_i in F be the number of
+horizontal traversals through row i, mod 2. Summing incidences over
+every boundary index i (all corners with that boundary index) gives
+c_{i-1} = c_i: vertical traversals contribute in pairs. An odd marker
+means c_r = 1, hence c_i = 1 for every i. Every row is crossed an odd
+number of times. A block supplies horizontal edges in only its own row,
+so >= r blocks are needed.
+
+Proof of (2). If there are exactly r blocks, there is one per row and
+the walk meets every one. Two blocks in the same component of the
+corner graph; that is one component. A site block gives one horizontal
+edge, prescribing one pair of aligned labels. A square block gives two
+horizontal edges in adjacent rows; the vertical edges preserve
+alignment, so the two edges prescribe the SAME adjacent pair. Summing
+the walk's contributions at boundary index i leaves only horizontal
+contributions (vertical cancels), so the odd horizontal counts force
+adjacent rows' labels to agree. Every coordinate gets pinned. Together
+these give a full address.
+
+Proof of (3). Two r-subcollections share >= r-1 blocks. For wrapping
+subcollections those common blocks are in distinct rows, so the two
+subcollections are in the same component. The common rows touch every
+boundary index because r >= 3 (one missing row can only fail to reach
+one boundary, and the adjacent boundary still is touched). So the two
+addresses agree.
+
+================================================================================
+17.  TRANSLATIONS ON A SMALL BLOCK COLLECTION
+================================================================================
+
+-----------------------------------------
+17.1  Building the assignment family
+-----------------------------------------
+
+Fix U with |U| <= K. In each component C of Gamma_U, choose a vector
+h_t in F^{d_t} per type in its support, subject to the "link equation"
+
+    L_{l,t}(h_t) + L_{l,u}(h_u) = b_l     for every link l = tu in C
+                                          of the type support.
+
+Call these h-values SHIFTS. They are chosen independently for distinct
+components, even if the same type appears in more than one.
+
+If C contains a wrapping r-subcollection, use its unique aligned
+address a (Lemma 6) and impose one additional condition:
+
+  - If the support contains a real type P: require h_P in Q_{P,a}.
+  - If no real type: require its common internal scalar to lie in
+    Q_{s,a}, where a is the address read in the source coordinates of
+    that wire.
+
+If no wrapping r-subcollection is present, only the link equations
+apply. Such shifts are ADMISSIBLE.
+
+Admissible shifts always exist. In a wire interior all b_l = 0, so
+one common scalar (in the indicated nonempty set when required)
+suffices. If the support contains a real type P, choose its vector
+arbitrarily (or from the indicated nonempty Q); the endpoint forms
+propagate to arms, adding the last-link constant on the end-link. The
+scalar is constant along the rest of the arm, and distinct arms have
+private internal types, so they do not conflict.
+
+Independently choose a potential M_v in F^{d_t} at every corner v of
+type t. Define readout offsets by
+
+    x_{vw} = M_v + M_w + delta_i * h_t   (horizontal edge in row i)
+
+    y_{vw} = L_{l,t}(M_v) + L_{l,u}(M_w) (vertical edge on l = tu)
+
+Endpoints of the vertical edge are ordered as in its readout name.
+
+Let H_U be the family of all readout assignments to U produced this
+way. Set H_empty = {empty}.
+
+Every assignment in H_U satisfies Equation (*) at every square of U.
+Reason: in a square, potential terms cancel pairwise; the sum reduces
+to delta_i * (L(h_t) + L(h_u)) = delta_i * b_l = beta_B.
+
+-----------------------------------------
+17.2  Exact projection
+-----------------------------------------
+
+PROPOSITION 6 (Exact projection). For V subset U with |U| <= r+1,
+restriction to the readout names of V maps H_U onto H_V.
+
+The point: every "old" assignment on a smaller set of blocks EXTENDS
+to a legal assignment on a larger one. This is exactly the
+"preservation of consistency" property that Duplicator will use.
+
+Proof. Components D of Gamma_V lie in components C of Gamma_U, with
+D's type support a subtree of C's.
+
+Step A: Restriction of shifts. A nonwrapping D has no Q restriction.
+A wrapping D uses all r blocks of V (Lemma 6), so it exhausts V. The
+address imposed on C restricts to the same address on D. If D has a
+real type, C has the same one and D inherits the same Q condition. If
+D lies inside a wire interior but C reaches a real endpoint, the
+address a read inside D is in the actual product D_e; its expression
+at the real endpoint uses endpoint matches (a at first, sigma_e(a) at
+last). By the image equality equation (**), the permitted internal
+scalar set is the image of the permitted real-vector set under the
+endpoint form (translated by the last-link constant when relevant). So
+restriction is admissible.
+
+Step B: Extension of shifts. Retain shifts when possible, or lift an
+internal scalar via the preimage under the endpoint form just
+described. Extend along remaining arms. Only one arm is constrained in
+the preimage case. Since a wrapping old component consumes all r old
+blocks, there is never a second wrapping choice to constrain.
+
+Step C: Preservation of old readouts on nonwrapping components. The
+marker on any edge vw in D can be written as s_v + s_w for labels
+s_v, s_w in F at its corners: choose path sums from a fixed corner
+(well-defined because every closed walk in a nonwrapping D has marker
+sum 0). Let g_t = (new shift) - (old shift) at type t in this
+component.
+
+The two shifts satisfy the same inhomogeneous link equation, so their
+difference satisfies the homogeneous one: L(g_t) + L(g_u) = 0.
+
+Replace the old potential at v of type t by M_v + s_v g_t. Then:
+
+  - Horizontal edge in row i: change in offset = (s_v + s_w + delta_i)
+    * g_t = 0 (because the marker equals s_v + s_w).
+  - Vertical edge on l = tu: s_v = s_w (markers of vertical edges are
+    zero, so s_v - s_w = 0), so change = s_v(g_t + g_u), which by the
+    homogeneous link equation summed with s_v is zero.
+
+So every old readout is preserved.
+
+Step D: Compatibility. Different components of Gamma_V have disjoint
+corners, so potential adjustments are compatible even if the
+components merge in Gamma_U or share a type. Retain the old potentials
+on the wrapping component and choose arbitrary new ones elsewhere.
+
+Together: extension from any element of H_V to an element of H_U.
+
+One application: a wrapping (r+1)-block component with no wrapping
+r-subcollection is no exception. Every proper subcollection has <= r
+blocks and is nonwrapping; exact projection extends any old choice.
+
+================================================================================
+18.  TRANSLATIONS BECOME A WINNING STRATEGY
+================================================================================
+
+THEOREM 1 (Special-twist sufficiency). Fix r >= 32, K = r+1. Let beta
+be the special twist (T). Suppose for every real type P and address a
+in {0,1}^r there is a nonempty Q_{P,a} subset F^{d_P} such that for
+every comparison schema e : P -> R and every a in D_e:
+
+    lambda_{e,0}(Q_{P,a}) = b_e + lambda_{e,1}(Q_{R,sigma_e(a)}).     (**-twist)
+
+Then G(0) ==_r G(beta).
+
+Setup for the proof. For each internal type s on wire e : P -> R,
+define
+
+    Q_{s,a} := lambda_{e,0}(Q_{P,a}) = b_e + lambda_{e,1}(Q_{R,sigma_e(a)}).
+
+These are nonempty scalar sets, independent of the internal type on
+that wire.
+
+Ownership convention (identical in G(0) and G(beta)):
+
+  - A block's valuation vertices are owned by that block.
+  - Each bit-value pair is owned by one fixed block using that
+    coordinate.
+  - A leaf has its parent's owner and a fixed private index.
+
+Duplicator maintains an assignment in H_U, where U is the set of
+OWNERS of currently-marked vertices.
+
+Marked base vertices are matched by translation:
+
+  - Block valuation: translate by offsets on the block's coordinates.
+  - Bit-value: translate by the coordinate offsets on the pair.
+  - Leaf: same private index at translated parent.
+
+|U| <= occupied slots <= K. So H_U is always defined.
+
+Translation is bijective on each base vertex class with owner in U:
+it maps homogeneous legal valuations onto beta-legal valuations, and
+permutes each bit-value pair.
+
+Parent translation extends to a bijection on the corresponding leaves
+(same color of translated parent => same leaf count).
+
+Partial isomorphism. The only possible base incidence is between a
+valuation vertex and a bit-value vertex for a coordinate that block
+uses. When both are marked, their owners are in U and the common
+readout receives one well-defined offset. So bit-equality and
+bit-inequality are both preserved. All other base-class pairs have no
+edges in either graph. Leaf attachments are preserved by parent
+translation and private indices. Translation within each class is
+injective, distinct classes stay distinct, leaves preserve their
+indices, so EQUALITY of marked vertices is preserved.
+
+When Spoiler discards pairs, the maintained assignment restricts to
+a smaller U, allowed by exact projection.
+
+When a slot is vacant, |U| <= r. For EACH possible owner B of the next
+vertex, choose an extension of the current assignment to
+H_{U + {B}}. This is possible BEFORE any vertex is selected, by
+exact projection. (If B in U, current assignment already works.)
+
+The part of the vertex set owned by B is translated using the chosen
+extension. These parts partition V(G(0)), and each maps bijectively to
+the identically-owned part in G(beta). They combine into one vertex
+bijection, which Duplicator announces. Parts for current owners agree
+with the maintained assignment, so it extends all currently marked
+pairs (including repeated occurrences of one vertex).
+
+After Spoiler selects a vertex, retain the extension chosen for its
+owner B. It agrees with every old marked pair, and the new pair is
+consistent. The preceding partial-isomorphism check applies. Duplicator
+wins with K = r+1 slots. So G(0) ==_r G(beta).
+
+================================================================================
+19.  BUILDING THE COMPUTATION
+================================================================================
+
+We now specify exactly what the circuit encodes, and how a graph-like
+constraint system emerges.
+
+Setup. Fix a binary language L in EXPTIME. Fix a deterministic machine
+M with a single doubly-infinite tape. Input occupies positions 0, ...,
+m-1. Other cells blank; head starts at 0; moves at most one cell per
+step.
+
+Running time: T = 2^(p(m)), p polynomial, p(m) >= m+32 (padding).
+
+Any multitape machine can be simulated on one tape; the overhead is
+polynomial and gets absorbed in p.
+
+Also arrange a "frozen-halting" convention: on accept or reject, the
+tape and head do not move and the state is preserved.
+
+Parameters for input word w of length m:
+
+    d = p(m) + 2,
+    S = 2^d = 4T,
+    r = 2d.
+
+So r >= 68. In particular r >= 32: Section 11's reconstruction and
+Section 18's special-twist theorem both apply.
+
+Addresses. An address in {0,1}^r splits into two groups of d bits,
+least-significant-first, representing a pair (tau, j) with tau, j in
+[0, S-1]. Time tau is not cyclic (0 <= tau < S). Position j is taken
+modulo S.
+
+Gates. Two types:
+
+  - Scalar gate: value = OR of incoming values; true if seed or any
+    incoming true.
+  - Two-port AND gate: value = (OR of connections to port 1) AND
+    (OR of connections to port 2).
+
+One gate of each type per address.
+
+Connection schemas. A "connection schema" describes:
+
+  - source type, destination type, destination port;
+  - a nonempty product source domain;
+  - coordinate injections from source to destination address.
+
+So its address data have exactly the shape of a comparison schema from
+Section 10.
+
+Seed and test requests. A seed or test request specifies a scalar type
+and a nonempty product of allowed addresses.
+
+PROPOSITION 7 (Computation). For fixed M and each input w with the
+parameters above, one can construct in time polynomial in r + m an
+acyclic monotone circuit description with:
+
+  - O_M(1) gate types;
+  - O_M((r+1)^2 + m) connection schemas, seed requests, and test
+    requests;
+  - total O_M(r * ((r+1)^2 + m)) constant-size coordinate entries.
+
+Every schema is a nonempty product domain with coordinate injections.
+All tests are scalar terminal gates. M accepts w iff at least one test
+gate is true.
+
+Proof. Apply the uniform product-circuit compilation theorem
+[VariableWL, Prop. 3.2] to M, p. Its assumptions match ours:
+
+  - one-tape initialization, frozen-halting convention;
+  - least-significant-bit-first coordinate groups;
+  - r = 2(p(m) + 2);
+  - position ring length 4T = S;
+  - p(m) >= m + 2 (our padding is >= m + 32);
+
+so the theorem gives the stated counts.
+
+Locally, the circuit uses a fixed transition rule on three adjacent
+tape cells. Scalar gates record cell symbols. Two-port AND gates
+recognize the triples producing each next symbol. Time increment and
+position increment/decrement split into carry and borrow cases; each
+case fixes some bits and either flips or preserves each coordinate, so
+its domain is a product and its coordinate maps are injections.
+Combining time and position cases: O_M(r^2) schemas. Input exceptional
+cells plus a product decomposition of the blank suffix supply the
+seeds. Final-time accepting symbols supply the terminal tests.
+
+The compiler generates all this from short coordinate tables without
+listing full addresses. The true-test condition is acceptance of w.
+
+================================================================================
+20.  ACCEPTANCE: EVERY EQUIVALENT MATE IS ISOMORPHIC
+================================================================================
+
+Now add the "identification constraints."
+
+-----------------------------------------
+20.1  Real types and the identification constraints
+-----------------------------------------
+
+From the circuit:
+
+  - Each scalar gate type: dimension 1, with the scalar coordinate as
+    both input and output form.
+  - Each AND type: dimension 2, with the input forms the coordinate
+    projections and the output form their sum.
+
+Add a new scalar type A, the BROADCAST TYPE. Add also a scalar DUMMY
+type. Gate types plus A are the PRIMARY TYPES.
+
+Seeds. For each seed request (scalar type + product domain), add a
+comparison from that scalar type to the DUMMY on the same product
+domain with identity transmission. It compares the scalar form at the
+source with the zero form at the dummy.
+
+Additional DIRECTED connections (added to the circuit; NOT part of
+its evaluation):
+
+  1. From each tested scalar type to A, on its test domain, with
+     identity transmission.
+
+  2. For each coordinate i: from A to A on the full product, flipping
+     coordinate i. (The broadcast.)
+
+  3. From A to every coordinate form of every gate type, on the full
+     product, identity transmission.
+
+  4. From every coordinate form of every primary type to itself, on
+     the full product, identity transmission. For A's coordinate,
+     include TWO DISTINCT copies.
+
+These constraints define identification; they do not affect the truth
+values the circuit computes.
+
+-----------------------------------------
+20.2  Buffering connections with F_2^2
+-----------------------------------------
+
+Each connection schema l - original circuit edge OR added directed
+connection - is upgraded to a "buffered connection" using a private
+real type B_l of dimension 2.
+
+Suppose l goes from form o on type P to form s on type R, with source
+domain D_l and address map sigma_l. Denote B_l's two coordinates by
+z_1, z_2; it uses source addresses. Add three comparison schemas:
+
+    l1:   o at P -> z_1 at B_l      (address maps: identity on D_l)
+    l2:   o at P -> z_2 at B_l      (identity on D_l)
+    l3:   z_1 + z_2 at B_l -> s at R  (address: sigma_l)
+
+That is three comparisons replacing one.
+
+The point is made by two subsets of F_2^2:
+
+    {(0,0), (1,1)}   coordinate images are both F, sum image is {0}.
+    {(0,1), (1,0)}   coordinate images are both F, sum image is {1}.
+
+Consequence: the source can be a full image while the buffer has small
+sum image. In the OTHER direction, if both coordinate images are
+singletons, the whole nonempty buffer set is a singleton.
+
+-----------------------------------------
+20.3  The acceptance theorem
+-----------------------------------------
+
+PROPOSITION 8 (Acceptance). If M accepts w, then every graph H with
+H ==_r G(0) is isomorphic to G(0).
+
+Proof. By Proposition 2, write H ~ G(beta). Transport equivalence
+across the isomorphism; Proposition 4 supplies nonempty Q_{P,a} with
+the image-consistency equality.
+
+Step 1: Singleton propagation across a buffer.
+
+Let l be any directed connection at address a in D_l. Suppose the
+source image o(Q_{P,a}) is a singleton. Then both coordinate images
+of Q_{B_l,a} are singletons (by l1, l2). Since Q_{B_l,a} is nonempty,
+it is a single vector. Its sum image is a singleton. The third
+comparison (l3) makes s(Q_{R,sigma_l(a)}) a singleton. The specific
+"shifts" the singletons sit at do not matter; propagation is about
+size.
+
+Step 2: Induction on the circuit.
+
+At each seed, comparison with the dummy's zero form gives a singleton
+scalar image (in fact {0}).
+
+Induction in acyclic circuit order: every true gate has a singleton
+output image.
+
+  - True scalar gate: seed or true incoming source. Both give singleton.
+  - True AND gate: both ports true, both coordinate images singleton,
+    their sum singleton.
+
+Step 3: Broadcast.
+
+By Proposition 7, at least one test is true. The test's added connection
+(Item 1) makes A have a singleton scalar image at that address. Flipping
+each coordinate connects all addresses in {0,1}^r; each A-flip
+connection (Item 2) propagates singletons, so A is singleton at every
+address.
+
+Step 4: A forces all gate coordinates singleton.
+
+Each A-to-gate connection (Item 3) makes the corresponding coordinate
+of the corresponding primary type a singleton. So every primary set is
+a singleton:
+
+    Q_{P,a} = { h_P(a) }    for every primary P and address a.
+
+Step 5: Row-sum form via self-connection.
+
+Fix a coordinate form s of a primary type P, with its identity
+self-connection l. At each address, the first two comparisons give
+buffer coordinates, which must be
+
+    z_1 = s(h_P(a)) + Delta_{l1}(a),
+    z_2 = s(h_P(a)) + Delta_{l2}(a).
+
+Their sum over F_2 is Delta_{l1} + Delta_{l2} (the two copies of
+s(h_P(a)) cancel). The third comparison (l3), with destination the same
+coordinate at the same address as P (self, so h_R(a) = h_P(a)), reads:
+
+    z_1 + z_2 = s(h_P(a)) + Delta_{l3}(a)   (all at R's coords = P's)
+
+Equate:
+
+    s(h_P(a)) = Delta_{l1}(a) + Delta_{l2}(a) + Delta_{l3}(a).
+
+The right side is a sum of functions each depending on two consecutive
+coordinates: row-sum form. So every coordinate of every primary h_P is
+a row-sum function, so h_P itself is.
+
+Step 6: Buffers become row-sum on their active domain.
+
+For each private buffer B_l on the active domain D_l, prescribe:
+
+    h_{B_l,j}(a) = o(h_P(a)) + Delta_{lj}(a),    j = 1, 2.
+
+These are the unique coordinates of its image-consistency set on that
+domain. They are row-sum form there. Extend each row term arbitrarily
+from its allowed pair of factors to {0,1}^2; their sums define row-sum
+functions on the full address product. This extension changes nothing
+(because B_l occurs only in its three schemas on D_l).
+
+Step 7: Extend to non-primary real types.
+
+  - The DUMMY gets the zero function.
+  - All primary types have singleton and row-sum functions.
+
+On each comparison domain, every scalar form in a comparison has the
+value required by (**), and the dummy's zero form gives {0}. So the
+row-sum functions satisfy (GLOBAL) (Prop 5). Hence global offsets
+exist (Prop 5), hence G(beta) ~ G(0) (Prop 3), hence H ~ G(0).
+
+================================================================================
+21.  REJECTION: ONE SMALL TWIST
+================================================================================
+
+PROPOSITION 9 (Rejection). If M does not accept w, there exists a
+choice of square bits beta such that G(beta) ==_r G(0) but
+G(beta) is NOT isomorphic to G(0). Hence WLdim(G) > r.
+
+Proof.
+
+Choose b_e as follows: all b_e = 0, except the third comparison
+(l3) of ONE of the TWO identity self-connections at A, which gets
+b_{l3} = 1. Use the special twist (T): b_l = b_e on the last link of
+wire e, 0 on all others; beta_B = delta_i * b_l per square in row i,
+link l.
+
+(This is well defined: the two A-self-connections are distinct private
+buffers, so we choose which one carries the shift.)
+
+Step 1: Non-isomorphism.
+
+Suppose (GLOBAL) had a solution with row-sum functions h_P, in
+particular h_A : {0,1}^r -> F (scalar). At any address a:
+
+  - First A-self-connection copy (b_e = 0 for its three l1, l2, l3):
+        h_A(a) copies to both buffer coords: z_1 = z_2 = h_A(a).
+        Over F_2 their sum is 0. The third comparison gives
+        0 = h_A(a) + 0, so h_A(a) = 0.
+
+  - Second A-self-connection copy (b_e = 1 on its l3, 0 on l1, l2):
+        First two comparisons still give z_1 = z_2 = h_A(a), sum 0.
+        Third comparison: 0 = h_A(a) + 1, so h_A(a) = 1.
+
+Contradiction at every address. By Propositions 5 and 3, G(beta) is
+not isomorphic to G(0).
+
+Step 2: Equivalence via special-twist sufficiency.
+
+By Theorem 1, it suffices to construct nonempty Q_{P,a} satisfying
+image consistency (**-twist) with shifts b_e.
+
+Define sets as follows.
+
+  - Scalar gate type: {0} if the gate is true (evaluated in the
+    ORIGINAL acyclic circuit, not the added constraints), F otherwise.
+  - AND gate type: product subset of F^2 with coordinate fixed to 0
+    if the corresponding port is true, free (all of F) otherwise.
+    Sum image = {0} iff both ports true, F otherwise. So each
+    coordinate has its own truth-set and the output sum image has
+    {0} iff true, F iff false.
+  - A and DUMMY: full set F at every address.
+
+Seed comparisons. A seed is true, and the dummy's zero form has image
+{0}. So the seed's scalar source image {0} equals the image of the
+zero form at the dummy, modulo b_e = 0 for seeds. Consistent.
+
+Original circuit connections (buffered). At a directed connection l,
+suppose the source image is {0} (singleton). The destination image
+under s must also be {0}:
+  - for a circuit edge: true source => true destination scalar or
+    input port;
+  - for an identity self-connection: immediate.
+Make the buffer a point:
+
+    Q_{B_l,a} = { (0,0) }.
+
+Its two coordinate images are {0}, {0}; its sum image is {0}. With
+b_{l1} = b_{l2} = 0 and destination image {0}, all three comparisons
+hold.
+
+Every other case (source image F):
+
+  - Tests are all false; A's broadcasts have full image; so they
+    never trigger the singleton-source case above.
+  - Let D' = s(Q_{R,sigma_l(a)}) be the destination image, nonempty.
+  - Define
+        Q_{B_l,a} = { (u, v) in F^2 : u + v in D' + b_{l3} }.
+    Both coordinate projections equal F.
+    Sum image = D' + b_{l3}.
+    b_{l1} = b_{l2} = 0, so all three comparisons hold.
+
+This includes the singleton-destination case: buffer exists as a
+full-coordinate set with restricted sum, avoiding any compatibility
+requirement on the shifts.
+
+Step 3: Extend by convention.
+
+Buffer sets defined only on their active domains; extend to inactive
+addresses arbitrarily (they occur in no comparison). So we have a
+choice of nonempty Q satisfying (**-twist) with shifts b_e.
+
+Step 4: Apply Theorem 1.
+
+So G(beta) ==_r G(0). By Step 1, G(beta) is not isomorphic to G(0).
+Therefore WLdim(G) > r.
+
+================================================================================
+22.  SIZES: THE REDUCTION IS POLYNOMIAL-TIME
+================================================================================
+
+Counts from Proposition 7:
+
+  - O_M((r+1)^2 + m) schemas and requests.
+  - Added connections: O_M(r+1).
+  - Buffering: 1 real type of dim 2 per connection; constant schemas
+    per connection.
+
+Combine:
+
+  - O_M((r+1)^2 + m) total comparisons. Since r >= m, this is
+    O_M((r+1)^2).
+  - O_M((r+1)^2) real types.
+
+Wires:
+
+  - 4(r+1) + 1 = 4K + 1 links per schema; each of dim-1 internal
+    types.
+  - O_M((r+1)^3) internal types and links.
+
+Rows, labels, squares:
+
+  - Per row and type: |A_{t,i}| * |A_{t,i+1}| <= 4 horizontal label
+    pairs (since dim <= 2).
+  - Per row and link: |M_{l,i}| * |M_{l,i+1}| <= 4 matched-label pairs.
+  - Squares per (row, link): <= 4 * 4 = 16.
+  - Sites per (row, type): <= 4.
+  - Base vertex count N, base color count J: O_M((r+1)^4) each.
+
+Total order of G(beta):
+
+  - Base vertices N.
+  - Leaves <= N * J * (N + 1).
+  - n <= O_M(N^2 * J) = O_M((r+1)^12).
+
+Construction time. All local data is generated from coordinate
+tables and adjacent pairs of coordinate labels. Enumerating all
+legal valuations + all leaves + all edges constructs the full binary
+adjacency matrix of G in polynomial time in r + m. No enumeration of
+the exponentially-many full addresses occurs.
+
+Also, r = 2 p(m) + 4 is computed in binary in polynomial time in m.
+
+So the reduction is a polynomial-time algorithm.
+
+================================================================================
+23.  MAIN THEOREM
+================================================================================
+
+THEOREM 2 (Main). The following problem is EXPTIME-complete under
+deterministic polynomial-time many-one reductions:
+
+    Input: a nonempty finite simple undirected uncolored graph G
+    given by its adjacency matrix, and a positive integer k given in
+    binary.
+
+    Question: is WLdim(G) <= k?
+
+Dimension one uses ordinary neighbor-color refinement; dimensions
+at least two use the joint-update rule of Section 2.2.
+
+Proof.
+
+Upper bound: Proposition 1 (Section 8).
+
+Lower bound: Fix any language L in EXPTIME. Fix a deterministic
+machine M deciding it as in Section 19. The construction of Propositions
+7, 8, 9 is a deterministic polynomial-time map from w to (G, r).
+
+    If M accepts w:     Proposition 8 says WLdim(G) <= r.
+    If M rejects w:     Proposition 9 supplies H ==_r G(0) but H NOT
+                        ~ G(0), so WLdim(G) > r.
+
+By Lemma 2 (monotonicity), WLdim(G) <= k iff k-WL identifies G. So the
+construction maps acceptance in L exactly to the YES instances of
+WLdim(G) <= r. Since L was arbitrary, WLdim decision is EXPTIME-hard.
+
+Together with the upper bound: EXPTIME-complete.
+
+================================================================================
+24.  WRITING THE DIMENSION IN UNARY
+================================================================================
+
+COROLLARY 1. The identification problem of Theorem 2 remains
+EXPTIME-complete when the positive dimension k is encoded in unary.
+
+Proof. Upper bound: convert the unary k to binary and apply
+Proposition 1. Lower bound: the reduction output has r = 2 p(m) + 4,
+whose numerical value is polynomial in the source input length m. So
+writing r in unary is polynomial-time; acceptance equivalence is
+unchanged.
+
+So the hardness is not about k being exponentially large in its
+encoding. It is in G.
+
+================================================================================
+GLOSSARY OF SYMBOLS AND TERMS
+================================================================================
+
+F_2
+    The two-element field {0, 1}, with addition "mod 2" (so 1 + 1 = 0)
+    and multiplication "AND" (0 anything = 0, 1 any v = v). Every
+    nonzero element is its own additive inverse; -1 = 1.
+
+Multiset, {{ ... }}
+    A "bag": order irrelevant, repetitions counted. {{x, x, y}} has
+    x twice and y once.
+
+Isomorphism G ~ H
+    A bijection between vertex sets that preserves adjacency (and
+    nonadjacency).
+
+Degree deg(v)
+    The number of neighbors of vertex v. |N(v)|.
+
+k-tuple
+    An ordered list (v_1, ..., v_k) of k vertices of a graph, where
+    v_i = v_j is allowed. So there are |V(G)|^k many k-tuples in all.
+
+k-equivalence, G ==_k H
+    Running k-WL on both G and H produces the same color histograms
+    at every round.
+
+WLdim(G)
+    The least positive k such that k-WL identifies G (i.e., every
+    k-equivalent H on the same number of vertices is isomorphic to G).
+
+Bijective game
+    The two-player game of Section 4. With K slots, it characterizes
+    k-WL equivalence when K = k+1 (Lemma 1).
+
+Real type
+    An abstract "address space" for values. Dimension d_P in {1, 2}.
+
+Comparison schema
+    A single linear comparison between a form at one real endpoint
+    and a form at another. Includes an address product and coordinate
+    injections.
+
+Wire
+    A schema gets expanded to a wire of 4K+1 links with K = r+1. The
+    long wire length is why small witnesses cannot span it.
+
+Internal type
+    A dim-1 vertex type private to one wire. Used to subdivide and to
+    encode linear constraints via Equation (*).
+
+Readout
+    A named scalar or vector (x_{i,t,p,p'} or y_{i,l,p,q}) that
+    interacts across blocks. Block shares a readout across "consumers."
+
+Block
+    A small local constraint on adjacent readouts. Site blocks impose
+    nothing; square blocks impose Equation (*).
+
+Shift
+    In H_U, the vector or scalar assigned to all readouts of one
+    component of Gamma_U per type. Constrained by the link identity.
+
+Potential
+    In H_U, a per-corner vector M_v that can be adjusted without
+    changing readouts (path-sum-preserving).
+
+Offset
+    A per-readout assignment unifying shifts and potentials.
+
+Wrapping
+    A block collection whose corner graph has a closed walk crossing
+    the row-r seam an odd number of times. Uses all r rows.
+
+Row-sum form
+    A function h on {0,1}^r is of row-sum form iff h(a) = sum_i
+    h_i(a_i, a_{i+1}) for adjacent-coordinate functions h_i.
+
+Broadcast type A
+    A scalar type that connects all primary types to all addresses;
+    used in acceptance to force all primary sets singleton.
+
+================================================================================
+BIBLIOGRAPHY
+================================================================================
+
+[AKRV2017]
+    V. Arvind, J. Kobler, G. Rattan, O. Verbitsky.
+    "Graph Isomorphism, Color Refinement, and Compactness."
+    Computational Complexity 26(3):627-685, 2017.
+    doi:10.1007/s00037-016-0147-6. arXiv:1502.01255v3 (May 4, 2015).
+
+[CFI1992]
+    J.-Y. Cai, M. Furer, N. Immerman.
+    "An optimal lower bound on the number of variables for graph
+    identification." Combinatorica 12(4):389-410, 1992.
+    doi:10.1007/BF01305232.
+
+[Grohe1999]
+    M. Grohe. "Equivalence in Finite-Variable Logics is Complete for
+    Polynomial Time." Combinatorica 19(4):507-532, 1999.
+    doi:10.1007/s004939970004.
+
+[GLNS2025]
+    M. Grohe, M. Lichter, D. Neuen, P. Schweitzer. "Compressing CFI
+    Graphs and Lower Bounds for the Weisfeiler-Leman Refinements."
+    Journal of the ACM 72(3), Article 21, 2025.
+    doi:10.1145/3727978. arXiv:2308.11970v2.
+
+[KN2019]
+    S. Kiefer, D. Neuen. "The Power of the Weisfeiler-Leman Algorithm
+    to Decompose Graphs." MFCS 2019, LIPIcs 138, 45:1-45:15.
+    doi:10.4230/LIPIcs.MFCS.2019.45.
+
+[LRS2025]
+    M. Lichter, S. Rassmann, P. Schweitzer. "Computational Complexity
+    of the Weisfeiler-Leman Dimension." CSL 2025, LIPIcs 326,
+    13:1-13:22. doi:10.4230/LIPIcs.CSL.2025.13.
+
+[LRS2024full]
+    M. Lichter, S. Rassmann, P. Schweitzer. "Computational Complexity
+    of the Weisfeiler-Leman Dimension." Full version,
+    arXiv:2402.11531v2 (Nov 15, 2024). Journal version: ACM
+    Transactions on Computational Logic 27(2), 2026.
+    doi:10.1145/3798282.
+
+[Mackworth1977]
+    A. K. Mackworth. "Consistency in Networks of Relations."
+    Artificial Intelligence 8(1):99-118, 1977.
+    doi:10.1016/0004-3702(77)90007-8.
+
+[Seppelt2024]
+    T. Seppelt. "An Algorithmic Meta Theorem for Homomorphism
+    Indistinguishability." MFCS 2024, LIPIcs 306, 82:1-82:19.
+    doi:10.4230/LIPIcs.MFCS.2024.82.
+
+[VariableWL]
+    OpenAI. "Variable-dimension Weisfeiler-Leman equivalence on
+    general and subcubic graphs." OpenAI Math Release preprint,
+    2026.
+
+[WL1968]
+    B. Weisfeiler, A. Leman. "The Reduction of a Graph to Canonical
+    Form and the Algebra Which Appears Therein."
+    Nauchno-Tekhnicheskaya Informatsiya, Series 2, 9:12-16, 1968.
+    English translation by G. Ryabov:
+    https://www.iti.zcu.cz/wl2018/pdf/wl_paper_translation.pdf
+
+================================================================================
+END OF DOCUMENT
+================================================================================
