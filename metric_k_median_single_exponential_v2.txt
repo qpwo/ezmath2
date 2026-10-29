@@ -1,0 +1,1467 @@
+  ============================================================
+               METRIC K-MEDIAN EXPLAINED
+       A friendlier walk-through of the 2026 paper
+     "Single-exponential recovery and bounded-price
+      strictness for metric k-median"
+  ============================================================
+
+  WHAT YOU NEED BEFORE READING THIS
+
+  Nothing. Every concept is introduced before it is used.
+  If you know what a "sum" is and can read a sentence
+  about distances, you are ready.
+
+  A glossary of symbols is at the very end. Bookmark it.
+
+  THE ONE-SENTENCE SUMMARY
+
+  For the metric k-median problem (a classic clustering
+  question), this paper proves a randomized polynomial-
+  time algorithm whose cost is guaranteed to be strictly
+  less than 2 times the true optimum, on any finite
+  metric (not just nice Euclidean data). The factor is
+  2 minus a very tiny but positive constant.
+
+  That sentence hides three things worth understanding:
+
+    (a) What metric k-median actually asks for.
+    (b) Why "strictly less than 2 times the optimum" is
+        interesting, given that factor 2 has been an
+        obvious target and many papers have gotten close.
+    (c) What two new technical tools the paper builds
+        to squeeze under 2. Those tools are:
+          - Recovery from an anchor.
+          - Bounded-price strictness.
+
+  This document explains each.
+
+  ============================================================
+  CONTENTS
+  ============================================================
+
+  Part 1. The k-median problem, from scratch
+  Part 2. Approximation ratios: how close is close enough?
+  Part 3. A short map of the whole algorithm
+  Part 4. Tool 1: recovery from an anchor
+  Part 5. Tool 2: bounded-price strictness
+  Part 6. Putting the two tools together to beat 2
+  Part 7. Glossary of symbols
+  Part 8. Where this fits in the literature
+
+  ============================================================
+  PART 1. THE K-MEDIAN PROBLEM, FROM SCRATCH
+  ============================================================
+
+  Imagine you run a pizza chain. You have a map, and on
+  that map some specific points are houses that want
+  pizza delivered. Call these points the "clients". You
+  can build kitchens on any point on the map. Call those
+  candidate points the "facilities". The distances
+  between points come from the map, so they obey the
+  usual triangle inequality:
+
+    for any three points a, b, c,
+    dist(a, c) <= dist(a, b) + dist(b, c).
+
+  A collection of points with these properties is
+  called a "metric space". If the distances come from
+  coordinates in the usual Euclidean sense, it is a
+  "Euclidean metric". The general problem assumes only
+  the triangle inequality.
+
+  The k-median problem, in plain words:
+
+    Pick at most k facilities so as to minimize the sum
+    over all clients of the distance from each client to
+    its nearest chosen facility.
+
+  In math symbols: if F is the set of facilities and D
+  is the set of clients, for a chosen subset S of F with
+  |S| <= k, define
+
+      cost(S) = sum_{p in D} d(p, S),
+
+  where d(p, S) means the smallest distance from p to any
+  point in S. We want S minimizing cost(S). The minimum
+  over all valid S is written opt_k.
+
+  Why this specific cost function?
+
+    - Sum of distances describes average delivery time.
+    - It also describes "place k cell towers to minimize
+      total signal lag".
+    - It is the simplest clustering model where you pay
+      for distance from every point, not for the worst.
+
+  Clustering with "worst case" distance instead of "sum"
+  is a different problem, k-center, a cousin. Clustering
+  with "squared" distances is k-means, another cousin.
+  k-median is the plain sum-of-distances one.
+
+  Why is it hard?
+
+  Finding opt_k exactly is NP-hard. That means: unless
+  P = NP (which basically no one believes), no
+  polynomial-time algorithm can find the exact minimum
+  on every input. So the question becomes: how close to
+  opt_k can a polynomial-time algorithm get?
+
+  That is what an "approximation ratio" measures.
+
+  ============================================================
+  PART 2. APPROXIMATION RATIOS
+  ============================================================
+
+  An algorithm A for k-median is a rho-approximation
+  (read "rho-approximation") if, for every input, the
+  solution S_A it returns satisfies
+
+      cost(S_A) <= rho * opt_k.
+
+  Smaller rho is better. rho = 1 would be exact, which is
+  impossible unless P = NP. So rho > 1 is the game, and
+  squeezing rho down toward 1 is the point.
+
+  Deterministic vs randomized.
+
+  A deterministic algorithm always returns the same answer
+  on the same input. A randomized algorithm flips coins.
+  A randomized rho-approximation means: either the
+  expected cost is at most rho * opt_k, or the cost is at
+  most rho * opt_k with probability at least 1 - p for
+  some small failure probability p. The paper's main
+  theorem is probabilistic: with probability at least
+  1 - N^(-a) for any fixed a (N = input size), the cost
+  is at most (2 - sigma) * opt_k for a tiny positive
+  constant sigma. Also the expected cost is at most
+  (2 - sigma) * opt_k. Both versions are proven.
+
+  Big-Oh usage.
+
+  You will see "O(log N)", "poly(N)", "exp(O(m))". They
+  mean "up to a constant factor that does not depend on
+  the input":
+
+      poly(N)     something at most N^c for a fixed c
+      O(log N)    something at most c * log(N)
+      exp(O(m))   something at most exp(c * m)
+      O(m)        something at most c * m
+
+  Whenever you see "small constant" or "tiny constant",
+  the paper really does mean positive-but-microscopic.
+  That is a running theme: the improvement below 2 is
+  provably positive, but the constant is astronomically
+  tiny (see Part 6). This is normal in theory research:
+  the point is that the factor is strictly below 2, not
+  that the improvement is large in practice.
+
+  Probability conventions.
+
+  "With high probability" means with probability at least
+  1 - (input size)^(-a) for any fixed a > 0. That is a
+  very strong guarantee: failure probability drops faster
+  than any inverse power of the input size.
+
+  ============================================================
+  PART 3. A SHORT MAP OF THE WHOLE ALGORITHM
+  ============================================================
+
+  The algorithm has two halves that are chosen between at
+  run time. Because it does not know which half will
+  succeed, it runs BOTH, keeps the cheaper answer, and
+  the analysis shows the good half works. This is a
+  common pattern in approximation algorithms and is
+  called a "case distinction" in the analysis, not in
+  the code.
+
+  The two halves are chosen based on a quantity called
+  "sensitivity":
+
+    Let L be the "logarithmic surplus", a number of
+    order log N. Compare opt_{k-2L} to opt_k:
+
+    - If opt_{k-2L} <= (1 + small constant) * opt_k,
+      then dropping ~2L centers barely changes the cost.
+      Call this LOW SENSITIVITY.
+
+    - Otherwise there is a cardinality h' very close to
+      k where opt_{h'-1} >= (1 + small constant) *
+      opt_{h'}: dropping the single best center costs
+      a lot. Call this HIGH SENSITIVITY.
+
+  In the low-sensitivity case, the algorithm uses a
+  "surplus construction" from a separate paper
+  (Cohen-Addad-Grandoni-Lee-Schwiegelshohn-Svensson 2026,
+  abbreviated CGLSS) to get close to 2, and then the
+  strict-improvement tool (bounded-price strictness) to
+  go strictly below 2.
+
+  In the high-sensitivity case, the algorithm runs an
+  "anchoring plus recovery" procedure. The high
+  sensitivity guarantees that a specific local-search
+  solution has only a logarithmic number of "bad"
+  clusters relative to the true optimum. Recovery then
+  finds a good solution from that local-search anchor in
+  time exponential only in the number of bad clusters,
+  which is logarithmic, so the running time is
+  polynomial.
+
+  Both halves compute feasible solutions of size at most
+  k, and the algorithm returns the cheaper of the two.
+  Both halves are safe: even in a wildly unlucky outcome
+  the worst-case guarantee is a factor-5 approximation,
+  which keeps the expected cost bounded by 2. So the
+  probabilistic guarantees are on top of a hard cap,
+  not on top of a possible explosion.
+
+  The rest of this document zooms in on each half.
+  ============================================================
+
+  ============================================================
+  PART 4. TOOL 1: RECOVERY FROM AN ANCHOR
+  ============================================================
+
+  4.1 THE SETTING
+
+  Recovery starts from a candidate solution S, of size
+  h, together with a promise that S roughly matches the
+  true optimum O, also of size h. Under the promise, it
+  produces a solution of cost close to cost(O), in time
+  exponential only in the number of "bad matches".
+
+  Notation used throughout the paper:
+
+    D       = set of clients
+    F       = set of facilities
+    d(x, y) = distance from x to y
+    n       = |D|
+    N       = n + |F| = input size
+    h       = size of the comparison solution O
+              (think of h as the desired budget k)
+
+  Given O, assign every client to its nearest center of
+  O, breaking ties by a fixed rule. Write:
+
+    C_i = the clients assigned to i in O
+    n_i = |C_i|                          (may be 0)
+    P_i = sum_{p in C_i} d(p, i)
+    P   = sum_{i in O} P_i = cost(O)
+
+  A "good" center of O is one whose cluster can be
+  matched to a distinct facility phi_i in S with phi_i
+  close to i. The facilities phi_i are called proxies.
+  The proxy error is the cost of serving each good
+  client through its proxy instead of through its true
+  comparison center:
+
+    proxy error = sum over good i
+                  sum over p in C_i
+                  d(p, phi_i).
+
+  The recovery promise says: the proxy error is at most
+
+    P_g + mu * P
+
+  where P_g = sum of P_i over good centers, mu is a
+  small fixed positive constant (for example 1/100), and
+  m, the number of bad centers, is at most a given
+  bound M_0.
+
+  In words: the good centers already have near-perfect
+  proxies inside S. Only m bad centers are "off". The
+  promise gives us a handle on how bad the anchor is.
+
+  Very important: the algorithm is NOT given O, P, the
+  good or bad labels, the proxies, or S_0 = S minus the
+  proxies. Those exist by assumption and are used only
+  in the analysis. The algorithm sees only S, mu, M_0,
+  and a failure parameter zeta in the open interval
+  (0, 1).
+
+  4.2 WHAT RECOVERY PROVES
+
+  Two closely related statements.
+
+  (A) The concrete version (Theorem comp:recovery of
+      the paper):
+
+    Assume m <= M_0 and the proxy error is at most
+    P_g + P/100. Then in time
+
+      exp(O(M_0)) * poly(N) * log(2/zeta)
+
+    an algorithm returns S_hat with
+
+      |S_hat| <= h       and
+      cost(S_hat) <= 1.97 * P
+
+    with probability at least 1 - zeta.
+
+  (B) The clean version (Theorem ref:recovery):
+
+    Let eps > 0 be fixed, choose mu <= min(1/4, eps/12),
+    and assume m <= L_0 * log N for some fixed L_0. Then
+    in polynomial time an algorithm returns S_hat with
+
+      |S_hat| <= h       and
+      cost(S_hat) <= (1 + 2/e + eps) * P
+
+    with probability at least 1 - zeta.
+
+  The exp(O(M_0)) shape is exactly what the phrase
+  "single-exponential" in the paper title refers to.
+  When M_0 = O(log N), as in version (B), the running
+  time becomes N^O(1), i.e. polynomial.
+
+  Both versions hold on normalized bounded-integer
+  instances: D and F are disjoint indexed sets, d is a
+  metric, and distances between distinct points are
+  positive integers bounded by a polynomial in N.
+  Section 2 of the paper shows how to reduce a general
+  rational metric to this case at a multiplicative cost
+  of (1 + eps_0).
+
+  4.3 WHERE 1 + 2/e COMES FROM
+
+  Here e is Euler's number (about 2.718), so 1 + 2/e is
+  about 1.736. That is what makes recovery useful: it is
+  strictly less than 2.
+
+  The number is not a coincidence. It is dictated by
+  the subproblem that the completion step has to solve:
+  a monotone submodular maximization with a partition
+  constraint. The best approximation known for this
+  subproblem is a (1 - 1/e) fraction of the maximum, via
+  the continuous-greedy method of Calinescu, Chekuri,
+  Pal, and Vondrak (2011).
+
+  Completion also has a knob theta in the interval
+  (1/e, 1). Each covered client pays theta times the
+  radius of its guessed ball on top of its comparison
+  cost. Since the client pays the ball cost twice in
+  the accounting (once through the "2I" term, once
+  through the "sum c_p" term), the total ball cost
+  becomes 2 * theta. Optimizing theta downward gives
+  2 * (1/e) = 2/e. Add the base coefficient of 1 for
+  the comparison cost, and the total is 1 + 2/e.
+
+  Choose theta slightly above 1/e to buy slack. The
+  (1 - 1/e) submodular guarantee pays for it. Nothing
+  deeper.
+
+  ============================================================
+
+  4.4 THE SAMPLING EXPERIMENT
+
+  The algorithm does not know which centers of O are
+  bad, so it looks for them by sampling.
+
+  A "state" H is a reference set of points. Initially H
+  is S together with one "permanent dummy" delta_inf at
+  distance +infinity from every original point. The
+  dummy's only job is to keep H nonempty forever, so
+  that d(p, H) is always finite and W(H) is defined.
+
+  The algorithm performs up to 2m steps. At each step:
+
+    Compute W(H) = sum over clients p of d(p, H).
+
+    Sample a client p from D with probability
+    d(p, H) / W(H). Clients far from H are chosen
+    more often.
+
+    Flip a fair coin: BALL mode or REMOVAL mode.
+
+  BALL mode:
+
+    Guess a radius R from the menu (Section 4.5).
+    Build the ball B(p, R) = {x in F : d(p, x) <= R}.
+    If B(p, R) is empty, stop the run.
+    Otherwise append a "leaf": a virtual point at
+    distance R from p. The leaf stands in for the
+    comparison center near p that sits inside the ball.
+
+  REMOVAL mode:
+
+    Look up the facility in S that serves p.
+    If it is still in S, remove it from H.
+    If not, stop the run.
+
+  Every intermediate state H is recorded as a
+  candidate "prefix".
+
+  The analytical guide (used for analysis only, not by
+  the algorithm). At each state, an oracle that knows
+  O can prescribe which mode to use and a class of
+  clients to condition on, such that the actual random
+  draw lands on that class with probability at least a
+  constant rho > 0. If the actual run follows the guide
+  for 2m steps, the resulting state is favorable. The
+  probability that a run follows the guide is at least
+
+    rho^(2m) * (menu probability loss) = exp(-O(m)).
+
+  So with exp(-O(m)) probability a random run captures
+  the bad clusters. That is why the running time is
+  exp(O(m)): repeat exp(O(m)) times to make the
+  failure probability small.
+
+  Intuition for what the guide does. Whenever a bad
+  cluster is still uncovered, it chooses BALL mode and
+  a client near it, so the ball captures the cluster.
+  Whenever too many clients are still served by
+  about-to-be-removed facilities, it chooses REMOVAL
+  mode and a client on such a facility, so the room in
+  S is freed up. When both progress signals are small,
+  the guide stops.
+
+  4.5 THE RADIUS MENU
+
+  Hard part of BALL mode: what radius R to guess.
+  Too small, and the ball misses the bad comparison
+  center. Too large, and the ball is full of useless
+  facilities, costing budget later.
+
+  Solution: pick R at random from a three-part menu,
+  each part with probability 1/3.
+
+    (1) FINE. Pick j uniformly in 1..M_kappa, where
+        M_kappa = ceil(10 / kappa) + 1, and set
+        R = j * kappa * r0(p).
+
+    (2) RELATIVE TO LEAVES. If there is at least one
+        leaf, let D_Lambda be the distance from p to
+        the nearest leaf. Pick e uniformly in
+        0..E_kappa, where E_kappa is the smallest e
+        with (1 + kappa)^e >= 10, and set
+        R = D_Lambda / (1 + kappa)^e.
+
+    (3) GEOMETRIC TAIL. Pick j in 1..J_kappa with
+        probability proportional to 2^(-j), and set
+        R = j * kappa * r0(p).
+
+  Here r0(p) is a "computable reference scale"
+  depending only on the guessed P, the guessed m, and
+  the input metric:
+
+    r0(p) = min R such that
+            R * |{q : d(p, q) <= R}| >= P / m.
+
+  It is the radius at which the ball around p covers
+  clients totaling a share P/m of the total cost. When
+  P and m are guessed correctly, r0(p) is small
+  exactly when the cluster is dense.
+
+  Why three menus.
+
+    - If the correct radius r_i for a bad center is
+      small relative to r0(p), menu (1) hits it up to
+      constant slack.
+    - If r_i is huge compared to r0(p), a previous
+      leaf is likely already close, and menu (2) sizes
+      the new ball relative to that leaf.
+    - If neither, the ball is genuinely large, and
+      menu (3) is used. Key lemma (sam:radius-budget):
+      balls from menu (3) are pairwise disjoint on
+      their client sets, so at most O(m) of them can
+      arise. This amortizes the exponential tail.
+
+  The upshot: the correct radius is reachable through
+  the menu, at total probability exp(-O(m)) along the
+  whole trajectory, without any waste.
+
+  4.6 COMPLETION: FROM A PREFIX TO A SOLUTION
+
+  A state H from the sampling process is not yet a
+  real solution. It contains some real facilities
+  (survivors of S) plus some dummy leaves (guessed
+  balls). Completion turns H into a real solution U
+  with |U| <= h.
+
+  The accounting. Let Q be the set of S-facilities
+  the sampling already removed. Let r = m - |Q| be
+  the count of removals still needed. We choose r of
+  the remaining S-facilities to remove during
+  completion, and we add one facility for each ball
+  and one for each uncovered bad center. Then |U| is:
+
+    |S| - |Q|              (current size)
+    - r                    (additional removals)
+    + (number of balls)    (one per ball)
+    + (number of uncovered bad centers)
+
+  With |S| = h, (balls) + (uncovered) = m, and
+  r = m - |Q|, this is exactly h. So |U| <= h.
+
+  The optimization. Three choices.
+
+    (a) Which r S-facilities to remove? Color the
+        S-facilities green, red, or blue at random
+        (probabilities 1/2, 1/4, 1/4). Green stays.
+        Red and blue are removal candidates. Blue
+        removals use color-coding (Alon-Yuster-Zwick)
+        so that blue centers are all distinct with
+        good probability. Red removals are chosen
+        greedily to minimize a score.
+
+    (b) Which facility to pick inside each ball?
+        Build a submodular "savings" function over
+        copies of the ball contents and maximize it
+        subject to "at most one facility per ball"
+        using continuous greedy.
+
+    (c) Which facility to pick for each uncovered
+        bad center? Solve a small exact subset
+        dynamic program.
+
+  Continuous greedy gives a (1 - 1/e) approximation
+  to (b). The rest is exact. So completion outputs a
+  solution U of size at most h whose EXPECTED cost
+  satisfies the completion bound in Section 4.7.
+
+  ============================================================
+
+  4.7 THE COMPLETION BOUND
+
+  The completion theorem (Theorem comp:completion in the
+  paper) is the quantitative statement that makes
+  recovery work. For every theta in the open interval
+  (1/e, 1), the completion step outputs a solution U
+  with size at most h and expected cost at most
+
+    2 I + sum_{p in J} c_p + sum_{p not in J} b_p,
+
+  where:
+
+    I = sum_{p in J} d(p, H)
+      (the "still-unpaid" cost of clients assigned to
+       facilities that will be removed)
+
+    J = union over surviving S-facilities s in R*
+      = S_0 minus Q
+      (the clients assigned in H to those facilities)
+
+    c_p = d(p, phi_i)              if i is good
+          d_p* + theta*(r_i + R_i) if i is in A
+          d_p*                     if i is in B
+
+    b_p = theta * d(p, H)
+          + (1 - theta) * min(d(p, H), d(p, X*))
+
+  Here X* = { (i, i) : i in A } is the "use the true
+  comparison center" choice for the covered clusters.
+
+  Reading the bound:
+
+    - The 2I term is the cost of clients that must be
+      reassigned after their S-facility is removed.
+      The factor 2 accounts for two such reroutings
+      in the accounting.
+
+    - The sum over J of c_p charges clients that were
+      already assigned to R* for their best plausible
+      destination: the proxy distance for good
+      clusters, the comparison cost plus theta times
+      the ball radius for covered bad clusters, and
+      the comparison cost alone for uncovered bad
+      clusters.
+
+    - The sum over not-J of b_p charges the other
+      clients a convex combination of their current
+      reference distance and the best available
+      comparison center.
+
+  This bound is what drives the 1.97 P (or
+  1+2/e+eps P) guarantee. Combined with Part 5
+  (strictness), it is the source of the below-2
+  factor.
+
+  4.8 WHY "SINGLE-EXPONENTIAL" MATTERS
+
+  The running time is exp(O(M_0)) * poly(N), with the
+  exponent linear in M_0. That "linear in" is what the
+  phrase "single-exponential" in the title points at.
+
+  Why it matters. exp(O(M_0)) is polynomial exactly
+  when M_0 = O(log N). Higher powers, like exp(M_0^2)
+  or 2^(2^M_0), would still be polynomial at
+  M_0 = O(log N), but the wasted degree is much larger.
+  Single-exponential is the correct scaling that lets
+  the hypothesis "logarithmically many bad clusters"
+  turn into polynomial running time.
+
+  Where does M_0 = O(log N) come from? From the
+  anchoring theorem (Section 4.10). High cardinality
+  sensitivity forces many comparison centers to be
+  well-separated, which forces at most logarithmically
+  many of them to be "bad" relative to the local
+  search anchor.
+
+  4.9 THE LOCAL SEARCH ANCHOR
+
+  Where does S come from? From width-5 local search.
+
+  Start from any size-h facility set. Repeatedly try
+  every exchange that removes at most 5 facilities and
+  adds at most 5 while keeping the size at h. If any
+  exchange strictly decreases cost, do it. Stop when
+  no such exchange exists.
+
+  Two guarantees matter (both parts of Lemma loc:swap).
+
+  The weak form, always true:
+
+    cost(S) <= 5 * P.
+
+  This is the fallback. Local search never blows up,
+  even on adversarial input. It is what makes the
+  probability guarantee safe against total failure of
+  the sampling step.
+
+  The strong form, the "weighted swap bound":
+
+    S_b + (6/5) S_g <= (17/5) P_b + (6/5) D_g.
+
+  Here S_g is the local search cost of clients
+  assigned to good centers, S_b is the same for bad,
+  P_b is the comparison cost of bad clusters alone,
+  and D_g is the proxy error of good clusters. This
+  is the analytic engine that produces the proxy
+  promise for good centers from local optimality.
+
+  Width 5 is a trade-off. Larger widths give better
+  bounds but slower exchange enumeration. Width 5 is
+  what the paper needs.
+
+  4.10 ANCHORING: FROM HIGH SENSITIVITY TO FEW BAD CENTERS
+
+  The anchoring theorem (Theorem loc:anchoring) turns
+  a solution S and a comparison set O into a good and
+  bad partition with distinct proxies. Its hypothesis
+  is a scale condition:
+
+    if
+      b * (|S| - h + |{ i in O : n_i * sep_i < b }|)
+      <= 10 * P,
+    then
+      proxy error <= P_g + mu * P,
+      bad count   m <= C_mu * P / b.
+
+  Here sep_i = min over j in O, j != i, of d(i, j) is
+  the separation of a comparison center from its
+  nearest sibling. A center is "short" if
+  n_i * sep_i < b: even n_i clients at distance sep_i
+  cost more than b.
+
+  The constant C_mu is
+
+    C_mu = 10 + (600 / mu) * 2^(ceil(40 / mu) - 1),
+
+  which is astronomical. At mu = 1/100, the paper's
+  C_0 is about
+
+    10 + 60000 * 2^3999.
+
+  That is unimaginably huge: larger than the number
+  of atoms in the universe, larger than any real
+  quantity. But it is a fixed input-independent
+  constant. So polynomial time holds. The degree of
+  the polynomial is absurd, but for the theoretical
+  argument it does not matter.
+
+  Reading the scale condition. It says the quantity
+  (extra facilities in S beyond the proxies) plus
+  (short comparison centers), times the scale b, is
+  at most 10 P. If b is of order P, this gives very
+  few bad centers. If b can only be of order P/log N,
+  it gives O(log N) bad centers.
+
+  Where does the log N come from in the paper? From
+  the surplus construction (Part 5). If lowering k to
+  k - O(log N) barely changes the optimum, then the
+  extra L = O(log N) slots in |S| - h give exactly
+  the slack to set b = P / log N and still have the
+  scale condition hold.
+
+  4.11 THE BOTTOM LINE
+
+  Recovery takes a candidate S (from width-5 local
+  search), finds the few bad comparison clusters by
+  random sampling with a radius menu, and completes
+  the sample to a real solution via submodular
+  optimization. In time exponential only in the
+  number of bad clusters, it produces a solution of
+  cost at most 1 + 2/e + eps times the true optimum,
+  or (with the concrete constants of the paper) at
+  most 1.97 times.
+
+  ============================================================
+
+  ============================================================
+  PART 5. TOOL 2: BOUNDED-PRICE STRICTNESS
+  ============================================================
+
+  5.1 THE FACILITY LOCATION RELAXATION
+
+  The second tool starts from an LP view of k-median.
+
+  Instead of enumerating which k facilities to open, the
+  LP allows opening a fractional amount of them. Every
+  open facility i charges a "price" lambda per opening;
+  larger lambda means fewer facilities open. This is a
+  standard Lagrangian relaxation of the cardinality
+  constraint.
+
+  The LP also produces a vector of client budgets
+  alpha_p (one per client p in D), which is the
+  Lagrangian dual. Every real solution U satisfies the
+  "dual comparison" bound
+
+    sum over p of alpha_p  <=  |U| * lambda + 2 * cost(U).
+
+  In words: the sum of client budgets is at most the
+  total opening price (|U| facilities times lambda) plus
+  twice the connection cost.
+
+  The factor 2 in front of cost(U) is the classical
+  bottleneck that makes 2 the natural approximation
+  barrier. If we could shave this coefficient below 2
+  -- in even a small amount -- we would prove a strict
+  improvement below 2. Bounded-price strictness is
+  exactly that shave.
+
+  5.2 WHAT STRICTNESS SAYS
+
+  Lemma str:strictness of the paper. For every positive
+  real T there is a small positive constant c(T) such
+  that, for any subset C of clients with positive cost
+
+    P_C = sum_{p in C} d(i, p)
+
+  from a fixed facility i, if
+
+    lambda <= T * P_C,                       (*)
+
+  then
+
+    sum_{p in C} alpha_p <= lambda + (2 - c(T)/2) * P_C.
+
+  In words: whenever the price paid per opening is
+  bounded by T times the connection cost of the cluster,
+  the classical "2 P_C" coefficient can be replaced by
+  "(2 - c(T)/2) P_C".
+
+  The constant c(T) is explicit in the paper:
+
+    B = T + 2
+    rho = 1 / (200 * B)
+    c(T) = rho^2 / 100.
+
+  It is tiny: rho is doubly small in T. But it is
+  positive, which is all the main theorem needs.
+
+  Strictness does not require the algorithm to know the
+  true optimum, and it does not require the price to
+  satisfy (*) for every cluster. Both of these are what
+  make it usable in the surplus construction (Part 6).
+
+  5.3 THE REMOVAL ORDER
+
+  The proof needs one extra notion: the removal order
+  of clients.
+
+  In the surplus construction (from the CGLSS paper),
+  the algorithm runs a sequence of valid facility
+  openings and phase updates. Every client eventually
+  becomes inactive at some step. Order the clients by
+  their inactivation step, breaking ties by decreasing
+  final budget alpha_p. That order is the "removal
+  order".
+
+  The proof measures client costs in this order. This
+  is purely for the analysis: the algorithm itself
+  does not try to discover the removal order. It
+  reorganizes the SAME set of client budgets into a
+  convenient order to prove the strictness inequality.
+
+  5.4 WHY IT IS TRUE: TWO COMPLEMENTARY SLACK BOUNDS
+
+  Suppose, for contradiction, that the conclusion of
+  strictness fails: the total deficit
+
+    Delta = lambda - sum over p in C of
+            (alpha_p - 2 * d_p)
+
+  is smaller than c(T), where d_p = d(i, p) and the
+  sum is over p in C.
+
+  The paper derives two lower bounds on Delta:
+
+  (A) Envelope bound. Using the "no-overbidding"
+      invariant of the surplus replay (Lemma
+      imp:surplus-history), Delta can be bounded
+      below by a term proportional to
+      max(p-1) * (A_p - a_p + d_p), where p runs
+      over the clients and A_p is the suffix maximum
+      of (a_s - d_s) for s >= p. If the deficit is
+      small, this forces A_p - a_p + d_p to be very
+      small, which forces the tail a_s to be
+      large.
+
+  (B) Truncated sum bound (Jensen). Alternatively,
+      Delta is bounded below by the sum over clients
+      of max(0, d_p - a_p), where a_p = z_p / K is
+      the phase value divided by K, restricted to
+      some early clients. If the deficit is small,
+      this sum must be small, so most early clients
+      have d_p <= a_p, which forces early a_p to be
+      large.
+
+  Now pick any client s in the last rho fraction of
+  the removal order. Bounds (A) and (B) together
+  force:
+
+    - d_s is small compared to 1/q, and
+    - the suffix maximum A_s is at least lambda + 1.8.
+
+  Then look at any client p in the "early" interval
+  of size about rho * q, which precedes s. Applying
+  bound (A) to p gives a large lower bound on the
+  deficit contribution at p. Summing over all early
+  p gives an average deficit of at least 0.175 * rho^2.
+  That is larger than c(T) = rho^2 / 100. Contradiction.
+
+  So the deficit cannot be smaller than c(T). Strictness
+  holds.
+
+  5.5 WHAT MAKES IT USEFUL
+
+  Strictness plugs into the surplus construction like
+  this. We have a candidate real solution U (from the
+  external CGLSS paper's surplus algorithm) with its
+  associated price lambda and client budgets alpha_p.
+
+  Partition the clients by their nearest center in a
+  comparison solution O. For each cluster i:
+
+    - If lambda <= T * P_i, strictness applies and
+      that cluster contributes lambda + (2 - c/2) P_i
+      to the budget sum.
+
+    - If lambda > T * P_i, keep the classical
+      "lambda + 2 P_i" bound.
+
+  Summed over all clusters, we pay the full |O| *
+  lambda for openings, plus 2 * P_i per cluster minus
+  c/2 * P_i on the ones where strictness applies. As
+  long as the total cost of clusters with lambda <= T
+  P_i is at least a constant fraction of P, the
+  improvement is at least that same constant fraction
+  times c * P.
+
+  If instead most of the mass is on clusters with
+  lambda > T P_i, those clusters are individually
+  expensive relative to the price. That is exactly the
+  "high sensitivity" signal: it forces few bad clusters
+  and is handled by the anchoring + recovery logic in
+  Part 6.
+
+  The two tools are complementary. One of them always
+  fires.
+
+  ============================================================
+
+  ============================================================
+  PART 6. PUTTING THE TWO TOOLS TOGETHER
+  ============================================================
+
+  6.1 THE STABILITY DICHOTOMY
+
+  The final algorithm splits into cases based on how
+  the optimum changes when the budget drops from k to
+  k - 2L, where L = O(log N) is the surplus from the
+  CGLSS construction. Recall the notation from the
+  glossary: opt_r is the minimum cost of a facility set
+  of size at most r.
+
+  Fix a small rational xi > 0 (the exact value will be
+  chosen once c, gamma, and sigma are extracted below).
+
+  LOW SENSITIVITY:
+    opt_{k-2L} <= (1 + xi) * opt_k.
+    Dropping 2L centers barely changes the cost.
+    Handled by the surplus construction + strictness.
+
+  HIGH SENSITIVITY:
+    opt_{k-2L} > (1 + xi) * opt_k.
+    Dropping 2L centers costs a lot. There is a
+    cardinality h' very close to k where dropping just
+    one center costs a lot. Handled by anchoring +
+    recovery.
+
+  The algorithm cannot distinguish these two cases
+  directly (it does not know the optima). So it
+  computes candidates for BOTH and keeps the cheaper.
+
+  6.2 THE CASES
+
+  There are actually three disjoint cases.
+
+  Case S (small cardinality): k <= 2L.
+    Apply recovery with M_0 = 2L, all comparison
+    clusters declared bad. This handles k = O(log N).
+
+  Case L (low sensitivity): k > 2L and
+      opt_{k-2L} <= (1 + xi) * opt_k.
+    Use surplus construction (CGLSS) at target
+    h = k - L. Improve with local search. Use
+    strictness on the resulting price and budgets to
+    shave below 2.
+
+  Case H (high sensitivity): k > 2L and
+      opt_{k-2L} > (1 + xi) * opt_k.
+    Locate a sensitive index h' near k. Apply
+    anchoring at scale b = xi * opt_{h'} / (4 L) and
+    then recovery.
+
+  All three candidates are size at most k. The
+  algorithm returns the cheapest. The analysis shows
+  that whichever case the instance actually falls
+  into, the corresponding candidate is good with high
+  probability. And every candidate is size-k, so the
+  algorithm always returns at most k facilities.
+
+  6.3 CASE S: SMALL CARDINALITY (k <= 2L)
+
+  Compute a width-5 local optimum S_k of size k. It is
+  a factor-5 approximation, and we keep it as a
+  candidate and fallback.
+
+  Run recovery (Theorem comp:recovery) on S_k with
+  M_0 = 2L, declaring every comparison cluster bad.
+  Since every cluster is bad, the proxy promise is
+  vacuous: proxy error is zero.
+
+  Recovery guarantees cost <= 1.97 * opt_k with
+  probability >= 1 - zeta. Since k <= 2L = O(log N),
+  M_0 = O(log N), so recovery runs in polynomial time.
+
+  1.97 <= 2 - gamma for gamma < 0.03, so this case is
+  below 2.
+
+  6.4 CASE L: LOW SENSITIVITY
+
+  Assume opt_{k-2L} <= (1 + xi) opt_k.
+
+  Let h = k - L. Apply the CGLSS surplus construction
+  at target h. By its Theorem imp:cglss, it returns
+  either (i) a solution of valid sequences with exactly
+  h regular facilities and at most L free copies, or
+  (ii) a 0-valid sequence with at most h regular
+  facilities and price N^(-2).
+
+  Project each free copy to its underlying facility.
+  The result is a real solution U of size at most
+  h + L = k. Pad U to exactly size k (possible because
+  k <= |F|) and run width-5 local search starting from
+  the padded set. Call the result S. It has size k and
+  cost(S) <= cost(U).
+
+  The CGLSS construction also returns a price lambda
+  and client budgets alpha_p. Two inequalities hold.
+  First, the payment inequality of Lemma
+  imp:surplus-history:
+
+    (1 - delta) cost(U) + h (lambda - N eta) <= sum_p alpha_p.
+
+  Here delta = 3v is a small parameter and eta = 2^(-N)
+  is the LP precision.
+
+  Second, from the same lemma, the dual comparison:
+
+    sum_p alpha_p <= |H| lambda + 2 cost(H)
+
+  for any nonempty real H. Applied to an optimum of
+  size k - 2L:
+
+    L lambda <= 2 (1 + xi) opt_k + e,
+
+  where e = h N eta is the negligible payment error.
+
+  Now partition clients by their comparison center in
+  an optimum of size h. For each cluster i with cost
+  P_i:
+
+    - If lambda <= T * P_i (T = 200 C_0 is huge),
+      strictness applies: cost alpha_p in this cluster
+      <= lambda + (2 - c/2) P_i.
+
+    - Otherwise keep the classical "lambda + 2 P_i".
+
+  Sub-case A: bad cost is small. If the total cost of
+  "bad" clusters (those not proxied) is <= P_h / 10,
+  then local search swap analysis (Lemma loc:swap)
+  alone proves
+
+    cost(S) <= 1.432 * P_h  <  (2 - c/100) P_h.
+
+  Sub-case B: bad cost is large. Otherwise, at least
+  9/10 of P_h is on bad clusters. Within that, define
+  the "high-price" portion Q = sum of P_i where lambda
+  <= T P_i. The bad-price bound from anchoring gives
+  m * lambda <= 8 C_0 P_h, so the low-price portion is
+  at most m lambda / T <= P_h / 25. Therefore Q >= 3 P_h
+  / 50.
+
+  Apply strictness on the high-price portion. Summing
+  the per-cluster gains:
+
+    sum_p alpha_p <= h lambda + (2 - c/40) P_h.
+
+  Combining with the payment and dual bounds, plus the
+  small price error e <= v P_h, gives
+
+    (1 - delta) cost(S) <= (2 - c/40) P_h + e.
+
+  Dividing by (1 - delta) with delta = 3v:
+
+    cost(S) <= (2 - c/100) P_h.
+
+  Finally P_h = opt_{k-L} <= opt_{k-2L} <= (1 + xi) opt_k.
+  So
+
+    cost(S) <= (2 - c/100)(1 + xi) opt_k.
+
+  With xi = gamma/16 <= c/1600 and gamma <= c/100, this
+  is at most
+
+    (2 - 7 gamma / 8) opt_k  <  (2 - gamma/2) opt_k.
+
+  Below 2, good.
+
+  6.5 CASE H: HIGH SENSITIVITY
+
+  Assume opt_{k-2L} > (1 + xi) opt_k.
+
+  Lemma asm:sensitive of the paper says there is an
+  integer h' in (k-2L, k] such that, with beta =
+  xi / (4L),
+
+    opt_{h'-1} >= (1 + beta) opt_{h'},    and
+    opt_{h'}   <= (1 + xi) opt_k.
+
+  So there is a nearby cardinality where dropping just
+  one center costs a lot, and the cost at h' is barely
+  worse than opt_k.
+
+  The single-center sensitivity forces the comparison
+  clusters of any optimum O of size h' to be well
+  separated. Specifically, for each i in O,
+
+    n_i * sep_i  >=  beta * P_O,
+
+  where P_O = opt_{h'} is the cost of O and sep_i =
+  min over j in O, j != i, of d(i, j) is the separation
+  of i from the nearest other center.
+
+  The algorithm does:
+
+    1. Compute a width-5 local optimum S_{h'} of size
+       h'. It is a factor-5 approximation.
+
+    2. The scale condition of anchoring holds trivially
+       with b = beta * P_O / 4:
+         |S_{h'}| - h' = 0,
+         no centers are "short" (each has
+         n_i * sep_i >= beta P_O >= b),
+         so 0 + 0 <= 10 P_O.
+       Anchoring therefore produces a partition into
+       good and bad with:
+         proxy error <= P_g + 0.01 P_O,
+         m <= C_0 P_O / b
+           = C_0 * 4 L / xi.
+
+    3. Set M_0 = ceil(4 C_0 L / xi). Call recovery
+       (Theorem comp:recovery) on S_{h'} with this
+       bound. Recovery returns a solution of size
+       at most h' with cost <= 1.97 P_O and
+       probability >= 1 - zeta, in time
+
+         exp(O(M_0)) * poly(N) * log(2/zeta).
+
+       Since M_0 = O(C_0 log N), this is polynomial
+       in N for fixed constants.
+
+  The recovery output has cost <= 1.97 P_O.
+  Since gamma <= 3/100, we have 1.97 = 2 - 0.03
+  <= 2 - gamma, so cost <= (2 - gamma) P_O.
+  Combined with P_O <= (1 + xi) opt_k = (1 + gamma/16)
+  opt_k and the rounding transfer (1 + eps_0) =
+  (1 + gamma/16), we get
+
+    cost <= (2 - gamma)(1 + gamma/16)^2 opt_k
+         <= 2 - 3 gamma/4 opt_k
+         <  2 - gamma/2 opt_k.
+
+  Below 2, good.
+
+  6.6 THE FINAL THEOREM
+
+  Choose the fixed constants in this order:
+
+    mu  = 1/100          (anchoring accuracy, Section 4.10)
+    C_0 = 10 + 60000 * 2^3999   (from mu = 1/100)
+    T   = 200 C_0        (strictness price bound)
+    c   = c(T)           (strictness gap, Section 5.2)
+    gamma = min(3/100, c/100)
+    xi  = eps_0 = gamma/16
+    sigma = gamma/4
+
+  Every one of these is a fixed positive constant
+  depending only on the paper's parameters. They do
+  not depend on the input. Each is astronomically
+  tiny in practice, but each is well-defined and
+  positive.
+
+  Main theorem (main:theorem) of the paper. There is an
+  absolute constant sigma > 0 with the following
+  property. For every fixed a > 0, a randomized
+  polynomial-time algorithm for metric k-median always
+  returns a set S with |S| <= k and satisfies
+
+    Pr[ cost(S) <= (2 - sigma) opt_k ]
+      >= 1 - (|D| + |F| + 2)^(-a).
+
+  The same algorithm can be chosen to satisfy
+
+    E[ cost(S) ] <= (2 - sigma) opt_k.
+
+  The running time is polynomial in the bit length of
+  the input metric. Its degree may depend on the fixed
+  constants (like C_0), but not on the input size.
+
+  6.7 HOW THE PROBABILITY AND EXPECTATION WORK
+
+  The algorithm runs all three subcalls (Cases S, L, H)
+  and keeps the cheapest feasible output. The
+  corresponding analysis says:
+
+    Case S: if k <= 2L, recovery at M_0 = 2L
+            succeeds on 1.97 opt_k with probability
+            >= 1 - zeta.
+
+    Case L: if the instance is low-sensitivity,
+            the surplus + local search candidate
+            beats (2 - gamma/2) opt_k
+            deterministically.
+
+    Case H: if the instance is high-sensitivity,
+            recovery at the sensitive h' succeeds on
+            1.97 (1+xi) opt_k with probability
+            >= 1 - zeta.
+
+  Whichever case the instance falls into, the
+  corresponding subcall succeeds with probability
+  >= 1 - zeta. So the algorithm returns cost
+  <= (2 - sigma) opt_k with probability >= 1 - zeta.
+
+  For the probability bound: take zeta = (N+2)^(-a).
+  Its bit length is O(log N). Repeating each subcall
+  poly(N) times (or exp(O(M_0)) times) drives the
+  failure probability below zeta. This is exactly what
+  the running time budget allows.
+
+  For the expectation bound: split the analysis into
+  the success event (probability >= 1 - zeta, cost
+  <= (2 - sigma) opt_k) and the failure event
+  (probability <= zeta, cost <= 5 opt_k, since the
+  factor-5 local-search fallback is always available).
+  Then
+
+    E[cost] <= (2 - sigma) opt_k + 5 * zeta * opt_k
+             <= (2 - sigma/2) opt_k
+
+  when zeta <= sigma / 10.
+
+  That is the final guarantee: factor strictly less
+  than 2, both with high probability and in expectation,
+  while always respecting the budget |S| <= k.
+
+  6.8 WHAT NOBODY CLAIMS IN THIS PAPER
+
+  Some honest caveats.
+
+  First, the factor 2 - sigma is not usable in
+  practice. The constant sigma is astronomically small
+  (something like 2^(-8000)), so a factor-2 algorithm
+  would be indistinguishable from this one on any real
+  input. The point is that the theoretical factor is
+  strictly below 2, not that the improvement is large.
+
+  Second, the running time is polynomial for fixed
+  constants, but the constants are absurd. C_0 is
+  bigger than 2^3999, so N^C_0 is not a running time
+  anyone will ever run. Theoretical polynomial does
+  not imply practical.
+
+  Third, the algorithm heavily depends on
+  external papers: the CGLSS 2026 surplus construction,
+  the Vondrak/Calinescu-Chekuri-Pal-Vondrak continuous
+  greedy, and the Alon-Yuster-Zwick color coding. The
+  paper's contribution is the recovery and strictness
+  tools plus the assembly, not the subroutines.
+
+  Fourth, the paper requires positive integer
+  distances bounded by a polynomial in N. Real
+  metrics with rational distances are handled by
+  reducing to that case at cost (1 + eps_0) each,
+  which multiplies into the final factor. This is
+  what makes the general rational-metric theorem
+  possible.
+
+  ============================================================
+
+  ============================================================
+  PART 7. GLOSSARY OF SYMBOLS
+  ============================================================
+
+    D             set of clients (drop-off points)
+    F             set of facilities (candidate kitchens)
+    n             |D|
+    N             n + |F| = input size
+    d(x, y)       distance from x to y (symmetric,
+                  nonnegative, triangle inequality)
+    S             an anchor: a facility set of some
+                  size h
+    O             a comparison solution, usually the
+                  true optimum
+    h             |O|, size of the comparison set
+                  (equal to k in the main application)
+    k             the budget for the k-median problem
+    C_i           clients assigned to comparison center
+                  i by nearest-facility
+    n_i           |C_i| (may be 0)
+    P_i           sum over p in C_i of d(p, i) = cost
+                  of cluster i
+    P             sum over i of P_i = cost(O) = opt_h
+    opt_r         minimum cost of a facility set of
+                  size at most r
+    P_g, P_b      cost of good clusters / bad clusters
+    good/bad      partition of O's centers into
+                  proxied and unproxied
+    phi_i         proxy of good center i, a distinct
+                  facility in S
+    mu            small proxy error tolerance
+                  (1/100 in the concrete theorem)
+    m             number of bad clusters
+    M_0           upper bound on m (e.g., O(log N))
+    delta_inf     permanent dummy at +infinity; keeps
+                  the reference set H nonempty
+    H             reference set during sampling:
+                  surviving S facilities plus leaf
+                  dummies plus delta_inf
+    W(H)          sum over p of d(p, H); sampling
+                  weight
+    r0(p)         computable reference scale around p
+    kappa         radius menu resolution (1e-6 in
+                  the paper)
+    R             guessed ball radius
+    J_s           clients assigned to S-facility s
+                  in H
+    Q             set of S-facilities removed by
+                  sampling
+    r             m - |Q|, additional removals
+                  needed in completion
+    theta         completion knob in (1/e, 1);
+                  optimal near 1/e
+    X*            {(i, i) : i in A}, "use the true
+                  comparison center" for covered
+                  clusters
+    U             real solution produced by
+                  completion
+    S_hat         final output of recovery
+                  (size <= h)
+    lambda        facility opening price in the
+                  facility-location relaxation
+    alpha_p       client p's dual budget in the
+                  surplus LP
+    C_0           anchoring count constant;
+                  = 10 + 60000 * 2^3999 for mu=1/100
+    T             strictness price bound = 200 C_0
+    c = c(T)      strictness gap; = rho^2 / 100
+                  with rho = 1 / (200(T + 2))
+    gamma         min(3/100, c/100)
+    xi = eps_0    gamma / 16
+    sigma         gamma / 4 (the improvement below 2
+                  in the final theorem)
+    L             O(log N) surplus budget used by
+                  the CGLSS construction
+    beta          xi / (4 L); single-center
+                  sensitivity
+    zeta          failure parameter (e.g., N^(-a))
+
+  ============================================================
+  PART 8. WHERE THIS FITS IN THE LITERATURE
+  ============================================================
+
+  8.1 HISTORY OF METRIC K-MEDIAN APPROXIMATION
+
+  The best-known approximation factor has crept down
+  steadily over 25 years:
+
+    2002  Charikar, Guha, Tardos, Shmoys (LP rounding):
+          roughly 6.67
+    2001  Jain, Vazirani (primal-dual with Lagrangian
+          relaxation): 6.286
+    2002  Jain, Mahdian, Saberi (dual-fitting):
+          facility location analogs
+    2003  Jain, Mahdian, Markakis, Saberi, Vazirani
+          (greedy + JMS factor-revealing LP)
+    2004  Arya, Garg, Khandekar, Meyerson, Munagala,
+          Pandit (local search): 3 + eps
+    2016  Li, Svensson (pseudo-approximation reduction):
+          improves to below 3, various refinements
+    2017  Byrka, Pensyl, Rybicki, Srinivasan, Trinh
+          (bi-point rounding): 2.675
+    2023  Gowda, Pensyl, Srinivasan, Trinh
+          ("Golden Barrier"): 2.633
+    2026  Byrka, Guo, Hu, Li, Wan, Wang (iterative
+          randomized rounding): slight further
+          improvement
+    2026  Cohen-Addad, Grandoni, Lee, Schwiegelshohn,
+          Svensson (CGLSS): 2 + eps
+    2026  THIS paper: 2 - sigma, strictly below 2
+
+  The exact digits vary by paper and by epsilon going
+  to zero. The progression matters.
+
+  The CGLSS 2026 result was the breakthrough that
+  broke 2.61. This paper follows up: strict below 2,
+  with a tiny but positive margin.
+
+  There is a companion paper (OpenAIThreshold2026 in
+  the references) proving the general threshold:
+  (1 + 2/e + eps) is achievable on the general facility
+  model. That result is independent of the recovery
+  and strictness construction here, but it explains
+  why 1 + 2/e is a natural limit for recovery.
+
+  8.2 WHAT THIS PAPER BORROWS FROM
+
+  The paper relies heavily on prior work. The main
+  external tools are:
+
+    - The CGLSS 2026 log-surplus construction,
+      including its valid-sequence machinery. This
+      is the "imports" of the paper (Section 7 of the
+      original). Used as a black box in Part 5.
+
+    - The CGLS 2026 paper (arXiv:2207.05150v2),
+      which has the JMS factor-revealing LP analysis
+      and provides the model for the paper's
+      strictness proof.
+
+    - Calinescu, Chekuri, Pal, Vondrak (2011):
+      continuous greedy and partition rounding for
+      monotone submodular maximization. Provides the
+      (1 - 1/e) guarantee that yields 1 + 2/e in
+      recovery.
+
+    - Vondrak (2008): original continuous greedy.
+
+    - Alon, Yuster, Zwick (1995): color coding.
+      Provides the distinct-removals machinery for
+      completion's blue-removal step.
+
+    - Cohen-Addad, Gupta, Kumar, Lee, Li (2019):
+      tight-FPT approximations for k-median and
+      k-means. The FPT antecedent for the 1 + 2/e
+      factor.
+
+    - Cohen-Addad, Schwiegelshohn (2017): local
+      structure of stable clustering instances.
+      Provides the anchoring technique.
+
+    - Gupta, Tangwongsan (2008): simpler local
+      search analysis; provides the weighted swap
+      bound in Part 4.
+
+    - Li, Svensson (2016): pseudo-approximation
+      reduction.
+
+    - Jain, Mahdian, Saberi (2002, 2003):
+      dual-fitting framework.
+
+    - Arya, Garg, Khandekar, Meyerson, Munagala,
+      Pandit (2004): width-5 local search and its
+      basic 3+eps bound.
+
+    - Charikar, Guha, Tardos, Shmoys (2002): LP
+      rounding.
+
+  8.3 WHAT IS ACTUALLY NEW IN THIS PAPER
+
+  (1) Refined recovery with single-exponential
+      bad-cluster dependence.
+
+      FPT algorithms (CGLSS 2019, Dai-Li-Peng 2026)
+      give k^{O(k)}-time (2+eps) approximations for
+      k-median. When k = O(log N), that is not
+      polynomial. This paper makes the dependence on
+      the number of bad clusters single-exponential
+      (exp(O(m)) rather than exp(O(m log m))), so
+      m = O(log N) becomes polynomial time.
+
+  (2) Bounded-price strictness with an elementary
+      proof.
+
+      The CGLS 2026 paper already proves strictness
+      via factor-revealing LP. This paper gives a
+      different proof, using only a suffix maximum
+      and a truncated-sum / Jensen argument. The new
+      proof transfers directly to the fixed
+      valid-sequence replay, including free openings
+      and simultaneous phase updates. Both proofs
+      are valid.
+
+  (3) The assembly.
+
+      Combining recovery and strictness into a
+      2 - sigma approximation, with all the constants
+      tracked carefully enough that the final answer
+      is strictly below 2. That is the deliverable.
+
+  What is NOT new:
+
+    - The log-surplus construction (CGLSS 2026).
+    - The (1 - 1/e) submodular maximization
+      (Vondrak, Calinescu-Chekuri-Pal-Vondrak).
+    - The width-5 local search and its 5P bound.
+    - The Alon-Yuster-Zwick color coding.
+    - The Li-Svensson pseudo-approximation.
+    - The JMS factor-revealing LP.
+
+  8.4 WHY THIS IS INTERESTING
+
+  Factor 2 has been the target for 25 years. (2+eps)
+  was barely achieved in 2026. Strictly below 2 is
+  the next step. This paper does that.
+
+  The proof is instructive: two independent tools
+  (recovery and strictness) attack the problem from
+  different angles. Whichever case the instance
+  falls into, one of them fires. That kind of case
+  analysis (analysis, not code) is a common and
+  elegant pattern in approximation algorithms.
+
+  It is also a good example of the "polynomial time
+  but astronomically slow" phenomenon in theory. The
+  constants here are unusable in practice: sigma is
+  something like 2^(-8000). A practical implementation
+  of k-median at 2 - sigma is not the point. The
+  point is the theoretical boundary being strictly
+  below 2.
+
+  ============================================================
+  END OF DOCUMENT
+  ============================================================
