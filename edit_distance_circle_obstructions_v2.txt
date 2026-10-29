@@ -1,0 +1,1877 @@
+================================================================
+Finite-Circle Obstructions, Binary Codes, and
+Histogram Embeddings for Edit Distance
+
+A Guided Tour for Young Mathematicians
+================================================================
+
+This is a guided tour of a research paper about a single, deceptive
+question: if two words are close in edit distance -- the number of
+single-letter insertions, deletions, and substitutions that turn one
+into the other -- can we represent that closeness using ordinary
+straight-line distance, keeping every pairwise comparison within a
+controlled factor? The surprising answer is that you can, but the
+factor you pay grows almost exponentially in the square root of the
+logarithm of the word length. This tour explains both halves: the
+construction that lets you build such a map (an "embedding"), and the
+matching obstruction that says you cannot do much better.
+
+This tour is written for a motivated high-school reader. Every
+technical term is named and explained the first time it appears. The
+formal statements (theorems and lemmas) are reproduced in plain ASCII
+so the reader can line them up with the paper. Some arguments are long;
+they are broken into small numbered steps, and each step says what it
+is trying to achieve before doing it.
+
+The original paper is organized into sections named introduction,
+preliminaries, masks, circle-fourier, coding, mask-binary, excluded,
+assembly, and upper. The tour regroups these into six parts that
+follow the logic of the proof rather than the paper's file order: the
+question and main theorem (Part I), the alignment toolbox (Part II),
+the first obstruction built on a circle (Part III), the second
+obstruction built on omitted coordinates (Part IV), making everything
+binary (Part V), and finally the "every length cap" inversion plus the
+good embedding, i.e. the upper bound (Part VI). A reading guide at the
+end maps each paper section back to the part(s) that present it.
+
+Read the tour twice if you can: once for the plot, once for the
+details.
+
+
+================================================================
+PART I. THE QUESTION AND THE MAIN THEOREM
+================================================================
+
+
+1. WHAT IS EDIT DISTANCE?
+
+Take two words. In this paper a "word" is a finite string of letters
+from some fixed alphabet, which we call Sigma. The letters could be
+0 and 1, or the ordinary A-Z, or any finite set with at least two
+symbols. The empty word is allowed and is written as the empty string.
+
+An edit operation is one of:
+
+  insert one letter somewhere,
+  delete one letter somewhere,
+  substitute one letter for another.
+
+Each operation costs one. The edit distance ED(x, y) is the smallest
+total cost of a sequence of edits that turns x into y. For example,
+ED(cat, cap) = 1 (substitute t with p), ED(cat, at) = 1 (delete the
+c), and ED(cat, cart) = 1 (insert an r). It always holds that
+ED(x, y) = ED(y, x), and ED(x, z) <= ED(x, y) + ED(y, z), so ED is a
+genuine distance.
+
+This operation set is exactly the one behind spell checkers, DNA
+sequence comparison, and "did you mean this?" guesses. The name honors
+Vladimir Levenshtein, who studied how many such errors a code can
+correct, but the computational formulation is due to Wagner and
+Fischer, whose 1974 paper introduced the grid ("trace") that computes
+ED(x, y) in about |x| times |y| steps.
+
+A key observation: instead of asking for an editing script, we can
+ask for a matching. A common subsequence of x and y is a set of
+equal-letter pairs, one letter from each word, such that the indices
+increase strictly on both sides. Let LCS(x, y) be the largest possible
+such set. Then the number of insertions and deletions needed to turn
+x into y (no substitutions allowed) is exactly
+
+  Delta(x, y) = |x| + |y| - 2 LCS(x, y).
+
+If substitutions are allowed, then ED(x, y) <= Delta(x, y), and in the
+other direction Delta(x, y) <= 2 ED(x, y): every substitution can be
+imitated by one deletion plus one insertion. So ED and Delta differ by
+at most a factor of two. When |x| = |y| = n, the number of unmatched
+positions on either side of a longest common subsequence,
+
+  r_n(x, y) = n - LCS(x, y),
+
+is also within a factor of two of ED. The quantity r_n is often easier
+to work with than ED because it counts, symmetrically, how many
+positions each word must "give up". Defining q(x, y) = max(|x|, |y|)
+- LCS(x, y) handles unequal lengths the same way.
+
+
+2. WHAT DOES "EMBEDDING INTO L1" MEAN, AND WHY?
+
+A word is not a number, so we ask: can we convert words into points of
+some geometric space while preserving how close they are? The natural
+target is L1, the space of vectors (finite or infinite sequences) with
+the distance ||u - v||_1 = sum of |u_i - v_i| over all coordinates.
+L1 shows up everywhere in computer science: nearest-neighbor search,
+data bases, machine learning. If we can turn edit distance into L1
+distance, we can then use all the fast L1 machinery already available.
+
+Across the whole paper, all our conclusions are about the length-
+bounded set Sigma^{<= d}, i.e. all words of length at most d, where d
+is a cap. Importantly, a map is allowed to compare two short words by
+going through intermediate words of any length (editing is not bounded
+by d); only the endpoints of the comparison must satisfy |x|, |y| <= d.
+
+Fix a finite alphabet Sigma with |Sigma| >= 2 and an injective map
+f: Sigma^{<=d} -> L1. Its distortion is the worst-case ratio between
+distances before and after mapping:
+
+  dist(f) = ( max_{x != y} ||f(x) - f(y)||_1 / ED(x, y) )
+          * ( max_{x != y} ED(x, y) / ||f(x) - f(y)||_1 ).
+
+The first factor is the worst stretching. The second factor is the
+worst shrinking. The product is the price you pay for representing
+the metric with straight-line distance. Write E_Sigma(d) for the
+infimum of dist(f) over all injective f. The main theorem orders
+E_Sigma(d) as d grows.
+
+Note: "injective" matters. If two distinct words mapped to the same
+point, the shrinking factor would be infinite, so we always require
+distinct images.
+
+
+3. THE MAIN THEOREM
+
+  THEOREM (main).
+  There are absolute constants c > 0 and C > 0 and an integer d_0 such
+  that, for every integer d >= d_0 and every finite alphabet Sigma
+  with |Sigma| >= 2,
+
+    exp( c * sqrt( log d * log log d ) )
+       <=  E_Sigma(d)
+       <=  exp( C * sqrt( log d * log log d ) ).
+
+All logarithms are natural unless a base is shown. The constants c and
+C do not depend on Sigma or on d, and in fact do not depend on the
+alphabet size at all -- so the statement holds even for alphabets
+whose size grows with d. (The two constants in the two exponents are
+not required to be equal; the theorem pins down the order of
+magnitude of log E_Sigma(d), not the exact constant.)
+
+Let us appreciate the scale. Compare three benchmarks:
+  sqrt(log d) grows much slower than any fixed power of log d;
+  sqrt(log d * log log d) still grows faster than (log d)^(1/2 - eps)
+  for every fixed eps > 0, but it is dwarfed by d^eps.
+So the distortion is bigger than any fixed power of log d, but it is
+still d^o(1) -- vastly smaller than any positive power of d.
+
+This is a genuine two-sided result. The upper bound (Part VI) exhibits
+one deterministic map that achieves the second inequality for every
+pair of short words simultaneously. The lower bound (Parts III-IV)
+exhibits, for every sufficiently large cap d, a set of binary words of
+common length whose *any* injective L1 embedding has distortion at
+least the left side. Because binary words sit isometrically inside
+every larger alphabet (a fact we prove in Part VI), the lower bound
+holds for all alphabets at once.
+
+
+4. THE TOOLBOX: WORDS, MATCHINGS, DISTORTION
+
+Before attacking anything, fix the vocabulary that recurs:
+
+  word -- a finite string of symbols from a finite alphabet Sigma.
+  Sigma^{<=d} -- all words of length at most d, empty word included.
+  ED(x, y) -- edit distance (insert/delete/substitute, unit cost).
+  Delta(x, y) -- insertion-deletion-only distance, |x|+|y|-2 LCS(x,y).
+  LCS(x, y) -- longest common subsequence length.
+  r_n(x, y) -- for |x| = |y| = n, n - LCS(x, y) (unmatched per side).
+  q(x, y) -- max(|x|,|y|) - LCS(x, y) (unequal-length version).
+  ell_1 (or L1) -- real sequence space with distance = sum of coordinate
+    differences, restricted to absolutely summable sequences.
+  distortion -- worst stretch times worst shrink, as in Section 2.
+
+Two elementary facts travel with us everywhere: for all finite words,
+
+  q(x, y) <= ED(x, y) <= 2 q(x, y),
+
+and for equal-length words of length n,
+
+  r_n(x, y) <= ED(x, y) <= 2 r_n(x, y).
+
+These are the "metric comparisons". Both follow from the LCS formula
+for Delta plus the factor-two comparison between ED and Delta: a
+shadow edit script leaves all but ED(x,y) letters of x in order, which
+gives the lower bound, and deleting outside a longest common
+subsequence and re-inserting the rest gives the upper bound.
+
+The whole paper is one long fight to control these factors: every
+construction has to keep "how much a pair of words is separated" and
+"how cheaply a family of text-book shifts moves" in the right ratio,
+even when the matching between the two words is chosen adversarially.
+
+
+5. THE STRATEGY IN ONE PARAGRAPH
+
+Both lower constructions build binary words out of a "phase" on a
+circle, plus tags that make different child blocks unable to match
+each other. On these words:
+
+  (a) certain cheap shifts (translations in a chosen subgroup) move
+      long row-lists at tiny edit cost;
+  (b) shifting a single leaf costs at most the fraction of the word
+      that leaf occupies, times the phase displacement;
+  (c) a simultaneous half-turn of every leaf (the "half-turn") must
+      cost a lot, and this must hold under every possible matching.
+
+To compare with an arbitrary L1 image, we re-write its distances on a
+finite phase space as nonnegative sums of "cut" distances and then use
+finite Fourier analysis. Each Fourier character carries one integer
+frequency per leaf. The cheap translations force the characters that
+are nonconstant on them to carry small total weight, and the prime
+periods in the construction force any remaining character that can
+detect the half-turn to have a very large total frequency. A careful
+averaging argument then shows that preserving the half-turn separation
+requires enormous distortion. The upper bound is completely different:
+it is the overlapping-window histogram method of Ostrovsky and Rabani,
+optionally followed by an equivalent total-variation formulation.
+
+
+================================================================
+================================================================
+PART II. ALIGNMENTS AND TAGGED ROWS
+================================================================
+
+
+6. WHY MATCHINGS, NOT SCRIPTS, ARE THE REAL OBJECT
+
+Suppose two equal-length words x, y of length n are given, and let E =
+r_n(x, y) be the deficit: n - LCS(x, y). A longest common subsequence
+pairs n - E positions of x with n - E positions of y, in strictly
+increasing order on both sides. The remaining E positions of x and E
+positions of y are "unmatched". This is called an increasing matching
+with deficit E.
+
+Every statement about ED is, up to a factor two, a statement about such
+matchings. To prove that two words are far apart in edit distance, it
+suffices to prove that every increasing matching leaves many positions
+unmatched. This is the whole reason we keep introducing r_n: it turns a
+question about editing into a question about combinatorics of increasing
+matchings.
+
+The interesting difficulty is that a matching can be arbitrary. The two
+words were built by stacking "rows" of child blocks, but a matching is
+under no obligation to respect those row boundaries. It may stitch
+together positions from completely different rows. Our constructions
+defeat this with tags: every letter is stamped with the index of the
+child block it came from, so a matched pair must come from blocks with
+the same stamp. That alone is not enough -- matches may come from the
+same stamp but different rows -- so we need one more lemma, proved once
+and used in both constructions.
+
+
+7. THE METRIC-COMPARISON LEMMA
+
+  LEMMA (metric comparisons).
+  For all finite words x, y,
+
+    q(x, y) <= ED(x, y) <= 2 q(x, y),
+    ED(x, y) <= |x| + |y| - 2 LCS(x, y) <= 2 ED(x, y).
+
+  In particular, when |x| = |y| = n,
+
+    r_n(x, y) = (1/2) Delta(x, y)
+              <= ED(x, y)
+              <= 2 r_n(x, y).
+
+Proof idea. Any edit script with k operations leaves at least |x| - k
+letters of x untouched and in order (insertions and substitutions can
+be thought of as adding new letters without destroying surviving ones;
+deletions remove at most k positions). Those survivors form a common
+subsequence, so LCS(x, y) >= |x| - k, i.e. k >= q(x, y). This gives
+q <= ED. The other direction is the "delete outside a longest common
+subsequence, insert the missing letters" script, whose length is
+|x| + |y| - 2 LCS = Delta, and Delta <= 2 q because 2 q = 2 max(|x|,
+|y|) - 2 LCS >= |x| + |y| - 2 LCS. The insertion-deletion formula for
+Delta is then a direct comparison of survivor counts; substitutions are
+handled by turning each into a delete-plus-insert (factor two). QED.
+
+This is the only quantitative bridge between "matching deficits" and
+"edit distance", and it costs at most a factor two on either side. All
+later lower bounds are stated, cheaply, for r_n or r_{N}, and then
+translated into ED bounds with this lemma.
+
+
+8. THE TAGGED-ROWS LEMMA (THE HEART OF BOTH CONSTRUCTIONS)
+
+Here is the exact situation that both circle constructions produce.
+There are R "rows", each row built from t "child blocks" of equal
+length L, in the same fixed child order in both words. Different child
+indices use pairwise disjoint alphabets (this is what the tags
+achieve): an alphabet for child 1, a different one for child 2, and so
+on. Therefore any matched pair must have the same child index.
+
+Call a source row "split" if its matches enter two or more different
+target rows. If it is not split, all its matches lie in a single target
+row.
+
+  LEMMA (charging split tagged rows).
+  Let R, L >= 1 and t >= 2 be integers, with pairwise disjoint
+  alphabets for the t child indices. Two words consist of R rows, each
+  containing in order a block in the child-i alphabet of length L, for
+  i = 1..t. The common length is N = R t L. Fix an increasing matching
+  with E unmatched positions on each side. Suppose every non-split
+  source row loses at least A t L source positions, where 0 <= A <= 1;
+  rows with no matches are counted here too. Then
+
+    E >= A ( N - t E / (t - 1) ),   and   E >= A N / (1 + t A / (t-1)).
+
+Proof. Take a split source row. Look at two consecutive matched
+positions in the matching that switch from one target row a to a later
+target row a'. Because they are consecutive in the matching, every
+source position between them stays in that same source row (none of
+them is matched elsewhere). Since their child indices i <= j are the
+same in source and target (tags), the open target interval between the
+two partners contains at least
+
+  ( (a' - a) t + j - i - 1 ) L >= (t - 1) L
+
+positions, and all of these target positions are unmatched. Targets
+skipped by different source rows occupy disjoint positions (matching
+order), so the total number of split source rows is at most
+E / ((t-1) L). Those split rows have total source length at most
+t L times that, i.e. at most t E / (t-1).
+
+Every non-split row loses at least the fraction A of its own source
+positions. The losses of different non-split rows are disjoint source
+positions even if several of them happen to feed the same target row.
+Summing, the total source deficit is at least A times (N minus the
+total source length of the split rows). That is exactly
+E >= A (N - t E / (t-1)). Solving for E gives the second displayed
+form. QED.
+
+Why this matters: a matching is forced to either keep rows independent
+(charged by A) or to split many of them (charged by the (t-1)L holes).
+The lemma turns any per-non-split-row lower bound at all into a global
+deficit lower bound, with no assumption that the matching respects rows.
+Both constructions aim to make the hypothesis "every non-split source
+row loses at least A t L" true for a decent A, and then read off E.
+
+
+9. HOW THE TAG IDEA COMBINES WITH THE LEMMA
+
+We should be explicit about the wiring. A construction builds a word by
+recursion: at each level it concatenates rows; each row is a run of
+child words, each child word tagged with its child index. At the very
+bottom a child word is a binary pattern on a circle. When the matching
+is later analyzed, the tags guarantee that a match between child i of
+the source and child i' of the target forces i = i'. This is exactly
+the "pairwise disjoint alphabets for the t child indices" hypothesis
+of the tagged-rows lemma. The lemma's A is supplied by induction on the
+height: a non-split source row inherits the lower-level separation,
+weighted by the phase displacement the construction applied to that
+row. At the bottom, the binary patterns differ in exactly 2M times the
+phase displacement positions (M being the circle size), which gives the
+base case of the induction. So the reader should picture Parts III and
+IV as two different machines for producing the number A at the top
+level, feeding the same lemma.
+
+
+================================================================
+================================================================
+PART III. THE FIRST OBSTRUCTION: TRANSLATED ROWS ON A CIRCLE
+================================================================
+
+The strategy of Sections 5 and 8 now becomes concrete. We will build a
+family of words S_h(v) indexed by a "state" v living on a finite circle
+grid. The word is assembled by a recursion, and the state v tells every
+leaf of the recursion which little window of that leaf's circle should
+light up. Two properties must hold: an entire family of "row shifts"
+must move the word a short edit distance, while turning the state halfway
+around the circle must cost a lot. Everything below is that construction
+and its two proofs.
+
+What follows is the paper's construction "masks", the section that
+introduces the prime periods that make translations cheap and the
+half-turn expensive.
+
+
+10. THE PRIMES AND THE GRID
+
+Fix a large integer h. Choose h^2 distinct primes, all lying between h^3
+and 2h^3; call them p_{lk} for 1 <= l <= h and 1 <= k <= h. There are
+enough primes: the prime-counting estimate pi(2x) - pi(x) > 3x/(5 log x)
+for large x (Rosser-Schoenfeld) gives at least h^2 primes in that range.
+
+For each level l = 1..h, define
+
+  P_l = product over k=1..h of p_{lk},
+
+a product of h distinct primes. Let
+
+  M = 2 * (P_1 * P_2 * ... * P_h).
+
+This M is the number of grid points on our circle. The factor two
+reserves the half-turn 1/2 as a grid point. Let
+
+  G = all grid points ( a/M mod 1 : a = 0, 1, ..., M-1 )   (mod 1),
+
+the finite circle of M equally spaced points, closed under addition mod 1.
+We also fix the row-repetition count
+
+  R = h^{2h}.
+
+The primes are the engine of the whole construction: distinct primes
+give Chinese-remainder-theorem arithmetic, and that arithmetic lets us
+impose any prescribed remainders on different coordinates at once.
+
+
+11. THE CHILD SETS, THE RESIDUE MAPS, AND THE LENGTH RECURSION
+
+At level l the children are indexed by
+
+  J_l = { (k, b) : 1 <= k <= h,  0 <= b < p_{lk} },
+
+with total count
+
+  t_l = sum over k of p_{lk}.
+
+Each choice of k contributes a whole prime-sized block of children.
+For a tuple z = (z_1, ..., z_h) of residues (z_k mod p_{lk}), define two
+additive maps into G:
+
+  sigma_l(z)             = sum_k z_k / p_{lk}          (mod 1),
+  gamma_{l,(k,b)}(z)     = sigma_l(z) + b * z_k / p_{lk}   (mod 1).
+
+For an integer a, let z(a) be its vector of residues (a mod p_{lk})_k.
+By the Chinese remainder theorem, a mod P_l ranges over every possible z
+exactly once. So the level-l row index a (taken mod P_l) can prescribe
+the residue vector z arbitrarily.
+
+Let r_0 = 1 and r_l = t_l * r_{l-1}. So r_l is the number of leaves of
+the level-l tree, each carrying a point of G. A state at level l is a
+tuple v = (v_j : j in J_l) of points of G^{r_{l-1}}.
+
+
+12. THE WORDS S_l(v): A WINDOW AT THE BOTTOM, ROWS ON TOP
+
+At level zero, the word S_0(v) for a single phase v in G is the length-M
+binary word whose bit at position b (0 <= b < M) is
+
+  1  if (b/M - v mod 1) lies in [0, 1/2),   0 otherwise.
+
+So S_0(v) is a block of M bits that lights up M/2 consecutive sites of
+the circle: a translated half-circle. Reading it off a circle, "advancing
+v" slides the dark/light boundary around.
+
+At level l >= 1 (with v a tuple of child states), S_l(v) is the
+concatenation over a = 0, 1, ..., R P_l - 1 of the rows
+
+  row(a) = concat over j in J_l of  [ j , S_{l-1}( v_j + gamma_{l,j}(z(a)) * 1 ) ],
+
+where [j, U] means the child word U with tag j stamped onto every letter,
+and "1" is the all-ones phase vector (every leaf gets the same additive
+offset). A row therefore stacks all t_l child words, each shifted by a
+phase determined jointly by the row index a and the child's own prime
+group. The row list has period P_l and is repeated R times. So
+
+  length L_0 = M,    L_l = R * P_l * t_l * L_{l-1}.
+
+At the top, L_h is the word length and the alphabet has size A = 2 r_h
+(binary bit times tag choices).
+
+
+13. THE CHEAP SUBGROUP C_l AND ITS EDIT COST
+
+Define the translation subgroup by recursion:
+
+  C_0 = {0},
+  C_l = C_{l-1}^{J_l}  +  { ( gamma_{l,j}(z) * 1 )_{j in J_l} : z any residues }.
+
+Roughly, C_l is the set of shifts that, at the current level, add a
+consistent phase gamma_{l,j}(z) to every child and, inside each child,
+do the same at the previous level. These shifts move row lists around.
+
+  LEMMA (cheap translations).
+  For every 0 <= l <= h, every state v, and every c in C_l,
+
+    ED( S_l(v), S_l(v + c) )  <=  2 l L_l / R.
+
+  In particular at the top, for the half-turn displacement by a single
+  leaf coordinate e_i(a/M) with 1 <= a <= M/2,
+
+    ED( S_h(v), S_h(v + e_i(a/M)) )  <=  2 a L_h / ( M r_h ).
+
+Proof idea. Consider the level-l translation coming from the second
+summand of C_l. It adds gamma_{l,j}(z) to every child, so it replaces
+the row parameter a by a + q for a suitable row shift q in [0, P_l)
+found by the Chinese remainder theorem. The row list has period P_l and
+is repeated R times, so shifting the parameter by q is the same as
+deleting the first q rows at one end of each period and re-inserting
+them at the other end: at cost 2q * L_l / (R P_l) * P_l = 2 L_l / R per
+period, i.e. 2 L_l / R overall. Translations from the first summand
+C_{l-1}^{J_l} are handled inside each child block by induction, costing
+at most 2(l-1) L_l / R. Because these bounds hold at every state, we
+may follow a path of shifts through intermediate states and add up the
+costs by the triangle inequality. The leaf bound is similar: a leaf
+occupies exactly the fraction 1/r_h of the word, in copies of S_0, and
+shifting its half-circle by a/M flips exactly 2a bits per copy. QED.
+
+The lesson: changing the state v by an element of C_l is cheap -- its
+cost is a lower-order fraction of the spelling length. Everything in
+the subgroup is "free movement" for the obstruction below.
+
+
+14. THE PHASE COST D_l AND WORD SEPARATION
+
+A simultaneous half-turn must be expensive. To measure how much of a
+uniform phase survives the cheapest possible choice of row shifts
+during an alignment, define the scalar cost recursively:
+
+  D_0(theta) = distance of theta to 0 on the circle,
+  D_l(theta) = min over z of (1/t_l) sum_{j in J_l} D_{l-1}( theta + gamma_{l,j}(z) ).
+
+Each D_l is symmetric and subadditive (negate a minimizing z for
+symmetry; add two minimizing z's and use the previous subadditivity).
+The zero vector shows 0 <= D_l <= D_{l-1} <= D_0 <= 1/2.
+
+  LEMMA (word separation).
+  For every 0 <= l <= h, every v, and every theta in G,
+
+    r_{L_l}( S_l(v), S_l(v + theta * 1) )
+       >=  ( 2^{-l} / 4 ) * L_l * D_l(theta).
+
+Proof. At level zero: suppose a matching pairs all but E of the M
+positions. Then the k-th selected position on either side lies between k
+and k+E, so each matched pair is displaced by at most E. The two
+half-circle words disagree in 2M * ||theta|| positions (Hamming
+distance). A disagreeing position is either unmatched or matched across
+a "transition" of the target word; the target has at most two
+transitions in linear order, and at most 4E positions sit within
+distance E of them. So 2M||theta|| <= E + 4E = 5E, giving
+E >= 2M D_0(theta)/5 >= M D_0(theta)/4.
+
+Induction step. Fix a longest common subsequence matching of the two
+level-l words. Let t = t_l, L = L_{l-1}. Suppose a source row's matches
+all land in one target row, with row parameters a and a'. Because of the
+child tags, child j of the source can match only child j of the target,
+and the phase displacement of that child is (theta + gamma_{l,j}(z(a' -
+a))) * 1. By induction the source row loses at least
+
+  (2^{-(l-1)}/4) * L * sum_j D_{l-1}(theta + gamma_{l,j}(z(a'-a)))
+  >= (2^{-(l-1)}/4) * t L * D_l(theta).
+
+A row with no matches loses all of its tL source positions and obeys the
+same bound. Thus the tagged-rows lemma applies with A = 2^{-(l-1)}
+D_l(theta)/4. Since t >= 4, its denominator 1 + tA/(t-1) is less than
+two, giving a total deficit at least A L_l/2, which is the displayed
+estimate. QED.
+
+So word separation is now reduced to one number, D_h(1/2): how much of
+the half-turn phase survives all the cheap row-shifting during the
+descent through h levels. The rest of Part III is about bounding that
+number away from zero and then converting separation into a distortion
+lower bound.
+
+
+================================================================
+15. WHY THE HALF-TURN PHASE SURVIVES: DENOMINATOR RESETS
+
+Read the recursion for D_l backwards. At level l, the cheapest row
+shift z might move the phase a little. We must show that after all h
+levels some nonzero quantity survives.
+
+A "denominator" bookkeeping device does the work. If the current phase
+is theta = a/Q in lowest terms with Q > 1, then a new shift with
+denominator P (a product of active current-level primes, coprime to Q)
+cannot cancel theta: it would need a/Q + b/P to be an integer, which
+would force Q to divide aP, impossible. So the denominator only grows,
+and the phase can never become zero.
+
+There are two cost sources at each level. Writing s for the number of
+active prime groups (groups where z_k is nonzero):
+
+ (reset option) if s > 0, then
+   D_l(theta) >= (s/(4h)) * min over active k of D_{l-1}(1/p_{lk}).
+
+ (inactive option) if few groups are active, the inactive groups carry
+ most of the row weight and have the common phase theta + sigma_l(z), so
+   D_l(theta) >= (1/4) * D_{l-1}(theta + sigma_l(z)).
+
+The reset option is called "large" when s >= sqrt(h) or when the current
+denominator count would overflow a budget K = floor(h/100); otherwise it
+is "small". A large reset costs at least 1/(4 sqrt h) and leaves a
+nonzero phase with a single fresh prime denominator -- the denominator
+counter resets to one. An inactive step costs at least 1/4. A small
+reset costs at least 1/(4h), and there can be at most O(sqrt h) of them
+because their supports are disjoint and each overflows the budget only
+after accumulating nearly K prime groups.
+
+  LEMMA (denominator resets).
+  For all sufficiently large h,
+
+    D_h(1/2) >= 4^{-h} * h^{-h/2 - O(sqrt h) - 4h/100}.
+
+Proof sketch. At level h, start with phase 1/2 (denominator two, one
+prime). Descend, using the reset option whenever required to keep the
+denominator a product of at most K distinct primes from strictly higher
+levels, and the inactive option otherwise. The accumulated cost is at
+least the product 4^{-h} h^{-h/2 - q/2} where q = O(sqrt h) counts
+small resets. At the bottom the surviving phase has denominator at most
+h^{-4K} in size, so its distance to zero is at least h^{-4K} =
+h^{-4h/100}. Multiplying all factors gives the bound. QED.
+
+Combining with word separation: the half-turn pair S_h(v), S_h(v + 1/2)
+has deficit at least L_h h^{-(0.54 + o(1)) h}. The 8^{-h} factors from
+separation are absorbed into the o(1)h term on a logarithmic scale.
+That is the "pointwise half-turn separation" the whole construction
+was aiming for.
+
+16. FREQUENCY BRANCHING: A DETECTING CHARACTER NEEDS LARGE WEIGHT
+
+We now leave the words for a moment and ask a purely arithmetic
+question about the Fourier characters of the finite grid G^{r}. A
+character is chi_alpha(v) = exp(2 pi i * sum_i alpha_i v_i), with each
+alpha_i a centered integer representative (|alpha_i| <= M/2). Put
+r = r_h, V = G^r, w = (1/2) * 1 (the half-turn), and B = (h/2)^h.
+
+  LEMMA (frequency branching).
+  If chi_alpha restricted to C_h is constant equal to one, and
+  chi_alpha(w) is not one, then
+
+    sum over i of |alpha_i|  >=  B.
+
+Proof. View the r state coordinates as leaves of the tree from the
+word construction. At a node let beta be the sum of the integer leaf
+frequencies below it; at a level-l node let beta_{(k,b)} be the child
+sums. Annihilating each generator of C_h gives, for each level-l node
+and each k in 1..h,
+
+    beta + sum over b of b * beta_{(k,b)}  = 0   (mod p_{lk}).
+
+These congruences are unchanged if a frequency representative is moved
+by M. Suppose the total sum of |alpha_i| were less than B. Then every
+nonzero node sum is smaller than B in absolute value. If q distinct
+current-level primes divide such a sum beta, then h^{3q} <= |beta| <
+(h/2)^h < h^h, so q < h/3. For each of the other prime groups the
+congruence forces a nonzero child sum in that group. Hence every
+nonzero internal node has at least h/2 nonzero children in distinct
+groups. At the root, the sum beta is odd (because chi_alpha(w) is not
+one), so it is nonzero. Iterating down the tree produces at least
+(h/2)^h nonzero integer leaf frequencies, contradicting the assumed
+small total. QED.
+
+So: a Fourier character that can detect the half-turn yet is trivial
+on the cheap subgroup must concentrate a total frequency B = (h/2)^h
+onto the leaves. That is the "arithmetic branching bound" the
+introduction promised.
+
+17. CUTS, FOURIER, AND THE WEIGHTED CIRCLE INEQUALITY
+
+Now connect an arbitrary L1 image to this finite grid. The finite-cut
+representation says: for a map F from a finite set X to L1, there are
+nonnegative coefficients a_A on nonempty proper subsets A of X with
+
+  ||F(x) - F(y)||_1 = sum over A of a_A * delta_A(x, y),
+
+where delta_A(x,y) = |1_A(x) - 1_A(y)| is the cut distance, and the
+total sum of the a_A is at most the sum over all pairs of the L1
+distance. The proof is the elementary identity |s - t| = integral of
+|1(s > u) - 1(t > u)| du applied to each coordinate, then grouping
+threshold cuts. Nonnegative sums and integrals commute, so an infinite
+L1 target causes no trouble.
+
+  LEMMA (weighted finite-circle inequality).
+  Let H <= V be the subgroup, w = (1/2) * 1, and suppose B > 0 satisfies
+  the "branching premise": if chi_alpha is trivial on H but chi_alpha(w)
+  is not one, then T(alpha) = sum_i |alpha_i| >= B. Then for every
+  F: V -> L1 there are nonnegative weights omega_alpha with
+
+    Delta_F(u) = sum_alpha omega_alpha |1 - chi_alpha(u)|^2   (u in V),
+
+  where Delta_F(u) is the average of ||F(v + u) - F(v)||_1 over v. These
+  weights satisfy
+
+    sum over alpha not in H^perp of omega_alpha = (1/2) E_{u in H} Delta_F(u),
+    4 * sum over alpha of omega_alpha * T(alpha)
+      <= sum_i sum_{a in D_M} (M/a) * Delta_F((a/M) e_i),
+
+  where D_M = {1, 2, 4, 8, ...} is the set of powers of two, intersected
+  with [1, M/2]. Consequently
+
+    Delta_F(w) <= 2 E_{u in H} Delta_F(u)
+                + (1/B) sum_i sum_{a in D_M} (M/a) Delta_F((a/M) e_i).
+
+Proof sketch. On the finite grid, for any scalar function g and shift u,
+
+  E_v |g(v + u) - g(v)|^2 = sum_alpha |g_hat(alpha)|^2 |1 - chi_alpha(u)|^2.
+
+Take g = 1_A, apply the cut identity, and sum with coefficients a_A.
+That gives the displayed Fourier expansion with nonnegative weights
+omega_alpha. For the "off-mass" identity, a nontrivial character has
+mean zero on a finite subgroup, so the mean of |1 - chi_alpha(u)|^2 on H
+is two off H^perp and zero on H^perp. For the "weighted mass" bound,
+each coordinate picks the largest power of two a with a * |alpha_i|/M in
+(1/4, 1/2]; then |1 - exp(2 pi i a alpha_i / M)|^2 >= 2 and M/a >= 2
+|alpha_i|, so that single dyadic scale contributes at least 4 |alpha_i|.
+Summing over coordinates and then against the nonnegative weights gives
+the second inequality. The final display: the half-turn multiplier is
+zero or four, so a detecting frequency contributes at most four times
+its weight; splitting into H^perp and its complement, using the branching
+premise T(alpha) >= B on the H^perp side and the off-mass identity on
+the other side, gives the bound. QED.
+
+To use this for the masks, we take H = C_h and B = (h/2)^h (that is the
+frequency-branching lemma). Then every F: V -> L1 satisfies
+
+  Delta_F(w) <= 2 E_{c in C_h} Delta_F(c)
+              + (1/B) sum_i sum_{a in D_M} (M/a) Delta_F((a/M) e_i).
+
+At this point we have all three ingredients the strategy listed:
+pointwise half-turn separation, pointwise cheap translations, and the
+averaged L1 comparison. The words still use 2 r_h letters because of
+the tags; Part V makes them binary.
+
+
+================================================================
+================================================================
+PART IV. THE SECOND OBSTRUCTION: EXCLUDED COORDINATES
+================================================================
+
+The first construction wedged a whole prime-sized block of children
+under every prime group, so a single prime forced a single fresh
+denominator. The second construction uses a sharper pattern: one prime
+for each of the m child indices, and the translation attached to a
+prime acts on every child EXCEPT its own. This omission does the work:
+two children of small cost would have a small difference involving at
+most two fresh prime denominators, which induction forbids, so most of
+the translation coordinates must vanish. The parameters here are m and
+h = m, and the distortion exponent is stronger, m^{m/4}.
+
+What follows is the paper's construction "excluded".
+
+
+18. THE PRIMES AND THE OMITTED-COORDINATE TRANSLATIONS
+
+Fix a large integer m and put h = m. We need h*m = m^2 distinct primes
+p_{l,i} for 1 <= l <= h and 1 <= i <= m, all distinct across levels,
+with
+
+  m^3 < p_{l,i} <= m^5.
+
+There are enough. Using the central binomial coefficient: the middle
+term of the 2n+1 terms summing to 4^n is (2n choose n) >= 4^n/(2n+1),
+and Legendre's formula bounds the exponent of each prime in (2n choose n)
+by floor(log_p(2n)), so (2n choose n) <= (2n)^{pi(2n)}. Taking n =
+floor(m^5/2) gives pi(m^5) >= c m^5 / log m, and pi(m^3) <= m^3, so
+the interval (m^3, m^5] contains at least m^2 primes for large m. (This
+is the same argument Erdos used, trusting ideas of Landau.)
+
+At each level put
+
+  P_l = product over i=1..m of p_{l,i},
+  u_{l,i}(s) = s / p_{l,i}                    (mod 1),
+  c_{l,i}(s) = sum over j != i of u_{l,j}(s)  (mod 1).
+
+The parameter s is taken mod P_l. By the Chinese remainder theorem,
+(u_{l,1}(s), ..., (u_{l,m}(s))) runs through the full product of the
+prime-order subgroups. In particular one can set u_{l,i} to any value
+while setting all the others to zero. Each c_{l,i} is a homomorphism.
+If only u_{l,i} is nonzero, its value is added to all children except
+child i -- the omitted coordinate.
+
+
+19. THE PHASE COST rho_l AND THE SMALL-ORDER LEMMA
+
+Define the scalar phase cost, and its recursive version, exactly as
+before but now with the omitted-coordinate children:
+
+  rho_0(theta) = distance of theta to 0 on the circle,
+  rho_l(theta) = min over s mod P_l of
+                 (1/m) sum over i=1..m of rho_{l-1}(theta + c_{l,i}(s)).
+
+Again rho_l is symmetric and subadditive, rho_l(0) = 0, and
+0 <= rho_l <= rho_{l-1} <= 1/2. The omitted coordinate is what lets us
+prove a clean lower bound. The trick uses small-order phases.
+
+  LEMMA (small-order phases remain costly).
+  For 0 <= l <= h, put
+
+    F_l = m^{-l/4 - 100 m^{3/4}}.
+
+  For all sufficiently large m, for every 0 <= l <= h: if z in the
+  circle is nonzero, has finite order q <= m^{10}, and is relatively
+  prime (in order) to P_1 * ... * P_l, then
+
+    rho_l(z) >= F_l.
+
+  (The empty product at l = 0 is one.)
+
+Proof sketch. Descent on l. At height zero, a nonzero point of order q
+has distance at least 1/q >= m^{-10} >= F_0. Suppose the claim at all
+heights below l. Suppose for contradiction rho_l(z) < F_l. Record the
+geometric budgets with a = m^{-1/4}, b_t = 4 a^{t+1}: the products of
+(1-b_t)^{-1} are bounded by 2, and m * sum_t b_t <= 5 m^{3/4}.
+
+Now choose phases z_0 = z, z_1, ..., z_l with the invariant
+
+  rho_{l-t}(z_t) < F_l * product_{j<t} (1-b_j)^{-1} < 2 F_l.
+
+At time t, choose a minimizing s in the recursion for rho_{l-t}(z_t).
+Write u_i = u_{l-t,i}(s) and U = sum_i u_i. Call index i "small" when
+rho_{l-t-1}(z_t + U - u_i) < F_{l-t-1}/2. The average of these m costs is
+less than 2 F_l, so at most 4 m F_l / F_{l-t-1} = m b_t indices are not
+small; that is at most 4 m^{3/4} < m, so there are at least two small
+indices for large m.
+
+If two small indices i, j had u_i != u_j, symmetry and subadditivity
+would give
+
+  rho_{l-t-1}(u_i - u_j)
+    <= rho_{l-t-1}(z_t + U - u_i) + rho_{l-t-1}(z_t + U - u_j) < F_{l-t-1}.
+
+The difference u_i - u_j is nonzero and its order divides
+p_{l-t,i} p_{l-t,j} <= m^{10}, and is prime to the earlier product (all
+level primes are distinct). The induction hypothesis at height l-t-1
+rules this out. Therefore all small indices have a common value of u_i;
+and because two distinct prime-order subgroups intersect only at zero,
+that common value is u_i = 0 for all small i.
+
+Let k_t = number of indices with u_i nonzero. Then k_t <= m b_t < m. All
+zero-coordinate children share the same phase z_t + U; choose z_{t+1} =
+z_t + U. The other costs are nonnegative, so
+
+  rho_{l-t-1}(z_{t+1}) <= rho_{l-t}(z_t) / (1 - k_t/m)
+                       <= rho_{l-t}(z_t) / (1 - b_t),
+
+which advances the invariant. The descent uses at most 5 m^{3/4} distinct
+level primes in total.
+
+At the end: let Q be the product of the primes actually used. Then
+z_l - z has order dividing Q, and q Q <= m^{10 + 25 m^{3/4}}. The phase
+z_l is nonzero (otherwise the order q > 1 of z would divide Q,
+contradicting coprimality). So the order of z_l divides q Q, and its
+distance to zero is at least m^{-10 - 25 m^{3/4}}. But the invariant
+gives rho_0(z_l) < 2 F_l = 2 m^{-l/4 - 100 m^{3/4}}, which is smaller
+than m^{-10 - 25 m^{3/4}} for large m. Contradiction. QED.
+
+
+20. WORDS WHOSE TAGS PRESERVE THE CHILD INDEX
+
+Now build the words, with a fixed grid and tree. Set
+
+  L = 2 * prod_{l=1..h} P_l,
+  R = m^{2h},
+  Lambda = [m]^h   (the leaf indices; [m] = {1,...,m}),
+  G = the finite circle of L equally spaced points, raised to the power
+      Lambda: G = ( (1/L) Z / Z )^Lambda.
+
+The set Lambda indexes the leaves of an m-ary tree of height h: a node
+at height l is a prefix a of length h - l, and ai is its child with i
+appended. The alphabet is
+
+  A = Lambda x {0, 1, ..., L-1} x {0, 1},    |A| = 2 L m^h.
+
+The first two coordinates are symbol tags, and the factor two in L puts
+the half-turn into the phase group. Every translation c_{l,i}(s) also
+lies in this group.
+
+For a state v in G and an auxiliary phase theta in (1/L) Z / Z, define
+words W_a(v, theta):
+
+  leaf: at leaf a,
+    W_a(v, theta) = the length-L word over b = 0..L-1:
+      ( a, b, 1 if b/L - v_a - theta lies in [0, 1/2), else 0 ).
+
+  internal: at height l >= 1, concatenate the rows, each made of m child
+  words:
+    W_a(v, theta) =
+      concat over s = 0..(R P_l - 1) of
+      concat over i = 1..m of
+      W_{ai}( v, theta + c_{l,i}(s) ).
+
+The symbol "concat" means string concatenation in the displayed order.
+All height-l words have the same length:
+
+  N_0 = L,    N_l = m R P_l N_{l-1}.
+
+Write N = N_h and W(v) = W_empty(v, 0). Adding a phase z to every state
+coordinate below a node has the same effect on its word as replacing
+theta by theta + z. This is a leaf identity, then propagated by the
+concatenation.
+
+  LEMMA (separation under arbitrary alignments).
+  For every node a at height 0 <= l <= h, every state v, and every
+  theta, z in (1/L) Z / Z,
+
+    r_{N_l}( W_a(v, theta), W_a(v, theta + z) )
+      >= N_l * 3^{-l} * rho_l(z).
+
+Proof. At a leaf, the position tag b forces any matched pair to use the
+same position on both sides; the two half-circle indicators disagree at
+exactly 2L * ||z|| positions, so the deficit is at least L rho_0(z). The
+induction is the tagged-rows lemma with t = m and child length N_{l-1}.
+Suppose all matches of a source row land in one target row with
+parameters s, s'. Child i can only match child i. By induction the
+number of unmatched source positions in child i is at least
+N_{l-1} 3^{-(l-1)} rho_{l-1}(z + c_{l,i}(s' - s)). Summing over i and
+using the recursion for rho gives that the source row loses at least
+A = 3^{-(l-1)} rho_l(z) of its length (0 <= A <= 1/2). A row with no
+matches also satisfies this. The tagged-rows lemma then gives
+E >= A N_l / (1 + mA/(m-1)) >= A N_l / 3, which is the displayed bound.
+QED.
+
+Let w_* be the state with every coordinate 1/2. All primes are odd, so
+the half-turn has order two. Applying the small-order and alignment
+lemmas, and the phase identity for node words, gives the pointwise bound
+
+  r_N( W(v), W(v + w_*) )  >=  N * 3^{-h} * F_h   for every state v.
+
+
+21. CHEAP TRANSLATIONS AND THE HALF-TURN
+
+For a node a at height l >= 1 and s mod P_l, define a state vector
+tau_{a,s} in G by: at leaves below child ai of a it puts c_{l,i}(s),
+and it is zero outside the subtree below a. Let H <= G be the subgroup
+generated by all these vectors.
+
+At a fixed node, adding tau_{a,s} replaces row parameter t by t + s in
+the row recursion. The row list has period P_l and is repeated R times;
+choosing 0 <= s < P_l, deleting the first s rows from the unshifted list
+and the last s rows from the shifted list leaves identical words. The
+edit cost in one occurrence is at most 2 s m N_{l-1} <= 2 N_l / R. Node
+occurrences at a fixed height partition the root word, so all nodes at
+that height cost at most 2 N / R together. Every element of H is a sum
+of at most h such single-height translations (G is abelian, sums at one
+node combine into one parameter, nodes group by height). Following paths
+through intermediate states gives
+
+  ED( W(v), W(v + u) )  <=  2 h N / R   for every v, u in H.
+
+For a leaf a in Lambda, let z e_a be the state vector with value z at a
+and zero elsewhere. This shift changes exactly 2 L * ||z|| symbols in
+every occurrence of that leaf word, and the occurrences of a fixed leaf
+occupy the fraction m^{-h} of the root word. So
+
+  ED( W(v), W(v + z e_a) )  <=  (2 N / m^h) * ||z||.
+
+These are the cheap movements. Apply the second binary substitution of
+Part V to the alphabet A. It gives a code C: A -> {0,1}^w with w <=
+C_code log(2|A|) and an absolute eta > 0 such that, at every common
+length q, r_{wq}(Cx, Cy) >= eta w r_q(x,y), and for arbitrary words
+ED(Cx, Cy) <= w ED(x, y). Set X(v) = C W(v) and n_* = w N. Then, for
+every state v,
+
+  ED( X(v), X(v + w_*) ) / n_*  >=  eta 3^{-h} F_h,       (half-turn, far)
+  ED( X(v), X(v + u) ) / n_*    <=  2h / R      (u in H), (cheap group)
+  ED( X(v), X(v + z e_a) ) / n_*<= (2/m^h) ||z||.         (cheap leaf)
+
+So the half-turn pairs are distinct words; other repeated images are
+harmless.
+
+
+22. ANNIHILATING FREQUENCIES THAT DETECT THE HALF-TURN
+
+As in Part III, characters of G are chi_xi(v) = exp(2 pi i * sum over a
+in Lambda of xi_a v_a), with xi in (Z/LZ)^Lambda. Put
+T(xi) = sum over a in Lambda of |xi_a| (each xi_a a centered
+representative), and let H^perp be the characters trivial on H.
+
+  LEMMA (annihilating frequencies that detect the half-turn).
+  If xi is in H^perp and chi_xi(w_*) is not one, then
+
+    T(xi) >= K,   where   K = m^{3h/4}.
+
+Proof. For each node a, let t_a be the sum of the chosen integer
+representatives of the leaves below a, so t_a = xi_a at a leaf and t_a =
+sum_i t_{ai} at an internal node. At height l the Chinese remainder
+theorem permits a parameter with u_{l,i} = 1/p_{l,i} and all other
+u_{l,j} = 0; its node translation adds 1/p_{l,i} to every child other
+than i. Annihilating it gives, for every internal node,
+
+  t_a - t_{ai} = 0   (mod p_{l,i})   for 1 <= i <= m.
+
+The half-turn satisfies chi_xi(w_*) = (-1)^{t_root}, so the root sum is
+odd, hence nonzero. Suppose T(xi) < K. All node sums are then less than
+K in absolute value. At a node with t_a != 0, let q be the number of its
+level primes dividing t_a; distinctness and the prime bounds give
+m^{3q} < (product of those primes) <= |t_a| < m^{3h/4}, so q < h/4 (and
+trivially when q = 0). For every other child the congruence forces
+t_{ai} != 0. Since h = m, every nonzero internal node has at least 3m/4
+nonzero children. Starting at the root this produces at least (3m/4)^h
+nonzero leaf coefficients, so T(xi) >= (3m/4)^h >= m^{3h/4} = K for
+large m, contradiction. QED.
+
+
+23. THE DISTORTION AND LENGTH ESTIMATES
+
+Let f be any injective map of the finite set X(G) into L1, with
+distortion D. Rescale so that, for all x, y in X(G),
+ED(x,y) <= ||f(x) - f(y)||_1 <= D ED(x,y). Put g(v) = f(X(v))/n_* and,
+using the uniform measure on G, define E(u) = average over v of
+||g(v + u) - g(v)||_1.
+
+The cut-Fourier representation supplies nonnegative weights omega_xi
+with E(u) = sum_xi omega_xi |1 - chi_xi(u)|^2. The weighted circle
+inequality applies with period L, m^h coordinates, subgroup H, and
+threshold K (the annihilator lemma). Then for every power of two s <=
+L/2, the pointwise cheap-leaf bound and the rescaling give
+
+  (L/s) * sum_a E((s/L) e_a)  <=  2D,
+
+so the weighted-mass inequality yields 4 sum_xi omega_xi T(xi) <=
+C D log(L+1). Also the off-mass identity and the cheap-group bound give
+sum over xi not in H^perp of omega_xi <= D h / R.
+
+The half-turn multiplier equals four when the root sum is odd and zero
+otherwise. A detecting frequency inside H^perp has T(xi) >= K, while
+the frequencies outside H^perp are controlled by the off-mass bound.
+Using the far half-turn bound:
+
+  eta 3^{-h} F_h
+    <= E(w_*)
+    <= 4 sum_{xi not in H^perp} omega_xi
+       + (4/K) sum_xi omega_xi T(xi)
+    <= C D ( h/R + log(L+1)/K ).
+
+The prime bounds give log L <= log 2 + 5 h m log m. With h = m,
+R = m^{2h}, K = m^{3h/4}, the h/R term is dominated by log(L+1)/K for
+large m. Since F_h = m^{-h/4 - 100 m^{3/4}}, it follows that
+
+  D >= c eta * 3^{-m} m^{m/2 - 100 m^{3/4}} / log(L+1)
+
+for an absolute c > 0. The logarithm of the right side, divided by
+m log m, tends to 1/2 (the losses contribute 100 m^{-1/4}, log 3/log m,
+and a vanishing term). So the right side is m^{(1/2 - o(1)) m}, which
+exceeds m^{m/4} for all large m. Increasing an absolute threshold gives
+D >= m^{m/4}. Since f was arbitrary, this is a distortion lower bound
+for the finite set X(G).
+
+Finally, the exact root length is
+
+  N = L * prod_{l=1..h} (m R P_l)
+    = (L^2 / 2) * (m R)^h,
+
+so log N <= 12 m^2 log m + m log m + log 2. Also |A| = 2 L m^h and
+w <= C_code log(2|A|), so log w = O(log m). Hence, for an absolute C_0,
+
+  log n_* = log(w N) <= C_0 m^2 log m   for large m.
+
+We now have binary same-length witnesses with distortion at least
+m^{m/4} and logarithmic length at most C_0 m^2 log m for every
+sufficiently large integer m. Part VI converts this family into
+witnesses for every length cap.
+
+
+================================================================
+================================================================
+PART V. MAKING THE WORDS BINARY
+================================================================
+
+Both circle constructions use an alphabet whose size grows with the
+depth (2 r_h letters in Part III, 2 L m^h letters in Part IV), because
+every child index needs its own tag. The main theorem wants binary
+words. The cure is a fixed binary substitution: a code that replaces
+each tagged letter by a short binary block, of length logarithmic in the
+alphabet size, so that edit distances are preserved up to that block
+width. This is the paper's section "coding", and its consequence for
+the first construction is the section "mask-binary".
+
+
+24. WHAT A BINARY SUBSTITUTION MUST ACHIEVE
+
+  THEOREM (two binary substitutions).
+  Let A_alpha be a finite alphabet with A >= 2 letters. Each of the two
+  constructions below gives an integer width w >= 1 with w = O(log(2A)),
+  an absolute constant a > 0, and a map c: A_alpha -> {0,1}^w such that,
+  simultaneously for every integer L >= 0 and all x, y in A_alpha^L,
+
+    a * w * r_L(x, y) <= r_{wL}( c(x), c(y) ) <= w * r_L(x, y).
+
+  Here c extends to words by concatenating code blocks. For arbitrary
+  finite words,
+
+    ED(c(x), c(y)) <= w * ED(x, y).
+
+  The code and its width depend only on A_alpha, not on L.
+
+The upper bounds are easy: a letter edit is simulated by editing at most
+w bits; and a common subsequence of x, y lifts to a common subsequence
+of the concatenated code words (concatenate the code blocks of the
+matched letters). The real content is the LOWER deficit bound
+r_{wL}(cx, cy) >= a w r_L(x, y), which must hold at every common length L
+with the SAME code and the SAME a. The lower bound is asserted only at
+equal input lengths; the upper bound holds for arbitrary lengths. The
+case L = 0 is trivial. The two constructions are different ways to force
+an arbitrary bit matching to expose a letter matching; both use the same
+"loss accounting", so we do that first.
+
+
+25. WHAT AN ARBITRARY BIT MATCHING TELLS US
+
+Fix an increasing matching between two encoded words of common length
+w L, and number positions inside each block from 1 to w. Let E be the
+number of unmatched positions on either side. For source block i, let
+U_i count unmatched source positions in that block. If the block has
+any matches, let its target span be the closed interval from its first
+partner to its last partner, and let V_i count the globally unmatched
+target positions inside that interval. A block with no matches gets
+V_i = 0.
+
+Target spans of different source blocks are disjoint, because matches
+are in strict order. Also, any matched target position inside a span has
+its partner in that source block (by monotonicity). Therefore
+
+  sum_i U_i = E,      sum_i V_i <= E,
+  (length of target span of i) = w - U_i + V_i   (when nonempty).
+
+Call a block good (at threshold 0 < theta < 1) if U_i <= theta w and
+V_i <= theta w. At most 2E/(theta w) blocks are not good. A good block
+has a nonempty target span of length w - U_i + V_i <= (1 + theta) w < 2w,
+so its matches meet at most three target blocks.
+
+This accounting is all the geometry we need. Both codes below arrange
+that "long" matchings within blocks force a letter matching, and the
+accounting turns that into the deficit bound.
+
+
+26. THE FIRST CODE: SEPARATED INTERVALS AND A COMMON OFFSET
+
+Choose an integer m, and for each letter pick an independent uniform
+binary word of length m. Put u = floor(m/8). We want an absolute delta >
+0 such that every pair of length-u intervals taken from differently
+labelled codewords has longest common subsequence at most (1 - delta) u.
+
+Choose an absolute 0 < alpha < 1/2 with gamma = 1 - alpha - 2 H_2(alpha)
+> 0, where H_2(t) = -t log_2 t - (1-t) log_2(1-t) is binary entropy.
+For a fixed pair of intervals with different labels, the probability of a
+common subsequence of length u - floor(alpha u) is at most
+
+  (u choose floor(alpha u))^2 * 2^{-u + floor(alpha u)} <= 2^{-gamma u}.
+
+The first factor counts the index lists, and the second is the chance
+that the required bits happen to agree (the involved bits are independent
+for fixed index lists). We also use the entropy bound sum_{j <= t m}
+(m choose j) <= 2^{H_2(t) m}. There are at most A^2 m^2 interval pairs,
+so choosing m to be a large enough absolute multiple of log(2A) makes
+the total failure probability less than one. Then no bad pair exists,
+and since u - floor(alpha u) <= (1 - alpha/2) u for large u, we may take
+delta = alpha/2. Fix a code with this interval-separation property.
+
+Now fix x, y in A_alpha^L with an optimal encoded matching of deficit E,
+and apply the loss accounting with w = m and threshold eta, where eta > 0
+is a small absolute constant chosen so that 2 eta m < delta floor(m/8).
+At most 2E/(eta m) source blocks are not good.
+
+Let I = { ceil(m/3), ..., floor(2m/3) } be the integer middle-third
+positions. Claim: a matched position in a good block whose relative index
+lies in I lands in a target block with the SAME letter label. Why?
+The two intervals of length u around that position, one taken forward
+and one backward inside the source block, must fit inside the target
+block in at least one direction; trim the last V source positions, and
+the two intervals share a subsequence of length at least
+u - U - V >= u - 2 eta m > (1 - delta) u. The interval property forces
+the labels to match.
+
+Choose one offset p uniformly from I, the SAME p in every source block.
+Retain each good source block whose position at offset p is matched, and
+assign it the index of the target block containing that partner. All
+retained assignments identify equal letters and their target indices are
+nondecreasing. We then cancel duplicates: between two non-adjacent
+retained blocks, a duplicate target index is charged to an omitted source
+block (at most B(p) such, in expectation <= (2/eta + 4) E/m); and for two
+adjacent retained blocks, a duplicate can only occur for at most 3 d_i
+offsets where d_i = U_i + U_{i+1} (expected total <= 24 E/m). Removing
+one item per consecutive equality leaves an increasing equal-letter
+subsequence after at most B(p) + D_adj(p) more deletions. So
+
+  r_L(x, y)  <=  2 B(p) + D_adj(p),
+  E_p[ r_L(x, y) ]  <=  (4/eta + 32) E / m.
+
+This proves the first construction with w = m and a = (4/eta + 32)^{-1}.
+All constants were fixed before L, and there is no additive error
+depending on L.
+
+
+27. THE SECOND CODE: SELF-OVERLAPS AND A MATCHED-INDEX ANCHOR
+
+The second code controls a different local event: it rules out long,
+nearly complete matchings between two codeword intervals unless the
+labels agree and one matched pair has the same index relative to both
+block starts. That anchor then puts a strict majority of one source block
+into a single target block, making the recovered letters distinct.
+
+Choose an absolute epsilon > 0 with 2 H_2(epsilon) < 1/8 and
+epsilon < 1/10. Build binary codewords of width M with this precise
+property: every increasing matching of at least M/4 pairs between two
+codewords, omitting at most epsilon M positions in each of its two
+spanned intervals, has equal labels and contains a pair at equal
+relative indices. The two codewords may have the same label, so this
+also controls shifted self-overlaps.
+
+Fix a pair of labels. There are at most M^4 2^{2 H_2(epsilon) M}
+candidate index-list pairs (choose four span endpoints and the omitted
+positions; the rest of the increasing lists follow). For different
+labels, a fixed matching of q >= M/4 pairs has equality probability
+2^{-q}. For the same label and no equal-index pair, build a graph on the
+M independent code bits with one edge per required equality. It has no
+loops (distinct lists), and each bit is an endpoint of at most two
+edges, so if it had a repeated edge it would need reversed index pairs,
+which would violate strict increase. Every nontrivial component with v
+vertices and e edges has v >= 2, e <= v, and v - 1 >= e/2 -- hence the
+equality system has rank at least q/2, and the probability is at most
+2^{-q/2} <= 2^{-M/8}. The total failure probability is at most
+
+  A^2 M^4 2^{(2 H_2(epsilon) - 1/8) M},
+
+which is less than one for M a large enough absolute multiple of
+log(A + 1). Fix such codewords.
+
+Now take an optimal matching of the encoded x, y with deficit E, use the
+loss accounting with w = M and threshold epsilon. At most 2E/(epsilon M)
+source blocks are not good. A good block has at least (1-epsilon) M
+matches in a span meeting at most three target blocks; one target block
+receives at least (1-epsilon) M / 3 >= M/4 of them. Restricting to
+matches between that block pair, the omissions are still at most
+U_i, V_i, so the local property gives equal labels and an equal-index
+anchor. Put b = floor(epsilon M). Relative to the anchor, the
+displacement of any match from equal relative indices is at most 2b, so
+every matched source index in {2b+1, ..., M-2b} still lands in the chosen
+target block. At most b of those M - 4b positions are unmatched, so the
+chosen block receives at least M - 5b >= (1 - 5 epsilon) M > M/2 matches.
+Thus two good source blocks cannot choose the same target block (their
+target positions are disjoint), and their chosen target indices increase.
+The good blocks give an equal-letter subsequence after removing at most
+2E/(epsilon M) of them:
+
+  r_L(x, y)  <=  2E/(epsilon M).
+
+This is the second construction with w = M and a = epsilon/2.
+
+
+28. RELATION TO THE EARLIER ALPHABET REDUCTION
+
+Theorem 1.1 of the full version of Bhattacharya, Dey, Goldenberg, and
+Koucky already states an alphabet reduction for NORMALIZED
+insertion-deletion distance (each distance divided by the sum of the
+two lengths). Its proof uses a fixed block substitution C: A_alpha ->
+Q^k in Section 3.2.1 and Lemma 3.3, with target alphabet size q >= 2 and
+k = O(log(2A)); applied to that construction the normalized bounds give
+a k-factor two-sided distortion of Delta. Composing this with a fixed-
+width binary delimiter (a size-2 target alphabet turned into bits)
+gives the claimed binary width and distortion. Our direct proofs expose
+two different local matching conditions; one (interval separation) is
+already present in the inner code of Schulman and Zuckerman, and the
+other (self-matching control) is central to synchronization strings of
+Haeupler and Shahrasbi. But both routes yield the same thing the lower
+constructions need: a binary substitution of width O(log A) with an
+absolute two-sided distortion at every common length.
+
+In the paper's exposition the elementary binary step of this comparison
+also appears: give the q target letters distinct t = ceil(log_2 q) bit
+labels and encode letter a as the word 1 1 0 a_1 0 ... a_t 0 of fixed
+width v = 2t + 3. The unique marker 11 at each block start lets a
+matching recover a letter matching with loss at most 2e (where e counts
+unmatched positions in the two words together); bitwise simulation gives
+the upper factor v. Composing j with the reduction block map C is a
+single binary substitution of width w = v k with lower deficit factor
+7/(16 v) at equal lengths and 7/(32 v) for ordinary edit distance.
+
+
+29. APPLYING IT TO THE CIRCLE CONSTRUCTION (mask-binary)
+
+Return to the words S_h and parameters M, R, C_h of Part III, with w =
+1/2 the half-turn. The words use A = 2 r_h letters. Apply the first
+substitution of the theorem, with width b_h <= C log(2A) and lower
+deficit factor a_off b_h (a_off an absolute constant). Let X_h(v) =
+c(S_h(v)) and n_h = b_h L_h. The code is fixed for this alphabet and
+applies at the common length L_h. The code lower bound, word separation,
+and denominator resets then give, for all large h and every state v,
+
+  ED( X_h(v), X_h(v + w) )  >=  n_h * h^{-0.75 h}.
+
+(After coding, the normalized deficit is at least h^{-(0.54+o(1))h}, and
+the fixed factor a_off is absorbed by the slack down to 0.75.) Simulating
+each letter edit by b_h bit edits also gives
+
+  ED(X_h(v), X_h(v+c))     <= n_h 2h/R         (c in C_h),
+  ED(X_h(v), X_h(v+e_i(a/M))) <= n_h 2a/(M r_h) (1 <= a <= M/2).
+
+These hold at every base state. The state map need not be injective;
+the far half-turn bound guarantees the distinct pairs we need.
+
+Let f be any embedding of the finite image of X_h into L1, with
+distortion D. Scale so that ED(x,y)/D <= ||f(x) - f(y)||_1 <= ED(x,y).
+Apply the weighted-circle inequality to F = f o X_h. Each coordinate-
+scale term, after weighting by M/a, is at most 2 n_h / r_h. The pointwise
+edit bounds therefore imply
+
+  h^{-0.75 h} / D  <=  4h/R  +  2 |D_M| / B.
+
+Now |D_M| = O(log M), log M = O(h^2 log h), R = h^{2h}, and B = (h/2)^h;
+the right side is at most C 2^h h^{-h} h^2 log h for large h. Hence
+
+  D  >=  c 2^{-h} h^{h/4} / (h^2 log h)  >=  h^{0.1 h}.
+
+Finally t_l <= 2 h^4 gives log r_h = O(h log h) and b_h = O(h log h).
+The length recurrence gives
+
+  log n_h  =  log b_h + log M + sum_{l=1..h} (log R + log P_l + log t_l)
+           <= C_len h^2 log h,
+
+with an absolute constant C_len. So every sufficiently large integer h
+supplies a binary same-length obstruction with distortion at least
+h^{0.1 h} and logarithmic length at most C_len h^2 log h. That is the
+first family feeding the assembly step of Part VI.
+
+
+================================================================
+================================================================
+PART VI. EVERY LENGTH CAP AND THE UPPER BOUND
+================================================================
+
+Parts III-V produced two families of binary witnesses, indexed by an
+integer parameter, all words in each family of one common length, with
+distortion growing like a power of the parameter while the word length
+grows like exp(constant * parameter^2 * log parameter). What the main
+theorem wants is a witness for EVERY length cap d. The "assembly" step
+turns each parameter family into a witness for every cap d by choosing
+the parameter directly from d. Then the "upper bound" finishes the
+theorem by exhibiting a good embedding.
+
+
+30. ALL-LENGTH INVERSION
+
+  LEMMA (all-length inversion).
+  Let c_0, C_0 > 0 be fixed. Suppose that for every sufficiently large
+  integer k there is an integer n_k >= 1 and a finite subset of {0,1}^{n_k}
+  whose least L1 distortion is at least exp(c_0 k log k), where
+  log n_k <= C_0 k^2 log k. Then there are constants c > 0 and d_0,
+  depending only on c_0, C_0, and the starting threshold, such that for
+  every integer d >= d_0 a binary subset of one length at most d has
+  distortion at least
+
+    exp( c * sqrt( log d * log log d ) ).
+
+Proof. Put t = log d and choose a fixed a > 0 with C_0 a^2 <= 1/2. Set
+
+  k = floor( a * sqrt( t / log t ) ).
+
+For sufficiently large t this is above the construction threshold and
+satisfies k >= (a/2) sqrt(t/log t), log k >= (1/3) log t, and k <= t.
+Therefore
+
+  log n_k <= C_0 k^2 log k <= C_0 a^2 t <= t/2 < t,
+  k log k >= (a/6) sqrt( t log t ).
+
+The first inequality puts the witness at a length below the cap d
+(exp(t/2) < exp(t) = d), and the second gives the asserted distortion.
+QED.
+
+Both constructions satisfy the hypothesis. For the reset construction
+use mask-binary's D >= h^{0.1 h} with k = h, whose length obeys
+log n_h <= C_len h^2 log h. For the excluded-coordinate construction use
+D >= m^{m/4} with k = m, whose length obeys log n_* <= C_0 m^2 log m.
+Each separately satisfies the lemma (h^{0.1 h} = exp(0.1 h log h) has the
+form exp(c_0 k log k), and m^{m/4} = exp((log m/4) m) likewise). Each
+separately proves the binary lower bound of the main theorem for every
+sufficiently large d.
+
+
+31. EVERY FINITE ALPHABET
+
+A binary subalphabet is isometric for ordinary edit distance inside any
+larger alphabet. Consider a binary word x and a word y over a bigger
+alphabet; mapping all extra alphabet symbols onto either 0 or 1
+(projection) is the key. One inequality is trivial: a binary edit script
+is already a valid script in the bigger alphabet. For the reverse, take
+any script in the bigger alphabet and project it symbol-by-symbol;
+every edit projects to at most one edit, and the binary endpoints are
+unchanged. So the projected script is a binary script of no greater
+length. This gives, for binary x, y and any alphabets containing two
+letters,
+
+  ED_as_binary(x, y) = ED_bigger(x, y).
+
+Consequently restricting any embedding of the larger Alphabet to the
+binary subalphabet shows that E_smaller(d) <= E_bigger(d): the bigger
+the alphabet, the smaller the distortion can be. Since the LOWER bound
+was proved for binary words, it holds for the binary subalphabet and
+hence, by monotonicity of the sup, for every finite alphabet with at
+least two letters, with constants independent of the alphabet size.
+The main theorem's lower bound for Sigma^{<=d} is immediate. The upper
+bound is proved next directly on Sigma^{<=d} with constants independent
+of Sigma.
+
+
+32. THE IDEA OF THE UPPER BOUND (OSTROVSKY-RABANI)
+
+  THEOREM (uniform upper bound).
+  There are absolute constants C > 0 and d_0 >= 3 such that, for every
+  finite alphabet Sigma with |Sigma| >= 2 and every integer d >= d_0,
+  there are an integer M_h >= 1 and a deterministic map
+  F: Sigma^{<=d} -> L1^{M_h} satisfying
+
+    ED(x, y) <= ||F(x) - F(y)||_1
+             <= exp( C sqrt( log d * log log d ) ) ED(x, y)
+
+  for all x, y in Sigma^{<=d}. Both C and d_0 are independent of Sigma.
+
+The construction is the block recursion of Ostrovsky and Rabani. The
+recursive step represents a length-N word by lists of overlapping
+windows: split the word into b consecutive blocks of length m = N/b, and
+at each dyadic scale s record the s shifted windows of length m-s+1 in
+each block. Embed each window (a shorter word) using the previously
+constructed map, then convert the list of embedded windows into a fixed
+dimension vector using random "partitions" of the shorter-word space. The
+two key facts are:
+
+  (separation) if two blocks are far apart in edit distance, then at
+  some scale every cross-pair of their windows is far apart, so with
+  high probability their histograms are supported on disjoint classes;
+
+  (expansion) a deletion followed by an insertion shifts most blocks by
+  one position, and most shifted windows pair up identically, keeping
+  the histogram distance small.
+
+Everything else is bookkeeping of histograms, plus the choice of the
+recursion depth and block count. We spell out the machine.
+
+
+33. RANDOM PARTITIONS AND COUNT HISTOGRAMS
+
+The whole histogram idea rests on one observation. Given a finite metric
+space (X, rho) coming from an L1 embedding, we can build a random
+partition of X whose collision probability is an exponential in the
+distance.
+
+  LEMMA (finite random partitions).
+  Let X be finite and rho(u, v) = ||f(u) - f(v)||_1 for some f: X -> L1.
+  For every alpha > 0 there is a probability distribution with finite
+  support on partitions pi of X such that
+
+    Pr[ pi(u) = pi(v) ] = exp( -alpha rho(u, v) ).
+
+  For a finite list L in X, let H_L^pi be its count vector on the parts
+  of pi, with repetitions counted. Then
+
+    H_alpha(L) = direct sum over pi of Pr[pi] * H_L^pi
+
+  is a deterministic finite-dimensional map whose distance equals
+  E ||H_L^pi - H_{L'}^pi||_1.
+
+Proof. Write |a - b| = integral over t of |1(a > t) - 1(b > t)| dt, apply
+coordinate by coordinate to f, and group threshold cuts by the subset A
+of X they select. Discarding the empty and full cuts,
+
+  rho(u, v) = sum over nonempty proper A of a_A |1_A(u) - 1_A(v)|,
+
+with a_A >= 0 and sum_A a_A <= sum over unordered pairs of rho(u,v), which
+is finite. Select each cut A independently with probability
+1 - exp(-alpha a_A), and partition X by the vector of membership bits.
+Points u, v share a part exactly when no separating cut is selected; the
+product of these probabilities is exp(-alpha rho(u, v)), giving the
+collision identity. Finally, additivity of the L1 norm over disjoint
+coordinates proves the distance identity for the direct sum. QED.
+
+Then the standard histogram inequalities control how far apart two lists
+are as a function of their pairwise distances:
+
+  LEMMA (histogram estimates).
+  Let s >= 1 and let L, L' be two lists of size s in the finite space
+  above; set T = E ||H_L^pi - H_{L'}^pi||_1.
+  If every cross-pair has rho-distance at least a, then
+
+    T >= 2 s ( 1 - s^2 exp(-alpha a) ).
+
+  If a pairing of list occurrences leaves t occurrences unpaired on each
+  side, then
+
+    T <= 2 t + 2 sum over paired (u, v) of ( 1 - exp(-alpha rho(u,v)) )
+      <= 2 t + 2 alpha sum over paired (u, v) of rho(u,v).
+
+  Writing P_L = H_L^pi / s and TV(P, Q) = (1/2)||P - Q||_1, the exact
+  normalizations are
+
+    ||H_L^pi - H_{L'}^pi||_1 = s ||P_L - P_{L'}||_1 = 2 s TV(P_L, P_{L'}).
+
+Proof. The chance of any cross-collision is at most s^2 exp(-alpha a) by
+a union bound. With no cross-collision the two count vectors have disjoint
+supports, each of mass s, hence L1 distance 2s: this gives the lower
+bound. For the upper bound, an unpaired occurrence costs one in the
+triangle inequality, and a paired pair costs two if their parts differ.
+Take expectations with the collision identity and use
+1 - exp(-z) <= z. The normalization identities are algebra. QED.
+
+A lower estimate for one component therefore follows from separation of
+all cross-pairs, and an upper estimate follows from a pairing of
+occurrences -- both for the SAME deterministic map, whose partition
+distribution is fixed once on the entire finite domain before any pair of
+input words is considered.
+
+
+34. POWER LENGTHS AND COUNT HISTOGRAMS
+
+  PROOF OF THEOREM (uniform upper), power-length part.
+  Fix integers b >= 2 and H >= 1, put n = b^H, and fix a nonempty finite
+  alphabet Gamma. We build maps F_k on Gamma^{b^k}, for 0 <= k <= H, with
+
+    r_{b^k}(x, y) <= ||F_k(x) - F_k(y)||_1 <= Lambda_k r_{b^k}(x, y).
+
+  At length one, a -> (1/2) e_a has distance exactly r_1, so Lambda_0 = 1.
+
+  Index positions from zero and write x_{[a,b)} for the subword in
+  positions a, ..., b-1. Suppose 1 <= k <= H, set m = b^{k-1}, N = b m, and
+  assume the normalization at level k-1. Split each length-N word into b
+  consecutive blocks of length m. At each dyadic scale s <= m, block j
+  supplies the list
+
+    W_{j,s}(x) = ( x_{[jm+r, jm+r+m-s+1)} : r = 0, ..., s-1 ),
+
+  its s windows of length m-s+1, counted with multiplicity. Choose one
+  fixed suffix z_s in Gamma^{s-1} and embed a window u by F_{k-1}(u z_s).
+  By the common-suffix identity, the resulting distance rho_s satisfies
+
+    r_{m-s+1}(u, v) <= rho_s(u, v) <= Lambda_{k-1} r_{m-s+1}(u, v).
+
+  Apply the partition lemma on the full domain Gamma^{m-s+1} at rate
+
+    alpha_s = 4 log(s+1) / s.
+
+  Let T_{j,s}(x, y) be the expected count-histogram distance of the two
+  lists, and T_{k,s} = sum over j of T_{j,s}. Define F_k as four times the
+  direct sum of these histogram maps over j and s:
+
+    ||F_k(x) - F_k(y)||_1 = 4 sum over s of T_{k,s}(x, y).
+
+  Separation. Suppose corresponding blocks have deficit q > 0. The largest
+  dyadic integer s <= (q+1)/2 is available and satisfies (q+1)/4 < s <=
+  (q+1)/2, so s >= q/4. Every cross-pair u, v of their windows satisfies
+
+    r_{m-s+1}(u, v) >= (m-s+1) - LCS(two full blocks) = q - s + 1 >= s.
+
+  The union bound in the histogram lower estimate is then at most
+  s^2/(s+1)^4 <= 1/2, and this component is at least s >= q/4. Common
+  subsequences chosen separately in the blocks concatenate, so the sum of
+  the block deficits is at least r_N(x, y). Hence
+  ||F_k(x) - F_k(y)||_1 >= r_N(x, y).
+
+  Expansion along a move. In a nonexceptional block from the move lemma,
+  the two window lists have at least s-1 identical occurrences (pair equal
+  starts, or shifted starts). Equation (coupling) bounds its contribution
+  by 2. In an exceptional block, pair windows at the same starts; their
+  deficits are at most one, even after appending the common suffix, so one
+  such block costs at most 2 s alpha_s Lambda_{k-1} = 8 log(s+1)
+  Lambda_{k-1}. There are at most two exceptional blocks. So at every
+  scale,
+
+    T_{k,s}(x, y) <= 2 b + 16 log(s+1) Lambda_{k-1}   (for one move).
+
+  There are at most 1 + floor(log_2 m) scales. Summing, applying the
+  factor four, and following the r_N(x, y)-move path gives
+
+    Lambda_k <= C_1 log^2(n+2) (b + Lambda_{k-1}),
+    Lambda_H <= b (C_2 log^2(n+2))^H,
+
+  with absolute constants. Concretely, after enlarging A = C_1 log^2(n+2)
+  so that A >= 2, induction gives Lambda_k <= b (2A)^k. QED (power part).
+
+The "move lemma" used above is elementary: two equal-length words can be
+joined by exactly r_n(x, y) moves, each deleting one symbol and inserting
+one symbol while keeping length n; and for a fixed partition of the
+positions into consecutive blocks, at most two blocks contain a deletion
+endpoint or an insertion endpoint, so every other block is either
+unchanged or shifted by one position (its prefix of length m-1 equals the
+other's suffix of length m-1). And the "common-suffix identity" says that
+appending the same suffix z to both words does not change the deficit:
+r_{m+|z|}(uz, vz) = r_m(u, v).
+
+
+================================================================
+35. FROM POWER LENGTHS TO EVERY LENGTH: FRESH-SYMBOL PADDING
+
+The power-length construction lives on Gamma^{b^H}, not on Sigma^{<=d}.
+To pass to all shorter words, do two things: pad every word to length n
+using a fresh symbol, and analyse a variant of the recursion that uses
+actual window lengths, so that the word-length parameter can be tuned
+freely.
+
+For the padding step, let star be a symbol not in Sigma. If star occurs
+in neither x nor y and N >= max(|x|, |y|), write x-hat = x star^{N-|x|}
+and y-hat = y star^{N-|y|}. The fresh-symbol identity says
+
+  LCS( x-hat, y-hat ) = LCS(x, y) + N - max(|x|, |y|),
+  r_N( x-hat, y-hat ) = q(x, y).
+
+The first line is because matched original symbols form a common
+subsequence of x, y, while matched star symbols form a final part of
+size at most min(N-|x|, N-|y|), and both maxima are attained
+consecutively (append the star pairs to an optimal matching). The second
+identity follows by subtraction and covers empty inputs. Composing:
+
+  ED(x, y) <= ED(x-hat, y-hat) <= 2 r_d(x-hat, y-hat) = 2 q(x, y)
+                                            <= 2 ED(x, y),
+
+so padding to length d preserves edit distance up to a factor two, and
+the binary/histogram map on the padded words projects every operation
+back to at most one operation. The extra factor two is absorbed into
+the absolute constant C. This is how the upper bound reaches all shorter
+words, including the empty word.
+
+
+36. ACTUAL WINDOW LENGTHS AND TWO EXPANSION ESTIMATES
+
+The power-length proof padded each window to the preceding power length.
+We can instead use maps at the ACTUAL window lengths; this produces one
+recursion whose expansion can be proved in two independent ways.
+
+Fix an integer cap d >= 2, an integer B >= 2, and a nonempty finite
+alphabet Gamma. Build maps Phi_n on Gamma^n, 1 <= n <= d, with
+
+  ED <= distance <= E_n ED,
+
+starting with Phi_1(a) = (1/2) e_a and E_1 = 1. For n > 1, partition the
+positions into b_n = min(B, n) nonempty blocks of nearly equal lengths
+0 = p_0 < p_1 < ... < p_{b_n} = n, with block length at most
+ceil(n/B). For each dyadic s <= block length, use the list of s windows of
+length block_len - s + 1, one per start offset. Embed each window by the
+map at its actual length. Writing D' = max over t <= ceil(n/B) of E_t, its
+embedded distance satisfies ED <= rho <= D' ED. Every child length is
+strictly less than n. Use count histograms at rate
+
+  alpha_s = lambda / s,    lambda = 4 log(2d),
+
+and define Phi_n as SIX times the direct sum of these histogram maps.
+
+Separation. If corresponding blocks have edit distance k_j > 0, then
+k_j <= block_len (substitution). The largest dyadic s <= (k_j+2)/3 is
+available and satisfies s >= k_j/6 and k_j - 2(s-1) >= s. Deleting the
+positions omitted from the two windows shows every cross-window edit
+distance is at least k_j - 2(s-1). The probability of any cross-collision
+is at most d^2 exp(-lambda) <= 1/2, so this component is at least
+s >= k_j/6. Blockwise edit scripts concatenate, so the sum of block
+distances dominates the whole-word distance; the factor six makes Phi_n
+noncontracting.
+
+Corresponding segments in an arbitrary alignment (the first expansion
+estimate). Fix any longest common subsequence matching of x, y of
+size n - k, where k = r_n(x, y). Let t_j be the number of matched source
+positions strictly before p_j, and choose target boundaries
+0 = q_0 <= q_1 <= ... <= q_{b_n} = n so that exactly t_j matched target
+positions precede q_j. The matching pairs the matched positions of source
+block [p_j, p_{j+1}) exactly with those of target segment [q_j, q_{j+1}).
+With A_j, B_j the unmatched counts before these boundaries, one has
+p_j = t_j + A_j and q_j = t_j + B_j with 0 <= A_j, B_j <= k, so
+|q_j - p_j| <= k. Writing a_j, b_j for unmatched positions in the source
+block and its aligned target segment and e_j = a_j + b_j, the segments
+partition both words, so sum_j e_j = 2k. In a matched pair within these
+segments, relative indices differ by at most e_j.
+
+Now pair original window lists: pair the source window starting at
+p_j + r with the target window starting at q_j + r, precisely when both
+belong to the fixed-block lists; the two allowed start intervals overlap
+in max(0, s - |q_j - p_j|) positions, leaving min(s, |q_j - p_j|)
+unpaired on each side. For a paired window, at most a_j <= e_j source
+positions are unmatched, and among the rest, only matched source
+positions within e_j of an endpoint can have partners outside the target
+window, so there are at most 2e_j of them. The windows have a common
+subsequence of length at least max(0, L - 3e_j) with L = block_len - s +
+1, and the deficit comparison gives
+
+  ED( paired windows ) <= 6 e_j.
+
+Using the partial pairing in the histogram coupling inequality, the
+shorter-map expansion, and the rate alpha_s = lambda/s,
+
+  T_{j,s}(x, y) <= 2 |q_j - p_j| + 2s (lambda/s) D' (6 e_j)
+                 = 2 |q_j - p_j| + 12 lambda D' e_j.
+
+Each block has at most L_d = 1 + floor(log_2 d) scales. Summing and
+using |q_j - p_j| <= k and sum_j e_j = 2k, and multiplying by six, gives
+
+  ||Phi_n(x) - Phi_n(y)||_1
+    <= 6 L_d ( 2 B k + 24 lambda D' k )
+    <= C_6 log^2(d+1) ( B + D' ) ED(x, y),
+
+using k = r_n(x, y) <= ED(x, y). The alignment was used only to analyse
+the two images; every partition and coordinate of Phi_n is fixed on the
+whole domain beforehand.
+
+An alternative expansion estimate from moves (the second way). For a
+single move, a nonexceptional block has s - 1 identical windows and
+contributes at most two. Either of the at most two exceptional blocks,
+windows at equal starts have edit distance at most two, so their embedded
+distance is at most 2 D'; the coupling inequality gives a block cost at
+most 4 s alpha_s D' = 4 lambda D'. Thus, at each scale,
+
+  sum over j of T_{j,s}(x, y) <= 2 B + 8 lambda D'
+                                = 2 B + 32 log(2d) D'.
+
+Summing over scales, multiplying by six, and following the
+r_n(x, y) <= ED(x, y) moves gives the alternate recurrence
+
+  E_n <= C_3 log(2d) ( B + log(2d) D' ).
+
+The arbitrary-alignment argument established the same order of expansion
+without decomposing the comparison into single moves.
+
+Depth and varying lengths. Both estimates have the form
+E_n <= A (B + D') with A = C log^2(2d) for an absolute C. Because
+ceil( ceil(n/B) / B ) = ceil( n / B^2 ), the recursion depth is at most
+h = ceil( log_B d ). The induction used for the power lengths gives
+expansion at most
+
+  B ( C_7 log^2(2d) )^h.
+
+For large d, take the block count
+B = ceil( exp( sqrt( log d * log log d ) ) ). Then the logarithm of this
+bound is O( sqrt( log d * log log d ) ). Finally, pad the inputs with the
+fresh symbol to length d, as in Section 35. This proves the uniform
+upper theorem on all shorter words, including the empty word, with an
+additional expansion factor two.
+
+
+37. THE TOTAL-VARIATION VARIANT
+
+There is a final equivalent variant of the power-length recursion, using
+total variation of PROBABILITY histograms instead of L1 distance of
+count histograms. Retain the power lengths n_i = b^i and the common-
+suffix window embeddings. Construct V_i with distances between r_{n_i}
+and D_i r_{n_i}, starting with V_0(a) = (1/2) e_a and D_0 = 1. At scale s,
+use rate alpha_s = log(2 s^2)/s and take s times the expected total
+variation of the probability histograms. By the normalization identity
+that is half the count distance. For a block deficit q > 0, choose s as
+before: every cross-window deficit is at least s, so the probability of
+any cross-collision is at most s^2 exp(-log(2 s^2)) = 1/2. This component
+is at least s/2 > q/8, so eight times the summed map is noncontracting
+for r_{n_i}.
+
+Along a move, a nonexceptional block costs at most one, while an
+exceptional block costs at most s alpha_s D_{i-1}. The unscaled cost at
+each scale is at most b + 2 log(2 s^2) D_{i-1}, and following the move
+path gives
+
+  D_i <= C_5 log(2 n_i) ( b + log(2 n_i) D_{i-1} ).
+
+Choose b, H, n as before. Bounding the logarithmic factors by those at
+n = b^H and using the power-length recurrence yields D_H <=
+b (C log^2(2n))^H for an absolute C. The parameter calculation then
+gives the required exponent, and the fresh-symbol padding and final
+multiplication by two apply to V_H, proving the same theorem on all
+shorter words. So the total-variation route is a fully equivalent
+presentation of the upper bound.
+
+
+38. THE ARCHITECTURE, SUMMARIZED
+
+Putting the two directions together assembles the proof of the main
+theorem:
+
+  LOWER BOUND (Parts III-V). Two prime-period-circle constructions
+  produce, for every sufficiently large parameter, binary words of one
+  common length with L1 distortion at least a power (h^{0.1h} and
+  m^{m/4}) while the logarithm of the length is a fixed multiple of
+  parameter^2 log parameter. The all-length inversion then converts each
+  family into a witness for every length cap d, giving the lower bound
+  exp(c sqrt(log d log log d)). The binary subalphabet is isometric inside
+  every larger alphabet (projection), so this holds for every finite
+  alphabet.
+
+  UPPER BOUND (Part VI). The overlapping-window histogram recursion of
+  Ostrovsky and Rabani embeds all of Sigma^{<=d} into L1 with expansion
+  at most exp(C sqrt(log d log log d)), with constants independent of
+  Sigma; the actual-window and total-variation formulations are
+  equivalent variants of the same construction.
+
+Together they give
+
+  exp(c sqrt(log d log log d)) <= E_Sigma(d) <= exp(C sqrt(log d log log d))
+
+for all d >= d_0 and all finite alphabets with at least two letters,
+which is the main theorem. The matching of the two exponents (up to the
+constants c and C) is the whole point: the lower constructions are hard
+enough to pin the order, and the histogram embedding is efficient enough
+to meet it.
+
+
+================================================================
+GLOSSARY
+================================================================
+
+  alphabet Sigma -- a finite set of at least two symbols.
+  binary word -- a word over the alphabet {0,1}.
+  distortion -- worst expansion times worst contraction of an embedding.
+  edit distance ED -- min single-symbol insert/delete/substitute cost.
+  Delta -- insertion-deletion-only distance, |x|+|y|-2 LCS.
+  LCS -- longest common subsequence length.
+  r_n(x,y) -- for equal-length n, n - LCS (unmatched per side).
+  q(x,y) -- max(|x|,|y|) - LCS (unequal-length version).
+  ell_1 / L1 -- real sequence space, distance = sum of coordinate diffs.
+  increasing matching -- a common subsequence realized by paired positions.
+  deficit E -- the number of unmatched positions per side of a matching.
+  tagged row -- a row of child blocks each stamped with its child index.
+  split row -- a source row whose matches enter two or more target rows.
+  circle / grid G -- the finite set of M equally spaced points mod 1.
+  phase -- a point of the circle; theta in [0,1).
+  half-turn w -- the all-(1/2) state; the "move halfway round" shift.
+  prime period P_l -- a product of distinct primes p_{lk} (or p_{li}).
+  Chinese remainder theorem -- prescribing residues mod coprime primes at once.
+  cheap subgroup C_h / H -- a subgroup of shifts of low edit cost.
+  phase cost D_l / rho_l -- the per-level scalar cost of the half-turn.
+  denominator reset -- restarting a surviving phase at one fresh prime.
+  binary entropy H_2(t) -- -t log_2 t - (1-t) log_2(1-t).
+  loss accounting -- the U_i, V_i bookkeeping of a bit matching.
+  good block -- a code block with few unmatched source and target sides.
+  interval separation -- code-1 property: different labels rarely align.
+  equal-index anchor -- code-2 property: a matched pair at equal indices.
+  count histogram -- the multiset of list occurrences over partition parts.
+  collision probability -- Pr[pi(u)=pi(v)] = exp(-alpha rho(u,v)).
+  total variation TV -- half the L1 distance of probability histograms.
+  fresh-symbol padding -- appending a new symbol to reach a target length.
+  all-length inversion -- choosing the parameter from the cap d directly.
+
+
+================================================================
+READING GUIDE (paper section -> tour part)
+================================================================
+
+  introduction      -> Part I (Sections 1-5) and the reading of the main
+                       theorem; prior bounds (Levenshtein, Wagner-Fischer,
+                       Andoni et al., Khot-Naor, Krauthgamer-Rabani,
+                       Ostrovsky-Rabani) are discussed where they enter.
+  preliminaries     -> Part II (Sections 6-9): metric comparisons and the
+                       tagged-rows lemma.
+  masks             -> Part III (Sections 10-15): primes, words, subgroup,
+                       phase cost, separation, denominator resets.
+  circle-fourier    -> Part III (Sections 16-17): cut representation,
+                       weighted circle inequality, frequency branching.
+  coding            -> Part V (Sections 24-28): binary substitutions.
+  mask-binary       -> Part V (Section 29): applying the code to the first
+                       construction, distortion h^{0.1h}.
+  excluded          -> Part IV (Sections 18-23): the second construction,
+                       omitted coordinates, distortion m^{m/4}.
+  assembly          -> Part VI (Sections 30-31): all-length inversion and
+                       every finite alphabet.
+  upper             -> Part VI (Sections 32-37): histogram embedding,
+                       random partitions, power lengths, actual lengths,
+                       total-variation variant.
+
+  references, in the order they first matter:
+    Levenshtein 1966 (edit-distance codes); Wagner-Fischer 1974 (the grid
+    and traces); Rosser-Schoenfeld 1962 (primes in short intervals);
+    Erdos 1932 (central binomial / prime counting); Linial-London-
+    Rabinovich 1995 (finite cut representation of L1); Schulman-
+    Zuckerman 1999 and Haeupler-Shahrasbi 2017 (bit codes for edits);
+    Bhattacharya-Dey-Goldenberg-Koucky 2024 and Bhattacharya et al. 2026
+    (alphabet reduction and Hamming-to-edit); Khot-Naor 2006 and
+    Krauthgamer-Rabani 2009 (Fourier and cut lower bounds); Andoni-Deza-
+    Gupta-Indyk-Raskhodnikova 2003 (3/2 gap); Ostrovsky-Rabani 2007
+    (histogram upper bound).
+
+
+================================================================
+END OF TOUR
+================================================================
+
+The reader has now seen the plot of a research paper on the geometry of
+edit distance. The argument was broken into six parts:
+
+  Part I:   the question, distortion, and the main theorem.
+  Part II:  alignments and the tagged-rows charging lemma.
+  Part III: the first obstruction -- translated rows on a circle.
+  Part IV:  the second obstruction -- excluded coordinates.
+  Part V:   making the words binary.
+  Part VI:  every length cap, and the histogram upper bound.
+
+A patient reader who has made it this far should be able to open the
+original paper, look up a specific lemma by name (the tagged-rows lemma,
+the denominator-reset lemma, the frequency-branching lemma, the small-
+order lemma, the annihilator lemma, the all-length inversion, or the
+partition and histogram lemmas), and recognize why each has to be there
+and how it feeds the next.
