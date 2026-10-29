@@ -1,0 +1,3995 @@
+========================================================================
+  RANDOMIZED K-SERVER IN THE PLANE... NO WAIT, IN ANY SPACE AT ALL:
+  WHY THE BEST GUARANTEE IS ABOUT (LOG K) SQUARED
+  A friendly, complete tour for a smart high-school reader
+========================================================================
+
+by way of explanation of the paper
+  "Squared-logarithmic randomized k-server on arbitrary metrics"
+(the main theorem, the ideas, and the proof architecture)
+
+This document is written so that a curious high-school student can
+read it from beginning to end and understand what the paper proves
+and how it proves it. Every technical term is defined when it first
+appears. Nothing is hand-waved. A short glossary at the end repeats
+the notation.
+
+If you know what a set is, what distance means on a number line,
+what an average is, what log base 2 means, and what "power of 2"
+means, you can read this. You do NOT need to know any graduate
+mathematics.
+
+All logarithms in the original paper are natural logarithms (base e).
+Changing to base 2 multiplies every log by a fixed number 1/ln 2 and
+does not change any "order of growth" statement. Where a reader may
+prefer base 2, we say so.
+
+------------------------------------------------------------------------
+CONTENTS
+------------------------------------------------------------------------
+ 0. A 60-second summary
+ 1. What is the k-server problem?
+ 2. Competitive ratio: how we grade an online strategy
+ 3. Randomness, and the oblivious adversary
+ 4. The history: from k to (2k-1) to log k to log^2 k
+ 5. The main theorem, stated in plain English
+ 6. The big picture: how the proof is built
+ 7. The game board: metrics, servers, costs
+ 8. Lazy simulation: why we can copy a virtual solution
+ 9. Hidden optimal solutions and their shadow (posterior measure)
+10. The tree: approximations by hierarchically separated trees
+11. The allocation theorem: sharing k units up a tree
+12. The pilot potential: a brake for changing partitions
+13. Online partitions: heavy balls and chronological rosters
+14. Parked mass and moving anchors: paying for reused labels
+15. Rounding: from fractional mass to integer servers
+16. Transfer: from one law to one policy on any space
+17. Assembling the final bound: where each log lives
+18. Honest limits: what the paper does NOT claim
+19. A one-page glossary
+20. A how-to-read-the-paper map
+
+------------------------------------------------------------------------
+0. A 60-SECOND SUMMARY
+------------------------------------------------------------------------
+
+Imagine k taxi drivers in a city. Customers call in one at a time
+and each call must be sent a taxi. You must drive some taxi to the
+customer and every meter driven costs you. You do NOT know future
+calls. You must decide online.
+
+The k-server problem is the clean mathematical form of this. The
+"city" is any metric space (any set with a distance function obeying
+the triangle inequality). You have k "servers" at points of that
+space. A request arrives at a point of the space, and one server
+must visit it, moving any distance. The total distance moved is the
+cost.
+
+The paper answers a fundamental question. If an all-knowing referee
+had seen the entire request sequence in advance, they could have
+planned the cheapest possible set of taxi trips. Call their total
+cost OPT. The paper shows:
+
+  There is ONE randomized online strategy such that, for ANY metric
+  space, ANY starting positions of the k servers, and ANY sequence
+  of requests, the expected cost is at most
+
+      C * (1 + log(k+1))^2 * OPT   +   B,
+
+  where C is a fixed absolute number (not depending on the metric,
+  on k, on the starting positions, on the sequence, or on its
+  length), and B is a finite number that may depend on the metric,
+  k, and the starting positions, but not on the requests. If the
+  starting positions are distinct, B can be taken to be 0.
+
+That is the headline. The rest of this document explains what every
+word in that sentence means, why the exponent 2 is correct (it is
+the best possible in the worst case; a lower bound of the same
+shape is known), and how the proof is built.
+
+------------------------------------------------------------------------
+1. WHAT IS THE K-SERVER PROBLEM?
+------------------------------------------------------------------------
+
+1.1 Metrics.
+
+A "metric space" is a pair (X, d). Here X is any set of "points" and
+
+    d : X x X -> [0, +infinity)
+
+is a function called the "distance" that satisfies three rules, for
+every x, y, z in X:
+
+  (M1) d(x, y) = 0  if and only if  x = y.
+       (Two different points are at positive distance.)
+
+  (M2) d(x, y) = d(y, x).
+       (Distance does not care which end is which.)
+
+  (M3) d(x, z) <= d(x, y) + d(y, z).
+       (The "triangle inequality": going straight is never more
+        expensive than going via a detour.)
+
+Examples:
+
+  - The real line, d(x, y) = |x - y|.
+  - The plane with ordinary straight-line distance.
+  - A graph with edge weights, where distance is the length of the
+    shortest path between two vertices.
+  - The "paging metric" with K + 1 points: one special "origin" and
+    K "slots". The distance between any two different slots is 1;
+    the distance from a slot to the origin is 1; the origin to itself
+    is 0. Every pair of distinct points is at distance 1.
+    (This is called a "uniform metric".)
+  - The paging metric can also be seen as a "star": the origin is the
+    center and the K slots are leaves.
+
+The problem works in ANY metric. That is remarkable: the SAME
+strategy is proved to work everywhere.
+
+1.2 Servers.
+
+Fix an integer k >= 2. Imagine k identical "servers". Each server
+sits at a point of X. So the current "configuration" of the system
+is an ordered tuple
+
+    s = (s_1, s_2, ..., s_k)  with each s_i in X.
+
+The label i runs from 1 to k. Repetitions are allowed: several
+servers may stand on the same point.
+
+1.3 Requests and service.
+
+Requests arrive one at a time. A request is a point r_t of X
+("the t-th customer is at r_t"). To serve the request, you must
+designate one server, say the i-th, and move it from its current
+position to r_t. The cost of this move is d(s_i, r_t). All other
+servers stay put. If some server is already at r_t, you may serve
+the request with it at cost 0 ("lazy" service).
+
+Repeat for t = 1, 2, ..., H, where H is the number of requests.
+
+The total cost of your service is the SUM of all move distances over
+the whole sequence.
+
+1.4 Offline optimum.
+
+Suppose you COULD see the future. That is, someone hands you the
+whole request sequence r_1, ..., r_H in advance, and you get to
+plan every move knowing what will happen. Given the same starting
+configuration s, what is the smallest possible total cost?
+
+Call that number OPT(s, r_1, ..., r_H). It is a well-defined
+finite number; the minimum is taken over all legal sequences of
+choices of which server to move at each step. (There are only k
+choices per step, so the number of candidate schedules is finite:
+at most k^H.)
+
+OPT is the benchmark. It is the "if you had magic foresight" cost.
+No online strategy can beat OPT; the question is how close it can
+get without foreknowledge.
+
+1.5 Online strategy.
+
+An "online strategy" (also called an algorithm or policy) must,
+at each step t, choose which server to move BEFORE seeing request
+t + 1, t + 2, and so on. It knows:
+
+  - the current configuration,
+  - the requests r_1, ..., r_t up to now.
+
+It must be causal: its choice at step t may depend only on the
+data available through step t. The future is silent.
+
+The k-server problem is the study of the best online strategies.
+
+1.6 Three classic versions of the problem.
+
+  - Paging. X is the "uniform metric" above. A paging system has
+    K slots of physical memory ("the K servers") and calls for one
+    of K+1 "pages" (the origin is the special request that some
+    page is not in memory). Bringing a missing page into memory
+    costs 1; serving a present page costs 0. Classic.
+
+  - Weighted paging. Each page has a "size". Bringing it in costs
+    its size. Slightly more general.
+
+  - Metrical task systems. A broader setting where you also pay a
+    "service cost" that depends on the current state. The paper
+    works in the simplest version (only movement costs) and gets
+    the best known bound there.
+
+  - Metrical service systems. Several tasks at once. Out of scope.
+
+The math paper is written entirely in the language of metric spaces
+and does not privilege any particular real-world story. But taxis
+and paging are exactly what the abstraction is modeling.
+
+------------------------------------------------------------------------
+2. COMPETITIVE RATIO: HOW WE GRADE AN ONLINE STRATEGY
+------------------------------------------------------------------------
+
+2.1 A single number to compare online to offline.
+
+An online strategy A is called "c-competitive" (with an "additive
+term" B) if, for every starting configuration s and every finite
+request sequence sigma = (r_1, ..., r_H),
+
+       cost_{A, s}(sigma)   <=   c * OPT(s, sigma)   +   B.
+
+Read this formula. On the left, what you can actually achieve with
+a causal strategy A. On the right, c times what a magic-foresight
+referee could achieve, plus a small correction B that is allowed to
+depend on the metric, on k, and on the starting configuration, but
+NOT on the request sequence or its length.
+
+The smaller c is, the better the strategy. "c" is called the
+competitive ratio.
+
+If B can be taken to be 0, the strategy is called "c-competitive
+without an additive term" (or "strictly c-competitive").
+
+If c is a function of k, say c = f(k), we say A has competitive
+ratio f(k). The whole game is: how slowly can f grow with k?
+
+2.2 Why we care about k at all.
+
+Here's the surprise. On an adversarial sequence of requests, an
+online strategy with only k servers cannot possibly match a magic
+referee, because the referee can deliver taxis straight to where
+customers WILL be while the online strategy keeps driving away from
+where customers are about to appear. The competitive ratio measures
+exactly how much this foresight gap costs.
+
+Question: is there a function of k that bounds the gap for ALL
+metric spaces simultaneously?
+
+Yes. That's the entire point of the field. But finding the exact
+slowest-growing such f(k) is the hard part.
+
+2.3 The very first theorem: a lower bound.
+
+Manasse, McGeoch and Sleator (1988 / 1990) proved a clean fact:
+
+  For any metric space with MORE THAN k points, no DETERMINISTIC
+  online strategy is better than k-competitive.
+
+That is: for any deterministic strategy A and any such metric,
+there exists a request sequence on which A pays at least k times
+the offline cost (for k = 2 this is a factor 2; for k = 100 it is
+a factor 100). So deterministically, you cannot do better than k.
+
+This was surprising - can the worst case really be as bad as the
+number of servers? And if so, can we do exactly k? Manasse,
+McGeoch and Sleator conjectured that k is achievable.
+
+2.4 The "competitive k-server conjecture".
+
+Conjecture (1988). Every metric space admits a deterministic
+k-competitive online strategy.
+
+Status: 27 years of work; then Koutsoupias and Papadimitriou (1995)
+proved that a specific beautiful strategy works with ratio
+(2k - 1) instead of k. And recently (2026 preprint) Coester,
+Koutsoupias, Zbysinski announced a k-competitive analysis of
+essentially the same algorithm. Either way, the entire deterministic
+range is roughly "a constant times k".
+
+So if you want much less than k, determinism is not enough. You
+have to flip coins.
+
+2.5 The "competitive ratio of a metric" and the metric's geometry.
+
+The worst-case competitive ratio as we vary the metric is a
+geometric property of the metric. For example, the "uniform
+metric" (the paging metric) admits randomized ratio exactly the
+H_k = 1 + 1/2 + 1/3 + ... + 1/k harmonic number. On the real line,
+or on any tree, the situation is dramatically easier.
+
+But the head-line question is: over ALL metric spaces simultaneously,
+what is the best function of k?
+
+2.6 "Worst case over every metric".
+
+The paper's theorem is the following kind of statement:
+
+        for every metric space (X, d),
+        for every k,
+        for every starting tuple s,
+        there is some randomized online strategy A_{X,k,s}
+
+whose expected cost is at most
+
+        C * (1 + log(k+1))^2 * OPT(s, sigma) + B
+
+for every sequence sigma. By "the same strategy works for all
+sequences", we mean: ONE strategy A_{X,k,s}, fixed up front, works
+for every sequence simultaneously. It does not get to be different
+for different problems.
+
+"Expected cost" means: we average over the strategy's internal
+coin flips, treating the request sequence as fixed and chosen
+independently of those flips (see Section 3).
+
+------------------------------------------------------------------------
+3. RANDOMNESS, AND THE OBLIVIOUS ADVERSARY
+------------------------------------------------------------------------
+
+3.1 Why coin flips help.
+
+A DETERMINISTIC strategy can be predicted by an adversary: the
+adversary sees your strategy's code, knows what you will do, and
+picks a request sequence that punishes you. A RANDOMIZED strategy
+can be harder to attack because the adversary cannot see your coins
+in advance.
+
+But we must be precise about who the adversary is and what they can
+observe. This is not a small detail: different "adversary models"
+give completely different strengths of result.
+
+3.2 Three adversary models (only one is used here).
+
+  - Oblivious adversary. The request sequence is chosen ONCE,
+    in advance, independent of the strategy's random tape. It may
+    even depend on the strategy's source code and the starting
+    configuration, but it may NOT depend on the actual coin flips
+    the strategy will use. This is the model in which we ask about
+    "expected cost".
+
+  - Adaptive adversary. The adversary chooses each request knowing
+    the strategy's past random results (but not the next flips).
+    Stronger than oblivious.
+
+  - Adaptive-offline. The adversary is simultaneously playing
+    against you and against an offline "ghost" who is allowed to
+    also adapt. The strongest.
+
+The paper uses the OBLIVIOUS model. This matters in every place
+where the proof uses "conditional expectation". The math paper
+repeats this many times: filtering estimates are made with old
+parameters and BEFORE any adaptive choice. This is why.
+
+3.3 Expected competitive ratio.
+
+Say A is a randomized strategy. Its "cost on a fixed sequence
+sigma" is a random variable (it depends on the coins). Define:
+
+     Expected cost = the probability-weighted average over all the
+     strategy's coin outcomes.
+
+A is "c-competitive with additive B" if, for every sequence sigma,
+
+     E[ cost_{A, s}(sigma) ]   <=   c * OPT(s, sigma)   +   B.
+
+For an oblivious adversary, this is the natural and standard notion.
+
+3.4 The paging special case.
+
+For paging (uniform metric on K+1 points with k servers) the problem
+is exactly the paging problem: you have k slots in fast memory and
+K+1 possible pages.
+
+  - Deterministically, the best ratio is exactly k. (Manasse-
+    McGeoch-Sleator lower bound plus a matching algorithm.)
+
+  - Randomized, the best achievable ratio is exactly the harmonic
+    number
+
+        H_k = 1 + 1/2 + 1/3 + ... + 1/k.
+
+    This is remarkable and clean.
+
+The upper bound is Fleming, Karp, Luby, McGeoch, Sleator, Young
+(1991): a randomized marking algorithm is 2H_k. The exact H_k is
+McGeoch and Sleator (1991).
+
+3.5 What is the harmonic number H_k?
+
+A useful fact from calculus:  H_k is at most 1 + ln k. More precisely:
+
+        ln(k) + 1/k   <=  H_k  <=  ln(k) + 1.
+
+So H_k "is logarithmically large in k" and no bigger.
+
+By convention, the paper of interest uses l = 1 + ln(k+1), and
+everything is stated in terms of l. So O(log k) really means
+O(l).
+
+3.6 The moral.
+
+Randomization can beat k deterministically. For paging it beats k
+all the way down to log k. A natural guess is that on EVERY metric,
+randomization can attain O(log k). That was the "folklore conjecture"
+for about three decades. We will see: it is true that O(log k) works
+as a UNIVERSAL LOWER bound (you cannot do better), but it is FALSE
+that O(log k) works as an upper bound for every metric. Some
+metrics need log^2 k.
+
+------------------------------------------------------------------------
+4. THE HISTORY: FROM K TO (2K-1) TO LOG K TO LOG^2 K
+------------------------------------------------------------------------
+
+This section is the "who proved what" that motivates the main
+theorem. Every fact has a citation in the paper's references at the
+end. You can skip to Section 5 if you just want the statement.
+
+4.1 Deterministic era (1988 - 1995).
+
+  - 1988, 1990. Manasse, McGeoch, Sleator. Introduced the problem.
+    Proved the deterministic lower bound k for metrics with > k
+    points. Conjectured k is achieved.
+  - 1995. Koutsoupias, Papadimitriou. Proved that the "work
+    function algorithm" achieves ratio (2k - 1). Stunning result:
+    one algorithm, all metrics, essentially the same constant for
+    every metric.
+  - 2026 (preprint, Sept). Coester, Koutsoupias, Zbysinski.
+    Announced a k-competitive analysis of the work-function
+    algorithm. This would prove the original conjecture.
+
+4.2 Randomization: paging is easy (1991).
+
+  - 1991. Fleming, Karp, Luby, McGeoch, Sleator, Young. A
+    harmonic lower bound H_k on uniform metrics, and a randomized
+    marking algorithm achieving 2 H_k.
+  - 1991. McGeoch, Sleator. Improved the upper bound to exactly
+    H_k, matching the lower bound.
+
+So paging is completely solved: exact ratio H_k.
+
+4.3 Weighted paging reaches log k (2012).
+
+  - 2012. Bansal, Buchbinder, Naor. Weighted paging in O(log k)
+    competitive ratio, via a fractional primal-dual algorithm plus
+    an online rounding. This is exactly the order achieved by the
+    marking algorithm in the unweighted case, but for a harder
+    problem.
+
+These paging successes fueled the folklore conjecture: "randomized
+k-server should be O(log k) on any metric".
+
+4.4 General-metric upper bounds, polylog (2010 - 2018).
+
+  - 2010 (SODA). Bansal, Buchbinder, Naor. First (fractional)
+    result for general finite metrics after a tree embedding.
+  - 2015 (JACM). Bansal, Buchbinder, Madry, Naor. The first
+    POLYLOGARITHMIC upper bound for arbitrary finite metrics. The
+    bound is
+
+        O( (log^2 k) * (log^3 n) * (log log n) ),
+
+    where n is the number of points in the finite metric. So this
+    factors a log(k)-squared piece (good) and many log(n) factors
+    (not good: not in k alone).
+
+  - 2018 (STOC). Bubeck, Cohen, Lee, Lee, Madry. Improved the
+    bound on "hierarchically separated trees" (HSTs) to
+
+        O(log^2 k),
+
+    using "multiscale entropic regularization". But on general
+    n-point metrics, the STATIC embedding reduction only gives
+
+        O(log^2 k * log n),
+
+    which is not a bound in k alone. The log n factor is the
+    obstruction.
+
+  - 2018 (FOCS). James Lee. Attempted an "evolving, fusible HST"
+    framework that changes the tree as requests arrive. The
+    general competitive-ratio claim was WITHDRAWN in 2021 by an
+    erratum in Section 5.3.2. But the METHOD - "heavy-ball
+    protection" and "accounting for changing partitions" - is
+    the conceptual ancestor of the paper we are explaining.
+
+  - 2026 (ICALP). Coester and Cosson. Made the HST / finite-metric
+    bounds POLYNOMIAL TIME, with total number of random bits
+    independent of the request length. But their general finite
+    metric ratio retains a log n factor.
+
+4.5 Lower bounds (1994 - 2023).
+
+  - 1994 - 2005. Karloff-Rabani-Ravid, Blum-Karloff-Rabani-Saks,
+    Bartal-Bollobas-Mendel, Bartal-Linial-Mendel-Naor. Developed
+    metric decomposition / Ramsey methods, weakening randomized
+    k-server lower bounds upward.
+  - 2023 (STOC). Bubeck, Coester, Rabani. THE RANDOMIZED
+    K-SERVER CONJECTURE IS FALSE. Two main results:
+      (i)  Theorem 11 + Proposition 8. There exist metrics with
+           only (k+1) points requiring competitive ratio
+           Omega(log^2 k), even allowing a FIXED additive constant.
+           This is the sharp negative answer to the folklore
+           conjecture.
+      (ii) Corollary 20. Universal lower bound Omega(log k) on
+           EVERY metric with more than k points. (This matches
+           the paging lower bound and is not contradicted by
+           (i): (i) says SOME metrics need log^2 k, which is
+           more than log k; (ii) says no metric can be easier than
+           log k.)
+
+4.6 What is left? The puzzle of the two logs.
+
+After 2023, the situation is:
+
+  - NO metric has a lower bound worse than log^2 k (BCR).
+  - SOME metric has a lower bound as bad as log^2 k (BCR).
+  - NO constructed strategy for general metrics achieves the
+    log^2 k order. The best constructions retain a log n factor
+    from the static embedding.
+
+The obvious question: can we prove an upper bound of O(log^2 k)
+matching the BCR lower bound? On EVERY metric, not just HSTs?
+
+The paper we are explaining proves exactly this.
+
+4.7 The main theorem in one sentence.
+
+  On every metric, one randomized online strategy has expected
+  competitive ratio O((log(k+1))^2), with a finite additive
+  correction. When starting positions are distinct, no additive
+  correction is needed.
+
+The additive correction is unavoidable when two of the initial
+servers start on the same point, because a "shadow" simulation
+(line 8.3) needs to bridge the gap. In every other case, the bound
+is exact in every input.
+
+------------------------------------------------------------------------
+5. THE MAIN THEOREM, STATED IN PLAIN ENGLISH
+------------------------------------------------------------------------
+
+Here is the paper's headline theorem, fully precise.
+
+Theorem (main). There is a fixed absolute constant C < infinity with
+this property. For every integer k >= 2, every metric space (X, d)
+containing at least k+1 points, and every starting tuple
+s = (s_1, ..., s_k) in X^k, there exist:
+
+  a randomized online strategy A      (one strategy), and
+  a finite number B >= 0              (an additive correction),
+
+such that for every finite request sequence sigma,
+
+        E[ cost_{A, s}(sigma) ]
+              <= C * (1 + log(k+1))^2 * OPT(s, sigma) + B.
+
+The following important caveats are all part of the theorem's
+statement in the paper and are crucial to what the theorem actually
+means:
+
+  (C1) C is an ABSOLUTE constant. It does not depend on the metric,
+       on k, on the starting tuple, on the sequence, or on its
+       length. It is a fixed number that the proof could, in
+       principle, compute explicitly. It is not small; it is
+       "like 4 * (2a + 1)" for some a defined in the proof - some
+       finite astronomical number. The theorem does not try to
+       make it look tight.
+
+  (C2) B may depend on the metric, on k, and on the starting tuple.
+       It may be huge; it may be infinite in principle for an
+       infinite metric. But B is a CONSTANT once the metric, k,
+       and the starting tuple are fixed. It does NOT depend on
+       the request sequence or on its length. So for very long
+       sequences B is negligible compared to the OPT term.
+
+  (C3) The SAME strategy A works for every finite request sequence
+       simultaneously. It is not a sequence-by-sequence strategy.
+
+  (C4) The SAME strategy A works for every horizon H. There is no
+       "the strategy is different for different horizons" caveat.
+
+  (C5) If the initial servers are at DISTINCT points of X, one can
+       take B = 0. Then the competitive ratio is C(1+log(k+1))^2
+       with no additive term at all.
+
+  (C6) The metric space may be INFINITE, UNBOUNDED, or both. There
+       is no finiteness, no compactness, no bounded-diameter
+       assumption.
+
+  (C7) There is NO complexity / efficiency claim. The strategy is
+       mathematically well-defined. The proof does not claim you
+       can run it in polynomial time. (Polynomial-time versions
+       do exist in separate work; Coester and Cosson 2026 is the
+       relevant reference in the bibliography.)
+
+So the theorem's content, morally, is:
+
+  randomization reduces the ratio from "roughly k" (deterministic,
+  across all metrics) all the way down to "(log k)^2", and no
+  better is possible in the worst case (BCR 2023 lower bound),
+  and this is done with ONE strategy on EVERY metric.
+
+The constant of proportionality is fixed once, for all inputs.
+That is the sharp order of the problem in the worst case over
+metric spaces.
+
+Let us double check what "no better is possible" means. The BCR
+lower bound says: there exists a metric on k+1 points forcing any
+randomized strategy to pay at least c' * (log k)^2 * OPT for some
+absolute c' > 0 (up to a fixed additive term). So the upper bound
+ours and the lower bound theirs disagree at most in the absolute
+constant. In that sense the theorem is order-tight.
+
+------------------------------------------------------------------------
+6. THE BIG PICTURE: HOW THE PROOF IS BUILT
+------------------------------------------------------------------------
+
+At the very highest level, the proof has seven steps. Each step is
+an idea you could explain to a friend. Each subsequent section fills
+in the details. You can read this section first, then read
+subsequent sections, and you will always know where you are.
+
+6.1 Step 1: fix a "hidden optimal solution" and watch its shadow.
+
+Idea. Pretend we cannot see the future, but SOMEONE can. Let that
+someone choose, for each possible future, the best sequence of
+server labels. Treat that chosen sequence as a hidden random
+variable "Z" determined by the request sequence. From the revealed
+prefix we can compute the CONDITIONAL DISTRIBUTION of Z. That
+conditional distribution is called the "posterior".
+
+Think of the posterior as a "shadow" of the hidden optimal solution
+projected onto the current observed history. The shadow is what we
+can actually see.
+
+This is a standard trick in online algorithms and it is central to
+the paper. It converts the online problem into:
+
+   "Track the posterior distribution of a hidden optimal solution
+    online."
+
+The posterior is a probability distribution over configurations of
+k labeled servers. It is the thing we want to stay close to.
+
+Now, catching up with a DISTRIBUTION is much harder than catching
+up with a POINT. The whole engineering of the paper is about
+representing the distribution in a compact, trackable form. This is
+where tree embeddings, partitions, and rounding all come in.
+
+6.2 Step 2: reduce the true metric to a fixed tree.
+
+Idea. On a tree, moving servers is easy to analyze. On a general
+metric, it is not. Standard theory says: any finite metric can be
+approximated by a tree with O(log n) distortion - and if you are
+careful and change the tree adaptively, you can hope to keep the
+distortion to log k instead of log n.
+
+But the paper does NOT use an approximation of the metric in a naive
+way. It uses something subtler. It builds ONE fixed finite object
+called a "prefix tree of label strings" whose leaves correspond to
+the points of the metric (approximately), and whose edges carry
+"semantic" weights.
+
+The point of the tree is that the posterior distribution's "serving"
+problem on the tree can be solved and tracked by a fractional
+algorithm, and then realized back in the metric.
+
+6.3 Step 3: allocate fractional server mass on the tree.
+
+Idea. On the tree, we want to keep some real-valued "amount of
+serving mass" q_v at each vertex v, with these rules:
+
+  (i)   The root holds q_root = k, exactly.
+  (ii)  The children of any vertex v hold amounts that sum to at
+        most q_v. (We "spend" all mass going down, or "park" any
+        leftover at v itself.)
+  (iii) For every vertex v, q_v is at most a constant times the
+        posterior expected number of hidden servers in v's
+        subtree. So mass is dominated by the shadow.
+  (iv)  The leaf of every request in the CURRENT tree holds at
+        least 1. So the request is always "servable".
+
+If we can maintain such q_v whose CHANGES stay small (sum of
+r_{depth} * |change| is O(log k) times the shadow's movement), and
+we then round it, we get a strong online algorithm.
+
+This is the content of what the paper calls the "allocation
+theorem". It is the hardest single technical component of the
+paper. It uses:
+
+  - rank coordinates (the probability that a subtree contains fewer
+    than a hidden servers);
+  - convex "rank functions" l^beta(p) with parameters tuned to subtree
+    sizes;
+  - a "simplex tracker" to make proportions vary slowly;
+  - a "side tracker" to handle near-dominant children;
+  - hysteresis to choose between two output rules.
+
+We will explain the conceptual role of each in Section 11.
+
+6.4 Step 4: choose tree partitions that adapt to local mass.
+
+Idea. The tree structure needs to be built from the metric. It
+cannot follow the fastest-changing ball-mass ratios at every scale,
+because doing so would cost another factor of log. Two structures
+solve this:
+
+  - "Heavy balls": balls around requests where the mass is very
+    concentrated. Only ONE change per request per level.
+  - "Chronological rosters": a small list of balls per level,
+    chosen by a deterministic age rule, with a random subroster.
+    Changes cost less on average because of the random retire.
+
+Both structures use the pilot potential (Section 6.5) to PAY for
+changes.
+
+The clever bit is that the coefficient on changes is a LOCAL mass
+ratio, not a global worst case. When the ball-mass ratio is small
+(very concentrated), changes are cheap. When it is large, there are
+few such levels (a telescoping "ball-mass" argument controls the
+sum). This local-ratio trick is the reason the log-n factor
+disappears.
+
+6.5 Step 5: pilot potential - a brake for changes.
+
+Idea. Whenever a partition changes, the allocation q_v will likely
+change too. We want to charge those q-changes to something. The
+"pilot potential" is a compact variational object that gives a
+NUMERICAL potential value small enough that its decreases pay for
+the changes, yet large enough that its increases are bounded by
+O(log) times the hidden mover's physical cost.
+
+Concretely, at each scale r, define a function L_r(mu, g) of a
+measure mu and a function g, as the MINIMUM over certain "vector
+of sites" z of a linear functional. Two properties are proved:
+
+  - L_r is concave in mu, so filtering (revealing more of the
+    history) cannot increase it in conditional expectation.
+  - Its DRIFT (physical movement of the hidden mover at scale r)
+    is at most O(log k) times the mover's distance, by a local
+    concentration argument.
+
+The concavity and drift together make L_r a legitimate potential
+that can be "spent" on partition edits without paying more than
+O(log k) per unit of hidden movement, uniformly in scale.
+
+The "local concentration" step is where the extra log comes from.
+When a scale is "concentrated", the integrator's optimal site is
+almost AT the request, so moving it is cheap. When a scale is "not
+concentrated", the potential is trivially bounded and only a few
+such scales exist by the ball-mass telescope.
+
+6.6 Step 6: real-metric rounding and moving representatives.
+
+Idea. The q_v from Step 3 are REAL NUMBERS. We need k INTEGERS on
+the tree (one per tree vertex, summing to k) whose values stay
+close to q_v in conditional expectation. Also, since the actual
+points of X are represented by tree anchors, we must pay whenever a
+retained tree vertex's anchor moves to a new nearby anchor.
+
+Both are handled by clean local arguments:
+
+  - "Balanced rounding with prescribed random total" gives an
+    integer n_v with the right mean and with |change| at most 32
+    times the fractional changes plus 11 times a small dependence
+    on the parent.
+
+  - "Retained-anchor travel" pays moving anchors using a normalized
+    potential, with a size tracker that resets only when a key's
+    posterior size drifts by a factor of 6/5.
+
+Both are local: no horizon-dependent factor.
+
+6.7 Step 7: transfer from one law to one policy.
+
+Idea. Steps 1-6 prove the theorem for a FIXED finite metric and a
+FIXED finite probability distribution on finite request sequences.
+We need to get rid of that.
+
+Three ingredients in the paper:
+
+  - "Episode amplification". Cleverly concatenate forward, reversed,
+    and reset blocks so that the ADDITIVE term gets amortized away
+    over N episodes. Choose N large enough. This gives a policy
+    with no additive term on a fixed finite metric, distinct start.
+
+  - "Finite separation via Yao". Using the finite minimax theorem,
+    turn "for every single sequence there exists some strategy" into
+    "there is ONE strategy for every sequence in a finite family".
+
+  - "Tychonoff compactness". Take the product of all decision-point
+    simplices (one simplex per possible history). The product of
+    compact simplices is compact. The "for every finite input there
+    is a policy" constraint defines closed subsets of this product.
+    Finite-intersection property says ONE policy works for ALL
+    finite inputs simultaneously.
+
+Together, these remove every dependence on the input law, the
+horizon, and the size of the metric. What remains is exactly the
+main theorem's statement.
+
+------------------------------------------------------------------------
+7. THE BOARD: NOTATION WE WILL USE EVERYWHERE
+------------------------------------------------------------------------
+
+Let us line up symbols that recur in every later section of the
+paper. Learning them now saves confusion later.
+
+7.1 Configurations.
+
+A "configuration" is a multiset of k points of X, one per labeled
+server. That is: a tuple (c_1, ..., c_k). We always allow
+repetitions: two servers can be on the same physical point.
+
+7.2 Matching distance between two configurations.
+
+If A = (a_1, ..., a_k) and C = (c_1, ..., c_k) are two
+configurations, define their "matching distance":
+
+    M(A, C) =  min over permutations pi of {1, ..., k}
+               of  sum_{i=1}^k d(a_i, c_{pi(i)}).
+
+Meaning: if we do not care which server has which label, what is the
+cheapest way to match each a to a distinct c? M(A, C) is the total
+cost of that matching. It ignores labels but respects positions.
+
+Note: M(A, C) is not necessarily d(A, C) - labels sometimes have to
+be "renamed". This is crucial for compositions and for lazy
+simulation.
+
+7.3 Strong laziness.
+
+A strategy is "strongly lazy" if it does nothing when a server is
+already at the request, and otherwise moves EXACTLY ONE server to
+the request. Equivalently: it does not move any server except to
+serve a request, and it moves only one such server.
+
+7.4 Constants and little ell.
+
+Define the "little ell":
+
+    ell = 1 + log(k + 1)          (log is natural)
+
+So ell >= 1 for every k >= 2. "Order O(log k)" and "order O(ell)"
+are the same order.
+
+7.5 Metric geometry convenience.
+
+Fix a FINITE metric Y with n = |Y| points for the main body of
+the argument. It has:
+
+    diam(Y) = max_{y, z in Y} d(y, z)      ("diameter")
+    delta   = min_{y != z in Y} d(y, z)    ("minimum gap")
+
+The minimum gap is positive because Y is finite, so delta > 0.
+
+7.6 Scales (levels).
+
+Fix an absolute "separation" parameter tau >= 2 large enough for
+several later requirements. Define r_0 = diam(Y) and
+
+    r_j = r_0 * tau^(-j),       1 <= j <= J,
+
+where J is chosen so that 40 r_J < delta. In words: r_0 is the
+coarsest scale (about the diameter), each subsequent r_j divides by
+tau, and we stop at depth J when the scale is much finer than the
+smallest point-to-point gap.
+
+There are J + 1 scales. They divide the "interesting" range of
+distances into logarithmic bands.
+
+7.7 The probability law and the horizon.
+
+For most of the paper we work with:
+
+  - a fixed finite metric Y of positive diameter,
+  - a fixed finite horizon H (number of requests),
+  - a fixed probability law on request sequences of length H.
+
+Everything is conditioned on that law. It is an "input law" on
+Y^H. Later, Section 16 removes this law.
+
+7.8 The optimum.
+
+For each realized sequence sigma, choose ONE optimal service
+schedule of the k labeled servers. There are finitely many candidate
+schedules (k^H of them), so, given sigma, some optimum exists;
+resolve ties deterministically. Call the chosen optimum "Z". It has
+k components (one per label) at every time.
+
+The conditional distribution of Z given the prefix sigma_{1..t}
+is the "posterior". It is a probability measure on configurations.
+
+7.9 Counting measure of the posterior.
+
+Think of the posterior as a random configuration Z. Its "expected
+counting measure" mu_t on Y is defined by
+
+    mu_t(S) = E[ number of servers in the set S at time t | prefix ]
+
+for every subset S of Y. Equivalently:
+
+    mu_t = sum_{labels i = 1}^{k} P(Z_t^i in .  | prefix )
+
+Each label contributes one "atom" of a unit of probability at its
+position. The total mass of mu_t is exactly k.
+
+This object replaces "the hidden servers" with something we can
+actually compute and reason about.
+
+------------------------------------------------------------------------
+8. LAZY SIMULATION: A FREE WAY TO COPY A VIRTUAL SOLUTION
+------------------------------------------------------------------------
+
+Here is a beautiful elementary lemma that appears implicitly in
+Manasse-McGeoch-Sleator and is proved cleanly in the paper. It lets
+us run a "virtual" simulated policy and lift its cost to a REAL
+policy for the original k-server problem.
+
+Statement (lazy simulation). Let C_0, C_1, ..., C_H be a causal
+sequence of configurations, each containing the request r_t at
+time t. Let A_0 be any actual starting configuration. There is a
+strongly lazy strategy on the actual servers with
+
+  cost(A_0; r_1, ..., r_H)
+       <= M(A_0, C_0)  +  sum_{t = 1}^H M(C_{t-1}, C_t).
+
+In words: the actual cost is at most the initial matching distance
+from A_0 to C_0 PLUS the total "movement" of the simulators
+measured by matching distance between consecutive C's.
+
+Why is this true? Here is the proof idea, in detail.
+
+At each step, after seeing C_t (the simulated configuration at
+time t, which is a function of the history so far and hence is
+available causally), do this:
+
+  - Take a minimum matching m_t from the CURRENT actual
+    configuration A_{t-1} to C_t. This tells us which actual server
+    "plays the role" of which simulated server.
+
+  - If A_{t-1} already covers r_t (some server is at r_t), do not
+    move anything. Otherwise move the actual server matched to
+    whichever occurrence of r_t in C_t we choose, and drive it
+    straight to r_t.
+
+After this step, we get an updated actual configuration A_t that
+still contains r_t. Now consider the quantity
+
+       "actual cost so far"  +  M(A_t, C_t).
+
+By an elementary comparison (the server we just moved was matched
+to a specific occurrence of r_t in C_t, and after the move the
+SAME matching still matches A_t to C_t, so the two distances agree
+up to the moved amount), we get the pathwise inequality
+
+       cost_t  +  M(A_t, C_t)  <=  M(A_{t-1}, C_t).
+
+Now the composition property of minimum matchings:
+
+       M(A_{t-1}, C_t)  <=  M(A_{t-1}, C_{t-1})  +  M(C_{t-1}, C_t).
+
+Summing over t and dropping the nonnegative final matching term
+gives the lemma.
+
+Why do we need strong laziness? Because of what happens if the
+request is ALREADY covered: no move is required, and the matching
+data does not accumulate cost. Without laziness, the actual
+strategy might be forced to shuffle servers unnecessarily and pick
+up extra cost.
+
+Why do we need CAUSALITY? Because C_t must be known at time t, so
+the strategy can be run online. If C_t depends on future requests,
+we cannot use the lemma to build an online policy - we only get an
+offline comparison. The paper uses the lemma in two flavors: for
+online policies (needs causality) and for offline comparisons (does
+not).
+
+Counting: the initial matching distance M(A_0, C_0) is a one-time
+cost. In every application of the lemma in the paper, this is
+either zero (C_0 = A_0) or a bounded quantity (for the repeated-
+starting-position case at the end).
+
+Reduction to "cost of the simulation". The paper's strategy will
+compute simulated configurations C_t satisfying the requirements.
+By the lazy simulation lemma, the actual cost on the real servers
+is at most the sum of matching distances of the simulators. So
+every subsequent budget about "sum_{t} M(C_{t-1}, C_t)" IS a budget
+on the real algorithm's cost. Good.
+
+Similarly: the paper sometimes compares two OFFLINE optima
+(solution Z vs. solution Z'). Then only the pathwise inequality is
+used, not causality. This is fine because offline comparisons are
+just for identifying which configuration is cheaper.
+
+------------------------------------------------------------------------
+9. THE POSTERIOR SHADOW AND ITS TWO-PART UPDATE
+------------------------------------------------------------------------
+
+Recall the setting from Section 7. There is a finite metric Y, a
+finite horizon H, a fixed probability law on Y^H, and we have
+chosen one optimal hidden labeled service Z of the k servers. mu_t
+is the expected counting measure (mass k total).
+
+The strategy of the proof is essentially:
+
+   "Maintain an online proxy for mu_t, using only the observed
+    history up to time t, then convert the proxy into actual
+    servers."
+
+To do this we need to understand how mu_t changes across a single
+step. It changes in two logically different ways, which the paper
+insists on separating.
+
+9.1 Filtering (filtration) vs. drift.
+
+Say the request at time t is x = r_t, and we have just observed it.
+We used to know the prefix up to time t-1; now we know the prefix
+up to time t. That is: F_{t-1} -> F_t. The "filtration" has grown.
+
+For any random variable depending on the past (say, the position
+of some hidden server just before time t), its CONDITIONAL LAW
+changes from "given F_{t-1}" to "given F_t". We call that change
+"filtering" - it is a change of information, not a change of the
+underlying random object.
+
+The "drift" is different: after conditioning on the new prefix, the
+underlying random variable itself MOVES (because the hidden optimum
+actually moved some labeled server at time t). Drift changes the
+OBJECT, not just what we know about it.
+
+The paper separates every change of every potential into these two
+parts:
+
+   L(Z_{t-1} | F_{t-1})  ---[filtering]-->  L(Z_{t-1} | F_t)
+                          ---[drift]--->    L(Z_t | F_t)
+
+Here "L" denotes "probability law of". The first arrow is "what we
+know has changed". The second arrow is "the object has changed".
+
+9.2 Why the order matters, and why we never condition on events
+    that depend on the new information.
+
+Most quantities we will track are AFFINE in the posterior measure.
+An affine functional has conditional expected value the SAME
+before and after filtering:
+
+       E[ affine(Z_{t-1}) | F_t ]   =   affine( mu^- )   and
+       E[ affine(Z_{t-1}) | F_{t-1} ] =   affine( mu^{old} ),
+
+and, by the tower property of conditional expectations,
+
+       E[ affine(Z_{t-1}) | F_{t-1} ]
+             =  E[ E[ affine(Z_{t-1}) | F_t ]  | F_{t-1} ].
+
+So an affine functional's expected filtering change is ZERO. Nice.
+
+A concave functional has conditional expected value that does NOT
+increase under filtering. (Because E[f(X)|more info] >= f(E[X|less
+info]) for concave f, up to the Jensen inequality direction.)
+
+A convex functional has conditional expected value that does not
+DECREASE under filtering.
+
+These one-sided differences are exactly what we need: they say
+"filtering cannot hurt" (for concave functionals) or "filtering
+cannot help" (for convex functionals).
+
+CRUCIAL: all such statements are made with OLD parameters. That
+is, we take the OLD definition of the functional (the one from
+F_{t-1}-measurable data) and evaluate its conditional expectation
+under the new filtration. We do NOT take the new potential and try
+to say anything about its expectation relative to the old. And we
+do NOT condition on any downstream event (like "did a reset
+happen?") that itself depends on the choice made at time t.
+
+Every time the paper uses filtering, it says this explicitly: the
+concavity (or affinity) argument is over ALL steps, including
+zero-probability-of-reset ones, and only afterwards do we use the
+potential-drop credit to pay for specific adaptive events. This is
+what makes the bound valid for an OBLIVIOUS adversary.
+
+9.3 The exact measure update.
+
+Here is the payoff. Fix a request x = r_t. The chosen optimum's
+k-th move designates a specific labeled server j_t (deterministically
+by our tie-breaking). Denote by mu^- the posterior measure on
+F_{t-1}-observations after the filter, and mu^+ after the drift to
+time t. Let nu be the LAW of the designated server's old position,
+conditioned on F_t. This is a probability measure: it puts mass 1
+across all possible old positions of the designated mover.
+
+Then:
+
+    mu^+  =  mu^-  -  nu  +  delta_x,
+    nu  <=  mu^-,      (domination: nu is a submeasure of mu^-)
+    nu(Y) = 1,         (unit mass)
+    e_x = int_Y d(x, y) dnu(y),   (the "expected mover distance")
+
+and:
+
+    mu^+ has at least one unit of mass at x, always.
+    E[mu^- | F_{t-1}]  =  mu^{old}.
+    sum over t of E[e_{r_t}]  =  Q := E[ OPT ],
+    where Q is the expected offline optimum on the input law.
+
+The last identity is the key economic statement: the sum of "expected
+mover distances" telescopes, in expectation, to the expected cost of
+the offline optimum. That is: e_x is exactly the per-request offline
+cost, and summing it gives the benchmark.
+
+Moral: the "cost" of the hidden optimum, in mol-unit form, is the
+sum of the e_x's. Any potential that pays for these e_x's is
+implicitly paying for OPT.
+
+9.4 Why "mu^+ has a unit at x" is important.
+
+It says: whatever the conditioning, the posterior "sees" the
+request. Later we will demand that our tree allocation and our
+rounding both have a "leaf with at least one unit" at x. This is
+exactly what lets us assign one simulated server to the request at
+every time, which then makes the simulated configurations legal.
+
+9.5 Who cares about the "stationary" part mu^+ - delta_x?
+
+The measure mu^+ has k total mass. It sits at x plus elsewhere. The
+"elsewhere" part is what remains at the previously designated
+positions after we have pulled one unit into x. That "stationary"
+part is exactly (mu^- - nu), which is dominated by mu^+, so no new
+mass appears; we can always find it if we look only where mu^+ is
+positive.
+
+This is used at the leaf end: the requested leaf gets a unit because
+the "elsewhere" mass does not vanish.
+
+9.6 The ball-mass telescope (a tiny but crucial lemma).
+
+One silent workhorse in the proof: a scale sum over logarithms
+telescopes because the same measure is used at all scales. Here is
+the exact statement.
+
+Fix constants 0 < a < b. Let mu be a nonnegative measure on Y and
+c_0 >= 0 an offset. On a consecutive finite range of scales suppose
+
+    c  <=  A_j := c_0 + mu(B(x, a r_j))
+       <=  B_j := c_0 + mu(B(x, b r_j))  <=  K,
+
+with c > 0. Let p >= 1 be an integer with tau^p a >= b. Then
+
+    sum over j of  log( B_j / A_j )   <=   p * log(K / c).
+
+Why? Balls are nested: B(x, b r_j) is contained in B(x, a r_{j-p})
+because tau^p a >= b. So B_j <= A_{j-p}. Then
+
+    log(B_j / A_j)  <=  log(A_{j-p}/A_j).
+
+Summing this over j gives a "shifted sum of logs": sum_j log A_{j-p}
+minus sum_j log A_j. Interior terms cancel. Only p "left edge" terms
+and p "right edge" terms survive, each pair contributing at most
+log(K/c). So the total is at most p log(K/c).
+
+This is the local-ratio trick. As a reader, notice this one small
+lemma is the reason "logarithms telescope" over scales in the
+partition construction, avoiding the log-n factor.
+
+Takeaway for the rest of the proof:
+
+    every place we compare fine-scale and coarse-scale masses,
+    this telescope controls the sum with an ell-sized bound.
+
+------------------------------------------------------------------------
+10. THE TREE: A FIXED FINITE OBJECT THAT MIMICS THE METRIC
+------------------------------------------------------------------------
+
+The next big move in the paper is to replace the true metric Y by a
+balanced tree structure. The tree is chosen ONCE, is independent of
+the request sequence, and its vertices and edges have fixed
+weights. What changes over time is only the assignment of points of
+Y to leaves (labels) and the posterior measures on leaves.
+
+10.1 Why a tree at all?
+
+Three reasons:
+
+  - Movement on a tree is summable across levels. The "edge entering
+    a vertex of depth j" has weight r_{j-1} which decreases
+    geometrically with depth, matching the ball radii.
+  - A tree's subnetworks are disjoint: they let us decompose the
+    "how much mass is below this vertex?" question hierarchically.
+  - Posterior subtree counts are natural on a tree: N_v(t) is just
+    "the number of hidden servers whose leaf is below v". There
+    is a clean inequality (superadditivity) linking parent's "rank
+    distribution" to children's, which is what the allocation
+    theorem exploits.
+
+10.2 The prefix tree.
+
+Fix alphabets A_1, A_2, ..., A_J. Each A_j is finite. Let T be
+the tree whose vertices at depth j are the words w_1 ... w_j of
+letters w_i in A_i (including w_j itself). The root is the empty
+word (depth 0). Leaves are depth-J words.
+
+Vertex depths are 0, 1, ..., J. The "child" relation is the obvious
+one: append one letter. This is a complete (possibly huge but
+finite) tree.
+
+10.3 Edge weights.
+
+The edge entering a nonroot vertex v of depth |v| = j has weight
+
+    weight of the edge entering v = r_{|v| - 1} = r_{j-1}.
+
+Equivalently: the "top" vertex (depth 0, root) has no incoming edge.
+Depth-1 vertices connect to root by edges of weight r_0. Depth-2
+vertices connect to depth-1 parent by edges of weight r_1. And so on
+down to depth-J leaves with incoming edges of weight r_{J-1}.
+
+10.4 The leaf metric on T.
+
+Define a distance d_T between leaves of T:
+
+    d_T(leaf_1, leaf_2) = r_{LCA_depth(leaf_1, leaf_2)}
+
+where LCA_depth is the depth of the lowest common ancestor of the
+two leaves. Equivalently: d_T(leaf_1, leaf_2) = r_j when the first
+letter at which the two leaves disagree is level j + 1.
+
+This is the "standard HST metric" (Hierarchically Separated Tree):
+each level scales down by tau, and the distance between two leaves
+is the scale at which they merge.
+
+10.5 How points of Y map to leaves (the labelled map).
+
+At every time t there is an online random map
+
+    xi_t : Y -> A_1 x A_2 x ... x A_J
+
+that assigns each point of Y a full word of labels (a leaf of T).
+The map is chosen from the revealed prefix; it is independent of
+the future request stream (this is a key causality property).
+
+Properties required (Lemma "fixed alphabet" in the paper):
+
+  - xi_t is INJECTIVE. Distinct points of Y get distinct leaves at
+    level J. (Because level-J cells are singletons.)
+  - Every point with a given current level-j label lies within
+    20 r_j of a fixed "anchor" for that label. Equivalently: the
+    level-j cell has an "anchor" point a_{j, lambda} with
+    d(y, a_{j, lambda}) <= 20 r_j for all y in the cell.
+  - Cell diameter is at most 40 r_j. (Two points in the same
+    level-j cell are at distance <= 40 r_j.)
+  - If the same label survives from step t-1 to step t, the anchor
+    is either UNCHANGED or was moved by at most 40 r_j via the
+    heavy-ball reuse (Section 13).
+
+10.6 Labels: how many are there?
+
+A subtle point: Y can be very large, and used labels can be many.
+But two constraints make the label sets finite and fixed in advance:
+
+  - At each level and each construction, at most n K^2 histories
+    can appear "active" at once (n = |Y|, K a parameter of the
+    chronological roster, Section 13).
+  - A generous pool of size at most 4 n K^2 + 4 per level suffices:
+    reserve each active label, and choose a fresh label outside the
+    entire currently active set and the previous step's set.
+
+The pooled labels are FIXED in advance, independent of the metric
+size beyond n or of the horizon. This avoids the "the label set
+grows with each step" trap that would make the final bounds depend
+on horizon.
+
+10.7 The maps' cost.
+
+Define
+
+    P  :=  E sum_t sum_{a=1}^k
+              d_T( xi_{t-1}(X_{t-1}^a), xi_t(X_t^a) )
+
+where X_t^a is the position of the a-th hidden comparator server
+at time t. In words: P is the expected total distance moved by the
+comparator when we measure its motion on the TREE.
+
+The upshot of Section 13 (the partition construction) will be:
+
+    P   <=   C * ell * Q   +   D_part,
+
+where D_part is a finite constant independent of the input law and
+horizon. In other words, changing the partitions adds only a
+logarithmic factor per unit of comparator movement, plus a fixed
+initialization cost.
+
+10.8 What "fixed tree" buys us.
+
+Because T is fixed once the metric and the constants are chosen,
+subsequent tracking and allocation algorithms run on a FIXED
+combinatorial object. The only thing that changes with time is
+where the k comparator servers sit in the tree, and how the
+online map labels the points of the metric. The rest of the proof
+is entirely about the tree.
+
+There is no approximation-theoretic loss from T's distortion in
+the final bound. Rough intuition: P (movement on T) is exactly
+what the partition construction charges, and every step of the
+metric-to-tree passage is compensated by choosing the anchors so
+that they never move more than the ball sizes, which is what P
+already accounts for.
+
+------------------------------------------------------------------------
+11. THE ALLOCATION THEOREM: SHARING K UNITS UP THE TREE
+------------------------------------------------------------------------
+
+This is the technical heart of the paper. We solve a self-contained
+problem on the fixed tree T. The solution is one of the two
+logarithms in the final bound.
+
+11.1 The problem, stated cleanly.
+
+Run the hidden comparator on the tree T. At each time t there are k
+labeled hidden servers at k leaves, and one leaf x_t is the request
+(every hidden server's tree position is one of the k leaves; the
+request is the leaf of the current r_t under xi_t, i.e. the leaf of
+the labelled map at time t applied to r_t).
+
+N_v(t) = number of hidden servers at time t whose leaf is in the
+subtree rooted at v.
+m_v(t) = E[ N_v(t) | F_t ]. These are the "posterior expected
+subtree counts".
+
+Subtree counts have these properties, for every t and every
+internal vertex v:
+
+    m_root(t) = k,
+    m_v(t) = sum over children i of m_i(t),   for every internal v,
+    0 <= m_v(t) <= k,
+    at the request leaf x_t: m_{x_t}(t) >= 1,
+    m_v(t) is affine in the posterior,
+    sum over t of |m_v(t) - (filtered m_v)(t)| has a controlled sum.
+
+The last line is exactly the "rank drift bound"; Section 11.3
+spells it out.
+
+The allocation problem is to produce NONNEGATIVE REAL amounts q_v(t)
+satisfying, at every time t:
+
+    (A1)  q_root(t) = k.
+    (A2)  sum_{i child of v} q_i(t) <= q_v(t)       for every internal v.
+    (A3)  q_v(t) <= C_0 * m_v(t)                    for every v, some absolute C_0.
+    (A4)  q_{x_t}(t) >= 1.
+
+The first condition says all k "serving units" start at the root.
+The second says children get at most what the parent provides
+(leftover mass "parks" at v itself). The third says the allocation
+never exceeds a constant times what the shadow has. The fourth
+ensures the request leaf is servable.
+
+Additionally we want the ALLOCATION to move slowly, meaning: define
+
+    V  :=  E sum over t, over nonroot vertices v
+              r_{|v|-1} * | q_v(t) - q_v(t-1) | .
+
+We want V bounded by a small multiple of the comparator's motion on
+the tree, plus a fixed initialization constant. Precisely:
+
+    (A5)  V  <=  C_1 * ell * P  +  D_T,
+
+for absolute C_1 and a fixed finite D_T (depending only on the fixed
+tree, radii, and k; independent of the input law and horizon).
+
+The theorem claims you can produce such q_v(t) causally, using only
+the observed prefix (and the revealed posterior), starting from any
+initial allocation (no initial conditions are required).
+
+11.2 Why this is hard.
+
+Consider the naive rule: "Set q_v(t) = m_v(t) at every v." Then
+(A1)-(A4) hold (with C_0 = 1). But the movement V is E sum r |Delta
+m_v|, and that can be BIG by a factor of the number of levels: the
+posterior moves one unit across the entire tree, which cascades into
+changes of m_v at EVERY level. That's not what we want. In fact m_v
+is not "stable enough": a single unit moving from one leaf to another
+changes m_v on the entire path between them, at every scale.
+
+The repair is to introduce "slack". We allow q_v to be strictly less
+than m_v (a factor C_0 < infinity above) as long as it exceeds a
+LOWER BOUND L_v(t) which is a "rank function" of the posterior.
+The lower bound is chosen so that it tracks m_v, but in a way that
+changes slowly when m_v changes fast.
+
+11.3 Rank coordinates and their drift.
+
+For each vertex v and each threshold a in {1, 2, ..., k}, define:
+
+    p_{va}(t)   = Pr( N_v(t) < a  | F_t ).
+    p^-_{va}(t) = Pr( N_v(t-1) < a | F_t ).
+
+Then:
+    p_{va}(t)   is the "posterior probability that v's subtree
+                contains at most a-1 hidden servers".
+    p^-_{va}(t) is the "filtered" version: same count, but with the
+                pre-drift variable.
+
+The tower property gives
+    E[ p^-_{va}(t) | F_{t-1} ]   =   p_{va}(t-1).
+
+So the "drift" delta_t p_{va}  :=  p_{va}(t) - p^-_{va}(t) is the
+only thing a change of the hidden trajectory contributes to a rank
+coordinate at time t. The rest of |p_{va}(t) - p_{va}(t-1)| is a
+"filtering change" whose sum is zero in expectation.
+
+The local drift budget E_v at an internal vertex v is
+
+    E_v := E sum over t of [  sum_{i child of v} sum_a |delta_t p_{ia}|
+                            + sum_a |delta_t p_{va}|  ] .
+
+The paper proves a clean coupling inequality:
+
+    sum over internal vertices v of r_{|v|} E_v   <=   6 P.
+
+Here P is the comparator's tree-movement from Section 10.7. The
+reason: if one hidden server moves between two leaves whose last
+common ancestor is at depth j, its contribution to |delta_t p_{va}|
+is one on each of the two paths strictly below depth j. Weighted by
+r_{|v|} and summed over such vertices, that telescopes to at most
+6 r_j, which is exactly 6 times the comparator movement at that
+step. Sum over t and take expectations.
+
+Moral:  "rank coordinates in total drift at most 6 times the
+comparator's tree movement." This is the coupon we have to spend in
+later steps.
+
+11.4 The rank functions l^beta.
+
+For each parameter beta in [3, 3 + epsilon_*] (epsilon_* = 1/100),
+the paper constructs a function  l^beta : [0, 1] -> [0, 1]  with:
+
+  (RF1)  l^beta is CONVEX and NONINCREASING on [0, 1].
+  (RF2)  l^beta(p) = 1 - beta p  on [0, p_*]  (p_* = 1/24).
+  (RF3)  l^beta(p) > 0 on [0, s_*) with s_* = 5/8.
+  (RF4)  l^beta(p) = 0 on [s_*, 1].
+  (RF5)  l^beta is AFFINE and NONINCREASING in beta.
+  (RF6)  sqrt(l^beta) has a common absolute Lipschitz constant.
+  (RF7)  If g = -d/dbeta l^beta, then
+            (1/96) l^beta(p) <= g(p) <= l^beta(p)
+         on [p_*/4, 1].
+
+There is an EXPLICIT formula:
+
+    l^{3+z}(p)  =
+       1 - (3+z) p,                                    0 <= p <= p_*,
+       (s_* - p)^2 [ A_* - z (c_*' + d_*' (p - p_*)) ],
+                                                  p_* <= p <= s_*,
+       0,                                              s_* <= p <= 1,
+
+with A_* = 18/7, c_*' = 6/49, d_*' = 1152/343. All pieces meet
+with matching values and (first) derivatives at p_*.
+
+Two properties make this the right family:
+
+  - The pieces are convex quadratics on the middle interval, so
+    (RF1) holds.
+  - The parameter beta lets us stretch the function "down" at rate
+    proportional to beta. The derivative g controls HOW MUCH does
+    l^beta change when beta changes: it's exactly the slope in
+    beta. (RF7) says this slope is comparable to l^beta itself,
+    uniformly.
+
+Also now we have TWO families in play. Two "rank function" objects
+per vertex:
+
+    L_v^beta := sum_{a=1}^k l^beta(p_{va})
+    M_v      := sum_{a=1}^k l^{siz}(p_{va}),
+                l^{siz}(p) := (3/4 - p)_+^2 / (3/4)^2,
+
+where l^{siz} is the "size" function (a broader quadratic cutoff).
+Note L_v^beta and M_v are both sums of k terms, each in [0, 1],
+so both are in [0, k]. Also M_v is essentially a smooth "how mass
+distributed" measure at v.
+
+11.5 Superadditivity.
+
+Here is the key structural lemma. For any internal vertex v, its
+children i, and its rank function (either family), the following
+inequality holds WITHOUT assuming independence between children:
+
+    sum_{i child of v} L_i^beta  <=  L_v^beta,
+    sum_{i child of v} M_i       <=  M_v     <=  m_v.
+
+Why? Two facts:
+
+  - Convexity of l^beta and l^{siz}, plus an "increasing hinge"
+    majorization argument (Karamata's inequality applied to convex
+    hinges (b - p)_+): the sum of a convex function over child
+    rank probabilities is at most its value on the parent's rank
+    probabilities, adjusted by (d - 1)k padding ones for "missing"
+    children.
+  - m_v counts "how many servers are below v on average", and
+    M_v dominates m_v via l^{siz}(p) <= 1 - p (convexity + endpoint
+    values) and sum_a (1 - p_{va}) = m_v.
+
+So superadditivity says: the "budget" L_v^beta at a parent covers
+the sum of the L_i^beta at its children. Good.
+
+11.6 The parameter beta_v.
+
+Define for each vertex the parameter
+
+    beta_v  =  3 + (c_beta / ell) * log( k / max(M_v, c_*) ).
+
+Here c_beta > 0 is a small absolute constant, c_* = 10^-4. This is
+a "size-adapted" rank function parameter: when M_v is small (v's
+mass is spread out), beta_v becomes larger (function drops faster);
+when M_v is large (v's mass is concentrated), beta_v is closer to 3.
+
+Key facts about beta_v:
+
+    beta_v is in [3, 3 + epsilon_*/2].
+
+    In terms of the invariant (below),
+    "L_v^{beta_v} <= L_v^{beta_i}" whenever i is a child of v,
+    because M_i <= M_v implies beta_i >= beta_v, and l^beta is
+    decreasing in beta.
+
+Superadditivity plus the "beta_i >= beta_v" fact shows that the
+child lower bounds at their own beta_i are consistent with the
+parent bound at its beta_v. That's the "compatible lower bounds"
+property.
+
+The INVARIANT we will maintain:
+
+    (INV)  q_v(t)  >=  L_v^{beta_v(t)}    for every v at every t.
+
+Then:
+    q_root(t) >= L_root^{beta_root} = k (all ranks zero at root,
+                                         so L_root^beta = k).
+    q_{x_t}(t) >= L_{x_t}^{beta_{x_t}} >= 1 (leaf rank zero, so
+                                            rank function = 1).
+
+So (A1) and (A4) hold automatically from the invariant and the
+initial value q_root = k plus superadditivity. And (A3) requires
+q_v <= C_0 m_v; the theorem's choice of C_0 charges that separately
+via the M_v <= m_v domination.
+
+11.7 Core vs. noncore ranking.
+
+To make the rank functions move SLOWLY, we need some slack that
+does not depend on the exact current value of p_{va}. The paper
+introduces a binary classification of ranks:
+
+  - Use an "absolute threshold tracker" with threshold p_*/8 on
+    every rank value. Let the tracked value be the HELD reference;
+    refresh it only when the ACTUAL rank moves by more than p_*/8.
+  - A rank is called CORE if its held value is <= p_*/2.
+  - After an update: a core rank has p <= 5 p_*/8; a noncore rank
+    has p > 3 p_*/8. A rank with p < p_*/4 is always core.
+
+Effect on the rank function: core ranks lie in the LINEAR part
+l^beta(p) = 1 - beta p (affine in p, so affine in the posterior
+measure), so they are cheap to track. Noncore ranks are strictly
+above p_*/4 and lie in the quadratic middle, where l^beta changes
+smoothly with p.
+
+Let, at child i:
+    n_i       = number of current core ranks,
+    B_i       = sum of their current p values,
+    S         = sum_i B_i,
+    f_i^beta  = sum over noncore ranks of l^beta(p_{ia}).
+
+Then:
+    L_i^beta  =  n_i - beta B_i + f_i^beta,
+    n_i + sup_beta f_i^beta  <=  C M_i           for absolute C.
+
+The first identity decomposes the child lower bound into core count
+n_i, core sum B_i, and flex f_i^beta. The second bounds the total
+by a constant times M_i, using that a core rank contributes at
+least a fixed amount to M_i. Consequences:
+    if M_i <= 10 c_*, then n_i = 0 and L_i^beta = f_i^beta = 0.
+    if the core flags are held while ranks filter and drift,
+    B_i <= n_i^{old}.
+
+11.8 Coarse data: sizes, dominant marks, and gaps.
+
+We need to run a small "size tracker" at each child. Track
+M_i(t) with tolerance delta_s = 10^-3. Let hat M_i be the tracked
+value. Then introduce a_i(t), the "held size":
+
+  - INACTIVE (a_i = 0). Turn on when hat M_i >= 5 c_* (set a_i =
+    hat M_i). Turn off from active when hat M_i <= 2 c_*.
+  - ACTIVE. While active, hold a_i until factor 1+delta_s
+    comparison with hat M_i fails; then update a_i := hat M_i.
+
+The result:
+    0.9 M_i <= a_i <= 1.1 M_i   at active children,
+    M_i >= c_*                 if active,
+    M_i >= 10 c_*              implies active.
+
+Now pick a DOMINANT child if it exists: the index o such that
+a_o >= 0.85 A where A = sum_i a_i (the active total). It is unique.
+If no dominant child exists, all active children are "regular".
+
+The complexity: a dominant child makes the algebra awkward because
+its "gap" beta_o - beta_v might be small. Introduce these "epoch"
+notions. An epoch is a period during which:
+
+  - beta^+ (the tracked upper bound on beta_v) is constant,
+  - the dominant mark is constant,
+  - the cumulative l1 variation of the held size vector since the
+    epoch started is at most A_start / 100.
+
+At the start of each epoch we may reorganize; within an epoch the
+"shape" of the star stays stable.
+
+Also define:
+    h_i = 1 + max(0, log(A / a_i))     for regular i,
+    h_o = u := U / A                   for dominant o,
+    U   = side total (sum of a_i over non-dominant children),
+    A   = total active size.
+
+These h_i are the "gap weights". The parameter gap lemma shows, for
+absolute c_g > 0,
+    beta_i - beta_v  >=  (c_g h_i) / ell.
+
+So bigger "mass disparity" h_i gives more room to fit the child's
+lower bound under the parent.
+
+11.9 Fine caps.
+
+The static reduction is: figure out how much reduction is needed
+to fit the parent. We will remove "excess" = sum_i d_i - q_v from
+children via proportion vectors. For that we need caps d_i above the
+lower bound but not too loose.
+
+Caps d_i = n_i + b_i, with n_i the core count and b_i a "flex
+estimate" chosen so that:
+
+    f_i^{beta_i}  <=  b_i  <=  f_i^{beta_v}     for regular i,
+    T := f_o^{beta_v}  <=  b_o  <=  (1 + epsilon_b / ell) T
+                                                for dominant o,
+    c_D T <= D <= C_D T                          (D is the coarse
+                                                 flex estimate),
+
+where D is tracked separately (an old l^3 sum on noncore ranks of
+o) and epsilon_b > 0 is a small absolute constant. The caps are
+maintained by a relative tracker with tolerance rho / ell on every
+rank function value, interpolated in beta.
+
+Bound: |Delta d_i| in total across all children is at most
+C ell E_v + fixed, on non-wholesale steps. So the FINE TRACKING
+costs a factor ell but no extra potential slope.
+
+Important: the fine tracking is NOT fed back into the potential
+slopes. Otherwise we would get an extra ell. Keeping fine caps
+out of the proportion potentials is what makes only ONE ell appear
+per star (from coarse variation), not two.
+
+11.10 Removing excess: proportions.
+
+At the end of a star's local updates, before knowing the parent's
+current q_v, we have caps d_i, core count n_i, core sum B_i, total
+S = sum_i B_i, and D (dominant flex estimate). The required
+reduction is
+
+    R_0  :=  ( sum_i d_i  -  q_v )_+  >=  0.
+
+We will remove R_0 in proportions alpha_i:
+
+    q_i  :=  d_i  -  R_0 * alpha_i                     for all active i.
+
+Feasibility requirement: for each child i, the removed amount plus
+the parent's own lower bound must still meet the child lower bound
+L_i^{beta_i}. This translates to:
+
+    alpha_i  >=  0,
+    sum_i alpha_i  =  1,
+    S alpha_i  <=  (1 + eta_i) B_i     where eta_i := c_t h_i / ell,
+                                       c_t > 0 small absolute.
+
+The last inequality is a per-child upper bound. When S = 0, we have
+S alpha_i = 0 = B_i at every child, and the constraint is trivial.
+
+We want alpha_i to change SLOWLY when B and S change rapidly. That
+is what the simplex tracker is for.
+
+11.11 The simplex tracker (main case).
+
+The simplex tracker produces alpha^t+1 from alpha^t by a global
+minimization:
+
+    alpha^1  :=  argmin over alpha in the simplex
+                    { G^alpha(alpha; B_t)  +  S_t * ||alpha - alpha^0||_1 }
+
+where the primitive is a sum over coordinates:
+
+    g_i^alpha(a; B)  :=  C_alpha * ell *
+                          int_0^a   ( S - (1+eta_i) B_i / s )
+                                    /  F_i(log(1/s))         ds
+
+    for regular i, and
+
+    g_o^alpha(a; B)  :=  C_alpha * ell *
+                          int_1^a   ( S - (1+eta_o) B_o / s )
+                                    /  F_o(log(1/s))         ds
+
+    for dominant o.
+
+Here:
+    F_i(y) = (h_i + y)^2 / h_i                        for regular i,
+    F_o(y) = u + H y (1 + y),  H = 1 + log(1/u)        for dominant o.
+
+The denominators are checked to have the bound
+
+    int_0^\infty dy / F_i(y)  <=  C    uniformly in h_i, u,
+
+which is the only property we actually need.
+
+The lemma says: at a global minimizer alpha^1,
+
+    (feasibility) S alpha^1_i <= (1+eta_i) B_i for every child i,
+    (payment)     S ||alpha^1 - alpha^0||_1  <=  G^alpha(alpha^0; B)
+                                                -  G^alpha(alpha^1; B).
+
+Two intuitive points about the formula:
+
+  - If S alpha_i is too big (violating the feasibility constraint),
+    then d g_i^alpha / da > 0 at that coordinate, meaning the
+    potential DECREASES if we reduce alpha there. So pulling mass
+    to some coordinate paying 2S in movement cost is worth it.
+  - The integral is set up so that the "payoff rate" of reducing
+    alpha is at least 2S when infeasible, matching the l1 penalty
+    coefficient S. That is exactly why the payment works.
+
+The dominant coordinate's denominator F_o(y) = u + H y (1 + y)
+handles the near-dominant case. As u -> 0 (dominant child holds
+almost all mass), the integral is still bounded by an absolute
+constant. The base point 1 is chosen so that changing u is charged
+to the side sizes, not the dominant's mass.
+
+11.12 The side tracker (near-dominant case).
+
+Even with the simplex tracker, the simplex-based Rule I has to be
+abandoned when the dominant child nearly fills the parent. The
+reason: the ratio S / D (child-core total over dominant flex
+total) can be so small that the "error" e_o = b_o - f_o^{beta_v}
+cannot be paid by simplex proportions. So when S <= 2D, we switch
+to Rule II which is a DIFFERENT output rule based on side reductions.
+
+Side vector w: nonnegative entries indexed by side children,
+with sum_i w_i <= C_w for fixed absolute C_w. Two feasibility
+requirements:
+
+    D w_i  <=  (beta^+ + theta_i) B_i          always,
+    D w_i  >=  beta^+ B_i  -  theta_i z_i D    if S <= 2D,
+
+where theta_i = c_w h_i / ell and z_i = a_i / (A h_i). And a
+"side potential"
+
+    G^w(w; B, D) = sum_i g_i^w(w_i; B_i, D),
+
+    g_i^w(s; B_i, D) = C'_w * int_0^s
+                          (D s' - (beta^+ + theta_i/2) B_i
+                            + D theta_i z_i / 2)
+                       /  (theta_i (s' + z_i))       ds'.
+
+The side tracker's minimization is
+
+    w^1  :=  argmin over w in the side domain
+                { G^w(w; B, D)  +  D * ||w - w^0||_1 }.
+
+Lemma: at the minimizer, feasibility holds, and
+
+    D ||w^1 - w^0||_1  <=  G^w(w^0; B, D) - G^w(w^1; B, D).
+
+The proof is similar to the simplex tracker: any upper violation
+makes the potential's derivative positive (so decreasing is
+profitable); any lower violation (when S <= 2D) makes the derivative
+negative (so increasing is profitable).
+
+11.13 Rule I vs. Rule II (hysteresis).
+
+The output rule:
+
+  RULE I.  When S >= D/2.
+    q_i  :=  d_i  -  R_0 * alpha_i               for all i in I.
+
+  RULE II. When S <= 2D and there is a dominant child o.
+    q_i  :=  d_i  -  D * w_i                     for i != o,
+    q_o  :=  min{ d_o, q_v - sum_{i != o} q_i }.
+
+The two ranges overlap (D/2 <= S <= 2D), and the strategy uses
+HYSTERESIS: stay on the current rule until it leaves its range.
+
+Switching costs are controlled by a "switch potential":
+
+    Psi_v  =  D   if a dominant child exists and we are on Rule I,
+              S   if a dominant child exists and we are on Rule II,
+              0   otherwise.
+
+The analysis (coupled with the coarse budgets and the ball-mass
+telescope) gives a total expected switching cost of at most
+C ell E_v + a fixed constant. Same as everything else, no extra log.
+
+11.14 Feasibility.
+
+Combining everything, the outputs q_i are nonnegative, satisfy
+L_i^{beta_i} <= q_i <= d_i <= C M_i <= C m_i, and satisfy
+sum_i q_i <= q_v (because we removed R_0 from the cap sum, and
+each rule removes exactly R_0 or less).
+
+For the requested leaf: its m_v >= 1, and the leaf has exactly
+one member with p_{v, 1} = 0, so L_v^{beta_v} >= 1. By the
+invariant, q_x >= 1 at the request leaf.
+
+11.15 Assembling the movement bound.
+
+Local star movement:
+
+    E sum_t sum_{i child of v} |q_i(t) - q_i(t-1)|
+       <= C_par  E sum_t |q_v(t) - q_v(t-1)|  +  C ell E_v
+                                                +  D_v^{out}.
+
+The parent term at vertex v is NOT part of the "budget" but is
+recursively traced up. Multiply both sides by r_{|v|} and sum over
+internal vertices. The left side becomes V (the tree allocation
+movement). Each nonroot vertex appears once as a child. The
+parent-side term contributes weight r_{|v|} per (parent, child) pair,
+but total = sum over parents' own r-weighted parent-differences.
+Each parent term appears on the right side at depth |v|, so
+
+    V  <=  C_par / tau * V  +  C ell sum over internal v r_{|v|} E_v
+                            +  D_tree.
+
+Use  sum_v r_{|v|} E_v <= 6 P. Choose tau >= max(2, 2 C_par).
+Then:
+
+    V  <=  12 C ell P  +  2 D_tree,
+
+which is (A5) with C_1 = 12 C, D_T = 2 D_tree.
+
+Done. Note that this is exactly the ONE ell that comes from the
+allocation theorem. Section 13 will give another ell from the
+partition construction. Together they form ell^2.
+
+------------------------------------------------------------------------
+12. THE PILOT POTENTIAL: A BRAKE FOR CHANGING PARTITIONS
+------------------------------------------------------------------------
+
+We now build the second major tool: a potential that pays for
+"edits" of the label map and its associated structures. Two dozen
+lemmas in the paper rest on this potential. Here is the concept.
+
+12.1 The problem this solves.
+
+The labelled map xi_t (of Section 10) changes over time. Old labels
+are dropped, new labels appear, and their anchor points move. Each
+of these events can cause the tree allocation q_v (Section 11) to
+change too. In the worst case that is unbounded.
+
+We need a potential PHI such that:
+
+  (P1)  When a label-map update strictly improves the fit to the
+        posterior, PHI drops by at least some amount proportional
+        to the "ideal" size of the edit.
+
+  (P2)  PHI's INCREASES, on physical movement of the comparator,
+        are bounded by O(log k) times the movement magnitude,
+        summed over all scales.
+
+Property (P1) makes PHI a "credit line" for edits: decreasing PHI
+pays for making good edits. Property (P2) ensures the credit line
+grows slowly enough that the total credit spent is bounded by
+O(ell) times the comparator's own cost.
+
+Everything rests on a compact variational definition of PHI as a
+MINIMUM over "site patterns" z. The minimum makes PHI concave in
+the underlying measure, which is what makes filtering free (Section
+9.2).
+
+12.2 The "template".
+
+A "template" consists of three numbers:
+
+    sigma in (0, 1],     R >= 256,     L >= 0.
+
+From these, define the scales D_* = 10 R and D_1 = 100 R. These are
+"multiples of local radius" where transitions happen.
+
+Also, define three "bump" functions of a nonnegative scalar v
+(thought of as distance divided by local radius r):
+
+    b(v) = max(0, min(1, 2 - v/sigma)).
+
+       Reading: b(v) = 1 for v <= sigma, decreases linearly to 0
+       at v = 2 sigma, zero beyond. Width ~ 2 sigma. Lipschitz 1/sigma.
+
+    a(v) = min(v^2/sigma^2, 1)                for 0 <= v <= R,
+           2 - v/R                            for R <= v <= 2R,
+           0                                  for v >= 2R.
+
+       Reading: a(v) rises quadratically from v = 0 to v = sigma,
+       stays at 1 until v = R, decreases to 0 at v = 2R, zero
+       beyond. Lipschitz ~ 2/sigma.
+
+    G(v) = max(0, min(1, v/D_* - 1)).
+
+       Reading: G(v) = 0 for v <= D_*, rises linearly to 1 at
+       v = 2 D_*, stays at 1 beyond. Lipschitz 1/D_*.
+
+All distances are dimensionless, measured in units of the local
+radius r.
+
+12.3 "Sites" and their feasibility constraints.
+
+A "site vector" z is an assignment of nonnegative weights to points
+of Y. Write z_s for the weight at s.
+
+The site vector must lie in the feasible set Z_r, defined by:
+
+    z_s >= 0                              for every s,
+    sum_s (z_s - G_s(p))_+  <=  1         for every point p in Y,
+    d(s, s') >= 5 sigma r                 whenever z_s z_{s'} > 0.
+
+The second condition is the "capacity" one: at any point p, the
+LOCAL amount of s-weight (weight above the G cutoff) is at most 1.
+The idea is that locally, the total mass "nearby" any point p is at
+most 1, so a site pattern can use mass at most 1 in a neighbourhood.
+
+The third condition is "separation": any two sites with positive
+weight are at least 5 sigma r apart. This is a structural
+assumption that makes the surcharge construction work: the positive
+support of the b-bumps at two positive sites is DISJOINT.
+
+12.4 The integrand.
+
+Given a site vector z in Z_r and a function g : Y -> [0, 1] (the
+"edit indicator"), define the integrand at p:
+
+    F_z^g(p)  =  (1 + g(p)) * ( 1 - sum_s z_s b_s(p) )
+              +  256 * sum_s z_s * (1 + g(s)) * a_s(p).
+
+Here b_s(p) := b(d(s, p)/r), a_s(p) := a(d(s, p)/r), and similarly
+for G.
+
+What do the two terms represent?
+
+  - The residual term (1 - sum z_s b_s(p)) is "1 minus the amount
+    of b-mass installed near p". It is at least 0 and at most 1
+    (from the capacity constraint). This is the amount of "not yet
+    handled mass" at p.
+  - The surcharge term 256 * sum z_s (1+g(s)) a_s(p) charges
+    256 times (1 + g(s)) per unit of s-weight that a_s touches p.
+    It "punishes" sites that are not exactly at concentrations of
+    mass: if a site is at distance more than R r from a point with
+    significant mass, but less than 2R r (so a_s is still positive
+    there), the surcharge adds cost.
+
+The temptation to help at a concentrated point: a site at a point
+s = x with local mass >= 1. Then 1 - sum z_s b_s(x) can be near
+zero if z_x is near 1 (b_x(x) = 1). And the surcharge at x from its
+own site is 256 * z_x * (1+g(x)) * 1 = 256 z_x (1+g(x)), which is
+a fixed penalty per unit weight. So a site pattern near a concentrated
+point does improve the residual always, but the surcharge bounds
+how much.
+
+12.5 The potential.
+
+Define
+
+    L_r(mu, g)   :=   r * min_{z in Z_r}  int_Y F_z^g(p) dmu(p).
+
+This is the template's potential at scale r, for a measure mu and a
+"g" function. The factor r carries the scale dimension.
+
+Basic facts (Lemma "compactness, concavity, and uniform bounds"):
+
+  (L1) The minimum exists. Z_r is a closed subset of a compact
+       cube [0, 1]^Y, so the objective is continuous on a compact
+       set.
+
+  (L2) L_r is CONCAVE in mu. This is exactly why filtering only
+       decreases it in expectation. (Do NOT confuse: concavity of
+       the potential as a function of mu; the feasible set Z_r is
+       NOT convex, so the argument does NOT use convexity of Z_r.)
+
+  (L3) 0 <= L_r(mu, g) <= 2 r mu(Y).
+       The upper bound is by taking z = 0. The lower bound is
+       obvious since F >= 0.
+
+  (L4) Every feasible integrand satisfies
+           0 <= F_z^g <= 514,    r Lip(F_z^g) <= L + 1026/sigma.
+       The "514" comes from (1 + 1) + 256 + 256, but with constants
+       stripped it is 514 = 2 + 512.
+
+  (L5) The positive support of the b_s's at two distinct positive
+       sites is DISJOINT. (Follows from the separation condition.)
+
+The 514 is a big constant. It is not small, but "a fixed absolute
+constant" is all the argument needs. It reappears everywhere.
+
+12.6 The local structure lemma.
+
+The crucial property of L_r is that, at a concentrated request, it
+has a "near site" and a small positive slope. The paper states this
+cleanly. Let me recast it as a story.
+
+Fix a request x, a template, and small constants
+    gamma <= min{sigma/64, 1/(1+L)},    delta <= 1/4112.
+These are "concentration" thresholds. Let mu be a nonnegative
+measure, M := mu(B(x, gamma r)) > 0 the mass in a small inner ball
+around x. Define:
+
+    h  =  mu(B(x, D_1 r) \ B(x, gamma r)) / M
+
+      "shell ratio": how much more mass sits in the annulus between
+      the small inner ball and the wider D_1 r ball. If h = 0, all
+      mass is concentrated in the inner ball. If h >= 1, the
+      concentration is not strong.
+
+    t  =  (1/M) * int_B(x, gamma r) d(x, p)/r dmu(p)
+
+      "inner moment": the average distance to x (normalized by r)
+      of the inner ball's mass. If t = 0, all inner mass sits at x.
+
+Both h and t are nonnegative and can be small without any of them
+being zero.
+
+Lemma (local structure). If h <= delta, and z is any minimizer of
+the potential at scale r, then:
+
+  (A) Any site s with sigma r/4 <= d(s, x) <= R r/2 has z_s = 0.
+      (Sites strictly in the middle distance shell are excluded.)
+
+  (B) There is a UNIQUE positive site s with d(s, x) < sigma r/4.
+      Its weight z_s and normalized displacement w = d(s, x)/r
+      satisfy
+          z_s >= 3/4,
+          1 - z_s <= (512 gamma / sigma^2) t + 514 h,
+          w <= (5 + L) (h + t).
+
+  (C) If d(x, y) < sigma r/8, then the "positive slope" bound
+          [F_z^g(x) - F_z^g(y)]_+ <= C_loc (h+t) d(x,y)/r
+      holds, where C_loc is an explicit absolute constant like
+          (L + 1024/sigma)(514 + 8/sigma) + 1024(5+L)/sigma^2.
+      Roughly, at a concentrated point, the integrand can only
+      change by O(h+t) per unit of distance.
+
+Rough conceptual proof:
+
+  (A) A site in the middle shell would have a_s ~ 1 on the whole
+      inner ball (distance at least sigma/4 from a centre where the
+      a bump would peak, still well within a's heavy-support
+      region). So it would pay surcharge of about 256 * mu(inner)
+      but save the residual of at most 2 * mu(inner). Net cost
+      positive => cannot beat z = 0 on that coefficient.
+
+  (B) If we wiped the ball B(x, 5 D_* r) and placed a unit site
+      at x, then the mass in the inner ball (mass M) would witness:
+      old integrand >= 1 - Znew (because the old sites are all
+      outside, so residual there is 1 minus the one near-site
+      weight which is at most Znew). New integrand <= 512 t^2/sigma^2
+      there. Bounding the rest gives the weight deficit.
+
+  (C) Once you have (B), you move the near site from s to x by
+      paying relocation cost: the b bump is 1 at both, the a bump
+      moves from u^2/sigma^2 to v^2/sigma^2, surcharge change is
+      controlled by |w^2 - u^2| <= 2w|w-u|, applied pointwise. The
+      resulting positive-part bound is exactly C_loc(h+t) * d(x,y)/r.
+
+12.7 The drift bound.
+
+This is the potential's key feature. At each scale r_j, we have a
+g-function g_j (fixed for the step) and a measure update
+mu^- -> mu^+ = mu^- - nu + delta_x. We want:
+
+    sum over j of [ L_{r_j}(mu^+, g_j) - L_{r_j}(mu^-, g_j) ]_+
+        <= C_dr * ell * e_x.
+
+Where e_x = int d(x,y) dnu(y) is the expected mover distance.
+
+Sketch of the proof:
+
+  - For each scale, evaluate the new minimum at the OLD minimizer
+    z^(j). Then
+
+        L_{r_j}(mu^+, g_j) - L_{r_j}(mu^-, g_j)
+             <= r_j * int (F_j(x) - F_j(y)) dnu(y).
+
+    (Because the minimum at mu^+ is at most its value at z^(j),
+    and by linearity the difference is the integral of the difference.)
+    Take the positive part.
+
+  - At "small" scales, use F <= 514 always:
+        r_j < 2 e_x / gamma  =>  contribution <= 514 * sum r_j,
+        which sums to ~ (2056/gamma) e_x.
+
+  - At "large" scales, use inner mass >= 1/2:
+        M_j := mu^-(B(x, gamma r_j)) >= nu(B(x, gamma r_j)) >= 1 - e_x/(gamma r_j) >= 1/2.
+
+    Then Lemma pilot-local applies: either the scale is "good"
+    (h_j <= delta), in which case C_loc*(h_j + t_j) is small at
+    nearby points; or it is "bad" (h_j > delta), in which case only
+    Lambda e_x is paid at that scale.
+
+  - Sum over good scales uses TWO telescopes:
+        sum_j min{1, h_j} <= (p_0/log 2) log(2k)     (ball-mass telescope)
+        sum_j t_j         <= 2 gamma (1 + log(2k))   (moment telescope)
+    Both give ell-sized sums.
+
+  - Sum over bad scales: number of bad scales is
+        <= p_0 log(2 k) / (delta log 2) = O(ell).
+    Each bad scale contributes at most Lambda e_x. So total bad
+    contribution is O(ell) * e_x.
+
+  - Sum over far scales (where d(x,y) >= sigma r_j/8) can be
+    bounded geometrically: sum over such r_j of 514 r_j <=
+    (8224/sigma) d(x,y). Integrating against nu gives
+    (8224/sigma) e_x.
+
+  Combined:
+    C_dr = 2056/gamma + 8224/sigma + 2 Lambda p_0/(delta log 2)
+           + 2 C_loc (p_0/log 2 + 2 gamma).
+
+The headline: sum over ALL J scales of the positive drift is
+O(ell) * e_x. No log(J) factor. The number of levels NEVER
+appears. That is the beauty of the local concentration argument.
+
+12.8 The telescoping corollary.
+
+Here is how you actually USE the potential. Consider a family of
+templates indexed by some alpha, each with a nonnegative "weight"
+omega_alpha. Assumption:
+
+    A := sum_alpha omega_alpha < infinity,
+    B := sum_alpha omega_alpha C_dr_alpha < infinity.
+
+At each time step:
+
+  1. Reveal the new request. Do FILTERING with the OLD g-functions
+     (one per template). By concavity, the expected total potential
+     does NOT increase.
+
+  2. DRIFT to the new posterior. By the drift bound, the total
+     potential increases by at most B * ell * e_x.
+
+  3. EDIT: update the label maps and their associated g-functions.
+     Suppose the total potential DROPS by at least a charge c_t
+     (where c_t = 0 on steps without an edit).
+
+Then:
+
+    E sum over all t of c_t
+        <= B * ell * Q  +  sum_alpha 0.5 * (initial potential)
+
+    and the trailing term is <= 2 k A sum_j r_j  =  O(k A r_0 / (tau-1)).
+
+Two important sub-points:
+
+  - Filtering is summed over ALL steps, before any conditional
+    selection of edits. This is why we can bound expectation of
+    c_t unconditionally: no event-dependent conditioning.
+
+  - The COUNTABLY INFINITE index set alpha is allowed (for
+    example, alpha ranging over all tiers h = 1, 2, 4, ...), as
+    long as the weights are summable and the drift constants are
+    summable. This is essential for handling infinitely many tiers
+    with a fixed bound.
+
+12.9 Paying for an edit specifically.
+
+To apply this in a concrete structure, one checks the EDIT HYPOTHESIS:
+
+    L_r(mu^+, g_old) - L_r(mu^+, g_new) >= (desired charge).
+
+The paper uses the trick: if z is the OLD minimizer at the NEW
+measure mu^+, then
+
+    L_r(mu^+, g_old) - L_r(mu^+, g_new)
+       >= r * int (F_z^{g_old} - F_z^{g_new}) dmu^+.
+
+So we just need to LOWER-BOUND how much the old z "improves" when
+we pass from g_old to g_new. Which is exactly what the concrete
+edit structures show.
+
+12.10 Why the local structure lemma matters.
+
+You might wonder what forces the potential to have SMALL drift
+rather than paying 514 * e_x per scale. The answer: at good
+scales (small shell ratio h and small inner moment t), the near
+site sits very close to the request. Moving the request by d(x,y)
+moves the near site by at most d(x,y), which costs at most
+O(h+t) d(x,y)/r per unit of scaling factor r, and after multiplying
+by r the drift is O(h+t) * d(x,y).
+
+The sum over good scales of O(h+t) d(x,y) is O(ell) d(x,y) by the
+two telescopes.
+
+At bad scales we pay O(ell) e_x once, and the number of bad scales
+is O(ell).
+
+Everything telescopes neatly. That's the whole point.
+
+------------------------------------------------------------------------
+13. ONLINE PARTITIONS: HEAVY BALLS AND CHRONOLOGICAL ROSTERS
+------------------------------------------------------------------------
+
+Fix the pilot template with concrete constants. We will use TWO
+templates in this section: a "heavy" template (coarse sub-structure)
+and a "tier" template (fine sub-structure). The drift corollary
+of Section 12.8 is applied to each template separately, giving
+each template its own absolute drift constant C_dr.
+
+The goal of Section 13 is to construct the labelled maps
+xi_t : Y -> (A_1 x ... x A_J) and prove:
+
+    P  <=  C ell Q  +  D_part,
+
+where P is the tree-comparator movement. Recall from Section 10.7
+that P is E sum_t sum_a d_T(xi_{t-1}(X_{t-1}^a), xi_t(X_t^a)).
+
+13.1 The structures, top-down.
+
+The full map xi_t is built by stacking THREE sub-structures at each
+level j, with precedence from top to bottom:
+
+  1. HEAVY STRUCTURE. A set H_t^j of "heavy balls" at level j.
+     Any point in a heavy ball gets that ball's label.
+  2. TIER STRUCTURE. For each tier h in {1, 2, 4, ..., 2^b}, a
+     set of ball centers with radii from [r_j, 2 r_j], with
+     retirement lifetimes. A point not in any heavy ball gets the
+     label of its earliest-present covering tier ball.
+  3. SINGLETON. If neither covers the point, the point gets a
+     singleton label.
+
+Heavy has precedence over every tier. A tier with smaller h has
+precedence over a tier with larger h. This is the "when in doubt,
+small h is more important" priority.
+
+Both structures use the LOCAL posterior mass mu^+ at the request x.
+They are driven only by qualification conditions and chronological
+age. They never inspect the request stream's future.
+
+13.2 Heavy structure.
+
+Fix the heavy template: sigma = 1, R = 512, L = 1, so D_H = D_1 =
+100 R = 51200. Choose gamma_H in (0, 1/100) and delta_H in
+(0, 1/100) sufficiently small to satisfy the local structure lemma
+concentration requirements.
+
+A request x at scale r is called HEAVY at scale r if
+
+    mu^+(B(x, D_H r))  <=  (1 + delta_H) mu^+(B(x, gamma_H r)).
+
+Intuition: the mass in a small ball around x captures almost all
+mass in a much bigger ball around x. So the mass is very
+concentrated at x.
+
+At every step, process the following. The current request x is at
+some scale r = r_j.
+
+  1. If x is heavy AND the current heavy-center set H has no center
+     within 8 r of x: remove all centers within 100 r of x, then
+     insert x. The new center gets a fresh independent random
+     radius U ~ Uniform[16 r, 20 r], held until eventual removal.
+
+  2. If x is heavy AND some center is already within 8 r of x: do
+     not insert.
+
+  3. If x is not heavy: do not look at the heavy structure.
+
+The invariant: heavy centers are pairwise at distance > 100 r.
+(An insertion removes all within 100 r, and new one is at distance
+> 8 r > 100 r - 16 r from any neighbor after insertion.)
+
+For each level j, define the g-function that will be used in the
+pilot potential:
+
+    g_Hj(p)  =  rho_H( d(p, H_j) / r_j ),
+
+where rho_H is a clamped ramp increasing from 0 to 1 on [3, 4]. It
+detects centers within 3 r to 4 r. At a heavy update, the potential
+drop is at least 127 r mu^+(E_x(r)), where E_x(r) is the annulus
+(3 r, 120 r] around x. That pays for the update. So the total
+EXPECTED edit cost for heavy updates at level j is bounded by
+C ell Q + D_H'.
+
+13.3 Roster structure.
+
+For each level j and each tier h in H_k = {1, 2, 4, ..., 2^b},
+maintain a chronological roster: a growing list of insertion events.
+Each entry has:
+  - A center c (where it was inserted).
+  - An AGE (number of subsequent insertions of the same level-tier
+    whose center is within 20 r of c).
+  - A LIFETIME (random, described below).
+  - A RADIUS V drawn from [r, 2 r] with a specific density.
+
+Set K_h = ceil(e^{C_K h}) for an absolute constant C_K chosen
+large enough that, for every h >= 1, the two inequalities
+e^{-K_h / 2} <= (c/2) e^{-h} and e^{-K_h} <= (c/2) e^{-2h}
+hold simultaneously, where c > 0 is a fixed small absolute
+constant. The point is that tier-h retirement probabilities
+fall off fast enough in h that the two telescoping payments of
+Section 13.5 work uniformly over every h.
+
+A request x QUALIFIES in tier h at level j if
+
+    mu^+(B(x, D_L r_j))  <=  e^h  mu^+(B(x, gamma_L r_j)),
+
+where gamma_L < 1/100 is small (and D_L = 100 R = 400 D_H tier
+template constants). Higher h means WEAKER concentration threshold
+(more permissive). Tier 2^b (the last) always qualifies.
+
+INSERTION RULE. Insert x into tier h at level j if x qualifies
+and there is no existing entry of CURRENT AGE < K_h within r/2
+of x. If there is such an entry, do nothing (the "parent" already
+handles that neighbourhood).
+
+Note: age is measured purely CHRONOLOGICALLY (by counting later
+insertions), not randomly. It is deterministic given the request
+stream and the insertion schedule.
+
+RETIREMENT. An entry is DETERMINISTICALLY PRESENT at ages 0, 1,
+..., K_h - 1. At each subsequent age K_h, K_h + 1, ..., K_h^2 - 1,
+the entry RETIRES with fresh independent probability 1/K_h. At age
+K_h^2 it RETIRES COMPULSORILY.
+
+RADIUS. Each entry draws V from [r, 2 r] with density
+
+    f(v)  =  (lambda / r) * e^{-lambda (v/r - 1)} / (1 - e^{-lambda}),   r <= v <= 2 r,
+
+where lambda = log(1 + K_h^2). (This is roughly an exponential tilted
+toward r, with tail scale r / lambda.) All draws independent.
+
+THE KEY: because the insertion rule depends only on AGES (not on
+whether prior entries have retired), the insertion schedule is
+DETERMINISTIC given the request stream, and radii are independent.
+This is what makes the probability arguments in Section 13.4 work.
+
+13.4 The first-hit lemma.
+
+Now comes the probability estimate we need for separation. Fix a
+level j, a tier h, and two points x, y with d(x, y) = d << r.
+Consider the earliest present covering ball of either point in the
+tier's roster. Let
+
+    BAD = "the earliest present ball covers one of x, y but not
+          the other"
+
+(In other words, it SEPARATES x and y.)
+
+Then:  Pr(BAD)  <=  C h d / r.
+
+Where C is a fixed absolute constant and expectations are over the
+STRICTLY INDEPENDENT random radii.
+
+The proof is elegant: for a fixed center c with distances
+   a = min{ d(c, x), d(c, y) }
+   and given that a single present ball is "first", the two
+   distances differ by at most d. The ball separates x from y
+   only if V lies in a small window of width d, which under the
+   density f has probability at most
+
+       (2 lambda d / r) * (p_a + 1/(e^lambda - 1))
+
+   where p_a is the tail probability Pr(V >= a). Multiply by the
+   probability that all earlier balls MISS both points, sum over
+   the possible candidates (at most K_h^2 of them, by Lemma roster-
+   count), and use sum_i q_i p_{a_i} <= 1 (probability that SOME
+   higher ball hits one of the points is at most 1).
+
+The total is at most 2 lambda d / r. And lambda = log(1 + K_h^2) is
+at most C h (since C_K is fixed). So Pr(BAD) <= C h d / r.
+
+13.5 The two telescopes for the rosters.
+
+The map xi_t looks at heavy first, then at the earliest covering
+tier ball. Two "cost" quantities that we need to bound:
+
+  (i) PHYSICAL MOVEMENT. Each request x is compared to the previous
+      request y (the previous hidden comparator position of the
+      SAME label). We pay d(x, y) when a tier ball fires at one
+      point but not the other. Total contribution:
+
+           sum over levels j and tiers h <= h_*(j)
+             of R_j * Pr(BAD)  <=  R_j * C h_j d / r_j
+                                 = C d * h_*(j).
+
+      Where h_*(j) is the first qualifying tier level. Wait, but
+      we must sum across tiers. The set of queried tiers at a
+      level is those where the point QUALIFIES. That gives a
+      bound of the form
+             sum over these h of h * d / r_j
+           = O( (1 + h_*(j)) * log(2) ) * d / r_j
+           = O( h_*(j) ) * d / r_j.
+
+      Where h_*(j) is roughly log of mass ratio at level j.
+
+  (ii) INSERTIONS. Each insertion into tier h at level j costs
+       O(r_j / K_h) times its "W mass" (see next) and we want to
+       sum these. The "W mass" is defined as
+
+           W_{t,j,h} = mu^+(B(x, D_L r_j))  if nonheavy,
+                       mu^+(annulus gamma_H r_j < d(p,x) <= D_H r_j)  if heavy.
+
+       So the insertion charge is r_j * W_{t,j,h} / K_h. Bounding
+       sum over insertions of this by C ell Q + fixed is what the
+       auxiliary short roster below is for.
+
+13.6 Short roster - paid by the pilot potential.
+
+The insertion charges are paid as follows. For each level j and
+tier h, we build an "auxiliary" roster with the SAME deterministic
+insertion schedule but different random lifetimes:
+
+    - An entry is present at age 0.
+    - At each subsequent age increment up to age K_h, it retires
+      with fresh probability 1 / sqrt(K_h).
+    - At age K_h it retires compulsorily.
+
+The auxiliary roster's function is
+
+    g(p)  =  E_auxiliary [ rho_L( d(p, S) / r ) ],
+
+where rho_L is a clamped ramp on [1/8, 1/4] and S is the current
+set of surviving auxiliary centers. This is the EXPECTED version of
+a ramp. Note: the auxiliary roster's g function is DETERMINISTIC
+given the request stream, because the auxiliary lifetimes are
+averaged out.
+
+BOUND on retirement effect: at any p, an increase in g can only
+happen if the old nearest auxiliary center retires. Retirement
+probability per age increment is at most 1/sqrt(K_h), and the
+number of possible compulsory retirements over a neighbourhood is
+at most K_h (by the roster count lemma). So
+
+    Pr(old nearest retires) <= K_h^{-1/2} + K_h (1 - K_h^{-1/2})^{K_h - 1}
+                              <= C / sqrt(K_h).
+
+Positive support of g-changes is contained in
+B(x, 21 r) \ B(x, r/8) - within the shell.
+
+AT INSERTION: the positive change of g at x is 1 (it was 1 before
+the insertion in the ball B(x, r/8), and the new entry covers x at
+any radius in [r, 2r], making g(x) = 0). So the g function "drops"
+at x during the insertion. That drop drives the pilot potential's
+decrease.
+
+Let z be the OLD minimizer of the pilot potential at the new
+measure mu^+. The pilot drop when we edit g_old -> g_new is at
+least r * int (F_z^{g_old} - F_z^{g_new}) dmu^+. The paper
+estimates this from below as (c e^{-h} - C/sqrt(K_h)) r W.
+
+With K_h = ceil(e^{C_K h}) and C_K large enough, the C/sqrt(K_h)
+error is absorbed by the c e^{-h} leading term The final inequality:
+r W / K_h <= e^{-h} * (pilot potential drop).
+
+So the pilot potential provides at least r W / K_h of drop per
+insertion. By Corollary 12.8 (with weights e^{-h} on all tiers,
+which are summable), this gives
+
+    E sum over all insertions of r_j W_{t,j,h} / K_h
+        <= (weighted template drift) ell Q + fixed
+        = C ell Q + D_ins.
+
+13.7 Two structures combined.
+
+Combining the heavy-edit budget (C ell Q + fixed) and the roster
+edit budget (C ell Q + fixed), and adding the physical-motion
+budget from the two structure's separation estimates (C ell * Q
+via the scale sum), we get:
+
+    P  <=  C ell Q  +  D_part.
+
+This is the statement we needed to plug into Section 11's
+allocation theorem. The whole partition construction is thus
+budgeted with a SINGLE factor of ell above the offline optimum Q,
+plus a fixed initialization term.
+
+Note: the "log number of levels" trap is avoided by the ball-mass
+telescope (Section 9.6), applied to the ratios of inner-to-outer
+masses at each scale.
+
+------------------------------------------------------------------------
+14. PARKED MASS AND MOVING ANCHORS: PAYING FOR REUSED LABELS
+------------------------------------------------------------------------
+
+The allocation theorem gives us real masses q_v on tree vertices.
+Section 15 will round to integers. Before that, we need to solve a
+DIFFERENT problem: the masses are represented in the true metric by
+ANCHORS (one anchor per active tree vertex). When a tree vertex
+retains its label from step to step but its anchor moves - because
+of heavy-ball reuse - the "parked mass" at that vertex must be
+"carried" to the new anchor. We must pay for that.
+
+14.1 Parked mass.
+
+Recall the allocation: q_v is the mass at vertex v, with
+q_root = k and sum_children q_i <= q_v. The "parked mass" at v:
+
+    p_{t,v}^circ  :=  q_{t,v}  -  sum_{i child of v} q_{t,i}.
+
+The mass that is "redistributed to children's subtrees" plus the
+"parked at v itself" equals q_v. At leaves there are no children,
+so p_{t,leaf}^circ = q_{t,leaf}. The whole subtree sums to q_v:
+
+    sum over w descendant of v of p_{t,w}^circ = q_{t,v},
+    sum over all v of p_{t,v}^circ = k.
+
+14.2 Variation of parked masses.
+
+By taking differences and using the triangle inequality (a short
+computation), one gets
+
+    sum_v r_{|v|} |Delta p_v^circ|  <=  (1 + 1/tau) V,
+
+where V is E sum_t sum_{v != root} r_{|v|-1} |Delta q_v|. So if
+the q_v's move by V, the parked masses move by at most (1+1/tau) V.
+No extra factor.
+
+14.3 Validity witnesses.
+
+If q_{t,v} > 0, then p_{t,v'}^circ > 0 for some descendant v' of v.
+In particular, some point of Y has a leaf below v (so its complete
+word has prefix v). Call such a point a "witness". Also, by the
+fixed-alphabet property (Section 10.5), every witness for v is
+within 20 r_{|v|} of v's last key's anchor.
+
+14.4 Anchor travel cost.
+
+We need to pay for anchor MOVEMENT when a retaining key survives
+but its anchor changes. Precisely, per fixed heavy label slot
+lambda at level j, define:
+
+    b_{t,j,lambda}  =  sum over depth-j vertices v whose last key
+                       is lambda of p_{t,v}^circ.
+
+    M_{t,j,lambda}  =  mu_t(C_{t,j,lambda})   (label region mass).
+
+Also define the retention condition:
+
+    E_{t,j,lambda} = "label lambda is present at BOTH times t-1
+                      and t, and its anchor moved."
+
+The total anchor travel cost is
+
+    T_anchor  :=  E sum_{t, j, lambda} r_j b_{t,j,lambda} 1_{E_{t,j,lambda}}.
+
+Note: the factor r_j times b is the "mass times tree-radius"
+quantity that pricing an anchor move at scale r_j requires. By the
+fixed-alphabet property (Section 10.5), an anchor move is by at
+most 40 r_j. So actual displacement in the metric is at most
+40 T_anchor.
+
+14.5 What we want.
+
+Proposition (retained-anchor travel). There is an absolute C and a
+finite D_anchor, both independent of the input law and horizon,
+such that
+
+    T_anchor  <=  C (V + ell P + ell Q)  +  D_anchor.
+
+This is the last piece before rounding. Combined with V <= C ell P
++ D_T and P <= C ell Q + D_part, it becomes
+
+    T_anchor  <=  C ell^2 Q  +  D_anchor',
+
+which is exactly the needed order.
+
+14.6 The size tracker.
+
+To pay for anchor movement we need a "per-key normalization" that
+stays roughly constant while the underlying key's posterior size
+evolves. Fix a heavy label slot lambda at level j. Define
+
+    s_{t,j,lambda}  :=  1 + M_{t,j,lambda},
+
+a positive number in [1, k + 1]. Track it by a held reference
+mhat_{t,j,lambda} in [1, k+1]: refresh when a factor rho = 6/5
+comparison with the actual s fails. The reference runs all the time,
+even while the label is absent, and recycled labels do NOT restart
+the tracker. This is essential: no new initialization allowance can
+be charged when a label reappears.
+
+The lemma: the total expected refresh cost satisfies
+
+    E sum_{t,j,lambda} r_j (mhat_{t-1} + mhat_{t}) 1_{refresh}
+       <=  C ell P  +  D_size.
+
+The proof uses an entropy trick: the affine tangent of
+f(s) = -s log s at u is T_u(s) = u - (1 + log u) s, and the
+"return" from u to s at a refresh is
+
+    T_u(s) - T_s(s)  >=  (s + u) / 144,
+
+because the refresh condition implies |s - u| >= (1 - 1/rho)
+max(s,u). Then the input contribution to the tangent sum is
+O(ell P) via the key-count drift of Section 10.5. And the endpoint
+values of the tangent sum are bounded by (k+1)(1+ell) times the
+finite number of label slots. So the total refresh charge is
+C ell P + D_size.
+
+14.7 The pointwise coefficient bound.
+
+Anchor travel is charged via a potential with COEFFICIENT
+b_{t,j,lambda} / mhat_{t,j,lambda}. We need this coefficient to be
+summable over scales. The following lemma does it, using both ball
+masses in the metric.
+
+Lemma (pointwise parked coefficients). Fix a completed fractional
+state (a specific time t) and any y in Y. Let, at each level j with
+a heavy center within 7 r_j of y, lambda_j be its (unique) label.
+Then
+
+    sum over selected j of  b_{j, lambda_j} / mhat_{j, lambda_j}  <=  C ell.
+
+Where "selected" means "a heavy center within 7 r_j of y".
+
+Idea of proof. At a selected level, the heavy ball (radius >= 16 r_j)
+contains B(y, r_j), so mhat_j >= (1 + mu(B(y, r_j))) / rho, which
+gives a lower bound on the denominator. At the numerator side, use:
+
+    sum over selected i >= j of b_i  <=  C_0 mu(B(y, 67 r_j)),
+
+because for each i, all witnesses lie within 27 r_i <= 27 r_j of y,
+and their subtrees have prefix-masses in a set of disjoint depth-j
+cells, all within B(y, 67 r_j).
+
+Then the ratio b_j / mhat_j is bounded by
+
+    (mu(B(y, 67 r_j)) - previous) / (1 + mu(B(y, r_j))).
+
+Summing this over j is exactly a "ball mass ratio" sum, and the
+ball-mass telescope (Section 9.6) bounds it by O(ell). The paper
+organizes the details into a dyadic partition of the levels by A_j /
+B_j magnitudes. Result: at most 1 + log_2(k+1) dyadic groups, each
+contributing at most C.
+
+Consequence: the total coefficient of a point-wise normalized
+potential grows only like ell across scales. That is why anchor
+travel can be paid by O(V + ell P + ell Q), without a log(J) factor.
+
+14.8 The anchor travel potential.
+
+Define, at each completed state,
+
+    Phi_t  :=  sum_{j, lambda} r_j ( b_{t,j,lambda} / mhat_{t,j,lambda} )
+                 * int_{C_{t,j,lambda}} kappa( d(a_{t,j,lambda}, z) / r_j ) dmu_t(z),
+
+where kappa is a clamped ramp:
+
+    kappa(u)  =  0                     for u <= 4,
+                 (u - 4) / 3           for 4 <= u <= 7,
+                 1                     for u >= 7.
+
+Interpretation: at each heavy label, we integrate mu (the posterior
+counting measure) over its region C, weighted by a normalized ramp
+that is 0 near the anchor and 1 for points far from it (>= 7 r_j
+away). The pre-factor b / mhat normalizes by the "current size" of
+the key.
+
+Bound on Phi: since 0 <= kappa <= 1 and |int| <= M <= mhat, we have
+0 <= Phi <= sum r_j b_j <= k r_0 (using that sum of parks over all
+vertices is k and each park at depth j has radius r_j <= r_0).
+
+14.9 Decomposing the change of Phi.
+
+The change Phi_{t-1} -> Phi_t is decomposed in five sub-steps,
+each handled separately:
+
+  1. FILTERING (old parameters held): by concavity, the expected
+     change is at most 0.
+
+  2. DRIFT (physical movement, still at old anchor, old reference,
+     old park). If the level key changes, we pay at most C r_j by
+     |b / mhat| <= C_0 and 0 <= kappa <= 1. Summing over the key
+     disagreement stops per member and over all members gives CP
+     in expectation. If the key is UNCHANGED, only one hidden
+     mover moves, and the pointwise coefficient bound (14.7)
+     charges its small physical movement to at most C ell e_x per
+     step. Total ell Q.
+
+  3. REFRESH size references. When the reference changes r_j b I
+     (1/s - 1/u), the positive part (only when s < u) is at most
+     r_j b^{old} <= rho C_0 u times (1/mhat_old before change).
+     This is at most a constant times the refresh charge, i.e.
+     C ell P + D_size.
+
+  4. UPDATE park amounts. |Delta b| charged by park variation
+     (14.2): rho (1 + 1/tau) V.
+
+  5. UPDATE anchors. A freshly present key had b^{old} = 0, so its
+     new anchor contribution is rho r_j b^{new} = rho r_j |Delta b|,
+     again part of the park variation budget. A retained-and-moved
+     heavy anchor: at a heavy update, the concentration condition
+     gives a strong inner-mass comparison, and the potential
+     DECREASES by at least (1/4) r_j b^{new}_{j,lambda}. THIS is
+     the payment for the specific event we care about.
+
+The last line is the crux. Let's see the details:
+
+At a retained-and-moved heavy label at scale r = r_j:
+- The new anchor a_new = x (request).
+- Old anchor a_old has d(a_old, x) > 8 r.
+- Inner ball B(x, gamma_H r) has mu^+ mass H >= 1 (comparator
+  covers x).
+- New heavy-ball mass satisfies mu^+(C) in [H, (1+delta_H) H].
+- New size tracker mhat_new <= rho (1 + mu^+(C)) <= rho (2 + delta_H) H.
+- Old ramp kappa(d(a_old, z)/r): for z in B(x, gamma_H r), the
+  distance d(a_old, z) > (8 - gamma_H) r > 7 r, so kappa = 1.
+- New ramp kappa(d(x, z)/r): for z in B(x, gamma_H r), d(x, z) <=
+  gamma_H r < 4 r, so kappa = 0.
+- Change in the ramp at z: -1.
+- Extra mass outside the inner ball but inside C contributes at
+  most delta_H H to the other direction (a bounded increase).
+- Net decrease of the potential at this label: at least
+  (1 - delta_H) H / (rho (2 + delta_H)) * r b_new.
+
+With gamma_H < 1/100 and delta_H < 1/100 and rho = 6/5, this is at
+least (1/4) r b_new.
+
+So the event's charge is paid in full by the potential drop. No
+extra log, no extra scale factor.
+
+14.10 Putting it together.
+
+Summing the five sub-steps over all t:
+
+    Phi_0 - Phi_T  +  C (V + ell P + ell Q)  +  D_size  >=  (1/4) T_anchor.
+
+Using 0 <= Phi <= k r_0, we get the proposition.
+
+14.11 The role in the final bound.
+
+Combined with Section 11's V <= C ell P + D_T and Section 13's
+P <= C ell Q + D_part, we get:
+
+    T_anchor  <=  C ell^2 Q  +  D_anchor'.
+
+So anchor travel is "the same order as the rest". This is the last
+piece needed before rounding.
+
+------------------------------------------------------------------------
+15. ROUNDING: FROM FRACTIONAL MASS TO INTEGER SERVERS
+------------------------------------------------------------------------
+
+Everything so far produces REAL masses q_v on the tree, and REAL
+parks p_v^circ = q_v - sum_children q_i. But actual servers are
+DISTINCT; there are exactly k of them; each occupies ONE tree
+vertex. We need to round.
+
+15.1 The problem.
+
+Find integer quantities n_v(t) and c_v(t) at each vertex, with:
+
+    n_root(t) = k
+    n_v(t) = c_v(t) + sum_children n_i(t)         for internal v
+    c_leaf(t) = n_leaf(t)                         (leaves have no children)
+    n_v(t) in {floor(q_v(t)), ceil(q_v(t))}       (balanced rounding)
+    c_v(t) in {floor(p_v^circ(t)), ceil(p_v^circ(t))}
+    E[n_v(t) | F_t] = q_v(t),     E[c_v(t) | F_t] = p_v^circ(t)
+
+The first four are unconditional properties of ROUNDING; the last
+three are EXPECTATION identities (unbiased at every vertex).
+
+The integer "parks" c_v(t) tell us how many servers occupy vertex v
+at time t. Total across all v is exactly k. Children inherit their
+subtree counts from c_v.
+
+15.2 A local rounding lemma (the key building block).
+
+This one lemma is the crown jewel of the rounding section. Here is
+the exact statement.
+
+Lemma (balanced rounding with prescribed random total). Let
+a = (a_1, ..., a_d) and b = (b_1, ..., b_d) be nonnegative real
+vectors. Let X be a random integer vector with
+
+    X_i in {floor(a_i), ceil(a_i)}     for every i,
+    E X_i = a_i                        for every i.
+
+Let M = sum_i X_i. Also, N is any random integer with
+
+    N in {floor(sum b_i), ceil(sum b_i)},
+    E N = sum b_i.
+
+Then there is a randomized kernel from (X, N) to integer vectors X'
+such that for EVERY state (X, N) and EVERY outcome of the kernel,
+
+    X'_i in {floor(b_i), ceil(b_i)},
+    sum_i X'_i = N,
+    E[X'_i] = b_i                        (averaged over both X, N and the kernel).
+
+The expected L1 cost is bounded by
+
+    E ||X' - X||_1  <=  32 T + 11 I,
+
+where  T = sum_i |a_i - b_i|   and   I = E |N - M|.
+
+The heart of the proof is a "repair by exchanges" argument. Here
+is the idea:
+
+STEP 1 (clip). For each coordinate, clip X_i to [floor(b_i),
+ceil(b_i)]. Let Y be the clipped vector. Then
+
+    E |Y_i - X_i|  <=  |a_i - b_i|,
+
+because at most one side of the interval can differ from a_i's
+neighborhood. So sum over i of E |Y_i - X_i| <= T.
+
+STEP 2 (adjust to N). For each realized state (Y, N), adjust
+coordinates up or down until the sum equals the actual N, obtaining
+Z. This is always possible: the set of achievable integer sums
+within the box is every integer between sum floor(b_i) and
+sum ceil(b_i), and N lies in that set. The adjust cost is exactly
+|N - sum Y_i|, so
+
+    E ||Z - X||_1  <=  2T + I.
+
+STEP 3 (repair means). Now Z has the right fixed-total property in
+each state but the coordinate means E Z_i may not equal b_i. The
+discrepancy D := sum_i |E Z_i - b_i| <= 3T + I.
+
+To fix the means, choose a finite joint kernel p_state (a
+probability distribution on "which coords to round up" per state,
+preserving the per-state total). Consider the finite-dimensional
+convex optimization:
+
+    minimize  E[|A symdiff A_0|]  +  10 sum_i |Pr(i in A) - f_i|,
+
+where A_0 is Z's rounding-up-set (from Step 2), f_i = b_i -
+floor(b_i) is the fractional part, and A ranges over allowed
+rounding-up-sets (those of size (N - sum floor(b_i))). Compactness
+of the domain gives a minimum.
+
+If a marginal Pr(i in A) is bigger than f_i for some i and
+smaller for some j, one of two local exchanges strictly improves
+the objective:
+
+(a) If some supported pair (state, subset) has i in A and j not
+    in A: swap i out and j in, on a small mass epsilon. Total per
+    state is preserved. Sum of marginal discrepancies drops by
+    2 epsilon. Hamming cost rises by at most 2 epsilon. Strict
+    improvement, contradiction.
+
+(b) Otherwise, no supported subset has i without j. Then find one
+    with both, one with neither, one h in the second but not the
+    first (cardinalities differ by at most 1, so such an h exists),
+    and swap. Now it is i out, h in on the first subset and h out,
+    j in on the second. Sum of marginals moves in the right
+    direction on i and j and leaves h alone. Hamming cost rises by
+    at most 4 epsilon. Strict improvement, contradiction.
+
+So at a minimizer, Pr(i in A) = f_i for all i, giving E X'_i =
+b_i.
+
+STEP 4 (compare). The kernel X' equals Z everywhere up to a
+Hamming correction, with E ||X' - Z||_1 <= 10 D <= 10 (3T + I).
+Combining: E ||X' - X||_1 <= (2T + I) + 10(3T + I) = 32 T + 11 I.
+
+The lemma is self-contained, entirely finite, and needs NO
+independence assumption between X and N. Exactly what we need for
+top-down rounding.
+
+15.3 Top-down rounding through the tree.
+
+Apply the lemma recursively from the root down. At every internal
+v, treat the "star" whose coordinates are:
+
+    (children of v) x  (one coordinate for v's own park).
+
+Target vector b = (q_i)_{i child of v} x (p_v^circ). Sum of
+targets is q_v (exactly the allocation rule). Current X = previous
+step's rounded children and park. The prescribed total N is n_v(t),
+the already-generated rounded parent count.
+
+By induction, at each v we have:
+
+    sum of children counts + park count = n_v(t)  (in every state),
+    E[child i count | F_t] = q_i(t),
+    E[park count | F_t] = p_v^circ(t).
+
+At the root, n_root = k is fixed. So the sum of all parks is k in
+every realized state.
+
+15.4 Bounding the tree movement.
+
+Let N_rnd := E sum_t sum_{v != root} r_{|v|-1} |n_v(t) - n_v(t-1)|.
+
+The lemma's 32 T + 11 I structure combines with the totals over
+the tree via a simple absorption. The parent's own |Delta n_v|
+term appears with coefficient 11 at star v. The 32 factor multiplies
+the T terms at v, which are O(sum children + own park) = O(V)
+per step.
+
+Result: with tau >= 22 (a specific numerical requirement), one has
+
+    N_rnd  <=  132 V.
+
+Note the 132 is 4 x 33 roughly: it comes from (64 + 32/tau) V +
+(11/tau) N_rnd, then solving for N_rnd <= (128 + 64/tau) V <=
+132 V.
+
+15.5 Tree matching (from rounded parks to actual positions).
+
+We have integer parks c_v(t) at each vertex. Each vertex is a
+"supply" of c_v(t) units, or a "demand" if the local integer
+count declined. We want a matching cost bound per step.
+
+Match min{c_v(t-1), c_v(t)} copies AT the same vertex; these cost
+zero TREE distance (they may cost something metric if their anchor
+moved, handled separately below). The unmatched copies form an
+integer supply-demand problem on the tree.
+
+Standard tree-matching lemma:
+
+    match supplies to demands by canceling them node-by-node,
+    bottom-up, propagating uncancelled copies to the parent.
+
+The total TREE distance traveled by an integer unit is exactly the
+sum over nonroot vertices of (edge length entering v) * |Delta n_v|,
+where n_v is the total subtree count. Because the subtree imbalance
+is exactly Delta n_v, and that must cross the entering edge.
+
+So the tree matching cost per step is at most
+
+    sum over v != root of r_{|v|-1} |n_v(t) - n_v(t-1)|.
+
+15.6 Realizing on the metric space Y.
+
+We have integer "parks" at tree vertices. We now place those copies
+in the ACTUAL metric Y, using the anchors:
+
+    A copy parked at a nonroot vertex v is placed at the current
+    anchor of v's last key.
+    A copy parked at the root is placed at a fixed reference point
+    of Y.
+
+The matching of consecutive configurations in the METRIC: the tree
+matching suggests a "path" per matched copy. If two copies matched
+at the SAME vertex v are placed at its (consecutive) anchors, their
+metric distance is bounded by the anchor travel T_anchor (paid by
+Section 14). If two copies matched at DIFFERENT vertices u (old)
+and v (new), we need to bound their metric distance.
+
+Lemma (metric cost of distinct-vertex tree match). Let u (old) and
+v (new) be vertices matched by the tree matching. Let j be the
+depth of their lowest common ancestor. Then
+
+    d(a_-(u), a_+(v))  <=  120 r_j,
+
+where a_-(u) is u's old anchor and a_+(v) is v's new anchor. And
+r_j is at least the tree path length between u and v.
+
+So metric matching cost <= 120 times tree matching cost.
+
+15.7 Total rounding + realization.
+
+Combining:
+
+    E[ total simulated metric movement ]
+       <=  120 N_rnd  +  40 T_anchor
+       <=  120 * 132 V  +  40 T_anchor.
+
+Justification of the second summand: a matched pair at the SAME
+vertex v could have moved (bounded by 40 r_{|v|}, hence by T_anchor
+when paid per unit of parked mass). The 40 comes from the heavy
+reuse displacement bound (Section 10.5).
+
+15.8 Combining with Sections 11-14.
+
+Plug in:
+
+    N_rnd  <=  132 V,
+    V      <=  C_1 ell P + D_T,
+    P      <=  C_P ell Q + D_part,
+    T_anchor  <=  C_T (V + ell P + ell Q) + D_anchor.
+
+Then:
+
+    E[ total simulated metric movement ]
+       <=  C_1 * V + C_2 * ell P + C_2 * ell Q + D_{sim},
+
+for absolute C_1, C_2 and finite D_{sim}, which is exactly
+
+    <=  C_sim ell^2 Q  +  D_{sim}'.
+
+And by the lazy simulation lemma (Section 8), the ACTUAL cost on
+real servers is at most the simulated cost plus the one-time
+initial matching distance between the actual start and the initial
+simulated configuration. Giving the choice of zero initial mismatch
+(cf. the fixed-alphabet construction) or the bounded k*diam
+initial mismatch, this completes the "finite distributional
+estimate" (Proposition in Section 9).
+
+15.9 Chained bound.
+
+Combining the layers:
+
+    V            <= 12 C_A ell P       + D_A,
+    P            <= C_P ell Q          + D_P,
+    T_anchor     <= C_T (V + ell P + ell Q) + D_T,
+    N_rnd        <= 132 V,
+    sim-cost     <= 120 N_rnd + 40 T_anchor,
+    actual       <= sim-cost + initial_mismatch.
+
+Plug in from the bottom up:
+
+    sim-cost  <= C_1  V + C_2 ell P + C_2 ell Q + D_sim
+              <= C_1 (12 C_A ell P + D_A)
+                 + C_2 ell (C_P ell Q + D_P)
+                 + C_2 ell Q + D_sim
+              <= C_3 ell^2 Q + D_sim'.
+
+Where C_3 collects the coefficients. And then
+
+    actual <= C_3 ell^2 Q + D_sim' + k * diam(Y) * 1_{start not perfectly covered}.
+
+So we have a policy whose expected cost is <= C_3 ell^2 Q + D_0
+for SOME absolute C_3 and a fixed finite D_0.
+
+This is exactly Proposition (finite distributional estimate) in
+Section 9. The rest of the paper transfers this to actual policies
+on arbitrary metric spaces.
+
+------------------------------------------------------------------------
+16. TRANSFER: FROM ONE LAW TO ONE POLICY ON ANY SPACE
+------------------------------------------------------------------------
+
+Everything above proves: for a FIXED finite metric space Y, FIXED
+horizon H, FIXED probability law on Y^H, and FIXED starting tuple s,
+there is a policy with
+
+    E[cost] <= a * ell^2 * E[OPT]  +  D_0(Y, k, s),
+
+where a is an absolute constant and D_0 is a fixed finite number
+depending only on (Y, k, s), not on the law or on the horizon.
+
+We now remove the law, the horizon, the finiteness of Y, and the
+additive term. Four steps.
+
+16.1 What needs to be removed.
+
+The finite-law statement has FOUR "undesirable" dependencies:
+
+  (i)   It assumes a specific finite probability law on Y^H.
+        We want a policy that works for a single fixed sequence,
+        not just in expectation over a random one.
+
+  (ii)  It has an additive constant D_0.
+        We want D_0 = 0, at least when starting positions are
+        distinct.
+
+  (iii) It works on the specific finite metric Y.
+        We want a statement for an ARBITRARY metric space, which
+        can be infinite and have no minimum gap.
+
+  (iv)  It depends on the horizon H.
+        We want one policy that works for every finite H
+        simultaneously.
+
+Steps 16.2 through 16.5 handle these four in order.
+
+16.2 Episode amplification: remove the additive term.
+
+Fix Y finite, k >= 2, and a starting tuple s = (s_1, ..., s_k) with
+DISTINCT entries. Fix any finite-support law lambda on finite
+sequences in Y.
+
+Claim (goal of this subsection). There is a policy A_lambda, causal
+and strongly lazy, such that for every sigma in the support of
+lambda:
+
+    E[cost_{A_lambda, s}(sigma)]
+         <= alpha * OPT(s, sigma),
+    with alpha := (2a + 1) * ell^2.
+
+No additive term. Note that A_lambda does NOT depend on sigma, but
+it DOES depend on lambda. This is a "finite-law" policy.
+Later (Section 16.3) we upgrade to a single policy independent of
+lambda.
+
+THE PADDED WORD. Let L = max(1, max |sigma| over support of
+lambda). Extend every sequence sigma in the support to a padded
+word rho of exactly L requests, by repeating its last request. (If
+sigma is empty, use L repetitions of s_1.)
+
+Padding does NOT change OPT:
+    OPT(s, rho)  =  OPT(s, sigma),
+because:
+  - Restricting a legal service of rho to its first |sigma| slots
+    already serves sigma, so OPT(s, sigma) <= OPT(s, rho).
+  - An optimal service of sigma is trivially extended to rho by
+    moving nothing on the repeated request: the last request is
+    already covered. So OPT(s, rho) <= OPT(s, sigma).
+
+THE REVERSE WORD. For each padded word rho, choose (deterministic
+tie-breaking) ONE optimal service from s. Let C_t(rho) be the
+configuration chosen by that optimal service at time t, and let
+j_t be the label of the server moved at time t. Define the reverse
+word:
+
+    rho_leftarrow  :=  ( C_{L-1,j_L}(rho),  C_{L-2,j_{L-1}}(rho),
+                          ...,  C_{0,j_1}(rho) ).
+
+Interpretation: this is a length-L word that is legally served by
+the single server j_L moving first, then j_{L-1}, ..., then j_1.
+If you start from C_L(rho) and do exactly those single-server
+moves, you retrace the original optimal service BACKWARD and return
+to C_0 = s, at the same total cost OPT(s, rho).
+
+THE RESET WORD. Given the distinct starting tuple s, define the
+reset word as R repetitions of the k symbols (s_1, ..., s_k), where
+
+    R  =  floor( k * diam(Y) / delta ) + 1.
+
+Here delta is the minimum gap between distinct points of Y (defined
+in Section 7.5). The reset word is served by moving each server to
+its own starting point in order; the cost at each move is at most
+diam(Y); total reset cost is at most R * k * diam(Y), which is
+finite.
+
+THE CONCATENATED EXPERIMENT. Fix an integer N >= 1. Sample N
+independent words rho_1, ..., rho_N from lambda. Concatenate for
+each i its forward word, its reverse word, and the reset word:
+
+    sigma_N  :=  rho_1 rho_1_leftarrow (reset) rho_2 rho_2_leftarrow (reset) ... rho_N rho_N_leftarrow (reset).
+
+The total length is fixed: N * (2L + Rk). The law of sigma_N is a
+fixed finite-support probability distribution that DOES NOT DEPEND
+on the policy.
+
+AN OPTIMAL SERVICE OF sigma_N. Use the previously chosen optimal
+service on each forward word, its reverse on each reverse word,
+and the obvious reset on each reset block. The total cost obeys:
+
+    cost of this service of sigma_N
+       <= sum_i (2 OPT(s, rho_i)) + sum_i (reset cost)  (reset cost
+    is 0 at the boundary between blocks).
+    = 2 sum_i OPT(s, rho_i).
+
+In expectation over rho_1, ..., rho_N drawn from lambda:
+
+    E[ OPT(s, sigma_N) ]
+       <= 2N * E_{rho ~ lambda}[OPT(s, rho)]
+       = 2N * Q_lambda,
+
+where Q_lambda := E_{rho ~ lambda}[OPT(s, rho)].
+
+THE FINITE-LAW POLICY ON sigma_N. Apply the finite distributional
+estimate (Section 15) to sigma_N under its law. This gives a policy
+A_N, causal and strongly lazy, with
+
+    E[ cost_{A_N, s}(sigma_N) ]
+       <= a ell^2 * E[ OPT(s, sigma_N) ] + D_0(Y, k, s)
+       <= a ell^2 * (2N Q_lambda) + D_0.
+
+EXTRACTING ONE FORWARD BLOCK. Run A_N on sigma_N. Let F_i, H_i, Z_i
+be its costs on the i-th forward block, its i-th reverse block, and
+its i-th reset block. Let A_i be its configuration at end of block
+i's reset word. Set M_i := M(A_i, s) = matching distance from A_i
+to s. And M_0 := M(s, s) = 0 (the start).
+
+Claim (pathwise):  M_i <= Z_i  for every i.
+
+Why? If Z_i = 0, the actual policy did not move during the reset
+block. A full reset cycle of zero movement leaves the multiset of
+server positions unchanged. Because there are exactly k servers
+and k distinct starting points, the multiset must be exactly s. So
+M(A_i, s) = M(A_{i-1}, s) = ... = M(A_0, s) = 0, so M_i = 0 <=
+Z_i.
+
+If Z_i > 0, then during the reset cycle some server moved. Because
+the reset word visits each of s_1, ..., s_k in order and the
+policy is strongly lazy, either a move occurs (in which case
+Z_i >= shortest nonzero move distance = k * delta > k * delta/2),
+or the configuration already matches s up to permutation and M_i
+= 0. So M_i <= k delta/2 < Z_i in the positive case. Uniformly
+M_i <= Z_i holds.
+
+THE "EXTRACT A FORWARD BLOCK" CONSTRUCTION. Now:
+- Set I = uniform in {1, ..., N}.
+- Sample sigma ~ lambda.
+- Run A_N virtually on the concatenation from 1 through forward
+  block I (all the previous blocks included), starting at s.
+- Let A be the resulting policy's configuration on the current
+  forward block plus its starting history.
+
+Define the actual policy A_lambda by running this construction
+fresh at each request, always with I = "current block" and using
+the finite-law policy A_N to define the virtual evolution.
+
+Because of lazy simulation (Section 8), the actual policy's cost
+on the current forward block is at most (virtual cost through this
+block) + M_{I-1} (initial mismatch between A_{I-1} and s).
+
+Summing expectations:
+
+    E[ cost_{A_lambda, s}(sigma) ]
+       <= (1/N) sum_{i=1}^N E[ F_i + M_{i-1} ]
+       <= (1/N) sum_{i=1}^N E[ F_i + Z_{i-1} ]
+       =  (1/N) E[ (sum F_i) + (sum_{i < N} Z_i) ]
+       <= (1/N) E[ cost_{A_N, s}(sigma_N) ].
+
+The last inequality drops the H_i and Z_N terms because they are
+nonnegative.
+
+Plugging in the total bound:
+
+    E[ cost_{A_lambda, s}(sigma) ]
+       <= (1/N) [ a ell^2 * 2N Q_lambda + D_0 ]
+       =  2a ell^2 * Q_lambda + D_0 / N.
+
+Finally CHOOSE N large enough that D_0 / N <= ell^2 * Q_lambda:
+
+    N  =  max( 1, ceil( D_0 / (ell^2 * Q_lambda) ) ),
+
+and obtain
+
+    E[ cost_{A_lambda, s}(sigma) ]
+       <= (2a + 1) ell^2 * Q_lambda
+       =   alpha * OPT(s, sigma).
+
+This completes 16.2. Note: N depends on the law lambda, but NOT on
+any realization of sigma_N. The policy A_lambda itself is a fixed
+causal strategy.
+
+16.3 Finite-family separation via Yao.
+
+Now fix Y finite, k >= 2, s with distinct entries, and any FINITE
+collection sigma_1, ..., sigma_m of finite sequences in Y. We will
+construct one behavioral policy p that satisfies
+
+    E[ cost_{p, s}(sigma_i) ]
+       <= alpha * OPT(s, sigma_i)   for every i = 1, ..., m.
+
+This is the "finite minimax" lemma.
+
+THE SET OF DETERMINISTIC POLICIES IS FINITE. For any fixed finite
+set of sequences, only finitely many decision histories arise.
+Enumerating all deterministic causal policies for those histories
+gives a finite set D of policies. For each policy pi in D, define
+
+    v(pi) := ( E[cost_{pi, s}(sigma_1)] - alpha OPT(s, sigma_1),
+               ...,
+               E[cost_{pi, s}(sigma_m)] - alpha OPT(s, sigma_m) ).
+
+Each v(pi) is a vector in R^m.
+
+WE WANT A MIXTURE OF D WITH NONPOSITIVE EXCESS VECTOR. Let K =
+convex hull of { v(pi) : pi in D }.
+
+Claim: K intersects the closed negative orthant (-R_{\ge 0})^m.
+
+Proof by contradiction. Suppose K does not intersect the negative
+orthant. Then there is a separating weight vector w in the relative
+interior of the unit simplex in R^m, such that for every pi in D,
+
+    sum_j w_j * excess_{pi}(sigma_j)  >  0.
+
+(Standard convex-separation + compactness of the closed intersection
+test.) But the w_j are nonnegative and sum to 1, so they define a
+probability distribution on { sigma_1, ..., sigma_m }. Section 16.2
+applied to just this finite law (which has support within the finite
+set of the sigma_j's) gives a policy A_w with
+
+    E_{j ~ w}[ cost_{A_w, s}(sigma_j) - alpha OPT(s, sigma_j) ]  <=  0.
+
+The LEFT side is a mixture of excesses over deterministic policies?
+Not quite: A_w is potentially RANDOMIZED (from Section 16.2, it uses
+internal coins). But its cost is a probability mixture of some
+deterministic policies' costs. So the average over the deterministic
+policies must be nonpositive against the same weight w, contradicting
+"strictly positive for every pi in D".
+
+Hence K does intersect the negative orthant. That gives a MIXTURE
+theta over D with:
+
+    sum_pi theta_pi * E[cost_{pi, s}(sigma_j)]
+         <= alpha OPT(s, sigma_j) for every j.
+
+Now we have a message: "sample pi from theta at the start and run
+it". This uses ONLY the sum_j coordinate checks, and the mixture's
+cost on sigma_j is exactly the above. So the mixture works.
+
+BEHAVIORAL CONVERSION (KUHN). A mixture over D is still a
+"correlated" object: the same pi is drawn once at the start and
+used for the whole sequence. We want a "behavioral" policy, where
+AT EACH HISTORY the policy can independently flip its own coins,
+without keeping the global pi in mind. That is what a real online
+policy does.
+
+For perfect-recall games (and finite-sigma games have perfect
+recall), the mixed / behavioral distinction is empty: Kuhn's
+theorem. Concretely, at every decision history h = (prefix, label
+history), define:
+
+    Z(h)   := sum_{pi in D(h)} theta_pi,
+    p_h(j) := [sum_{pi in D(h): pi(h) = j} theta_pi] / Z(h)
+
+for j = 1, ..., k, where D(h) is the subset of D that would have
+chosen exactly the observed label history through h. If Z(h) = 0,
+put any probability vector (e.g. all mass on j = 1).
+
+Induction on t shows that at every reachable label history on
+sigma_i, the probability of reaching it under the behavioral
+policy equals its theta-mixture probability. So the LABEL
+DISTRIBUTIONS, and therefore the COSTS, are the same. The behavioral
+policy p hence satisfies
+
+    E[ cost_{p, s}(sigma_i) ]
+       <= alpha OPT(s, sigma_i)  for every i = 1, ..., m.
+
+16.4 Compactness via Tychonoff: one policy for every finite input.
+
+Now drop the finiteness of the sequence collection. Fix Y finite and
+s distinct. Let the "policy set" be the product space
+
+    P  :=  prod_{h} Delta_k,
+
+where h ranges over ALL decision histories (prefix of a sequence in
+Y and label history), and Delta_k is the k-dimensional probability
+simplex. P is a product of finitely many compact spaces, so P is
+compact by Tychonoff's theorem.
+
+For each finite sequence sigma in Y and each behavioral p in P,
+define
+
+    Phi_sigma(p) := E[cost_{p, s}(sigma)]  -  alpha OPT(s, sigma).
+
+Each Phi_sigma is a function from P to R. Compactly: at fixed
+sigma, only finitely many h matter, so Phi_sigma is a polynomial
+in the finitely many coordinates p_h it depends on. Hence
+Phi_sigma is continuous on P.
+
+For each finite collection { sigma_1, ..., sigma_m }, Section 16.3
+gives p_thetasigma with Phi_{sigma_i}(p) <= 0 for every i. So the
+closed sets { p : Phi_sigma(p) <= 0 } for all sigma simultaneously
+satisfy the finite-intersection property: every finite subfamily
+has nonempty intersection. So the whole family has nonempty
+intersection (P compact).
+
+Take p_* in that intersection. Then
+
+    E[ cost_{p_*, s}(sigma) ]
+       <= alpha OPT(s, sigma)  for every finite sigma.
+
+This is the "one behavioral policy for every finite input".
+
+REALIZATION. Take a single uniform seed omega in [0, 1). At
+each decision history h with probability vector p_h, subdivide the
+current interval into k pieces of relative lengths p_h(1), ...,
+p_h(k), choose the piece containing omega, and iterate with the
+resulting interval. This realizes p_* as a genuine randomized online
+policy, one strategy for every input, defined WITHOUT a horizon.
+
+16.5 Repeated starting positions.
+
+Now drop the distinctness of s.
+
+Fix Y finite, k >= 2, and any starting tuple s = (s_1, ..., s_k)
+in Y^k. Choose any tuple u = (u_1, ..., u_k) of k DISTINCT points
+of Y. Such u exists because |Y| >= k+1 by assumption.
+
+Let D = M(s, u), the matching distance between s and u. Since
+there are finitely many permutations of {1, ..., k}, D is finite.
+
+SERVICE COMPARISON. For any finite sigma in Y:
+
+    OPT_u(sigma) <= OPT_s(sigma) + D.
+
+Proof: Take any optimal service from s of total cost OPT_s(sigma).
+Follow this service with the SAME sequence of physical moves applied
+to servers starting at u. The MOVES (which server, where to) are
+identical; the only difference is the initial positions. So the
+overall cost is at most (initial matching distance) + OPT_s(sigma)
+<= D + OPT_s(sigma). This is a legal service from u. Hence OPT_u
+<= D + OPT_s. (The lazy simulation lemma gives the same comparison.)
+
+POLICY. Apply Section 16.4 to u: build a behavioral policy A_u
+satisfying
+
+    E[cost_{A_u, u}(sigma)] <= alpha OPT_u(sigma) for every sigma.
+
+Now run A_u VIRTUALLY. At each request, follow its configurations
+in Y from virtual start u. Lift its current configuration C_t to an
+actual configuration A_t on Y at ACTUAL start s using the lazy
+simulation lemma (Section 8): take the minimum matching from C_t to
+the CURRENT actual configuration A_{t-1}, and where a request needs
+a server at r_t, move the matched ACTUAL server to r_t.
+
+Pathwise:
+
+    cost_{A, s}(sigma) <= cost_{A_u, u}(sigma) + D.
+
+Take expectation:
+
+    E[cost_{A, s}(sigma)]
+       <= E[cost_{A_u, u}(sigma)] + D
+       <= alpha OPT_u(sigma) + D
+       <= alpha (OPT_s(sigma) + D) + D
+       =  alpha OPT_s(sigma) + (alpha + 1) D.
+
+Set B := (alpha + 1) D. This depends only on (Y, k, s) and not on
+sigma or on |sigma|. When s has distinct entries we may take u = s
+and get B = 0.
+
+16.6 Final constants and the absolute-constant statement.
+
+We have established: for Y finite, k >= 2, starting tuple s, there
+is a behavioral policy A = A_{Y, k, s} with
+
+    E[cost_{A, s}(sigma)]
+       <= (2a + 1) ell^2 OPT_s(sigma) + B,
+
+where:
+    a is an absolute constant from Section 15 (typically around
+    10^6 in the proof, but the exact value does not matter),
+    ell = 1 + log(k + 1),
+    B = (alpha + 1) D is a fixed finite number depending only on
+    (Y, k, s), and B = 0 when s has distinct entries.
+
+To absorb the "+1" in ell: since k >= 2, ell >= 1 + log 3 > 1 > 0,
+so we can write
+
+    ell^2  =  (1 + log(k+1))^2  <=  4 * (log(k+1))^2.
+
+So with C = 4 (2a + 1):
+
+    E[cost_{A, s}(sigma)]
+       <= C (log(k+1))^2 OPT_s(sigma) + B.
+
+Finally, the Y-finiteness: any finite metric statement extends to
+an arbitrary metric space X by choosing Y = support of the given
+finite sigma plus u plus s (finitely many points!) as the
+relevant finite metric, noting that the statement depends only on
+Y. The general conclusion is thus:
+
+    For every metric space X with at least k+1 points, every k >= 2,
+    and every starting tuple s in X^k, there is a behavioural
+    policy A on X with
+
+        E[cost_{A, s}(sigma)] <= C (log(k+1))^2 OPT_s(sigma) + B
+
+    for every finite sigma in X^*, where C is absolute and B is a
+    fixed finite number depending only on (X, k, s), and B = 0 when
+    the entries of s are distinct.
+
+This is the main theorem. Done.
+
+------------------------------------------------------------------------
+17. ASSEMBLING THE FINAL BOUND: WHERE EACH LOG LIVES
+------------------------------------------------------------------------
+
+This section tells the "money chain" of the proof. Each link is a
+lemma we have already explained. Read top-down for the composite;
+read bottom-up for the money flow.
+
+17.1 The three budget inequalities.
+
+The three moving pieces are:
+
+  (Chain 1) Allocation (Section 11):
+        V  <=  12 C_A ell P  +  D_A.
+        V  =  E sum_t sum_{v != root} r_{|v|-1} |Delta q_v|.
+        The movement of the TREE ALLOCATION.
+
+  (Chain 2) Partitions (Section 13):
+        P  <=  C_P ell Q  +  D_part.
+        P  =  E sum_t sum_a d_T( xi_{t-1}(X_{t-1}^a), xi_t(X_t^a) ).
+        The movement of the hidden comparator on the tree.
+
+  (Chain 3) Anchor travel (Section 14):
+        T_anchor  <=  C_T ( V + ell P + ell Q ) + D_anchor.
+        T_anchor  =  E sum_{t,j,lambda} r_j b_{t,j,lambda} 1_{E}.
+        The expected mass-times-radius of moving anchors.
+
+Chain 1 costs ell per unit of comparator movement (P). Chain 2 costs
+ell per unit of offline optimum (Q). Chain 3 costs (V + ell P + ell Q)
+and introduces no new factor of ell.
+
+17.2 Rounding and realization (Section 15).
+
+  (R1)  N_rnd  <=  132 V,
+        where N_rnd := E sum_t sum_{v != root} r_{|v|-1} |Delta n_v|.
+
+  (R2)  E[simulated movement]  <=  120 N_rnd + 40 T_anchor.
+
+Both have fixed absolute factors. No ell and no k in them.
+
+17.3 The plugin.
+
+Substituting R1 into R2 and then Chain 1 and Chain 2:
+
+    N_rnd  <= 132 (12 C_A ell P + D_A)
+           =  132 * 12 C_A ell P + 132 D_A.
+
+    sim  <= 120 (132 * 12 C_A ell P + 132 D_A)
+            + 40 C_T (V + ell P + ell Q)
+            + 40 D_anchor
+         <= 120 * 132 * 12 C_A ell P
+            + 120 * 132 D_A
+            + 40 C_T (12 C_A ell P + D_A)
+            + 40 C_T ell P
+            + 40 C_T ell Q
+            + 40 D_anchor
+         =  [coefficient of ell P] ell P
+            + [coefficient of ell Q] ell Q
+            + [constant].
+
+Because P <= C_P ell Q + D_part:
+
+    [coefficient of ell P] ell P
+       <= [coefficient] ell (C_P ell Q + D_part)
+       =  [coefficient * C_P] ell^2 Q + [coefficient] ell D_part.
+
+Collecting:
+
+    sim  <=  C_sim ell^2 Q  +  D_sim'
+
+for absolute C_sim and finite D_sim'. Add the one-time initial
+mismatch (from lazy simulation, at most k * diam(Y)) to reach the
+ACTUAL cost:
+
+    actual  <=  C_sim ell^2 Q  +  D_0.
+
+This is the finite-distributional estimate used in Section 16.2.
+
+17.4 Where the two logarithms come from.
+
+  THE FIRST ell comes from Section 11 (allocation).
+  It is the factor C_A ell in  V <= 12 C_A ell P.
+
+  THE SECOND ell comes from Section 13 (partitions).
+  It is the factor C_P ell in  P <= C_P ell Q.
+
+Sections 12, 14, and 15 add only CONSTANT overhead on top of an
+already-log-costed quantity. They introduce no further logarithm.
+
+So the two logarithms are structurally: one for the tree
+allocation, one for the changing partitions. This is the "sharp
+squared-logarithmic" structure. Many earlier results had
+O(log^2 k * log n) or O(log^2 k * log Delta) or worse; every such
+factor was an artifact of embedding statically. Here the embedding
+CHANGES with the requests, and the pilot potential pays for each
+change.
+
+17.5 Why log n and log Delta were defeated.
+
+  - A static embedding of a metric loses a factor of log n.
+  - A changing embedding avoids that loss, but then each partition
+    edit needs payment.
+  - The PILOT POTENTIAL (Section 12) lets each edit be paid for
+    with the LOCAL mass-ratio coefficient, not a global worst case.
+  - The BALL-MASS TELESCOPE (Section 9.6) sums the local ratios
+    across scales with a coefficient that depends only on the RATIO
+    of masses, not on n.
+  - The remaining "how many levels" factor is bounded by the
+    telescoping sums as ell, not as log n or log Delta.
+
+The "agnostic" log(k) bounds with no dependence on the metric size
+or aspect ratio are therefore obtained.
+
+17.6 How the sharpness matches the lower bound.
+
+BCR 2023 gives (Corollary 20) a universal Omega(log k) lower bound on
+every metric with more than k points, and (Theorem 11 plus
+Proposition 8) a metric with only k+1 points where Omega(log^2 k)
+is required even with a fixed additive constant.
+
+Our upper bound matches the second one order-for-order. It is "sharp
+in the worst case": on SOME metric the true optimal competitive
+ratio is Theta(log^2 k), and our policy attains O(log^2 k).
+
+For SMALLER families of metrics (paging, HSTs, etc.), tighter bounds
+continue to hold; the theorem is a worst-case over metrics and does
+not claim to be tight on any particular family.
+
+17.7 The proof is explicit (in principle).
+
+Every lemma is a closed-formula object:
+  - l^beta is a convex piecewise function with explicit constants.
+  - The simplex tracker is an argmin of an explicit integral.
+  - The pilot potential is a specific finite-dimensional min.
+  - The rounding lemma is a specific local exchange.
+
+You can in principle SIMULATE every piece. The proof does not
+address complexity; polynomial-time versions require separate
+work (Coester-Cosson 2026), and the theorem we are explaining
+makes no such claim.
+
+------------------------------------------------------------------------
+18. HONEST LIMITS: WHAT THE PAPER DOES NOT CLAIM
+------------------------------------------------------------------------
+
+18.1 No efficiency.
+
+The theorem asserts EXISTENCE of a policy with the stated
+competitive ratio. It says nothing about whether you can compute
+the policy's next move in polynomial time. The compactness
+construction (Section 16.4) is thoroughly non-constructive. For
+implementations, extra work is needed, and that work belongs to
+separate literature.
+
+18.2 No tight constants.
+
+The universal constant C in the main theorem is astronomical (a
+product of many "12 C_A C_P ..." hiding several hundred digits of
+internal absolutes). The paper does not try to minimize C. It could
+be 10^50 and the theorem would still hold. The point of O(log^2 k)
+is the asymptotic growth rate in k.
+
+18.3 The additive term is real.
+
+When two starting servers occupy the SAME point, the additive term
+B cannot generally be zero. The episode amplification produces
+B = (alpha + 1) D where D = M(s, u) is the matching distance to the
+nearest DISTINCT tuple u. There is no claim to remove B in this
+case.
+
+18.4 No new lower bound.
+
+The paper proves an upper bound. It does not prove a matching lower
+bound. It uses the existing Omega(log^2 k) lower bound of BCR 2023.
+The theorem is "matches the known lower bound", not "discovered the
+true factor".
+
+18.5 No claim of "best possible for each metric".
+
+The O(ell^2) bound is tight OVER ALL METRICS. On specific metrics
+the true optimum may be smaller. The theorem does not claim to be
+tight on paging, on HSTs, on trees, or on any particular family.
+
+18.6 No "natural" online rule.
+
+The construction uses:
+  (i)  a finite distributional estimate that depends on the input
+       law;
+  (ii) episode amplification to remove that law;
+  (iii) Yao / Kuhn to reach a single behavioral policy on finitely
+        many inputs;
+  (iv) Tychonoff compactness to reach one policy for every input.
+
+At no point is there a "simple, human-improvise-this" rule. That is
+by design: the point is existence, not implementation.
+
+18.7 What "log" means.
+
+All logarithms are natural (base e). Base-2 logarithms differ by a
+fixed constant (1/ln 2), and the statement C (log)^2 with an
+absolute C is unchanged in order by switching bases.
+
+18.8 What the metric space can be.
+
+Nonempty and with at least k+1 points. Otherwise the deterministic
+lower bound "more than k points" is not present, and the offline
+game is trivial (all requests can be served at cost 0 if the metric
+has at most k points).
+
+18.9 B is finite in principle.
+
+For an infinite metric, D = M(s, u) is a minimum over FINITELY many
+permutations, and each d(s_i, u_{pi(i)}) is a finite real number by
+the metric axioms. So D is finite, so B = (alpha + 1) D is finite.
+B may be huge, but it is finite.
+
+18.10 What if the metric has no minimum gap?
+
+The "minimum gap delta > 0" is used only inside the fixed-finite-Y
+analysis (Section 7.5) to make level-J cells singletons. In the
+final theorem, Y is replaced by the finite support of the actual
+sequence: only finitely many points ever appear, so delta > 0 always
+holds there. Hence no discreteness assumption is needed at the level
+of a final theorem statement.
+
+------------------------------------------------------------------------
+19. A ONE-PAGE GLOSSARY
+------------------------------------------------------------------------
+
+SYMBOLS (alphabetical):
+
+  A, A_t       Actual labelled server configuration at time t. The
+               context distinguishes ACTUAL A from SIMULATED
+               configurations C_t.
+
+  A_s          A behavioral strategy starting from tuple s.
+
+  A_j          Alphabet at tree level j. A finite set of labels.
+
+  B            Additive correction in the main theorem. Depends only
+               on (metric, k, starting tuple). Zero when starting
+               positions are distinct.
+
+  beta_v       The rank-function parameter at tree vertex v, in
+               [3, 3 + epsilon_*]. Explicit in terms of M_v.
+
+  C            Generic absolute constant. Also C_0, C_1, C_A, C_P,
+               C_T, C_sim, C_final. All fixed numbers.
+
+  c_v(t)       Integer "park" at tree vertex v at time t: how many
+               simulated servers occupy vertex v.
+
+  C_loc        Local Lipschitz constant of the pilot integrand near
+               a concentrated request (Section 12.6).
+
+  d(x, y)      Distance in the metric.
+
+  D_*, D_1     Pilot template "outer radius" constants. Also
+  D_H, D_L     heavy-template and tier-template outer radii:
+               D_1 = 10 D_* = 100 R (heavy template),
+               D_L = 100 R = 400 D_H (tier template).
+
+  D_T, D_A,    Fixed additive constants in the budget inequalities.
+  D_P, D_part  Each depends on (tree, radii, k), never on the input
+               law, on the horizon, or on the number of histories.
+
+  diam(Y)      Diameter of the (finite) metric.
+
+  delta        Minimum nonzero distance in the finite metric.
+
+  e_x          Expected mover distance for request x:
+               int d(x, y) dnu(y). Sum over t of E[e_{r_t}] = Q.
+
+  ell          Little ell: 1 + log(k+1). Order log k.
+
+  epsilon_*    = 1/100. Upper end of the useful interval for beta.
+
+  eta_i        = c_t h_i / ell. Tolerance in the alpha feasibility
+               constraint.
+
+  F_t          Filtration at time t. Generated by r_1, ..., r_t and
+               any independent partition tape.
+
+  F_z^g        Pilot integrand:
+               (1+g(p)) (1 - sum_s z_s b_s(p))
+               + 256 sum_s z_s (1+g(s)) a_s(p).
+
+  gamma_H,     Inner radii of the heavy template and the tier
+  gamma_L      template, both < 1/100.
+
+  h_i          log(M_v / M_i). Size of child i relative to its
+               parent. Bounded in [0, C ell].
+
+  H            Horizon (number of requests). Also "H = 1 + log(1/u)"
+               in one dominant-child inequality; context names it.
+
+  H_k          Set of tiers, {1, 2, 4, ..., 2^b}, of size
+               1 + floor(log_2 log k).
+
+  K_h          = ceil(e^{C_K h}). Age threshold for tier h. Also
+               serves as the density parameter for tier-h radii.
+
+  k            Number of servers.
+
+  L            Length of a padded word in episode amplification.
+
+  l^beta       The rank function: convex, nonincreasing, equal to
+               1 - beta p on [0, p_*], and zero from s_* on.
+
+  L_v^beta     Rank aggregation sum_a l^beta(p_{va}) at vertex v.
+
+  M_v          Size aggregation sum_a l^siz(p_{va}). M_v <= m_v.
+
+  m_v(t)       = E[N_v(t) | F_t]. Posterior expected subtree count.
+
+  M(A, C)      Minimum matching distance between configurations A
+               and C (a bipartite assignment cost).
+
+  mu_t         Posterior counting measure on Y. Total mass k.
+
+  mu^-, mu^+   Filtered and drifted posterior measures just before
+               and just after observing the request at time t.
+
+  nu           Mover's law. nu <= mu^-, nu(Y) = 1.
+
+  N_v(t)       Random number of hidden servers at leaves below v.
+
+  N_rnd        = E sum_t sum_{v != root} r_{|v|-1} |Delta n_v|.
+               Total integer tree movement after rounding.
+
+  OPT, OPT_s   Offline optimum from starting tuple s.
+
+  p_{va}(t)    Pr[N_v(t) < a | F_t]. Nonincreasing in a.
+
+  p_v^circ(t)  Parked mass q_v - sum_{i child of v} q_i.
+
+  P            = E sum_t sum_a d_T(xi_{t-1}(X_{t-1}^a), xi_t(X_t^a)).
+               Expected comparator movement on the tree.
+
+  q_v(t)       Fractional tree allocation at vertex v. Root holds k.
+
+  Q            = E[OPT] on the input law. The budget for all budgets.
+
+  r_j          = r_0 tau^{-j}, j = 0, ..., J. Scales of the tree.
+
+  R            Constant in episode amplification:
+               floor(k diam(Y) / delta) + 1.
+
+  s, s_i       Starting tuple and its entries (i = 1, ..., k).
+
+  S, D, b, d   Core and flex amounts held at tree vertices, plus
+               various absolute tolerances.
+
+  sigma        Request sequence.
+
+  tau          Large absolute constant. "Separation ratio" of the
+               tree. >= 22 in Section 15 (rounding), >= 2 elsewhere.
+
+  T_anchor     = E sum_{t,j,lambda} r_j b_{t,j,lambda} 1_{E}.
+
+  T            The fixed prefix tree (Section 10). In Section 15
+               the L1 change term sum_i |a_i - b_i| of the rounding
+               lemma is ALSO called T; the context disambiguates.
+
+  u            Either the tuple with distinct entries in transfer
+               (Section 16.5), or u = U/A in the near-dominant case
+               (Section 11.13).
+
+  V            = E sum_t sum_{v != root} r_{|v|-1} |Delta q_v|.
+               Expected fractional tree movement.
+
+  w_i          Side tracker coordinates in the near-dominant case.
+
+  Z            The chosen optimal hidden labelled service.
+
+  z            A site vector in the pilot potential.
+
+  Z_r          Feasibility set of the pilot at scale r:
+               0 <= z_s, capacity constraint, separation constraint.
+
+TERMS:
+
+  Allocator.       The q_v(t) construction of Section 11.
+
+  Anchor.          The point in Y representing a tree vertex's
+                   current label. Any member of that label's cell
+                   is within 20 r_j of the anchor.
+
+  Balanced rounding.  n_v in {floor(q_v), ceil(q_v)} with
+                   E[n_v | F_t] = q_v.
+
+  Cell.            The set of points of Y sharing a given level-j
+                   label.
+
+  Chronological roster.  Ordered list of insertion events with
+                   ages and lifetimes, used to label points of Y.
+
+  Dominant child.  At a vertex, the unique child holding more than
+                   84% of the mass (when such exists).
+
+  Drift.           Change due to the underlying object moving at
+                   step t, not merely due to information.
+
+  Filtering.       Change due to the filtration growing from F_{t-1}
+                   to F_t (information, not motion).
+
+  Heavy ball.      A ball at the current level whose inner mass is
+                   comparable to its outer mass, kept by the map.
+
+  HST.             Hierarchies of Separated Trees. The prefix tree
+                   of Section 10, with tau-separated levels.
+
+  Lazy simulation. The straight-line car-following lemma of
+                   Section 8.
+
+  Parked mass.     q_v - sum_children q_i, at vertex v.
+
+  Pilot potential. L_r(mu, g) of Section 12. A compact potential
+                   that pays for partition edits in one logarithm.
+
+  Posterior.       Distribution of Z given the observed prefix.
+
+  Rank function.   The convex l^beta of Section 11.
+
+  Side.            Any child of a vertex other than its dominant
+                   child.
+
+  Simplex tracker. The alpha update rule of Section 11.11.
+
+  Strong laziness. A strategy that does nothing when the request
+                   is already covered and otherwise moves exactly
+                   one server.
+
+  Tier.            A lifetime-based ball structure, indexed by h in
+                   {1, 2, 4, ...}.
+
+  Witness.         A point of Y whose leaf lies below a given tree
+                   vertex v. Used to define anchors and masses.
+
+------------------------------------------------------------------------
+20. A HOW-TO-READ-THE-PAPER MAP
+------------------------------------------------------------------------
+
+The paper is long. Reading order by purpose:
+
+20.1 First impression (30 minutes).
+
+  - Section 5 (main theorem, plain English) - the claim.
+  - Section 4 (history) - why anyone cares.
+  - This document's Sections 5, 6, 17 - the whole story.
+  - Stop.
+
+20.2 High-school mathematical reader (a few hours).
+
+  - Section 1 (the game).
+  - Section 2 (competitive ratio).
+  - Section 3 (randomization and paging).
+  - Section 7 (notation: M(A,C), strong laziness, ell, scales).
+  - Section 8 (lazy simulation. The proof is easy and beautiful).
+  - Section 10 (the tree, only lightly).
+  - Section 17 (the money chain).
+  - The glossary and this map.
+  - SKIP sections 11-16 on first read. Skim on second.
+
+20.3 Algorithm designer (a few days).
+
+  - Everything in 20.2.
+  - Section 11 in detail (allocation).
+  - Section 12 in detail (pilot potential).
+  - Section 13 in detail (partitions).
+  - Section 15 in detail (rounding).
+  - Section 16 (transfer).
+  - Then Section 17 to see how it fits.
+
+  Focus on:
+  - The picture of l^beta: convex, decreasing, linear on [0, p_*],
+    vanishes at s_*.
+  - The simplex tracker argument: feasibility + the payment
+    identity. Nothing else about it matters.
+  - The pilot potential as the one new trick that compresses a
+    scale sum into one logarithm.
+  - The BALL-MASS TELESCOPE (Section 9.6), the small lemma that
+    converts everything into a single log.
+
+20.4 Probabilist / proof hound (weeks).
+
+  - Sections 9 and 12 carefully. Two pillars of stochastic
+    accounting.
+  - Section 11.5-11.9. Rank-drift + rank-tracking lemmas; all the
+    potentials live here.
+  - Sections 13.5-13.7 (the two telescopes) and 14.7 (pointwise
+    coefficient).
+  - Sections 16.3 (Yao) and 16.4 (Tychonoff / compactness). The
+    clean steps that remove the input law and the metric
+    dependence.
+  - Re-read Section 11 once. The tracker makes much more sense
+    after Section 12.
+
+20.5 High-school competition problem solver.
+
+  Look at Section 8 (lazy simulation) and Section 9 (posterior as
+  filtered plus drift). These are the "that is elegant" sections:
+  a matching argument and a conditional-expectation exercise. The
+  pilot potential (Section 12) is the "that is clever" section: a
+  variational formula that behaves smoothly under two seemingly
+  different kinds of update.
+
+20.6 What to skip on a first read.
+
+  - The internal proof of the uniform denominator estimates
+    (Section 11.11). Trust it: a two-line integral plus a tail
+    bound on the dominant coordinate.
+  - The repairs in Section 13.7 (fixed alphabet, separation,
+    noncoverage). Careful bookkeeping summarized as "the
+    bookkeeping works".
+  - The detailed rounding proof (Section 15.2). Trust the
+    statement E ||X' - X||_1 <= 32 T + 11 I.
+
+20.7 Once you have read it once.
+
+  The paper is a chain of telescopes. Every nontrivial bound is a
+  sum of local positive quantities that telescopes over SCALES
+  (not over time). Every inequality has exactly one ell (not ell^2)
+  because the telescopes cancel against the geometry of balls.
+
+  Mental picture: at each scale, a "ball ratio"
+  log(outer_mass / inner_mass) contributes. By near-nestedness of
+  balls at consecutive scales, these ratios sum to about log k
+  over all scales. That is the one fact behind the ell's.
+
+  Every lemma answers one question: how do I pay for X moving by
+  Y?
+    - X = tree allocation, Y = comparator movement. Pay ell per
+      unit.
+    - X = partition, Y = comparator's request stream. Pay ell per
+      unit.
+    - X = rounding, Y = fractional change. Pay constant ~132 per
+      unit.
+    - X = nearby point in the pilot, Y = request. Pay local log
+      per unit.
+
+------------------------------------------------------------------------
+END OF DOCUMENT
+------------------------------------------------------------------------
+
+If you have read this far: the main theorem is Section 5, the proof
+sketch is Section 6, the money chain is Section 17, and the honest
+limits are Section 18. Everything else is detail in service of those
+four sections.
