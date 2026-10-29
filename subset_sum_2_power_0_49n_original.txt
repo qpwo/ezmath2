@@ -1,0 +1,2668 @@
+==== TABLE OF CONTENTS ====
+Subset-Sum-in-Time-2-power-0-49n//main.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/aliases.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/checksum.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/filtering.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/implementation.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/introduction.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/numerical.tex
+Subset-Sum-in-Time-2-power-0-49n//sections/setup.tex
+Subset-Sum-in-Time-2-power-0-49n//references.bib
+===========================
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//main.tex ====
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{booktabs,array,longtable}
+\usepackage{needspace}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{xurl}
+\usepackage[unicode,hidelinks]{hyperref}
+\input{glyphtounicode}
+\input{glyphtounicode-cmex}
+\pdfgentounicode=1
+\pdftrailerid{}
+\hypersetup{pdftitle={Subset Sum in Time O(2\string^\string{0.49n\string})},pdfauthor={OpenAI}}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\numberwithin{equation}{section}
+\newcommand{\Z}{\mathbb Z}
+\newcommand{\R}{\mathbb R}
+\newcommand{\C}{\mathbb C}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Prob}{\mathbb P}
+\newcommand{\eps}{\epsilon}
+\newcommand{\poly}{\operatorname{poly}}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\supp}{supp}
+
+\title{Subset Sum in Time \texorpdfstring{$O(2^{0.49n})$}{O(2\string^\string{0.49n\string})}}
+\author{OpenAI}
+\date{October 4, 2026}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+We give a uniform randomized classical algorithm for Subset Sum with bounded
+error and worst-case running time $O(2^{0.49n})$ on polynomial-bit inputs in a
+word-RAM model, where $n$ is the number of input integers. The time bound holds
+on every random execution.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/setup}
+\input{sections/filtering}
+\input{sections/checksum}
+\input{sections/aliases}
+\input{sections/implementation}
+\appendix
+\input{sections/numerical}
+
+\begingroup
+\small
+\raggedright
+\bibliographystyle{amsplain}
+\bibliography{references}
+\endgroup
+\end{document}
+==== END Subset-Sum-in-Time-2-power-0-49n//main.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/aliases.tex ====
+\section{Extracting the modular aliases}
+\label{sec:aliases}
+
+The modular checksum includes subsets whose integer sum is not the target.
+This section lists precisely those unwanted subsets, so that their phase
+contributions can be subtracted.  We use multiple representations of a subset
+by two masks on a small common block, together with modular filtering.  This
+representation method and the distinction between many and few distinct
+subset sums have precedents in
+\cite{HGJ2010,AKKN2016,NederlofWegrzycki2021}.  The additional feature here is
+an exclusion rule: pairs with the exact target weight are skipped without
+being visited, even when their masks overlap.  That rule is what makes the
+number of visited pairs small.
+
+Throughout this section, fix the transformed weights $c_i$ and targets $t_s$
+from \eqref{eq:transformed}.  Their bit lengths are $O(b+\log n)$.
+The low-deficiency condition \eqref{eq:low-deficiency} will be used only
+to prove coverage; the list and pair bounds hold without it.  The algorithm
+does not test this condition.  It is the case in which the preliminary
+exact procedure need not already decide the instance.  For the present
+construction we impose the input-length guard
+\begin{equation}
+ b\le 2^{.00001n}.
+ \label{eq:bit-guard}
+\end{equation}
+The final algorithm uses an exact fallback when this guard fails.
+
+Choose a prime $P$ uniformly from
+$[2^{\lfloor\eta n\rfloor},2^{1+\lfloor\eta n\rfloor})$, where
+$\eta=.51772$, and put $b_i=c_i\bmod P\in\{0,\ldots,P-1\}$.
+For a target $t_s$, define its set of \emph{aliases} by
+\begin{equation}
+ \mathcal A_s(P)=
+ \left\{I\subseteq[n]:
+     \sum_{i\in I}c_i\equiv t_s\pmod P,
+     \quad \sum_{i\in I}c_i\ne t_s\right\}.
+ \label{eq:alias-definition}
+\end{equation}
+
+\begin{theorem}[Alias extraction]
+\label{thm:aliases}
+There is one randomized procedure with the following properties for all
+sufficiently large $n$.  Its input consists of the transformed integers
+$c_i=Ca_i+u_i$ and targets $t_s=Ct+s$, $0\le s\le nN_0$, of
+\eqref{eq:transformed}, with the input-length guard \eqref{eq:bit-guard}.
+It chooses $P$ uniformly from
+$[2^{\lfloor\eta n\rfloor},2^{1+\lfloor\eta n\rfloor})$
+among the primes and returns either failure or $P$ together with a
+deduplicated list of genuine aliases for each target.
+If $\mathbb E_{|V|=\lfloor n/2\rfloor}d(V)\le .01004n$, then, with
+probability $1-o(1)$ over $P$ and the remaining random choices, it does not
+fail and its lists equal
+$\mathcal A_s(P)$ simultaneously for every $s$.  The error bound is uniform
+over the transformed inputs satisfying these assumptions.
+
+For every outcome of its random choices, the procedure stores and visits at
+most $2^{\lceil\tau n\rceil}\operatorname{poly}(n)$ records, where
+$\tau=.48996$, and takes
+$2^{\tau n}\operatorname{poly}(n+b+2)$ elementary bit operations, apart
+from the implementation of exact uniform finite draws.  Those draws admit
+the bounded implementations in Section~\ref{sec:implementation}.
+\end{theorem}
+
+We first construct the filtered lists and show why the exact-integer
+exclusion keeps their enumeration small.  We then prove coverage: a
+random prime preserves the distinctions needed for many representations
+of each alias, and the smaller-modulus filter retains one of them with
+sufficient probability.
+
+\subsection{Representations and filtered lists}
+
+Set
+\begin{equation}
+ m=2\left\lfloor\frac{.0567n}{2}\right\rfloor,
+ \qquad \gamma=.48925.
+ \label{eq:alias-parameters}
+\end{equation}
+Thus $m$ is even.  All arguments below concern sufficiently large $n$,
+so $m>0$ and $17m/2\le\lfloor n/2\rfloor$.
+Write $h(x)=-x\log x-(1-x)\log(1-x)$ for binary entropy, with
+$h(0)=h(1)=0$.
+The numerical bounds $h(.0567)+.0567<.40$ and $h(1/4)<.81128$ used
+below follow, for example, from the logarithm series
+\eqref{eq:certificate-log}, after scaling its argument into $[1,2]$.
+
+Every alias $I$ of $t_s$ has a carry $q\in\{0,\ldots,n\}$ such that
+\begin{equation}
+ \sum_{i\in I}b_i=T_{s,q},
+ \qquad T_{s,q}=(t_s\bmod P)+qP.
+ \label{eq:alias-carry}
+\end{equation}
+For each $s$ and every $q=0,\ldots,n$, perform $n^{10}$ independent trials,
+conditional on $P$ and the transformed input.  A trial chooses a uniform
+$m$-element set $M\subseteq[n]$ and an independent uniform subset
+$F\subseteq[n]$.  These two draws have the same law for every $P$ and
+use randomness independent of it.
+The block $M$ supplies multiple representations: selected positions in
+it will be split between two masks.  For any fixed subset $I$, the flipped
+set $J=I\mathbin\triangle F$ selects exactly half of this block with
+inverse-polynomial probability, independently of the original cardinality
+of $I$.
+Introduce signed weights and translated targets
+\begin{equation}
+ \begin{aligned}
+  b_i^F&=(-1)^{\mathbf1_{i\in F}}b_i,
+  &T^F&=T_{s,q}-\sum_{i\in F}b_i,\\
+  c_i^F&=(-1)^{\mathbf1_{i\in F}}c_i,
+  &t_s^F&=t_s-\sum_{i\in F}c_i.
+ \end{aligned}
+ \label{eq:alias-flip}
+\end{equation}
+For every subset $I$, these definitions give
+\[
+ \sum_{i\in J}b_i^F=\sum_{i\in I}b_i-\sum_{i\in F}b_i,
+ \qquad
+ \sum_{i\in J}c_i^F=\sum_{i\in I}c_i-\sum_{i\in F}c_i.
+\]
+Thus flipping is a bijection, not a relaxation of the subset problem.
+
+Within the trial, consider every $k=0,\ldots,m/2$.  Partition the positions
+outside $M$ into ordinary left and right sets $L,R$, of sizes $l,r$,
+where $l+r=n-m$.  Choose $l$ so that
+\begin{equation}
+ N_L=2^l\binom mk,
+ \qquad N_R=2^r\binom m{m/2-k}
+ \label{eq:alias-raw-sizes}
+\end{equation}
+are within a factor of two.  Such a choice follows by rounding
+\[
+ l=\frac{n-m+\log\binom m{m/2-k}-\log\binom mk}{2}
+\]
+to the nearest integer.  The unrounded value lies between
+$(n-2m)/2$ and $n/2$, so the required partition exists.  The choice can
+be made by exact comparisons of integers, without logarithmic arithmetic.
+For definiteness, take the first $l$ positions of $[n]\setminus M$ as $L$.
+
+A left record is a pair $(A,X)$ with $A\subseteq L$, $X\subseteq M$,
+$|X|=k$; a right record is a pair $(B,Y)$ with $B\subseteq R$,
+$Y\subseteq M$, $|Y|=m/2-k$.  Each record stores both its signed reduced
+weight, obtained using $b_i^F$, and its signed unreduced weight, obtained
+using $c_i^F$.  At this point $X$ and $Y$ need not be disjoint.
+If they are disjoint, their union with $A,B$ represents a subset with
+exactly $m/2$ selected positions in $M$.
+
+For this $k$, independently draw a prime
+\[
+ P'\in[2^{\lfloor\gamma m\rfloor},2^{1+\lfloor\gamma m\rfloor})
+\]
+uniformly and then draw a uniform residue $j'\bmod P'$.  Keep left records
+whose signed reduced weight is $j'\bmod P'$, and right records whose
+signed reduced weight is $T^F-j'\bmod P'$.
+Only these filtered records are formed explicitly.
+
+To generate a filtered list, split its ordinary coordinate set into two
+parts as evenly as possible.  Enumerate subsets of one part together with
+all its permitted masks in $M$, and enumerate subsets of the other part.
+Sorting these two lists by their weights modulo $P'$ permits their
+matching pairs to be emitted in time polynomial in $n+b+2$ times the
+sum of their lengths and the number of emitted records.  Indeed, for each
+entry in one list, a binary search finds the interval of complementary
+residues in the other, after which only output records are visited.
+The setup work for both sides is at most
+\begin{equation}
+ \operatorname{poly}(n+b+2)
+     2^{m+\lceil\max(l,r)/2\rceil}
+ \le \operatorname{poly}(n+b+2)2^{.3067n+O(1)}.
+ \label{eq:alias-generation}
+\end{equation}
+Here $\max(l,r)\le n/2+O(1)$ follows from the balancing rule.
+
+\paragraph{The exact-integer exclusion.}
+From the filtered lists, enumerate only pairs whose signed reduced
+weights add to $T^F$ as integers and whose signed unreduced weights
+do \emph{not} add to $t_s^F$ as integers.  Both sums count mask positions
+with their multiplicities, including a position selected by both masks.
+The excluded pairs need not be generated: group the right records by
+signed reduced weight, and within each group sort by signed unreduced
+weight.  For a left record, locate the group with the required reduced
+weight.  The forbidden unreduced equality is a single contiguous interval
+inside that group.  Two binary searches locate its endpoints, and the
+algorithm visits only records outside that interval.
+
+For each visited pair, test whether $X\cap Y=\varnothing$.  If so,
+undo the flip on $A\cup B\cup X\cup Y$, check
+\eqref{eq:alias-definition} directly, and save the resulting alias for
+target $s$.  Deduplicate the saved subsets separately for each $s$.
+In particular, every saved record is a genuine alias, whether or not
+the procedure eventually finds all aliases.
+
+\subsection{Why the visited lists and pairs are small}
+
+The next estimates concern the uncapped construction.  They hold without
+the low-deficiency assumption and average over the original random
+choice of $P$.  In particular, we do not restrict $P$ to primes for
+which the later coverage argument succeeds.
+
+Conditional on all choices except $j'$, any fixed left or right record
+survives with probability $1/P'$.  Balancing
+\eqref{eq:alias-raw-sizes}, the entropy bound for binomial coefficients,
+and concavity of $h$ give
+\begin{align}
+ \log\mathbb E[\text{one filtered list length}]
+ &\le \frac{n-m}{2}
+    +\frac m2\left(h(k/m)+h(1/2-k/m)\right)
+    -\gamma m+O(1)\notag\\
+ &\le \frac n2+\left(h(1/4)-\frac12-\gamma\right)m+O(1)
+ <.48992n
+ \label{eq:alias-list-bound}
+\end{align}
+for sufficiently large $n$.  The last inequality uses $h(1/4)<.81128$;
+the coefficient obtained from this upper bound is $.489909101$.
+
+To bound visited pairs, fix $s,q,k$, the block $M$, the flip $F$, and
+two \emph{raw} records.  The indices $s,q,k$ range over predetermined
+integers; in particular $q$ is fixed while $P$ is averaged.
+These records and their ordinary-coordinate
+partition can be fixed independently of $P$.  Let $\mu_i\in\{0,1,2\}$
+be their combined multiplicity at position $i$, and define
+\begin{equation}
+ D=\sum_i(-1)^{\mathbf1_{i\in F}}\mu_i c_i
+       -t_s+\sum_{i\in F}c_i.
+ \label{eq:alias-fixed-difference}
+\end{equation}
+This is a fixed integer independent of $P$; in particular neither the
+reduced weights nor the carry target occurs in its definition.
+The exact-integer exclusion requires $D\ne0$.  The reduced-weight equality
+implies $P\mid D$, because $T_{s,q}\equiv t_s\pmod P$ and
+$b_i\equiv c_i\pmod P$.
+The integer $D$ has $O(b+\log n)$ bits, even when masks overlap.
+Lemma~\ref{lem:prime-collision} therefore gives
+\begin{equation}
+ \Pr_P[\text{both integer tests hold}]
+ \le\operatorname{poly}(n)(b+\log n)2^{-\eta n}.
+ \label{eq:alias-large-modulus-bound}
+\end{equation}
+For $D=0$ the pair is always excluded, so its contribution is zero.
+
+Conditional on $P,P',M,F$ and the raw records, the smaller-modulus filters
+can both hold for at most one value of $j'$.  Their probability is
+therefore at most $1/P'\le 2^{1-\gamma m}$, regardless of whether the
+reduced-weight equality holds.  Combining this bound with
+\eqref{eq:alias-large-modulus-bound} and summing over the $N_LN_R$ raw
+pairs yields
+\begin{align}
+ \mathbb E[\text{visited pair count}]
+ &\le \operatorname{poly}(n)(b+\log n)
+      2^{n+(2h(1/4)-1-\gamma)m-\eta n}\notag\\
+ &<2^{.48988n}
+ \label{eq:alias-pair-bound}
+\end{align}
+uniformly under \eqref{eq:bit-guard}, for sufficiently large $n$.
+Indeed, using $h(1/4)<.81128$ and the guard, the coefficient of $n$
+before polynomial factors is at most $.489848677$.
+
+This is the reason to exclude exact equalities before testing mask
+disjointness.  If exact equalities for overlapping pairs were visited,
+they could have $D=0$ and would not satisfy the nonzero-divisor estimate.
+The sorted-interval exclusion avoids their cost entirely.
+
+Cap each filtered list and each visited-pair count at
+\begin{equation}
+ C_{\mathrm{alias}}=2^{\lceil\tau n\rceil}.
+ \label{eq:alias-cap}
+\end{equation}
+The procedure returns failure before emitting a record that would exceed
+a cap.  There are only polynomially many choices of $s,q$, trial, and
+$k$.  Markov's inequality and
+\eqref{eq:alias-list-bound}--\eqref{eq:alias-pair-bound} show that a cap
+is exceeded with probability $o(1)$, uniformly over guarded inputs.
+On every execution, including one that fails, list generation,
+interval searches, mask checks, storage, and deduplication take at most
+$2^{\tau n}\operatorname{poly}(n+b+2)$ bit operations, by
+\eqref{eq:alias-generation} and the caps.
+
+\subsection{Why every alias is recovered}
+
+It remains to prove that the constructed representations cover every
+alias.  The low-deficiency condition will provide many distinct mask
+weights on a randomly selected block.  We first show that, with high
+probability, reduction modulo $P$ preserves all distinctions of this kind.
+
+\begin{lemma}[Sparse distinctions]
+\label{lem:sparse-distinction}
+With probability $1-o(1)$ over $P$, the following implication holds
+simultaneously for every $v\in\{-1,0,1\}^n$ with at most $m$ nonzero
+coordinates:
+\begin{equation}
+ \sum_i v_ic_i\ne0
+ \quad\Longrightarrow\quad
+ \sum_i v_ic_i\not\equiv0\pmod P.
+ \label{eq:sparse-distinction}
+\end{equation}
+The error is uniform under \eqref{eq:bit-guard}.
+\end{lemma}
+
+\begin{proof}
+There are at most
+\[
+ \sum_{j=0}^m\binom nj2^j
+ \le 2^{(h(.0567)+.0567)n+O(\log n)}
+ <2^{.40n}
+\]
+such vectors for sufficiently large $n$.  Every nonzero integer
+$\sum_i v_ic_i$ has $O(b+\log n)$ bits.  Lemma~\ref{lem:prime-collision}
+therefore bounds the probability that $P$ divides any one of them by
+$\operatorname{poly}(n)(b+\log n)2^{-\eta n}$.
+A union bound, followed by \eqref{eq:bit-guard}, gives a total error at most
+$\operatorname{poly}(n)2^{-(\eta-.40-.00001)n}=o(1)$.
+\end{proof}
+
+In particular, fix any block of at most $m$ positions and any assignment
+of signs on that block.  Distinct integer subset sums of the signed $c_i$
+remain distinct modulo $P$ on the event of
+Lemma~\ref{lem:sparse-distinction}.  Differences of two such sums have
+coefficients in $\{-1,0,1\}$ on that block.  Consequently they also give
+distinct \emph{integer} subset sums of the corresponding signed $b_i$.
+The event covers all blocks and all sign assignments at once, including
+those chosen by the random trials.
+
+Assume now the low-deficiency condition \eqref{eq:low-deficiency}, and fix
+a prime satisfying Lemma~\ref{lem:sparse-distinction}.  We continue in
+the uncapped experiment.  Fix a target $s$ and an alias
+$I\in\mathcal A_s(P)$, and use its carry $q$ in
+\eqref{eq:alias-carry}.  The constants in the following probability bounds
+do not depend on $I,s$, or the chosen prime.
+
+\paragraph{A block with many distinct sums.}
+In one trial, $J=I\mathbin\triangle F$ is a uniform subset of $[n]$
+independent of $M$.  Hence
+\begin{equation}
+ \Pr[|J\cap M|=m/2]
+   =2^{-m}\binom m{m/2}\ge\frac1{m+1}.
+ \label{eq:alias-half-block}
+\end{equation}
+Conditional on this event, $S=J\cap M$ is uniform among the $m/2$-element
+subsets of $[n]$.  To bound its expected deficiency, take a uniform
+$\lfloor n/2\rfloor$-element set and partition it uniformly into
+17 disjoint sets of size $m/2$ and a remainder.  Each of the 17 sets
+has the same marginal law as $S$.  Superadditivity and nonnegativity of
+deficiency, from Lemma~\ref{lem:deficiency}, therefore imply
+\[
+ 17\mathbb E d(S)
+ \le\mathbb E_{|V|=\lfloor n/2\rfloor}d(V)
+ \le .01004n.
+\]
+Markov's inequality now gives, for all sufficiently large $n$,
+\begin{equation}
+ \Pr[d(S)\le .0106m\mid |J\cap M|=m/2]
+ \ge 1-\frac{.01004n}{17(.0106)m}>.005.
+ \label{eq:alias-useful-block}
+\end{equation}
+The limiting lower bound is greater than $.017$.
+
+On this event the $c_i$ on $S$ have at least
+$2^{(.5-.0106)m}=2^{.4894m}$ distinct subset sums.
+For every realized $S,F$, changing signs translates their support:
+\[
+ \left\{\sum_{i\in X}c_i^F:X\subseteq S\right\}
+ =\left\{\sum_{i\in X}c_i:X\subseteq S\right\}
+       -\sum_{i\in F\cap S}c_i.
+\]
+The same number of distinctions survives for signed reduced integer
+weights, by the fixed prime's sparse-distinction property.
+Partitioning these subsets by cardinality, there is a
+$k\in\{0,\ldots,m/2\}$ whose masks give at least
+\begin{equation}
+ B\ge\frac{2^{.4894m}}{m+1}
+ \label{eq:alias-many-weights}
+\end{equation}
+distinct signed reduced weights.
+
+For this $k$, fix the corresponding ordinary partition $L,R$ and combine
+each such mask $X\subseteq S$ with $J\cap L$.  The resulting left records
+still have $B$ distinct weights.  Every one has the complementary right
+record $(J\cap R,S\setminus X)$; their masks have the prescribed sizes
+and are disjoint.  Thus the representations all give the same flipped
+alias $J$.  It remains to show that the independent smaller modulus
+preserves enough of these choices to hit a random filter residue.
+
+\paragraph{A random smaller modulus hits a representation.}
+Let $w_1,\ldots,w_B$ be the distinct signed reduced weights just obtained.
+They lie in $[-nP,nP]$, so every nonzero difference has $O(n)$ bits.
+The choice of $k$ and these weights depends only on
+$P,M,F,I$, not on the independent $P',j'$ used for that layer.
+For a fixed $P'$, let
+\[
+ z_a=|\{j:w_j\equiv a\pmod {P'}\}|,
+ \qquad a\in\mathbb Z/P'\mathbb Z.
+\]
+Applying Lemma~\ref{lem:prime-collision} to each nonzero difference gives
+\begin{equation}
+ \mathbb E_{P'}\sum_a z_a^2
+ \le B+K_0 n^2B^2 2^{-\gamma m}
+ \label{eq:alias-collision-moment}
+\end{equation}
+for an absolute constant $K_0$ and sufficiently large $n$.
+Since $.4894>\gamma=.48925$, \eqref{eq:alias-many-weights} implies
+$B\ge2^{\gamma m}$ for sufficiently large $n$.  The first term can
+therefore be absorbed into the second by increasing $K_0$.
+With probability at least $1/2$ over $P'$, Markov's inequality gives
+\[
+ \sum_a z_a^2\le 2K_0n^2B^2 2^{-\gamma m}.
+\]
+On this event, Cauchy--Schwarz shows that the number of occupied residues
+is at least
+\[
+ \frac{(\sum_a z_a)^2}{\sum_a z_a^2}
+ \ge \frac{2^{\gamma m}}{2K_0n^2}.
+\]
+As $P'<2^{1+\gamma m}$, a uniform $j'$ hits one of these residues
+with probability at least $1/(4K_0n^2)$.
+
+Whenever this happens, the corresponding left record survives, and its
+complementary right record survives because their integer reduced weights
+sum to $T^F$.  Their unreduced weights sum to
+$\sum_{i\in I}c_i-\sum_{i\in F}c_i\ne t_s^F$, since $I$ is an alias.
+Thus this pair is not excluded, is visited, passes the disjointness test,
+and saves $I$.
+
+Combining \eqref{eq:alias-half-block},
+\eqref{eq:alias-useful-block}, and the smaller-modulus probability, a
+single trial recovers $I$ with probability at least
+\[
+ \frac{.005}{m+1}\cdot\frac12\cdot\frac1{4K_0n^2}
+ \ge n^{-4}
+\]
+for sufficiently large $n$.  The useful layer may depend on the alias
+and on the trial: every layer is tried, with independent smaller-modulus
+randomness, so no choice of that layer is required by the algorithm.
+
+\paragraph{Simultaneous coverage and the caps.}
+Conditional on $P$ and the transformed input, the $n^{10}$ trials for
+the fixed $s,q$ are independent.  The probability of missing $I$ in all
+of them is at most
+$(1-n^{-4})^{n^{10}}\le e^{-n^6}$.
+There are at most $(nN_0+1)2^n$ target--subset pairs.  A union bound
+therefore shows that all aliases are recovered with conditional
+probability $1-o(1)$.  This assertion holds for every prime satisfying
+Lemma~\ref{lem:sparse-distinction}.
+
+Finally couple the capped procedure to this uncapped experiment, using
+the same random choices until a cap is exceeded.  The probability of
+such an exceedance is $o(1)$ by the unconditional size estimates.  We do
+not condition those estimates on a favorable prime or on successful
+coverage.  Adding the sparse-distinction, coverage, and cap failure
+probabilities proves the simultaneous conclusion of
+Theorem~\ref{thm:aliases}.  Its every-execution operation bound was proved
+above; bounded implementations of the finite draws add only the stated
+implementation overhead and a further uniformly vanishing failure
+probability.
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/aliases.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/checksum.tex ====
+\section{Estimating a modular checksum}
+\label{sec:checksum}
+
+We now estimate a sum over a modular subset-sum bin without enumerating
+that bin or all Fourier frequencies.  The input residues are arbitrary.
+Random phases, rather than a distributional assumption on the input,
+will make the moment bounds of Section~\ref{sec:filtering} applicable.
+
+Write $e_P(j)=\exp(2\pi i j/P)$.  For residues
+$b_1,\ldots,b_n\in\Z/P\Z$, independent uniform phases
+$\phi_1,\ldots,\phi_n\in\Z/P\Z$, and a target residue $\rho$, define
+\begin{equation}
+ V_\rho=
+ \sum_{\substack{I\subseteq[n]\\\sum_{i\in I}b_i=\rho\pmod P}}
+ e_P\!\left(\sum_{i\in I}\phi_i\right).
+ \label{eq:checksum-definition}
+\end{equation}
+The phases will be retained so that individual subset contributions can
+subsequently be subtracted from this estimate.
+
+\begin{theorem}[Modular checksum estimator]
+\label{thm:checksum}
+Fix a constant $d>0$.  There is a uniform randomized procedure with the
+following guarantee for all sufficiently large $n$.  Its inputs are an
+integer $P$ with $|\log P-\eta n|\le2$, arbitrary residues
+$b_1,\ldots,b_n$ modulo $P$, and a list $\mathcal T$ of at most $n^d$
+target residues.  It draws and retains independent uniform phases
+$\phi_1,\ldots,\phi_n$ and either reports failure or returns estimates
+$\widehat V_\rho$ for all $\rho\in\mathcal T$.  With probability
+$1-o(1)$ it does not fail and
+\[
+ |\widehat V_\rho-V_\rho|\le\frac18
+ \qquad\text{for every }\rho\in\mathcal T.
+\]
+The $o(1)$ is uniform in $P$, the input residues, and the target list.
+On every random execution the procedure takes at most
+\begin{equation}
+ 2^{(\tau+20\eps)n+O(\sqrt n)}\poly(n+|\mathcal T|)
+ \label{eq:checksum-time}
+\end{equation}
+word operations.  No primality assumption on $P$ is needed.
+\end{theorem}
+
+The proof has three parts.  We cover every frequency using products of
+small random tables, while keeping the two lists of table entries short.
+We then count and sample the resulting matches without expanding all
+table products.  Finally, inverse-multiplicity weighting and the
+filtering inequalities give an exponentially small mean squared error.
+
+\subsection{Frequency patterns and block tables}
+
+Character orthogonality gives the exact identity
+\begin{equation}
+ V_\rho=\frac1P\sum_{k=0}^{P-1}J_\rho(k),\qquad
+ J_\rho(k)=e_P(-k\rho)\prod_{i=1}^n(1+e_P(x_i(k))),\qquad
+ x_i(k)=\phi_i+kb_i\pmod P.
+ \label{eq:checksum-fourier}
+\end{equation}
+Indeed, expanding the product leaves one term for every subset, and its
+average character is one exactly when its sum is $\rho$ modulo $P$.
+In particular,
+\begin{equation}
+ |J_\rho(k)|^2=\prod_{i=1}^n M(x_i(k))^2,
+ \label{eq:checksum-amplitude}
+\end{equation}
+where residues are identified with their angles in the finite circle.
+All functions in this section are the finite-circle functions of
+Lemma~\ref{lemma:finite-filtering}, with their finite normalizations.
+
+Partition $[n]$ deterministically into $q=\Theta(\sqrt n)$ blocks
+$B_1,\ldots,B_q$ of sizes $d_j=\Theta(\sqrt n)$.  A frequency's
+\emph{pattern} records, for each block, rational approximations
+$D_j,A_j,E_j$ to the block averages of $D,A,E$ at its coordinates
+$x_i(k)$, each with error at most $\eps$.  We choose these approximations
+so that
+\begin{equation}
+ D_j\ge0,\qquad A_j\le D_j,\qquad E_j\le D_j.
+ \label{eq:checksum-pattern-order}
+\end{equation}
+Here and throughout, the approximation rule is fixed and deterministic.
+For example, approximate each average to error $\eps/8$, round its
+upper endpoint upward for $D_j$, and round its lower endpoint downward
+for $A_j,E_j$, on a rational grid of step at most $\eps/4$.
+The exact inequalities $D\ge0,D\ge A,D\ge E$ then imply
+\eqref{eq:checksum-pattern-order}.  Uniform boundedness of these
+functions puts all the rounded values in a fixed finite grid.
+Lemma~\ref{lemma:finite-filtering} computes these approximations in
+polynomial time per frequency, without summing over $P$ points.
+Fix likewise deterministic approximations to the individual scores
+$\log f_*,\log g_*$ with error at most $\eps$.
+
+Let $\mathcal P$ be the collection of all blockwise grid triples
+satisfying \eqref{eq:checksum-pattern-order}, including patterns that
+no frequency attains.  Its size is
+\begin{equation}
+ Q_n:=|\mathcal P|=2^{O(\sqrt n)}.
+ \label{eq:checksum-pattern-count}
+\end{equation}
+We enumerate this collection, not the $P$ frequency assignments.
+The collection and its grid indices are fixed independently of the
+phases; only a frequency's membership in a pattern depends on them.
+Fix $\pi\in\mathcal P$ and put
+\[
+ (D_\pi,A_\pi,E_\pi)
+   =\frac1n\sum_{j=1}^q d_j(D_j,A_j,E_j),\qquad
+ U_\pi=A_\pi+E_\pi-D_\pi,\qquad
+ W_\pi=2D_\pi-A_\pi-E_\pi.
+\]
+For the moment let $0<\alpha\le1$ and $0\le H_\pi\le\eta$
+be rational parameters.  The parameter $\alpha$ is the probability of
+testing a coordinate, and $H_\pi$ determines the relative lengths of
+the two digit lists.  After defining
+the tests and their entries, we choose them to keep both lists short.
+Choose the integer base
+$B_\pi=2^{\lceil(\eta-H_\pi)n\rceil}$ and use the digit ranges
+\[
+ 0\le h<\lceil P/B_\pi\rceil,
+ \qquad 0\le\ell<B_\pi.
+\]
+Their vectors have coordinates
+\[
+ y_i(h)=\phi_i+hB_\pi b_i\pmod P,
+ \qquad z_i(\ell)=-\ell b_i\pmod P.
+\]
+The pair $(h,\ell)$ represents $k=hB_\pi+\ell$ uniquely, and
+$y_i(h)-z_i(\ell)=x_i(k)$.  Pairs representing $k\ge P$ will be
+discarded only when contributions are evaluated.  The high and low
+digit ranges have sizes $2^{H_\pi n+O(1)}$ and
+$2^{(\eta-H_\pi)n+O(1)}$, respectively; together they represent
+$2^{\eta n+O(1)}$ pairs.
+
+We test each digit vector separately against random block tables.
+This organization is an asymmetric filtering construction; related
+filter frameworks also distinguish the two marginal acceptance
+probabilities from their joint acceptance probability
+\cite{Christiani2017}.  The estimates required here are proved below.
+For each block $B_j$, generate
+\begin{equation}
+ R_j=2^{\lceil(\alpha D_j+4\eps)d_j\rceil}
+ \label{eq:checksum-table-count}
+\end{equation}
+independent tables.  At each coordinate of a table independently, its
+label is $*$ with probability $1-\alpha$ and otherwise a uniform
+$\theta\in\Z/P\Z$ with probability $\alpha$.  Tables in distinct
+blocks and patterns are independent, and all are independent of the
+phases.  Distinct table indices are retained even when their labels
+coincide.
+
+A label $*$ gives score zero on either side.  A non-$*$ label $\theta$
+gives the high and low scores
+\[
+ \log f_*(y_i(h)-\theta),\qquad
+ \log g_*(z_i(\ell)-\theta),
+\]
+respectively.  Use the fixed approximations to these scores when
+testing a vector.  It passes a block table if its average approximate
+score is at least $\alpha A_j-3\eps$ on the high side, or at least
+$\alpha E_j-3\eps$ on the low side.
+A \emph{whole table} is a tuple of one table index from each block.
+A vector passes it when it passes all its block tables.  A table
+\emph{entry} is a digit index and a whole table it passes.  A
+\emph{match} is a high entry and a low entry with the same whole table.
+Write $L_\pi$ for the number of matches.  These definitions do not
+restrict the represented frequency to have pattern $\pi$.
+
+\subsection{Coverage and list sizes}
+
+The parameters must ensure both that each frequency has a match and
+that its two lists of entries can be constructed within the time bound.
+The estimates below give the leading exponents for the expected entry
+counts as
+\[
+ H_\pi+\alpha(D_\pi-A_\pi),\qquad
+ \eta-H_\pi+\alpha(D_\pi-E_\pi),
+\]
+apart from $O(\eps)$ rounding slack and subexponential factors.  The
+digit ranges contribute $H_\pi$ and $\eta-H_\pi$; the number of tables
+and the score thresholds contribute the remaining terms.  Their sum
+is $\eta+\alpha W_\pi$, so both exponents can be at most $\tau$
+exactly when $\alpha W_\pi\le2\tau-\eta=\Gamma$.
+Choose the largest $\alpha\in(0,1]$ satisfying this inequality, and
+make the high-side exponent equal to $\tau$:
+\begin{equation}
+ \alpha_\pi=
+ \begin{cases}1,&W_\pi\le\Gamma,\\
+ \Gamma/W_\pi,&W_\pi>\Gamma,
+ \end{cases}
+ \qquad H_\pi=\tau-\alpha_\pi(D_\pi-A_\pi).
+ \label{eq:checksum-alpha}
+\end{equation}
+Use these parameters in the construction, abbreviating
+$\alpha=\alpha_\pi$.  Since
+$D_\pi-A_\pi,D_\pi-E_\pi\ge0$ and $\alpha W_\pi\le\Gamma$,
+\begin{equation}
+ \Delta\le H_\pi\le\tau,
+ \qquad
+ \eta-H_\pi+\alpha(D_\pi-E_\pi)
+   =\Delta+\alpha W_\pi\le\tau.
+ \label{eq:checksum-digit-balance}
+\end{equation}
+In particular both digit ranges have size at most
+$2^{\tau n+O(1)}$.  We now prove the coverage and size estimates for
+this choice.
+
+\begin{lemma}[Coverage and sizes]
+\label{lemma:checksum-tables}
+For the preceding random construction, the following statements hold.
+\begin{enumerate}[label=\textup{(\roman*)}]
+\item Conditional on arbitrary phases, the probability that some
+$k<P$ has no match in its own pattern is $o(1)$, uniformly in the
+phases and residues.
+\item In each fixed pattern, the expected number of entries on either
+side is at most $2^{(\tau+8\eps)n+O(\sqrt n)}$, and
+\begin{equation}
+ \E L_\pi\le
+ 2^{(\eta-\alpha U_\pi+12\eps)n+O(\sqrt n)}.
+ \label{eq:checksum-match-expectation}
+\end{equation}
+The entry estimates hold conditional on the phases.  The match
+estimate averages over both phases and tables.
+\item With probability $1-o(1)$, all frequencies are covered in their
+own patterns and, in every pattern, both entry counts are at most
+$2^{(\tau+14\eps)n}$ and
+\begin{equation}
+ L_\pi\le2^{(\eta-\alpha U_\pi+18\eps)n}.
+ \label{eq:checksum-match-good}
+\end{equation}
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+First fix the phases, $k<P$, its pattern, and one block.  We lower-bound
+the chance that one block table accepts both digits representing $k$.
+Change the label law as follows: retain the probability of $*$, but
+conditional on a non-$*$ label give $w=z_i-\theta$ density $K_{x_i(k)}$
+relative to the uniform finite-circle law.  Under this new law the
+expected high score, low score, and base-two log likelihood ratio
+against the original law are, respectively,
+\[
+ \alpha A(x_i(k)),\qquad \alpha E(x_i(k)),\qquad
+ \alpha D(x_i(k)).
+\]
+Indeed, a non-$*$ label has likelihood ratio $K_{x_i(k)}(w)$ and
+$y_i-\theta=x_i(k)+w$.  The coordinate variables remain independent.
+Their absolute values are bounded by a fixed constant, uniformly in
+$P,k,\alpha$.  Chebyshev's inequality and a union bound therefore show
+that, for sufficiently large block size, all three block averages
+are within $\eps$ of their means with probability at least $1/2$
+under the new law.
+
+On this event the approximate score averages are at least
+$\alpha A_j-3\eps$ and $\alpha E_j-3\eps$: the mean approximation,
+the deviation, and the score approximation cost at most $\eps$ each.
+The likelihood ratio of the entire block is at most
+$2^{(\alpha D_j+2\eps)d_j}$.  Changing back to the original law gives
+\begin{equation}
+ \Prob(\text{one block table accepts both digits})
+ \ge\frac12\,2^{-(\alpha D_j+2\eps)d_j}.
+ \label{eq:checksum-coverage-probability}
+\end{equation}
+Thus the chance that none of its $R_j$ tables accepts both is at most
+$\exp(-2^{2\eps d_j-1})$.  Union over the $q$ blocks and the $P$
+frequencies is still $o(1)$ because $d_j=\Theta(\sqrt n)$.
+If each block has an accepting table, their tuple is a match.  This
+proves~\textup{(i)}.
+
+For the size estimates, the number of whole tables is at most
+\begin{equation}
+ \prod_jR_j\le2^{(\alpha D_\pi+4\eps)n+q}.
+ \label{eq:checksum-whole-table-count}
+\end{equation}
+For any fixed vector and fixed whole-table index tuple, let $S$ be its
+total exact score.  Normalization of $f_*$ or $g_*$ and independence
+of the labels give $\E 2^S=1$, including the $*$ option.
+Passing the tests requires $S\ge(\alpha A_\pi-4\eps)n$ on the high
+side, or $S\ge(\alpha E_\pi-4\eps)n$ on the low side.
+Markov's inequality, the digit counts, and
+\eqref{eq:checksum-whole-table-count} bound the expected entry counts by
+\begin{align*}
+ 2^{(H_\pi+\alpha(D_\pi-A_\pi)+8\eps)n+O(\sqrt n)}
+   &=2^{(\tau+8\eps)n+O(\sqrt n)},\\
+ 2^{(\eta-H_\pi+\alpha(D_\pi-E_\pi)+8\eps)n+O(\sqrt n)}
+   &\le2^{(\tau+8\eps)n+O(\sqrt n)}.
+\end{align*}
+No independence between distinct whole tables is used.
+
+For a fixed digit pair and table-index tuple, let $S_h,S_\ell$ be the
+two total exact scores.  This time
+\begin{equation}
+ \E_{\phi,\text{tables}}2^{S_h+S_\ell}=1.
+ \label{eq:checksum-joint-moment}
+\end{equation}
+To see this, first condition on all labels.  At every non-$*$
+coordinate the independent uniform phase makes $y_i-\theta$ uniform,
+so averaging its $f_*$ factor gives one.  Averaging the remaining
+$g_*$ factors over the table shifts also gives one.
+A match requires
+$S_h+S_\ell\ge(\alpha(A_\pi+E_\pi)-8\eps)n$.
+Markov's inequality, the $2^{\eta n+O(1)}$ digit pairs, and
+\eqref{eq:checksum-whole-table-count} prove
+\eqref{eq:checksum-match-expectation}.
+It is essential here that all digit pairs are counted, before checking
+their patterns; the phases in \eqref{eq:checksum-joint-moment} have
+their original independent uniform law.
+
+Finally, each bound in~\textup{(iii)} has a factor
+$2^{6\eps n-O(\sqrt n)}$ of slack over its expectation.
+Markov's inequality and a union bound over
+$Q_n=2^{O(\sqrt n)}$ patterns give simultaneous size bounds with
+probability $1-o(1)$.  Combine these with~\textup{(i)}.
+\end{proof}
+
+\subsection{Constructing and sampling the matches}
+
+The preceding bounds would not be useful if finding the table entries
+required visiting every whole table.  We instead construct the lists
+block by block.  For each digit vector, test it against the $R_j$ tables
+of every block and record its passing index sets.  If any set is empty,
+the vector produces no entries.  Otherwise, emit the Cartesian product
+of these sets, with the digit index attached to each tuple.
+Since all $D_j$ are uniformly bounded,
+\[
+ \sum_jR_j=2^{O(\sqrt n)}\poly(n).
+\]
+Consequently the work per digit, apart from emitted entries, is
+$2^{O(\sqrt n)}\poly(n)$; a nested counter emits each tuple with
+polynomial overhead.  Coincident vectors still retain their different
+digit indices.
+
+Sort both entry lists lexicographically by table-index tuple.  If the
+high and low group lengths for a tuple are $a_\nu,b_\nu$, then
+\begin{equation}
+ L_\pi=\sum_\nu a_\nu b_\nu.
+ \label{eq:checksum-match-count}
+\end{equation}
+Prefix sums of these products allow a uniformly random match to be
+chosen without enumerating them: choose a uniform integer below
+$L_\pi$, locate its group by binary search, and use quotient and
+remainder to select one entry on each side.  A zero product contributes
+no interval.  The same groups also allow sequential match enumeration.
+
+For any represented frequency $k=hB_\pi+\ell$, define
+$\mu_\pi(k)$ to be its number of matches in this pattern procedure.
+Its digits are unique, so
+\begin{equation}
+ \mu_\pi(k)=\prod_{j=1}^q
+ \bigl|\{r\in[R_j]:\text{block table }r
+       \text{ accepts both }y(h)\text{ and }z(\ell)\}\bigr|.
+ \label{eq:checksum-multiplicity}
+\end{equation}
+We compute this integer directly by retesting the stored block tables,
+in $2^{O(\sqrt n)}\poly(n)$ time.  Repeated table labels are counted
+with their distinct indices, exactly as in the lists.
+The very same deterministic score approximations are used in list
+construction and multiplicity computation.  Thus the identity is
+exact, not approximate.  Whenever a match is sampled or enumerated,
+its multiplicity is positive, even on outcomes where coverage fails.
+
+These operations never scan the frequency range or the set of whole
+tables.  They also permit an immediate cap: abort before either entry
+list exceeds
+\begin{equation}
+ C_n=2^{\lceil(\tau+20\eps)n\rceil}
+ \label{eq:checksum-cap}
+\end{equation}
+entries.  Once the lists exist, $L_\pi\le C_n^2$ on every execution,
+so the exact match count and its prefix sums have $O(n)$ bits.
+Large match counts therefore do not force large enumerations.
+
+\subsection{Direct summation and importance sampling}
+
+Let $\mathcal G$ denote the event in
+Lemma~\ref{lemma:checksum-tables}\textup{(iii)}.  We first analyze
+exact arithmetic and ideal discrete uniform draws.  Entry and
+enumeration caps will be imposed after this analysis; on $\mathcal G$
+they do not interrupt it.
+
+For each pattern define its exact contribution
+\[
+ v_{\pi,\rho}=\frac1P
+   \sum_{\substack{k<P\\\text{pattern}(k)=\pi}}J_\rho(k).
+\]
+If $\alpha U_\pi\ge\Delta$, enumerate every match and give it
+contribution zero unless $k<P$ and its deterministic pattern is
+$\pi$.  For a retained match use
+\begin{equation}
+ \frac{J_\rho(k)}{P\mu_\pi(k)}.
+ \label{eq:checksum-direct-weight}
+\end{equation}
+On $\mathcal G$, every frequency of this pattern is present, and its
+$\mu_\pi(k)$ contributions sum to $J_\rho(k)/P$.
+Also \eqref{eq:checksum-match-good} gives
+$L_\pi\le2^{(\tau+18\eps)n}$ in this case.  We cap this enumeration
+at $C_n$, aborting before visiting a further match.
+
+If $\alpha U_\pi<\Delta$, take
+$N=2^{\lceil\tau n\rceil}$ independent uniform matches with replacement.
+When $L_\pi=0$, return zero for this pattern.  Otherwise, average the
+sample values
+\begin{equation}
+ X_{\pi,\rho}=
+ \begin{cases}
+ \displaystyle\frac{L_\pi}{P\mu_\pi(k)}J_\rho(k),
+      &k<P\text{ and }\text{pattern}(k)=\pi,\\[2mm]
+ 0,&\text{otherwise}.
+ \end{cases}
+ \label{eq:checksum-sample-weight}
+\end{equation}
+The inverse-multiplicity correction is the usual principle of counting
+each object once across overlapping representations
+\cite[Section~5]{KLM1989}.  Here the summands are complex and
+we need an absolute error bound, so we give the relevant calculation.
+Conditional on phases and tables in $\mathcal G$, a frequency of this
+pattern is sampled with probability $\mu_\pi(k)/L_\pi$.  Hence the
+sample mean is unbiased for $v_{\pi,\rho}$ and its mean squared error
+is at most
+\begin{equation}
+ \frac1N\,\frac{L_\pi}{P^2}
+ \sum_{\substack{k<P\\\text{pattern}(k)=\pi}}|J_\rho(k)|^2.
+ \label{eq:checksum-conditional-variance}
+\end{equation}
+Indeed, its second moment before averaging is the same sum with an
+additional factor $1/\mu_\pi(k)\le1$, and independent complex sample
+errors have zero cross terms.  If $L_\pi=0$, coverage implies that
+there are no frequencies of this pattern, so the zero estimate is exact.
+
+It remains to show that \eqref{eq:checksum-conditional-variance} is
+small.  The phases have been conditioned on in that formula; they must
+not now be treated as independent under the conditional law of
+$\mathcal G$.  Instead, we bound the formula times
+$\mathbf1_{\mathcal G}$ pointwise and only then take expectation under
+the original phase law.
+
+For a frequency of pattern $\pi$, let $\bar u,\bar v$ be the coordinate
+averages of $u,v$ at $x_i(k)$.  The pattern errors imply
+\begin{equation}
+ |U_\pi-\bar u|\le3\eps,
+ \qquad |W_\pi-\bar v|\le4\eps.
+ \label{eq:checksum-profile-errors}
+\end{equation}
+There are two cases within the sampling branch.  When
+$W_\pi\le\Gamma$, $\alpha=1$ and $U_\pi<\Delta$.  Thus
+\begin{equation}
+ -\alpha U_\pi
+ \le-\Delta+8.5(\Delta-\bar u)+30\eps.
+ \label{eq:checksum-domination-one}
+\end{equation}
+For example, writing $\delta=\Delta-U_\pi>0$, the right side minus
+the left side is at least $7.5\delta+(30-25.5)\eps$.
+When $W_\pi>\Gamma$, we have $\alpha aW_\pi=\Delta$, and the sampling
+condition implies $aW_\pi-U_\pi>0$.  Since $\alpha\le1<8.3$,
+\begin{align}
+ -\alpha U_\pi
+ &=-\Delta+\alpha(aW_\pi-U_\pi)\notag\\
+ &\le-\Delta+8.3(a\bar v-\bar u)+30\eps.
+ \label{eq:checksum-domination-two}
+\end{align}
+Here the rounding loss is at most $8.3(4a+3)\eps<30\eps$.
+
+Set
+\[
+ R_1(x)=8.5(\Delta-u(x)),\qquad
+ R_2(x)=8.3(av(x)-u(x)).
+\]
+For a fixed sampled pattern, let $r=1$ or $2$ according to the preceding
+case.  Combining \eqref{eq:checksum-match-good},
+\eqref{eq:checksum-amplitude}, and
+\eqref{eq:checksum-domination-one} or
+\eqref{eq:checksum-domination-two} gives, for every $k<P$,
+\begin{equation}
+ \mathbf1_{\mathcal G}\mathbf1_{\{\text{pattern}(k)=\pi\}}
+ L_\pi|J_\rho(k)|^2
+ \le2^{(\eta-\Delta+48\eps)n}
+       \prod_{i=1}^n\bigl(M(x_i(k))^2\,2^{R_r(x_i(k))}\bigr).
+ \label{eq:checksum-unconditional-domination}
+\end{equation}
+The nonnegative right side no longer restricts the pattern or the good
+event.  At each fixed $k$, under the original law the $x_i(k)$ are
+independent uniform residues, regardless of the values of $b_i$.
+Lemma~\ref{lemma:finite-filtering} therefore bounds the expected
+product by $2^{0.5169n}$.
+
+Let $E_{\pi,\rho}$ be the error of this pattern's ideal estimate.
+Taking conditional expectation over its samples first in
+\eqref{eq:checksum-conditional-variance}, and then using
+\eqref{eq:checksum-unconditional-domination}, yields
+\begin{align}
+ \E\bigl[\mathbf1_{\mathcal G}|E_{\pi,\rho}|^2\bigr]
+ &\le\frac{2^{(\eta-\Delta+48\eps+0.5169)n}}{NP}\notag\\
+ &=2^{(-\tau-\Delta+0.5169+48\eps)n+O(1)}
+ \le2^{-0.0007n}
+ \label{eq:checksum-error-exponent}
+\end{align}
+for sufficiently large $n$.  The exponent before the $O(1)$ term is
+$-0.00081952$.  Directly summed patterns have zero error on
+$\mathcal G$.  Cauchy--Schwarz gives
+\[
+ \E\!\left[\mathbf1_{\mathcal G}
+       \left|\sum_{\pi\in\mathcal P}E_{\pi,\rho}\right|^2\right]
+ \le Q_n^2\,2^{-0.0007n}.
+\]
+Markov's inequality and a union bound over $\mathcal T$ now show that,
+with probability $1-o(1)$, $\mathcal G$ holds and every total ideal
+estimate has absolute error at most $1/16$.  The subexponential number
+of patterns and the polynomial number of targets are both absorbed by
+the negative linear exponent.  This conclusion uses no independence
+between pattern errors or between target estimates.
+
+\subsection{Resource and precision bounds}
+
+We finish the proof of Theorem~\ref{thm:checksum} by making the
+preceding procedure bounded on all histories.  Generate block tables
+and digit entries as described, aborting at the entry cap
+\eqref{eq:checksum-cap}.  For a direct pattern, abort at the same cap
+on enumerated matches.  Sampled patterns use exactly $N$ match draws,
+or return zero when there is no match.  The event $\mathcal G$ implies
+that none of these caps is reached.  On any other history, the caps
+still bound the work.
+
+Each grid value has a fixed rational denominator.  Thus the weighted
+averages and $\alpha$ have numerators and denominators of $O(\log n)$
+bits, even for unattained patterns.  The ceilings in the digit and
+table counts are computed exactly by rational arithmetic.
+For each pattern, digit processing costs
+$2^{\tau n+O(\sqrt n)}\poly(n)$ before the emitted entries.
+Sorting, prefix sums, and random indexing have polynomial cost per
+entry or sample.  Each valid contribution requires at most
+$2^{O(\sqrt n)}\poly(n)$ work for its multiplicity, and a polynomial
+factor for the target list.  All tuple keys, match counts, and
+multiplicities have $O(n)$ bits: for multiplicities use
+\eqref{eq:checksum-whole-table-count}, and for match counts on retained
+lists use $L_\pi\le C_n^2$.
+Multiplication by the $Q_n$ patterns gives
+\eqref{eq:checksum-time}.
+
+The coarse fixed approximations in pattern and acceptance tests define
+the lists themselves; they need not be refined later.  The complex
+contributions require greater accuracy.  On every nonaborted history
+there are only $2^{O(n)}\poly(|\mathcal T|)$ of them, each formed from
+at most $n+1$ factors of modulus at most two.  The rational weights in
+\eqref{eq:checksum-direct-weight} and
+\eqref{eq:checksum-sample-weight} have $O(n)$-bit numerators and
+denominators and magnitude at most $2^{O(n)}$.
+Section~\ref{sec:finite-arithmetic}, under
+\emph{Complex evaluations and summation}, implements precisely such
+sums by evaluating each phase to error $2^{-2n^2}$ and rounding each
+contribution to $n^2$ fractional bits on a common dyadic grid.  Its
+total error here is
+$2^{-n^2+O(n)}\poly(|\mathcal T|)=o(1)$, hence less than $1/16$
+for sufficiently large $n$, with polynomial work per contribution.
+
+The rational probabilities in the label choices, finite uniform draws,
+and phase evaluations admit bounded implementations on the specified
+word RAM; Section~\ref{sec:implementation} gives these implementations
+and their coupling to the ideal draws.  Their additional abort
+probability is $o(1)$, and their cost is polynomial per operation just
+counted.  The retained phases and block labels are ordinary writable
+data; the procedure requires no access to unstored randomness.
+The ideal error bound $1/16$, the arithmetic error $1/16$, and the
+vanishing probabilities of cap or sampling failure prove
+Theorem~\ref{thm:checksum}.
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/checksum.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/filtering.tex ====
+\section{A fixed filtering construction}\label{sec:filtering}
+
+The squared magnitude of the Fourier term in the overview is a product
+of coordinate factors $M(x)^2=2+2\cos x$.  We construct scores for two tests on pairs of digit
+vectors, choosing them to satisfy $M^2$-weighted moment bounds
+that control the error of the resulting estimator.  Everything
+constructed in this section is fixed independently of the input.
+
+Write $\mathbb T=\mathbb R/(2\pi\mathbb Z)$ with normalized Lebesgue
+measure; every integral below includes the factor $1/(2\pi)$.
+Consider one pair of coordinates $y,z\in\mathbb T$ with difference
+$x=y-z$.  A common uniform shift $\theta$ gives
+$w=z-\theta$ uniform on $\mathbb T$ and $y-\theta=x+w$.
+The tests will separately score these two shifted coordinates.
+
+Start with any strictly positive continuous probability densities $f,g$
+on $\mathbb T$.  For a fixed difference $x$, the formula
+\begin{equation}\label{eq:filter-kernel}
+ Q(x)=\int_{\mathbb T} f(x+w)g(w)\,dw,
+ \qquad K_x(w)=\frac{f(x+w)g(w)}{Q(x)}
+\end{equation}
+defines a strictly positive probability density in $w$.  Replacing the
+uniform law of $w$ by $K_x$ weights each shift by the product of its two
+density values.  The actual tests use the normalized powers
+\[
+ \kappa=1.0315,\qquad
+ f_* =\frac{f^\kappa}{\int_{\mathbb T} f^\kappa},\qquad
+ g_* =\frac{g^\kappa}{\int_{\mathbb T} g^\kappa}.
+\]
+Under the new law, record the expected base-two log likelihood ratio
+against the uniform law and the expected scores on the two sides:
+\begin{equation}\label{eq:filter-scores}
+\begin{split}
+ D(x)&=\int_{\mathbb T}K_x(w)\log K_x(w)\,dw,\\
+ A(x)&=\int_{\mathbb T}K_x(w)\log f_*(x+w)\,dw,\\
+ E(x)&=\int_{\mathbb T}K_x(w)\log g_*(w)\,dw,\\
+ u(x)&=A(x)+E(x)-D(x),\qquad
+ v(x)=2D(x)-A(x)-E(x).
+\end{split}
+\end{equation}
+Thus $D$ measures the cost of this change of law, while $A,E$ give the
+score thresholds it can support.  Products of these one-coordinate
+laws will prove that the block tests cover each frequency.  In particular,
+\begin{equation}\label{eq:filter-entropy-order}
+ D(x)\ge0,\qquad D(x)-A(x)\ge0,\qquad D(x)-E(x)\ge0.
+\end{equation}
+Indeed, the three quantities are the relative entropies of $K_x$ with
+respect to the densities $1$, $f_*(x+\cdot)$, and $g_*$, respectively.
+For completeness, if $p,q$ are positive probability densities, concavity
+of $\ln$ gives
+\[
+ \int p\ln(q/p)\le \ln\int q=0,
+\]
+which proves the asserted nonnegativity.
+
+We now choose the densities and numerical parameters.  The modulus
+will have about $\eta n$ bits, and the estimator will use about
+$2^{\tau n}$ operations, before rounding slack and subexponential
+factors.  The differences $\Delta$ and $\Gamma$ are the exponent
+budgets that enter its sampling and list-size bounds:
+\begin{equation}\label{eq:filtering-constants}
+\begin{gathered}
+ \eta=0.51772,\qquad \tau=0.48996,\qquad
+ \Delta=\eta-\tau=0.02776,\\
+ \Gamma=2\tau-\eta=0.46220,\qquad
+ a=\Delta/\Gamma,\qquad \epsilon=10^{-8}.
+\end{gathered}
+\end{equation}
+The constant $\epsilon$ allows fixed-accuracy evaluation of the scores.
+Define the trigonometric polynomials
+\begin{equation}\label{eq:filter-polynomials}
+ r(x)=\sum_{j=1}^{6}r_j\cos(jx),\qquad
+ s(x)=\sum_{j=1}^{6}s_j\cos(jx),
+\end{equation}
+where
+\[
+\begin{split}
+ (r_1,\ldots,r_6)&=(0.851,0.466,0.325,0.253,0.224,-0.314),\\
+ (s_1,\ldots,s_6)&=(1.281,-0.938,0.731,-0.559,0.391,0.110).
+\end{split}
+\]
+Put $F=2^r$, $G=2^s$, and use the positive normalized densities
+\[
+ Z_f=\int_{\mathbb T}F,\qquad Z_g=\int_{\mathbb T}G,
+ \qquad f=F/Z_f,\qquad g=G/Z_g
+\]
+in the preceding definitions.  These explicit coefficients give the
+following strict inequalities, where $M(x)=|1+e^{ix}|$.
+
+\begin{proposition}[Filtering moments]\label{prop:filtering-moments}
+The functions in \eqref{eq:filter-scores} satisfy
+\begin{equation}\label{eq:continuous-filtering-moments}
+\begin{split}
+ \int_{\mathbb T}M(x)^2 2^{8.5(\Delta-u(x))}\,dx&<2^{0.5168},\\
+ \int_{\mathbb T}M(x)^2 2^{8.3(a v(x)-u(x))}\,dx&<2^{0.5168}.
+\end{split}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Appendix~\ref{app:numerical} proves both inequalities by a 64-point
+quadrature with explicit rational enclosures and analytic error bounds.
+\end{proof}
+
+The algorithm uses a finite circle, not a continuous one.  For an integer
+$P\ge2$, identify $j\in\mathbb Z/P\mathbb Z$ with the angle $2\pi j/P$,
+and replace \emph{every} integral in the definitions above by the
+normalized average $P^{-1}\sum_{j=0}^{P-1}$.  In particular the
+normalizers of $f,g,f_*,g_*$ and the definition of $K_x$ all use this
+finite average.  We use the same notation for these finite functions
+when the underlying circle has been specified.
+
+\begin{lemma}[Finite filtering data]\label{lemma:finite-filtering}\label{filtering-finite}
+There is an absolute integer $P_0$ such that for every $P\ge P_0$ the
+finite functions satisfy \eqref{eq:filter-entropy-order} and
+\begin{equation}\label{eq:finite-filtering-moments}
+\begin{split}
+ \frac1P\sum_{x\in\mathbb Z/P\mathbb Z}
+       M(x)^2 2^{8.5(\Delta-u(x))}&<2^{0.5169},\\
+ \frac1P\sum_{x\in\mathbb Z/P\mathbb Z}
+       M(x)^2 2^{8.3(a v(x)-u(x))}&<2^{0.5169}.
+\end{split}
+\end{equation}
+There is an absolute bound, independent of $P$, for the absolute values
+of $D,A,E,u,v,\log f_*,\log g_*$, and $\log K_x(w)$.
+For every fixed positive rational $\rho$, each of these quantities can
+be approximated to absolute error at most $\rho$ by one fixed
+deterministic rational-arithmetic procedure, in time polynomial in
+$\log P$, given the relevant residues and $P$.  This procedure need not
+enumerate the $P$ points.
+\end{lemma}
+
+\begin{proof}
+The relative-entropy argument is unchanged for normalized finite
+averages.  For uniform bounds, note that
+\[
+ |r|\le2.433,\qquad |s|\le4.010.
+\]
+Consequently $F,G$, all their normalizers, and all the densities above
+are bounded above and bounded away from zero by absolute constants,
+on either circle.  The same holds for $Q$ and $K_x$, so their logarithms
+and the averages defining the scores are uniformly bounded.
+
+If $H(x,w)$ is a continuously differentiable periodic function, the
+error in replacing its $w$ integral by a $P$-point average is at most
+$2\pi\|\partial_w H\|_\infty/P$, uniformly in $x$.  Apply this fact
+first to the normalizers and then to the numerators in
+\eqref{eq:filter-kernel} and \eqref{eq:filter-scores}.  The lower bounds
+on denominators allow division and taking logarithms without losing
+uniform convergence.  Thus the finite versions of $D,A,E,u,v$
+converge uniformly, at their grid points, to the continuous versions.
+Applying the same Riemann-sum estimate once more to the two outer
+integrands proves \eqref{eq:finite-filtering-moments} from
+Proposition~\ref{prop:filtering-moments} and the strict slack between
+$0.5168$ and $0.5169$.
+
+Here is also an effective version of this argument.  The displayed
+coefficient bounds give explicit bounds on every fixed derivative
+needed above.  For a prescribed fixed $\rho$, choose a constant mesh
+fine enough to approximate the continuous integrals, and choose a
+constant threshold above which the finite-to-continuous error is less
+than $\rho/2$.  Evaluate the mesh sums and elementary functions by
+rational Taylor expansions with error less than the remaining
+$\rho/2$.  Arguments are bounded, and all logarithm arguments lie in a
+fixed compact subinterval of $(0,\infty)$.  For logarithms, the series
+$\ln y=2\sum_{j\ge0}d^{2j+1}/(2j+1)$, where $d=(y-1)/(y+1)$,
+therefore converges geometrically at a uniform rate.  The input angle
+$2\pi j/P$ can be approximated with
+a fixed number of fractional bits using arithmetic polynomial in
+$\log P$.  Below the constant threshold one may instead compute the
+finite averages directly.  The mesh, precision, and threshold depend
+only on $\rho$ and the displayed coefficients, not on $P$ or the
+instance.  This gives a single deterministic procedure for each fixed
+$\rho$; in particular repeated calls on the same inputs return the
+same rational value.
+\end{proof}
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/filtering.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/implementation.tex ====
+\section{The algorithm and its finite implementation}
+\label{sec:implementation}
+
+We now combine the two modular procedures.  Their roles are complementary:
+the checksum counts every subset in a modular bin, whereas the extraction
+procedure identifies exactly the terms that do not belong to the integer
+bin.  We first describe the resulting decision rule, then supply the finite
+arithmetic and bounded sampling needed to prove Theorem~\ref{thm:main} in
+the stated machine model.
+
+\subsection{Subtracting aliases}
+
+Choose a fixed sufficiently large integer $n_*$, whose requirements will be
+specified below.  If $n<n_*$ or the bit-length guard
+\eqref{eq:bit-guard} fails, use exact meet-in-the-middle on the original
+instance.  Otherwise choose the tie weights and form $c_i,t_s$ as in
+\eqref{eq:transformed}.  Run the preliminary procedure of
+Proposition~\ref{prop:preliminary}.  Return its answer if it decides the
+instance; its outcome \textsc{Continue} means only that we proceed to the
+following steps.
+
+Run the alias procedure of Theorem~\ref{thm:aliases} to choose the large
+prime $P$ and obtain its alias lists.  Write $\mathcal A_s$ for its
+deduplicated set of aliases for target $t_s$.  Every retained subset is checked using the
+original transformed integers, so even on an unsuccessful extraction run
+the set $\mathcal A_s$ contains only genuine aliases.  On a successful run
+it contains all of them.  Next draw and retain the phases
+$\phi_1,\ldots,\phi_n$ used in Theorem~\ref{thm:checksum}, and compute its
+estimates $\widehat V_{t_s\bmod P}$ for all target residues.  Repeated
+residues can share an estimate.  For each $s$, form the finite-precision
+quantity
+\begin{equation}
+ \widehat B_s
+ =\widehat V_{t_s\bmod P}
+  -\sum_{I\in\mathcal A_s}
+       e_P\left(\sum_{i\in I}\phi_i\right).
+ \label{eq:subtract-aliases}
+\end{equation}
+Each phase in this subtraction is evaluated from the retained integer
+residues $\phi_i$; it is not resampled.  Deduplication is by the binary
+subset itself, separately for each $s$, not by its sum or phase.
+
+Output \textsc{Yes} if $|\widehat B_s|\ge 1/2$ for some $s$, and
+\textsc{No} otherwise.  Since the computed real and imaginary parts are
+dyadic rationals, this test is implemented exactly by comparing the sum of
+their squares with $1/4$.  Any failure declared by a capped main procedure
+or a main-procedure random sampler results in \textsc{No}.  This convention
+does not apply to the preliminary outcome \textsc{Continue}.
+
+The cancellation behind this decision rule is exact before numerical
+rounding.  When extraction is complete,
+\begin{equation}
+ V_{t_s\bmod P}
+ -\sum_{I\in\mathcal A_s}e_P\left(\sum_{i\in I}\phi_i\right)
+ = B_s,
+ \qquad
+ B_s:=\sum_{\substack{I\subseteq[n]\\\sum_{i\in I}c_i=t_s}}
+             e_P\left(\sum_{i\in I}\phi_i\right).
+ \label{eq:exact-bin-checksum}
+\end{equation}
+In particular, an empty exact bin has $B_s=0$, and a bin containing one
+subset has $|B_s|=1$, for every choice of phases.  Thus isolation, rather
+than an anti-concentration estimate for a many-term sum, is what turns
+checksum estimation into a decision algorithm.
+
+\subsection{Finite arithmetic and bounded sampling}
+\label{sec:finite-arithmetic}
+
+The preceding sections describe finite combinatorial constructions, but
+their analyses use exact uniform draws and exact complex values.  We now
+implement both without unbounded running times or real-arithmetic
+instructions.  All constants below are fixed independently of the input
+and of the exponent $c$ in the polynomial-bit convention.
+
+\paragraph{Integer data and implicit indices.}
+The input integers, transformed sums, targets, and signed record weights
+have $O(b+\log(n+2))$ bits.  Masks have $n$ bits, and the residues, digit
+indices, block-table indices, and their tuples have polynomially many
+bits in $n$.  Arithmetic on these objects is performed with ordinary
+multiword integer algorithms.  For example, shift-and-add multiplication
+and binary long division use a polynomial number of bit operations in
+their operand lengths, and each bit operation is simulated by a constant
+number of allowed word operations.  Signs are stored separately.
+
+There is one useful distinction between a stored list and its implicit
+Cartesian products.  In a sampled checksum pattern let
+$E_\pi^{\rm hi},E_\pi^{\rm lo}$ be the numbers of emitted high and low
+entries; retain the notation $L_\pi$ for the number of matches.  The entry
+caps imply on every execution, not only on the good event, that
+\begin{equation}
+ L_\pi\le E_\pi^{\rm hi}E_\pi^{\rm lo}
+ \le 2^{2\lceil(\tau+20\eps)n\rceil}.
+ \label{eq:implicit-match-bitlength}
+\end{equation}
+Thus the possibly much larger match set is counted and indexed with
+$O(n)$-bit integers.  The group counts, prefix sums, and blockwise
+multiplicities in \eqref{eq:checksum-match-count} and
+\eqref{eq:checksum-multiplicity} therefore require only polynomial
+arithmetic per operation.  Those constructions index matches without
+an array indexed by all matches or by all $P$ residues.
+
+The list generators in Sections~\ref{sec:checksum} and~\ref{sec:aliases}
+emit records one at a time and check their caps before the next write.
+The alias exclusion uses binary searches rather than a scan of the
+forbidden interval, as proved in Section~\ref{sec:aliases}.
+Merge sorting uses at most a constant multiple of the stored records as
+temporary storage, with polynomial arithmetic per comparison.
+The distinct-sum preliminary procedure
+can merge a list with its translate, discarding duplicates while emitting
+the next list; its temporary length is at most a constant multiple of the
+cap.
+
+\paragraph{Uniform draws with a deterministic time limit.}
+A fair bit is obtained, for example, from the low bit of a fresh random
+word.  To draw uniformly from $\{0,\ldots,q-1\}$, draw
+$\lceil\log q\rceil$ independent bits and reject if their integer value
+is at least $q$; for $q=1$ return zero without drawing.  Each proposal is
+accepted with probability greater than $1/2$.  Stop with failure after
+$n^3$ rejected proposals.  Before that failure this is exactly the usual
+uniform sampler, and the probability of failure at any given call is at
+most $2^{-n^3}$.  This implements random indices, residues, and a rational
+Bernoulli probability $p/q$ by testing a uniform index against $p$.
+Uniform subsets of prescribed size are obtained by the first positions
+of a permutation generated by successive uniform choices among the
+remaining positions.  The independent flip bits need no rejection.
+
+For a prime in $[2^h,2^{h+1})$, draw uniform integers in this interval and
+test each for primality, stopping at the first prime.  Try at most $n^3$
+candidates.  Conditional on a prime being found, it is uniform among the
+primes of the interval.  The prime interval estimate used in
+Lemma~\ref{lem:prime-collision} gives an acceptance probability at least
+$c_0/n$ for a fixed $c_0>0$ at the two prime scales used here.  Thus failure
+has probability at most $\exp(-c_0n^2)$.  An exact test suffices: divide
+successively by the integers from $2$ through the integer square root of
+the candidate, with no divisor found if and only if it is prime.  The
+integer square root is found by binary search.  For the
+large prime this takes at most
+$2^{\eta n/2+O(1)}\poly(n)$ operations per candidate; the smaller prime
+tests are cheaper.  The number of prime calls is polynomial in $n$.
+
+Couple these samplers to ideal unlimited rejection samplers by using the
+same fresh bits until a cap is reached.  There are at most $2^{O(n)}$
+ordinary sampling calls on any capped execution and polynomially many
+prime calls.  These upper bounds depend on $n$ and the capped combinatorial
+loops, not on $b$; larger input integers increase the deterministic
+arithmetic cost per operation.  The probability that the finite
+and ideal executions ever differ is therefore
+\begin{equation}
+ 2^{O(n)}2^{-n^3}+\poly(n)\exp(-c_0n^2)=o(1).
+ \label{eq:sampling-coupling}
+\end{equation}
+The bound also holds for calls chosen adaptively, since each new call has
+the stated failure bound conditional on its preceding history.  One-way
+randomness causes no difficulty: retain phases and block-table labels
+when the algorithm needs them again, and discard other random words
+after use.  No earlier random bit is subsequently requested from an
+external source.
+
+\paragraph{Complex evaluations and summation.}
+\label{par:complex-evaluations}
+The fixed-accuracy tests of Sections~\ref{sec:filtering}
+and~\ref{sec:checksum} use the same deterministic rational approximations
+at every occurrence.  Their comparison results, including equality at a
+threshold, are therefore reproducible.  They are distinct from the more
+accurate evaluations of the checksum itself.
+
+For those evaluations, first reduce a phase exponent modulo $P$.  Compute
+each resulting unit complex number to absolute error at most
+$2^{-2n^2}$, with dyadic real and imaginary parts.  All of this is rational
+arithmetic of polynomial bit complexity.  For completeness,
+\[
+ \frac\pi4=\arctan(1/2)+\arctan(1/3)
+\]
+computes $\pi$ by alternating power series whose remainders decrease
+geometrically.  After the angle is reduced to $[0,2\pi]$, the sine and
+cosine Taylor series approximate it to $q$ bits with $O(q+1)$ terms:
+their remainders are bounded by $7^{r+1}/(r+1)!$, which is less than
+$2^{-q}$ for $r$ a sufficiently large constant multiple of $q+1$.
+Computing a few additional bits bounds the effect of the angle error and
+the final dyadic rounding.  Exact rational evaluation of these truncated
+series uses polynomially many bits and operations; even multiplying all
+the $O(n)$ dyadic factors without intermediate rounding remains within
+a polynomial bit bound.
+
+To make the error accounting explicit, put $\delta=2^{-2n^2}$.
+The checksum term has $n$ factors of modulus at most $2$ and one leading
+unit phase.  Approximating each to error $\delta$ and telescoping the
+product gives error at most
+$(n+1)\delta(2+\delta)^n=2^{-2n^2+O(n)}$.  The exact rational weights in
+the estimator, including $L_\pi/(P\mu_\pi(k))$, have numerator
+and denominator of $O(n)$ bits on every execution that reaches this
+calculation, by \eqref{eq:implicit-match-bitlength}; sampled matches
+always have positive multiplicity.  Their magnitudes are at most
+$2^{O(n)}$.  The number of evaluated terms and all absolute sum bounds
+are also $2^{O(n)}$, uniformly over the capped histories.
+
+Round each weighted contribution to a common dyadic grid with $n^2$
+fractional bits before adding it.  This avoids multiplying unrelated
+denominators during summation.  Exact addition of the resulting dyadics
+requires only $n^2+O(n)$ bits, and the total evaluation and rounding error
+is at most
+\begin{equation}
+ 2^{-n^2+O(n)}=o(1).
+ \label{eq:finite-evaluation-error}
+\end{equation}
+Division by the power-of-two sample count $N$ preserves the dyadic
+representation and adds only $O(n)$ fractional bits.
+Choose $n_*$ so that the error in \eqref{eq:finite-evaluation-error} is
+at most the $1/16$ arithmetic allowance
+already included in the $1/8$ error bound of
+Theorem~\ref{thm:checksum}.
+The same construction applies to the direct alias sums in
+\eqref{eq:subtract-aliases}.  Only polynomially many capped lists can
+contribute retained aliases, so their total number is $2^{O(n)}$ even on
+an unsuccessful extraction run.  Deduplication can only decrease this
+number.  Increase $n_*$ so that the extra error in each direct alias sum
+is at most $1/16$.  Together with the $1/8$ checksum accuracy of
+Theorem~\ref{thm:checksum}, this leaves
+\begin{equation}
+ \max_s|\widehat B_s-B_s|<\frac14
+ \label{eq:residual-accuracy}
+\end{equation}
+whenever extraction and checksum estimation succeed.
+
+\subsection{Correctness and the uniform running-time bound}
+
+\begin{proof}[Proof of Theorem~\ref{thm:main}]
+First consider an input above the fixed cutoff that satisfies
+\eqref{eq:bit-guard}.  Fix any outcome of the tie weights, and hence all
+the integers $c_i,t_s$.  The proof divides according to the expectation
+of the deficiency on a uniform half; the algorithm never evaluates this
+expectation.
+
+If $\E d(V)>0.01004n$, Proposition~\ref{prop:preliminary} returns an
+exact decision except with probability $o(1)$.  If instead
+\eqref{eq:low-deficiency} holds, Theorem~\ref{thm:aliases} gives complete
+alias extraction with probability $1-o(1)$.  Conditional on each fixed
+$P$ and transformed instance, Theorem~\ref{thm:checksum} supplies all
+checksum estimates with probability $1-o(1)$, uniformly in those data.
+The additional sampling loss is $o(1)$ by
+\eqref{eq:sampling-coupling}.  These statements do not condition on the
+preliminary outcome \textsc{Continue}.  Equivalently, draw the independent
+main-procedure randomness even when the preliminary procedure decides
+and would not use it.  On the event that the main procedure is successful,
+every preliminary continuation is safe, whereas an earlier exact answer
+is already correct.  This establishes the required composition without
+changing the probability laws in either component theorem.
+Thus, for each fixed choice of tie weights, except with probability
+$o(1)$ the algorithm either returns the preliminary exact answer or
+uses complete aliases and accurate checksums in its final decision.
+
+For a \textsc{No} instance every transformed exact bin is empty, by
+Lemma~\ref{lem:isolation}.  On the event just described, if the
+preliminary procedure has not already answered, then
+\eqref{eq:residual-accuracy} forces every test to return
+\textsc{No}.  For a \textsc{Yes} instance, isolation fails with probability
+at most $1/12$.  When it succeeds, some transformed exact bin contains
+one subset.  Equations~\eqref{eq:exact-bin-checksum}
+and~\eqref{eq:residual-accuracy} give $|\widehat B_s|>3/4$ for that bin,
+and the algorithm returns \textsc{Yes}.  All the preceding $o(1)$ bounds
+are uniform over the guarded inputs and over the fixed tie weights.
+Choose the single constant $n_*$ sufficiently large that their total
+contribution is at most $1/12$.  The success probability is then at least
+$1-1/12-1/12=5/6$, and in particular at least $2/3$.
+This cutoff is effective and independent of $b$ and $c$.  The fixed
+filtering functions have explicit derivative bounds and positive lower
+bounds for their denominators, so the finite-circle approximation has an
+effective Riemann-sum error bound.  The remaining requirements use the
+displayed tail estimates, positive exponent gaps, and the explicit prime
+density bound of Lemma~\ref{lem:prime-collision}.  Taking a larger fixed
+integer meets all of them simultaneously.
+
+We next bound work on every random execution, including executions that
+abort.  The preliminary list cap has exponent $0.489985$.  The alias
+lists and enumerated pairs have exponent $\tau=0.48996$, with
+polynomially many repetitions.  The checksum bound is
+\[
+ 2^{(\tau+20\eps)n+O(\sqrt n)}\poly(n).
+\]
+The term $O(\sqrt n)$ includes the number of patterns, block-table work,
+and direct multiplicity computations.  Bounded rejection sampling and
+finite arithmetic multiply these costs by a fixed polynomial in
+$n+b+2$.  Trial division has exponent at most
+$\eta/2=0.25886$ and polynomially many calls, so it is smaller.  Since
+$\tau+20\eps=0.4899602<0.489995$ and
+$0.489985<0.489995$, increasing the fixed cutoff once more gives fixed
+constants $K_0,K$ such that the total work is at most
+\begin{equation}
+ K_0\,2^{0.489995n}(n+b+2)^K
+ \label{eq:all-history-time}
+\end{equation}
+on every guarded execution.  Input reads, generation of the fixed
+approximation meshes, sorting, storage writes, and all random draws are
+included.  In particular, no tables depending on $n$ are supplied to the
+program in advance.
+
+This operation bound also proves addressability without treating a
+multiword integer as a unit-cost value.  Allocate a new word only when it
+is written; the number of allocated words cannot exceed
+\eqref{eq:all-history-time}.  Its logarithm is at most
+\[
+ 0.489995n+K\log(n+b+2)+O(1).
+\]
+For sufficiently large $n$, uniformly for every $b\ge1$, the last two
+terms are at most $n+b+2$, because $\log x/x\to0$ uniformly for
+$x\ge n+3$.  The resulting bound is smaller than
+$w=\lceil4(n+b+\log(n+2))\rceil$.  Every memory address therefore fits
+in a word.  A polynomial-bit arithmetic operand is stored as as many
+words as necessary, and all operations on those words have already been
+charged.
+
+It remains to explain the fallback and the quantifiers.  The program can
+find $b$ by scanning the input and counting the bits of its largest
+integer using shifts, at polynomial cost in $n+b+2$.  The guard is an
+integer comparison: $b^{100000}\le2^n$ is equivalent to
+\eqref{eq:bit-guard}.  The cutoff is tested first, and a comparison with
+this fixed integer may be implemented in finite control.  On a failed
+guard or below $n_*$, divide the input
+into two halves, enumerate all their subset sums, sort one list, and
+search for a complementary sum for each element of the other.  This
+includes the empty subsets, is exact on every input, and uses
+$2^{n/2}\poly(n+b+2)$ operations.  Each original subset sum has at most
+$b+\lceil\log(n+1)\rceil$ bits, so it fits in a word.  The two lists,
+their sorting buffers, and their indices need only
+$O(2^{\lceil n/2\rceil})$ one-word records; a direct mergesort implementation
+fits the specified address space for every $n\ge2$.  No high-precision
+complex arithmetic is used in this fallback.  For $n\ge n_*$, the
+polynomial storage used by the guard itself fits by the same
+$\log(n+b+2)=o(n+b)$ bound as above.  Thus the program terminates and is
+correct on inputs outside the asymptotic guarded range as well.
+
+Finally fix any positive integer $c$.  For all sufficiently large $n$,
+every $b\le n^c$ satisfies the guard and $n\ge n_*$.  Substituting this
+inequality in \eqref{eq:all-history-time} gives
+\[
+ K_0\,2^{0.489995n}(n+n^c+2)^K
+ =O_c(2^{0.49n}),
+\]
+because the fixed positive gap $0.49-0.489995=0.000005$ absorbs every
+fixed polynomial.  The constants in this final comparison may depend
+on $c$, but the program, its cutoffs, its numerical coefficients, and
+all its sampling rules do not.  This is exactly the uniform
+polynomial-bit quantification of Theorem~\ref{thm:main}.
+\end{proof}
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/implementation.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/introduction.tex ====
+\section{Introduction}\label{sec:introduction}
+
+An instance of \emph{Subset Sum}, with $n\ge2$, consists of positive integers
+$a_1,\ldots,a_n$ and a nonnegative integer $t$.  The question is whether
+there is a set $I\subseteq[n]=\{1,\ldots,n\}$ with
+$\sum_{i\in I}a_i=t$.  Equal input integers are allowed, and the empty
+subset is allowed.  We measure the exponential part of the running time
+in the number $n$ of input integers, rather than in their total encoding
+length.
+
+Subset Sum is one of the foundational NP-complete problems, appearing
+as Knapsack in Karp's list~\cite{Karp1972}.  Its simple formulation has
+made it a basic problem in exact exponential-time algorithms and
+cryptanalysis.  The meet-in-the-middle algorithm of Horowitz and
+Sahni~\cite{HorowitzSahni1974} divides the input into two parts, lists
+their subset sums, and searches for complementary sums.  This gives
+the familiar $2^{n/2}$ time scale.  Schroeppel and
+Shamir~\cite{SchroeppelShamir1981} preserved that time scale while
+reducing the space exponent to $1/4$.  More recently, Chen, Jin,
+Randolph, and Servedio~\cite{CJRS2023} obtained a randomized worst-case running
+time $O(2^{n/2}n^{-\gamma})$ for a constant $\gamma>0.5023$ in word-RAM
+and circuit-RAM models with polynomial word length.  A fixed reduction
+of the exponential rate below $1/2$ is a different objective from
+such polynomial-factor savings.  We
+establish that improvement, with ordinary $O(2^{0.49n})$ running time,
+in the precise model below.
+
+\subsection{Model and main result}
+
+Let
+\[
+ b=\max\left\{1,\left\lceil
+       \log_2\bigl(1+\max\{t,a_1,\ldots,a_n\}\bigr)
+                         \right\rceil\right\}
+\]
+be the maximum bit length of the input integers and target.
+The machine is a word RAM with word length
+\begin{equation}\label{eq:word-length}
+ w=\left\lceil4\bigl(n+b+\log_2(n+2)\bigr)\right\rceil.
+\end{equation}
+Each input integer occupies one word in read-only random-access
+memory.  Unit-cost operations are word reads and writes, indirect
+addressing, comparisons, addition, subtraction, multiplication,
+integer quotient and remainder with a nonzero divisor, bitwise Boolean
+operations, and shifts.  Each operation has a constant number of
+$w$-bit inputs and outputs.  Arithmetic exceeding these limits is
+implemented by multiple word operations and charged accordingly.
+A fresh independent uniform $w$-bit random word costs one operation.
+Randomness is one-way: an earlier random word can be reused only if it
+has been retained in writable memory.  There is no random oracle,
+uncharged external storage, or separate workspace bound.
+
+The algorithm must be a single finite program for all $n$ and $b$,
+without advice or externally supplied tables depending on $n$ or the
+input.  All preprocessing, table construction, input accesses, and
+random sampling are included in its running time.
+
+\begin{theorem}\label{thm:main}
+There is a uniform randomized classical algorithm $\mathcal A$ for
+Subset Sum with the following properties in the word-RAM model
+\eqref{eq:word-length}.
+For every input with $n\ge2$, the algorithm halts on every execution
+and outputs the correct answer with probability at least $2/3$.
+For every fixed positive integer $c$, there are constants $C_c>0$
+and $N_c\ge2$ such that every input with $n\ge N_c$ and $b\le n^c$
+is processed, on every outcome of the random choices, in at most
+\[
+                         C_c\,2^{0.49n}
+\]
+word operations.  The program is not given $c$ and does not depend
+on $c$.
+\end{theorem}
+
+The probability in the theorem is over the algorithm's internal
+random words, for each fixed input.  In particular, no distributional
+assumption is made on the input integers.  The running-time bound
+applies even to executions on which the answer is incorrect.
+Our intermediate bound has the form
+$2^{0.489995n}\operatorname{poly}(n+b+2)$; the strict exponent slack
+absorbs the polynomial factor separately for every fixed $c$.
+
+\subsection{Related approaches}
+
+Two other directions explain both the progress on Subset Sum and the
+difficulty of a worst-case improvement in $n$.  Pseudopolynomial
+algorithms measure their complexity in the numerical target $t$.
+Bellman's dynamic-programming approach~\cite{Bellman1957} yields
+$O(nt)$ time.  Koiliaris and Xu~\cite{KoiliarisXu2017} improved this
+bound deterministically, and Bringmann~\cite{Bringmann2017} obtained
+a randomized $\widetilde O(n+t)$ algorithm.  Chan~\cite{Chan2026}
+subsequently obtained a deterministic near-linear pseudopolynomial
+algorithm.  These bounds are particularly effective for small targets;
+polynomial \emph{bit length}, however, permits much larger targets.
+Here and in historical comparisons, $\widetilde O$ suppresses
+polylogarithmic factors.
+
+Representation methods provide a different kind of saving.  The
+method introduced by Howgrave-Graham and Joux~\cite{HGJ2010}, and
+developed by Becker, Coron, and Joux~\cite{BCJ2011}, represents one
+solution by many pairs of partial objects and then searches a filtered
+fraction of those representations.  Their improvements concern
+random instances, not a guarantee for every input.  Austrin, Kaski,
+Koivisto, and Nederlof~\cite{AKKN2016} developed algorithms exploiting
+input blocks with many distinct sums through representations, or
+blocks with few distinct sums through faster enumeration of those
+sums.  Nederlof and
+W\k{e}grzycki~\cite{NederlofWegrzycki2021} used related ideas to improve
+the space bound below the Schroeppel--Shamir exponent.
+
+Related work concerns \emph{Subset Balancing}: given integers $v_i$
+and a fixed finite coefficient set $C\subset\mathbb Z$, find a nonzero
+$x\in C^n$ satisfying $\sum_i v_ix_i=0$.
+Randolph and W\k{e}grzycki~\cite{RandolphWegrzycki2026} give worst-case
+exponent savings for several coefficient sets, though not for ordinary
+Subset Sum.  Their compatibility certificates recover valid
+representation pairs without inspecting all invalid pairs.
+Our alias extraction uses the representation and distinct-sum
+perspective for a different task: listing modular false positives so
+that their contributions can be removed from an estimated checksum.
+
+\subsection{Proof overview}
+
+The proof separates two complementary tasks:
+estimating a modular target bin and identifying the false positives
+created by the modulus.  First, random tie-breaking weights transform
+the original problem into polynomially many targets for new positive
+integer weights $c_1,\ldots,c_n$.  The isolation lemma of Mulmuley,
+Vazirani, and Vazirani~\cite{MVV1987} ensures that, with high constant
+probability, some transformed target has exactly one solution whenever
+the original instance is positive.  A preliminary meet-in-the-middle
+test handles inputs whose partial subset sums have sufficiently small
+support.  Both reductions are developed in Section~\ref{sec:setup}.
+
+For a prime $P$, write $e_P(x)=\exp(2\pi\mathrm i x/P)$.
+With independent uniform residues
+$\phi_1,\ldots,\phi_n$ modulo $P$, assign a subset $I$ the phase
+\[
+ \chi(I)=e_P\left(\sum_{i\in I}\phi_i\right).
+\]
+For each transformed target $t'$, a subset is an \emph{alias} if its
+sum is $t'$ modulo $P$ but not over the integers.  The identity
+\begin{equation}\label{eq:overview-subtraction}
+ \sum_{\sum_{i\in I}c_i=t'}\chi(I)
+  =\sum_{\sum_{i\in I}c_i\equiv t'\pmod P}\chi(I)
+     -\sum_{\substack{I\text{ an alias}\\\text{for }t'}}\chi(I)
+\end{equation}
+is the organizing principle.  On a negative instance the left side is
+zero for every transformed target; an isolated positive target leaves
+a single phase of modulus one.  The two sums on the right can be much
+larger, so their difference must be recovered to small \emph{absolute}
+error.  A relative approximation to the modular sum would not suffice.
+We choose a random prime modulus larger than the desired running time,
+so neither scanning all residues nor evaluating every Fourier frequency
+is affordable.  We estimate the modular sum and subtract the phases of
+a complete list of aliases.
+
+\paragraph{A checksum without a full Fourier transform.}
+Writing $V_{t'}$ for the modular sum in
+\eqref{eq:overview-subtraction}, Fourier inversion gives
+\[
+ V_{t'}=\frac1P\sum_{k=0}^{P-1}J_{t'}(k),
+ \qquad
+ J_{t'}(k)=e_P(-kt')\prod_{i=1}^n
+                         \bigl(1+e_P(\phi_i+kc_i)\bigr).
+\]
+For each fixed $k$, independent uniform phases give
+$\mathbb E_\phi|J_{t'}(k)|^2=2^n$.  Thus the elementary second-moment
+bound for uniform frequency sampling does not give the required
+running time.
+For a chosen digit base $L$, writing $k=hL+l$ expresses the phase
+vector $(\phi_i+kc_i)_i$ as the difference between
+$(\phi_i+hLc_i)_i$ and $(-lc_i)_i$, all modulo $P$.
+These high- and low-digit vectors form two lists.  The filters must
+keep the stored lists short, cover every frequency, and control the
+second moment of the resulting estimate.  A table specifies
+random coordinate shifts, with some coordinates ignored; a sum of
+logarithmic density scores tests each vector against the table.
+A \emph{match} consists of a table and a digit pair whose two vectors
+both pass.  This two-sided organization is related to asymmetric
+locality-sensitive filtering~\cite{Christiani2017}.
+
+To analyze coverage of a fixed digit pair, we temporarily change the
+random-shift law at each coordinate.  Three bounded functions record
+the two resulting mean scores and the likelihood-ratio cost of that change.
+A \emph{pattern} consists of coarse averages of these functions on
+coordinate blocks; the tests are chosen separately for each pattern.
+Grouping coordinates into blocks makes the number of patterns and the
+cost of generating block tables subexponential.  Comparing this auxiliary
+law with the actual table law shows that, with high probability, every
+frequency appears in a match for its own pattern.
+Two fixed inequalities for circle densities control the second
+moment.  Section~\ref{sec:filtering} states these inequalities, and
+Appendix~\ref{app:numerical} proves them with rational enclosures and
+analytic quadrature bounds.
+
+Patterns with a sufficiently small high-probability bound on their
+total match count are summed directly.  For the other patterns, the
+algorithm samples matches and
+divides by the number of matches representing the sampled frequency.
+This is the inverse-coverage correction familiar from union-size
+estimation~\cite{KLM1989}, applied here to a complex weighted sum.
+Theorem~\ref{thm:checksum} proves the resulting absolute-error estimate
+for arbitrary input residues, independently of the distinct-sum
+condition used in alias recovery.  Random phases make the coordinates
+independent at each fixed frequency, even though the original input
+is arbitrary.  The second-moment calculation uses the original phase
+law, not the law conditioned on successful filtering.
+
+\paragraph{Extracting only aliases.}
+The second procedure, in Section~\ref{sec:aliases}, gives each subset
+many representations by two records.  After randomly complementing
+some subset-indicator variables, choose a shared coordinate block and
+partition its complement into a left and a right side.  Each record
+consists of a subset of its side together with a \emph{mask}, a subset
+of the shared block.  Disjoint masks give an actual subset;
+overlapping masks count their common coordinates twice in the sum of
+the record weights.  A small auxiliary modulus reduces the record
+lists.  The analysis proves a dichotomy: either the preliminary
+distinct-sum test succeeds with high probability, or enough
+representations survive to recover every alias with high probability.
+The enumeration omits every pair satisfying the corresponding exact
+integer equation, including pairs with overlapping masks.  This
+omission is crucial: each remaining pair has a nonzero integer
+discrepancy, so a random-prime divisor bound controls the number of
+pairs that pass the main modulus.  Disjoint masks are checked only
+after this bounded enumeration.
+
+Once the reconstructed left side of \eqref{eq:overview-subtraction}
+has error less than $1/4$, comparison with the threshold $1/2$
+separates an empty bin from an isolated one.  Thus isolation removes any need for a separate
+anti-concentration theorem for sums of phases.
+Section~\ref{sec:implementation} assembles the procedures and proves
+Theorem~\ref{thm:main}, including finite-precision arithmetic, capped
+random sampling, and a running-time bound on every execution.
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/introduction.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/numerical.tex ====
+\section{An elementary certificate for the filtering moments}\label{app:numerical}
+
+This appendix proves Proposition~\ref{prop:filtering-moments}.  There
+are three errors to control.  Rational interval arithmetic encloses the
+values computed on a 64-point grid.  The inner quadrature error compares
+those values with the true score functions at the grid points.  The
+outer quadrature error then compares the average of the true node
+integrands with their circle integrals.  We treat these errors in that
+order, after reducing the scores to two convolutions.
+All integrals are normalized circle integrals, and all decimal
+constants denote the indicated exact rationals.
+
+\subsection{Reducing the scores to two convolutions}
+
+Use the continuous functions of Section~\ref{sec:filtering}.  Define
+\begin{equation}\label{eq:numerical-convolutions}
+\begin{split}
+ \mathcal P(x)&=\int F(x+w)G(w)\,dw,\\
+ \mathcal Y(x)&=\int F(x+w)G(w)(r(x+w)+s(w))\,dw,\\
+ L(x)&=\log Q(x),\qquad
+ B(x)=\frac{\mathcal Y(x)}{\mathcal P(x)}-\log(Z_fZ_g),\\
+ Z_{f,\kappa}&=\int F^\kappa,\qquad Z_{g,\kappa}=\int G^\kappa,\\
+ H&=\log Z_{f,\kappa}+\log Z_{g,\kappa}
+          -\kappa\log(Z_fZ_g).
+\end{split}
+\end{equation}
+Here $Q=\mathcal P/(Z_fZ_g)$, and direct substitution in the score
+definitions gives
+\begin{equation}\label{eq:numerical-score-identities}
+ D=B-L,\qquad
+ u=L+(\kappa-1)B-H,\qquad
+ v=(2-\kappa)B-2L+H.
+\end{equation}
+Indeed, $B$ is the $K_x$-mean of $\log(f(x+\cdot)g)$, whereas
+$A+E=\kappa B-H$.  These identities reduce the computation to the two
+convolutions in \eqref{eq:numerical-convolutions}.
+
+Write $x_j=2\pi j/64$ and
+$T_{64}(h)=64^{-1}\sum_{j=0}^{63}h(x_j)$.  A hat means that each
+integral defining a quantity has been replaced by $T_{64}$; nonlinear
+operations are performed after these replacements.  In particular
+\[
+ \widehat{\mathcal P}_j=\frac1{64}\sum_{i=0}^{63}F(x_{i+j})G(x_i),
+ \quad
+ \widehat{\mathcal Y}_j=\frac1{64}\sum_{i=0}^{63}
+ F(x_{i+j})G(x_i)(r(x_{i+j})+s(x_i)),
+\]
+where indices are taken modulo 64.  Let $\widehat X_j$ and
+$\widehat X'_j$ be the values of the first and second integrands in
+\eqref{eq:continuous-filtering-moments}, respectively, obtained from
+$\widehat L,\widehat B,\widehat H$ using
+\eqref{eq:numerical-score-identities}.
+
+\subsection{Finite arithmetic certificate}
+
+Put $\beta=0.19$, and let $r_\beta,s_\beta$ be obtained from $r,s$ by
+multiplying their $j$th cosine coefficients by $\cosh(\beta j)$.
+The following enclosures will suffice.  In the first four rows the
+error is at most $5\cdot10^{-7}$, and in the last two it is at most
+$5\cdot10^{-6}$.
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Quantity & Center of enclosure\\
+\midrule
+$\widehat Z_f$ & $1.1963625$\\
+$\widehat Z_g$ & $1.2877407$\\
+$\widehat Z_{f,\kappa}$ & $1.2110790$\\
+$\widehat Z_{g,\kappa}$ & $1.3038111$\\
+$T_{64}(2^{2r_\beta})$ & $2.4901514$\\
+$T_{64}(2^{2s_\beta})$ & $2.2607200$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Table~\ref{tab:filter-certificate} gives the remaining node enclosures.
+The errors in its four numerical columns are at most $4\cdot10^{-6}$,
+$2\cdot10^{-5}$, $0.0004$, and $0.0004$, respectively.  All columns
+are invariant under $j\mapsto64-j$.  Consequently, averaging the last
+two columns with weight one at $j=0,32$ and weight two otherwise,
+including their stated errors, gives
+\begin{equation}\label{eq:hatted-average-bound}
+ \frac1{64}\sum_{j=0}^{63}\widehat X_j<1.4295,
+ \qquad
+ \frac1{64}\sum_{j=0}^{63}\widehat X'_j<1.4295.
+\end{equation}
+
+\begin{table}[p]
+\centering
+\small
+\begin{tabular}{r@{\qquad}rrrr}
+\toprule
+$j$ & $\widehat{\mathcal P}_j$ & $\widehat{\mathcal Y}_j$
+& $\widehat X_j$ & $\widehat X'_j$\\
+\midrule
+0 &1.7255739&2.3814527&1.71479&1.72487\\
+1 &1.7267975&2.3812891&1.70072&1.70914\\
+2 &1.7298232&2.3798409&1.66451&1.66858\\
+3 &1.7329951&2.3749116&1.62068&1.61932\\
+4 &1.7343372&2.3645517&1.58491&1.57884\\
+5 &1.7323079&2.3482031&1.56813&1.55943\\
+6 &1.7263040&2.3267607&1.57405&1.56556\\
+7 &1.7167948&2.3018438&1.59915&1.59372\\
+8 &1.7051334&2.2751159&1.63351&1.63323\\
+9 &1.6931319&2.2480097&1.66273&1.66812\\
+10 &1.6824618&2.2214392&1.67219&1.68188\\
+11 &1.6740048&2.1950779&1.65371&1.66486\\
+12 &1.6673951&2.1665832&1.61070&1.62013\\
+13 &1.6610380&2.1317550&1.55729&1.56268\\
+14 &1.6527012&2.0862092&1.51133&1.51181\\
+15 &1.6404589&2.0278888&1.48634&1.48247\\
+16 &1.6235129&1.9586974&1.48675&1.48020\\
+17 &1.6024686&1.8838599&1.50690&1.50018\\
+18 &1.5789685&1.8092831&1.53309&1.52883\\
+19 &1.5549462&1.7387429&1.54784&1.54794\\
+20 &1.5318669&1.6725904&1.53630&1.54099\\
+21 &1.5101580&1.6080342&1.49268&1.50055\\
+22 &1.4888661&1.5397614&1.42405&1.43289\\
+23 &1.4655935&1.4601151&1.34881&1.35678\\
+24 &1.4368999&1.3596108&1.29024&1.29629\\
+25 &1.3993369&1.2292982&1.26827&1.27187\\
+26 &1.3509552&1.0651814&1.29131&1.29177\\
+27 &1.2926991&0.8725981&1.34397&1.33998\\
+28 &1.2289553&0.6674810&1.36465&1.35461\\
+29 &1.1668804&0.4731120&1.23032&1.21474\\
+30 &1.1147571&0.3140122&0.82842&0.81341\\
+31 &1.0800632&0.2102374&0.27604&0.26987\\
+32 &1.0678994&0.1742636&0&0\\
+\bottomrule
+\end{tabular}
+\caption{Node enclosures for the filtering certificate.  The allowed
+absolute errors are $4\cdot10^{-6}$, $2\cdot10^{-5}$, $0.0004$, and
+$0.0004$, respectively.  Symmetry supplies the nodes $33,\ldots,63$.}
+\label{tab:filter-certificate}
+\end{table}
+
+We specify elementary rational operations that reproduce these
+enclosures.  The numbers $\cos x_j$, for $0\le j\le16$, lie within
+$3\cdot10^{-10}$ of the following values, in order:
+\[
+\begin{array}{rrrrr}
+1&0.9951847267&0.9807852804&0.9569403357&0.9238795325\\
+0.8819212643&0.8314696123&0.7730104534&0.7071067812&0.6343932842\\
+0.5555702330&0.4713967368&0.3826834324&0.2902846773&0.1950903220\\
+0.0980171403&0
+\end{array}
+\]
+For example, these intervals follow by using the cosine series through
+degree 24, with remainder at most $|t|^{26}/26!$, and
+\[
+ 3.1415926535897<\pi<3.1415926535899.
+\]
+The latter enclosure follows from
+$\pi/4=\arctan(1/2)+\arctan(1/3)$ and the alternating arctangent
+series through degree 159.  Reflection and a half-turn give the
+remaining cosine intervals.  Taking the dot products with the
+coefficients in \eqref{eq:filter-polynomials}, with indices reduced
+modulo 64, gives rational intervals for every $r(x_j),s(x_j)$.
+
+For all the exponential evaluations one may use
+\begin{equation}\label{eq:certificate-exp}
+ \exp(t)\in
+ \sum_{i=0}^{45}\frac{t^i}{i!}
+ +\left[-R_{\exp}(t),R_{\exp}(t)\right],\qquad
+ R_{\exp}(t)=\frac{|t|^{46}}{46!\,(1-|t|/47)}.
+\end{equation}
+All arguments needed for the finite tables have $|t|\le8$.
+For logarithms put $d=(y-1)/(y+1)$ and use
+\begin{equation}\label{eq:certificate-log}
+ \ln y\in
+ 2\sum_{i=0}^{15}\frac{d^{2i+1}}{2i+1}
+ +\left[-R_{\log}(y),R_{\log}(y)\right],\qquad
+ R_{\log}(y)=\frac{2|d|^{33}}{33(1-d^2)}.
+\end{equation}
+These follow by bounding the remaining absolutely convergent tails;
+in particular they give
+$0.693147180559<\ln2<0.693147180561$.
+Compute powers of two as $\exp(t\ln2)$, and compute
+$\cosh t=(\exp t+\exp(-t))/2$.
+Apply interval addition, multiplication, and division to the displayed
+finite sums and then to
+\[
+\begin{split}
+ \widehat L_j&=\log\widehat{\mathcal P}_j
+                    -\log\widehat Z_f-\log\widehat Z_g,\\
+ \widehat B_j&=\widehat{\mathcal Y}_j/\widehat{\mathcal P}_j
+                    -\log\widehat Z_f-\log\widehat Z_g,\\
+ \widehat H&=\log\widehat Z_{f,\kappa}+\log\widehat Z_{g,\kappa}
+                    -\kappa(\log\widehat Z_f+\log\widehat Z_g).
+\end{split}
+\]
+These operations give the stated enclosures.  The intermediate
+intervals may be kept at their rational endpoints; the displayed
+decimal columns are final enclosures, not instructions to round
+intermediate calculations.  Thus the tables and the two explicit
+series remainder bounds constitute a finite arithmetic certificate.
+
+\subsection{Controlling the inner quadratures}
+
+We use the following form of the analytic trapezoid estimate
+\cite[Theorem~3.2]{TrefethenWeideman2014}.  If a
+$2\pi$-periodic function $h$ is analytic on a neighborhood of the
+closed strip $|\operatorname{Im}z|\le\sigma$ and $|h(z)|\le B_0$
+there, then
+\begin{equation}\label{eq:analytic-trapezoid}
+ \left|T_{64}(h)-\int h\right|
+       \le\frac{2B_0}{e^{64\sigma}-1}.
+\end{equation}
+Indeed, shifting the contour for its $k$th Fourier coefficient toward
+the appropriate boundary gives
+$|\widehat h(k)|\le B_0e^{-|k|\sigma}$.  Averaging at the 64 nodes
+retains precisely the coefficients indexed by multiples of 64; the
+nonzero multiples have total absolute value at most the right side
+of \eqref{eq:analytic-trapezoid}.
+
+For the inner integrals defining the hatted values, take
+$\sigma=0.45$.  The inequality
+$|\cos(jz)|\le\cosh(j\sigma)$ and the displayed coefficients give
+\[
+ |r(z)|<6.50,\qquad |s(z)|<8.71,
+ \qquad |2r_\beta(z)|<18.4,\qquad |2s_\beta(z)|<22.4.
+\]
+For instance these are obtained by summing the absolute coefficients
+times $\cosh(0.45j)$; the two last bounds also include the factor
+$2\cosh(0.19j)$.  Formula~\eqref{eq:analytic-trapezoid} gives the
+following errors, distinct from the finite-table rounding errors:
+\begin{equation}\label{eq:inner-quadrature-errors}
+\begin{array}{c|c}
+\text{Quantity}&\text{Error caused by quadrature}\\\hline
+Z_f,Z_g,Z_{f,\kappa},Z_{g,\kappa}&4\cdot10^{-10}\\
+\mathcal P(x_j)&3\cdot10^{-8}\\
+\mathcal Y(x_j)&5\cdot10^{-7}\\
+\int 2^{2r_\beta},\ \int 2^{2s_\beta}&5\cdot10^{-6}
+\end{array}
+\end{equation}
+In detail the respective strip bounds can be taken as
+$2^{\kappa\,8.71}$, $2^{6.50+8.71}$,
+$(6.50+8.71)2^{6.50+8.71}$, and $2^{22.4}$.
+Substituting them in \eqref{eq:analytic-trapezoid} proves every row of
+\eqref{eq:inner-quadrature-errors} by elementary rational bounds on
+the exponential.
+
+Using the ranges in Table~\ref{tab:filter-certificate} to propagate
+these errors through \eqref{eq:numerical-convolutions} gives, at every
+node,
+\begin{equation}\label{eq:node-score-errors}
+ |L-\widehat L|<10^{-7},\qquad
+ |B-\widehat B|<2\cdot10^{-6},\qquad
+ |H-\widehat H|<5\cdot10^{-9}.
+\end{equation}
+For example, division is safe because
+$\widehat{\mathcal P}_j>1.06789$, and
+$|\log x-\log y|\le |x-y|/(\min(x,y)\ln2)$ controls the logarithms.
+Applying \eqref{eq:numerical-score-identities} to
+\eqref{eq:node-score-errors} shows that either true node integrand
+is at most $1.00001$ times its hatted value.  This also holds at
+$x_{32}=\pi$, where both values are zero.  We have therefore proved
+\begin{equation}\label{eq:outer-node-bound}
+ T_{64}(M^2 2^{8.5(\Delta-u)})<1.4295(1.00001),\qquad
+ T_{64}(M^2 2^{8.3(av-u)})<1.4295(1.00001).
+\end{equation}
+It remains to control the outer quadrature, whose integrands involve
+the logarithm and quotient in \eqref{eq:numerical-convolutions}.
+
+\subsection{An analytic strip for the outer integrands}
+
+The first table and \eqref{eq:inner-quadrature-errors} give
+\begin{equation}\label{eq:shifted-l2}
+ \int|f(w+i\beta)|^2\,dw
+     =Z_f^{-2}\int2^{2r_\beta(w)}\,dw<1.761,
+ \qquad
+ \int|g(w+i\beta)|^2\,dw<1.38.
+\end{equation}
+The same bounds hold for imaginary shifts of absolute value at most
+$\beta$.  To see this directly, the functions are real on the real
+circle, so Parseval's identity pairs their positive and negative
+Fourier coefficients into nonnegative multiples of
+$\cosh(2k y)$; their squared norms are thus nondecreasing in $|y|$.
+Their shifted means remain one by contour shifting.  Hence the
+corresponding squared norms for $f-1$ and $g-1$ are less than $0.761$
+and $0.38$.
+
+For $z=x+iy$ with $|y|\le0.38=2\beta$, periodic contour shifting
+in \eqref{eq:filter-kernel} yields
+\[
+ Q(z)=\int f(x+w+iy/2)g(w-iy/2)\,dw.
+\]
+Subtracting the product of the shifted means and applying
+Cauchy--Schwarz gives
+\begin{equation}\label{eq:Q-strip}
+ |Q(z)-1|\le\sqrt{0.761\cdot0.38}<0.54.
+\end{equation}
+In particular $Q$ has no zeros on this strip, and
+$L=\log Q=(\ln Q)/\ln2$ is analytic there with the branch real on
+the real axis.  Moreover
+\[
+ -\operatorname{Re}L\le-\log0.46<1.121.
+\]
+The numerator $QB$ is also analytic.  The same split contour gives,
+for every $|y|\le2\beta$,
+\begin{align*}
+ Q(z)B(z)
+  =\int &f(x+w+iy/2)g(w-iy/2)\\
+       &\mathord{}\cdot
+       \bigl(r(x+w+iy/2)+s(w-iy/2)-\log(Z_fZ_g)\bigr)\,dw.
+\end{align*}
+This uses the analytic expression $r+s-\log(Z_fZ_g)$ for the
+logarithm of the product, not a new branch choice.  Each factor is
+evaluated within the strip of half-width $\beta$, where the
+coefficient sums give $|r|<2.96$ and $|s|<4.67$.  Consequently, on
+the full strip of half-width $2\beta$,
+\begin{equation}\label{eq:B-strip}
+ |Q B|\le\sqrt{1.761\cdot1.38}
+       \bigl(2.96+4.67+\log Z_f+\log Z_g\bigr)<13,
+ \qquad |B|<13/0.46.
+\end{equation}
+The normalizer enclosures also give $H<0.016$.
+
+Now \eqref{eq:numerical-score-identities},
+\eqref{eq:Q-strip}, and \eqref{eq:B-strip} imply
+\[
+ 8.5\operatorname{Re}(\Delta-u)
+ \le8.5\left(0.02776+1.121+0.0315\frac{13}{0.46}+0.016\right)
+ <17.6.
+\]
+For the second exponent use the exact identity
+\[
+ av-u=-(1+2a)L+
+       \bigl(a(2-\kappa)-(\kappa-1)\bigr)B+(1+a)H.
+\]
+The same bounds give
+\[
+ 8.3\operatorname{Re}(av-u)
+ \le8.3\left((1+2a)1.121+
+       |a(2-\kappa)-(\kappa-1)|\frac{13}{0.46}
+       +(1+a)0.016\right)<17.6.
+\]
+Finally $|2+2\cos z|\le2+2\cosh(0.38)<4.16$.
+Both outer integrands therefore extend analytically to the strip
+$|\operatorname{Im}z|\le0.38$ and have absolute value below $2^{20}$
+there.  (The strict bounds also give a neighborhood of the closed
+strip.)  Formula~\eqref{eq:analytic-trapezoid} bounds either outer
+quadrature error by
+\[
+ \frac{2^{21}}{e^{64\cdot0.38}-1}<0.00007.
+\]
+Combining this with \eqref{eq:outer-node-bound}, each integral in
+\eqref{eq:continuous-filtering-moments} is strictly less than
+\[
+ 1.4295(1.00001)+0.00007
+   =1.429584295<2^{0.5168}.
+\]
+The last comparison follows already from
+$2^{0.5168}>1.4307781$, obtained from
+\eqref{eq:certificate-exp}.  This proves both filtering moments.
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/numerical.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//sections/setup.tex ====
+\section{Isolation, distinct sums, and prime collisions}
+\label{sec:setup}
+
+We first reduce detection to finding an isolated exact sum.  We then give
+an exact preliminary search that succeeds when a random half of the
+coordinates has sufficiently few distinct subset sums.  The complementary
+case supplies the combinatorial information needed later to recover
+modular aliases.  Finally, we record a random-prime collision bound
+for the nonzero integer discrepancies arising in alias extraction.
+
+All logarithms are to base~$2$, except for $\ln$.  Write
+$[n]=\{1,\ldots,n\}$, and for weights $v_1,\ldots,v_n$ write
+$v(I)=\sum_{i\in I}v_i$ for $I\subseteq[n]$.  Empty sums are zero.
+All constants and decimal parameters in the proof are fixed, independently
+of the input.
+
+\subsection{Isolating one exact target}
+
+The following application of the Isolation Lemma of
+Mulmuley, Vazirani, and Vazirani~\cite{MVV1987} allows a complex-valued
+checksum to detect a solution without an anti-concentration argument.
+Choose a power of two $N_0$ with $12n\le N_0<24n$, and draw independent
+uniform integers $u_i\in\{1,\ldots,N_0\}$.  Define
+\begin{equation}
+\label{eq:transformed}
+ C=1+nN_0,\qquad c_i=Ca_i+u_i,\qquad
+ t_s=Ct+s\quad(0\le s\le nN_0).
+\end{equation}
+The transformed weights and targets have $O(b+\log n)$ bits, and there
+are $nN_0+1=O(n^2)$ targets.
+
+\begin{lemma}[Isolation]
+\label{lem:isolation}
+For every choice of the tie weights, there is a subset $I\subseteq[n]$
+with $a(I)=t$ if and only if there are $s\in\{0,\ldots,nN_0\}$ and
+$I\subseteq[n]$ with $c(I)=t_s$.  If the original instance has a
+solution, then with probability at least $11/12$ at least one transformed
+target $t_s$ has exactly one representing subset.
+\end{lemma}
+
+\begin{proof}
+The identity $c(I)=t_s$ gives
+$C(a(I)-t)=s-u(I)$.  Since $s,u(I)\in[0,nN_0]$ and $C>nN_0$, this
+forces $a(I)=t$ and $u(I)=s$.  Conversely, every original solution
+represents the transformed target indexed by $s=u(I)$.
+
+Let $\mathcal F=\{I\subseteq[n]:a(I)=t\}$, and suppose
+$\mathcal F\ne\varnothing$.  Fix an index $i$ and all tie weights other
+than $u_i$.  The minimum tie weight among members of $\mathcal F$
+containing $i$ has the form $A_i+u_i$, while the minimum among members
+not containing $i$ is a constant $B_i$.  A missing family can be assigned
+minimum $+\infty$.  If both families are nonempty, their two minima
+coincide for at most one value of $u_i$.  Consequently, the probability
+that they coincide is at most $1/N_0$.
+
+If $u$ has two distinct minimum-weight members of $\mathcal F$, they
+differ at some index $i$, and the two minima just described coincide
+there.  A union bound shows that the minimum is unique with probability
+at least $1-n/N_0\ge11/12$.  Its tie weight $s$ then indexes an exact
+bin containing just this subset, by the first part of the proof.
+\end{proof}
+
+\subsection{Deficiency and the preliminary search}
+
+For the rest of this section, fix the transformed weights $c_i$.
+For $V\subseteq[n]$ define its subset-sum support and its deficiency by
+\begin{equation}
+\label{eq:deficiency}
+ \Sigma(V)=\{c(I):I\subseteq V\},\qquad
+ d(V)=|V|-\log|\Sigma(V)|.
+\end{equation}
+Thus $d(V)$ is the exponent saved by storing distinct subset sums
+instead of all $2^{|V|}$ subsets: $|\Sigma(V)|=2^{|V|-d(V)}$.
+Large deficiency means that many subsets have the same sum.
+These definitions make sense for arbitrary integer weights, not only
+the positive transformed weights.
+
+\begin{lemma}[Properties of deficiency]
+\label{lem:deficiency}
+For arbitrary fixed integer weights, $d(\varnothing)=0$ and $d(V)\ge0$.
+For $i\notin V$,
+\[
+ 0\le d(V\cup\{i\})-d(V)\le1.
+\]
+For disjoint $U,V\subseteq[n]$,
+\[
+ d(U\cup V)\ge d(U)+d(V).
+\]
+If $V,V'$ have equal size and differ by exchanging one index, then
+$|d(V)-d(V')|\le1$.
+\end{lemma}
+
+\begin{proof}
+There are at most $2^{|V|}$ subset sums, and the empty sum always
+belongs to the support.  Adding $i$ replaces $\Sigma(V)$ by
+$\Sigma(V)\cup(c_i+\Sigma(V))$, whose cardinality lies between
+$|\Sigma(V)|$ and $2|\Sigma(V)|$.  This proves the increment bounds.
+For disjoint $U,V$,
+$\Sigma(U\cup V)=\Sigma(U)+\Sigma(V)$ has cardinality at most
+$|\Sigma(U)|\,|\Sigma(V)|$, giving superadditivity.  Finally, in an
+exchange write $V=U\cup\{i\}$ and $V'=U\cup\{j\}$.  Both
+deficiencies lie in $[d(U),d(U)+1]$.
+\end{proof}
+
+\begin{lemma}[Random restrictions]
+\label{lem:half-variance}
+Let $V_q$ be a uniformly random $q$-element subset of $[n]$, for
+$0\le q\le n$.  Then
+\[
+ \operatorname{Var}d(V_q)\le q.
+\]
+Moreover, $\mathbb E d(V_q)$ is nondecreasing in $q$.
+\end{lemma}
+
+\begin{proof}
+Expose an ordered sample $X_1,\ldots,X_q$ without replacement, and let
+\[
+ M_r=\mathbb E\bigl[d(\{X_1,\ldots,X_q\})
+                   \mid X_1,\ldots,X_r\bigr]
+ \quad(0\le r\le q).
+\]
+Fix a possible prefix of length $r-1$ and compare two possible choices
+$i,j$ for $X_r$.  Couple the remaining ordered samples by interchanging
+$i$ and $j$.  The resulting final sets either coincide, if the remainder
+contains the other index, or differ by the exchange $i\leftrightarrow j$.
+By Lemma~\ref{lem:deficiency}, their deficiencies differ by at most~$1$.
+Thus the possible conditional values of $M_r$, given the prefix of
+length $r-1$, lie in an interval of length at most~$1$.  Since $M_{r-1}$
+is their mean, $|M_r-M_{r-1}|\le1$.  The martingale differences are
+orthogonal in $L^2$, so
+\[
+ \operatorname{Var}d(V_q)
+ =\sum_{r=1}^q\mathbb E(M_r-M_{r-1})^2\le q.
+\]
+The case $q=0$ is immediate.  To compare expectations for consecutive
+sizes, use the first $q$ and first $q+1$ entries of one uniform random
+permutation, and apply the monotonicity in Lemma~\ref{lem:deficiency}.
+\end{proof}
+
+We now use distinct sums in the meet-in-the-middle algorithm of
+Horowitz and Sahni~\cite{HorowitzSahni1974}.  Related distinctions between
+small subset-sum supports and the complementary regime appear in earlier
+Subset Sum algorithms~\cite{AKKN2016,NederlofWegrzycki2021}.
+The procedure can stop without deciding the instance; that outcome
+means only that the later algorithm must be run.
+
+\begin{proposition}[Capped preliminary search]
+\label{prop:preliminary}
+Given fixed transformed weights and targets from
+\eqref{eq:transformed}, there is a randomized procedure that either
+returns the correct decision for the original instance or returns
+\textup{CONTINUE}.  On every execution its running time is at most
+\[
+ 2^{0.489985n}\operatorname{poly}(n+b+2).
+\]
+If $V$ is uniform among the $\lfloor n/2\rfloor$-element subsets and
+$\mathbb E d(V)>0.01004n$, then the probability of \textup{CONTINUE}
+is $O(1/n)$, uniformly in the fixed weights.
+\end{proposition}
+
+\begin{proof}
+Choose a uniform $\lfloor n/2\rfloor$-element set $V$, returning
+\textup{CONTINUE} if the capped sampler described below fails.
+Construct the two sorted lists of distinct subset sums on
+$V,[n]\setminus V$, one side at a time.  Starting with $\{0\}$, insert an
+index $i$ by merging the current list with its translate by $c_i$ and
+removing duplicate values.  Cap every list at
+\[
+ B_n=2^{\lceil0.489985n\rceil}.
+\]
+If a merge produces more than $B_n$ distinct entries, stop immediately
+and return \textup{CONTINUE}.  Otherwise, for every $s$ check the two
+final sorted lists for a pair summing to $t_s$.  A linear scan suffices
+for each target.  Return \textup{YES} exactly when such a pair exists.
+Lemma~\ref{lem:isolation} proves correctness whenever this search
+finishes.  Each merge takes $O(B_n)$ list operations before completion
+or interruption, and there are only polynomially many merges and
+target scans.  The bit lengths noted after \eqref{eq:transformed}
+give the stated running time.  Intermediate support sizes never exceed
+the final support size, so a side completes whenever its final support
+has at most $B_n$ entries.
+
+To sample $V$, choose its elements successively without replacement.
+When $k$ indices remain, use the low $\lceil\log k\rceil$ bits of a
+fresh random word to propose an index, rejecting values at least $k$.
+Allow at most $n^2$ proposals per choice and return \textup{CONTINUE}
+if all are rejected.  The sampler uses at most $n^3$ proposals and its
+total failure probability is at most $n2^{-n^2}$.  Conditional on no
+failure, $V$ is uniform because the success probability of each choice
+depends only on $k$, not on the selected index.
+
+Suppose now that $\mathbb E d(V)>0.01004n$.  Both side sizes have
+expected deficiency greater than $0.01004n$, by
+Lemma~\ref{lem:half-variance}; each side has variance at most $n$.
+Chebyshev's inequality therefore gives, for either side $U$,
+\[
+ \Pr\{d(U)<0.010025n\}
+ \le \frac{n}{(0.000015n)^2}=O(1/n).
+\]
+When neither exceptional event occurs,
+\[
+ \log|\Sigma(U)|=|U|-d(U)
+ \le 0.489975n+\tfrac12
+ \le 0.489985n
+\]
+for all sufficiently large $n$.  Both lists then fit under the cap,
+and the procedure decides the instance.  A union bound, including the
+sampler-failure probability $n2^{-n^2}$, proves the assertion.
+\end{proof}
+
+The expectation in Proposition~\ref{prop:preliminary} is used only in
+the analysis; the algorithm does not evaluate it.  For each fixed
+choice of the tie weights, either the preliminary search decides with
+probability $1-O(1/n)$, or
+\begin{equation}
+\label{eq:low-deficiency}
+ \mathbb E_{\substack{V\subseteq[n]\text{ uniform}\\
+                      |V|=\lfloor n/2\rfloor}}d(V)
+ \le0.01004n.
+\end{equation}
+The alias-recovery argument will use this latter inequality.
+A \textup{CONTINUE} outcome is not a certificate that it holds.
+
+\subsection{A collision bound for random primes}
+
+Reduction modulo a random prime makes any fixed false integer equality
+unlikely.  The following elementary bound is the only number-theoretic
+estimate needed for that purpose.
+
+\begin{lemma}[Random-prime collisions]
+\label{lem:prime-collision}
+There are absolute constants $K$ and $L_*$ such that the following
+holds.  For an integer $L\ge L_*$, let $p$ be uniform among the primes
+in $[2^L,2^{L+1})$.  If $D$ is a nonzero integer with $|D|<2^B$, where
+$B\ge1$, then
+\[
+ \Pr\{D\equiv0\pmod p\}\le KBL\,2^{-L}.
+\]
+The same bound applies to the collision of two fixed unequal integers
+whose difference has absolute value less than $2^B$.
+\end{lemma}
+
+\begin{proof}
+The prime number theorem gives at least $c_0 2^L/L$ primes in the
+specified interval for an absolute $c_0>0$ and all sufficiently large
+$L$.  An explicit bound of this form is also given by
+Rosser and Schoenfeld~\cite[Corollary~3]{RosserSchoenfeld1962}.
+The nonzero integer $D$ has fewer than $B$ distinct prime divisors,
+since their product is at most $|D|$ and each is at least~$2$.
+Dividing this count by the number of available primes proves the
+claim.  For two unequal integers, apply it to their difference.
+\end{proof}
+==== END Subset-Sum-in-Time-2-power-0-49n//sections/setup.tex ====
+
+==== BEGIN Subset-Sum-in-Time-2-power-0-49n//references.bib ====
+@incollection{Karp1972,
+  author = {Richard M. Karp},
+  title = {Reducibility among Combinatorial Problems},
+  booktitle = {Complexity of Computer Computations},
+  editor = {Raymond E. Miller and James W. Thatcher and Jean D. Bohlinger},
+  publisher = {Plenum Press},
+  pages = {85--103},
+  year = {1972},
+  doi = {10.1007/978-1-4684-2001-2_9}
+}
+
+@article{HorowitzSahni1974,
+  author = {Ellis Horowitz and Sartaj Sahni},
+  title = {Computing Partitions with Applications to the Knapsack Problem},
+  journal = {Journal of the ACM},
+  volume = {21},
+  number = {2},
+  pages = {277--292},
+  year = {1974},
+  doi = {10.1145/321812.321823}
+}
+
+@article{SchroeppelShamir1981,
+  author = {Richard Schroeppel and Adi Shamir},
+  title = {A {$T=O(2^{n/2})$}, {$S=O(2^{n/4})$} Algorithm for Certain {NP}-Complete Problems},
+  journal = {SIAM Journal on Computing},
+  volume = {10},
+  number = {3},
+  pages = {456--464},
+  year = {1981},
+  doi = {10.1137/0210033}
+}
+
+@inproceedings{CJRS2023,
+  author = {Xi Chen and Yaonan Jin and Tim Randolph and Rocco A. Servedio},
+  title = {{Subset Sum} in Time {$2^{n/2}/\operatorname{poly}(n)$}},
+  booktitle = {Approximation, Randomization, and Combinatorial Optimization. Algorithms and Techniques (APPROX/RANDOM 2023)},
+  series = {Leibniz International Proceedings in Informatics},
+  volume = {275},
+  pages = {39:1--39:18},
+  publisher = {Schloss Dagstuhl--Leibniz-Zentrum f{\"u}r Informatik},
+  year = {2023},
+  doi = {10.4230/LIPIcs.APPROX/RANDOM.2023.39}
+}
+
+@book{Bellman1957,
+  author = {Richard Bellman},
+  title = {Dynamic Programming},
+  publisher = {Princeton University Press},
+  year = {1957}
+}
+
+@inproceedings{KoiliarisXu2017,
+  author = {Konstantinos Koiliaris and Chao Xu},
+  title = {A Faster Pseudopolynomial Time Algorithm for {Subset Sum}},
+  booktitle = {Proceedings of the 28th Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages = {1062--1072},
+  publisher = {SIAM},
+  year = {2017},
+  doi = {10.1137/1.9781611974782.68}
+}
+
+@inproceedings{Bringmann2017,
+  author = {Karl Bringmann},
+  title = {A Near-Linear Pseudopolynomial Time Algorithm for {Subset Sum}},
+  booktitle = {Proceedings of the 28th Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages = {1073--1084},
+  publisher = {SIAM},
+  year = {2017},
+  doi = {10.1137/1.9781611974782.69}
+}
+
+@inproceedings{Chan2026,
+  author = {Timothy M. Chan},
+  title = {Derandomizing Pseudopolynomial Algorithms for {Subset Sum}},
+  booktitle = {Proceedings of the 37th Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages = {3600--3610},
+  publisher = {SIAM},
+  year = {2026},
+  doi = {10.1137/1.9781611978971.131}
+}
+
+@inproceedings{MVV1987,
+  author = {Ketan Mulmuley and Umesh V. Vazirani and Vijay V. Vazirani},
+  title = {Matching is as Easy as Matrix Inversion},
+  booktitle = {Proceedings of the 19th Annual ACM Symposium on Theory of Computing},
+  pages = {345--354},
+  publisher = {ACM},
+  year = {1987},
+  doi = {10.1145/28395.383347}
+}
+
+@inproceedings{HGJ2010,
+  author = {Nick Howgrave-Graham and Antoine Joux},
+  title = {New Generic Algorithms for Hard Knapsacks},
+  booktitle = {Advances in Cryptology--EUROCRYPT 2010},
+  series = {Lecture Notes in Computer Science},
+  volume = {6110},
+  pages = {235--256},
+  publisher = {Springer},
+  year = {2010},
+  doi = {10.1007/978-3-642-13190-5_12}
+}
+
+@inproceedings{BCJ2011,
+  author = {Anja Becker and Jean-S{\'e}bastien Coron and Antoine Joux},
+  title = {Improved Generic Algorithms for Hard Knapsacks},
+  booktitle = {Advances in Cryptology--EUROCRYPT 2011},
+  series = {Lecture Notes in Computer Science},
+  volume = {6632},
+  pages = {364--385},
+  publisher = {Springer},
+  year = {2011},
+  doi = {10.1007/978-3-642-20465-4_21}
+}
+
+@inproceedings{AKKN2016,
+  author = {Per Austrin and Petteri Kaski and Mikko Koivisto and Jesper Nederlof},
+  title = {Dense {Subset Sum} May Be the Hardest},
+  booktitle = {33rd Symposium on Theoretical Aspects of Computer Science},
+  series = {Leibniz International Proceedings in Informatics},
+  volume = {47},
+  pages = {13:1--13:14},
+  publisher = {Schloss Dagstuhl--Leibniz-Zentrum f{\"u}r Informatik},
+  year = {2016},
+  doi = {10.4230/LIPIcs.STACS.2016.13}
+}
+
+@inproceedings{NederlofWegrzycki2021,
+  author = {Jesper Nederlof and Karol W{\k{e}}grzycki},
+  title = {Improving {Schroeppel} and {Shamir}'s Algorithm for {Subset Sum} via Orthogonal Vectors},
+  booktitle = {Proceedings of the 53rd Annual ACM SIGACT Symposium on Theory of Computing},
+  pages = {1670--1683},
+  publisher = {ACM},
+  year = {2021},
+  doi = {10.1145/3406325.3451024}
+}
+
+@inproceedings{RandolphWegrzycki2026,
+  author = {Tim Randolph and Karol W{\k{e}}grzycki},
+  title = {Beating Meet-in-the-Middle for Subset Balancing Problems},
+  booktitle = {Proceedings of the 58th Annual ACM Symposium on Theory of Computing},
+  pages = {1314--1325},
+  publisher = {ACM},
+  year = {2026},
+  doi = {10.1145/3798129.3800841}
+}
+
+@article{RosserSchoenfeld1962,
+  author = {J. Barkley Rosser and Lowell Schoenfeld},
+  title = {Approximate Formulas for Some Functions of Prime Numbers},
+  journal = {Illinois Journal of Mathematics},
+  volume = {6},
+  number = {1},
+  pages = {64--94},
+  year = {1962},
+  doi = {10.1215/ijm/1255631807}
+}
+
+@inproceedings{Christiani2017,
+  author = {Tobias Christiani},
+  title = {A Framework for Similarity Search with Space-Time Tradeoffs using Locality-Sensitive Filtering},
+  booktitle = {Proceedings of the 28th Annual ACM-SIAM Symposium on Discrete Algorithms},
+  pages = {31--46},
+  publisher = {SIAM},
+  year = {2017},
+  doi = {10.1137/1.9781611974782.3}
+}
+
+@article{KLM1989,
+  author = {Richard M. Karp and Michael Luby and Neal Madras},
+  title = {{Monte-Carlo} Approximation Algorithms for Enumeration Problems},
+  journal = {Journal of Algorithms},
+  volume = {10},
+  number = {3},
+  pages = {429--448},
+  year = {1989},
+  doi = {10.1016/0196-6774(89)90038-2}
+}
+
+@article{TrefethenWeideman2014,
+  author = {Lloyd N. Trefethen and J. A. C. Weideman},
+  title = {The Exponentially Convergent Trapezoidal Rule},
+  journal = {SIAM Review},
+  volume = {56},
+  number = {3},
+  pages = {385--458},
+  year = {2014},
+  doi = {10.1137/130932132}
+}
+==== END Subset-Sum-in-Time-2-power-0-49n//references.bib ====
+

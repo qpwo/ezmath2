@@ -1,0 +1,2951 @@
+==== TABLE OF CONTENTS ====
+Variance-of-the-Random-k-SAT-Hitting-Time//source/paper.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/preamble.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/appendix-c.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/conventions.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/deletion.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/direct-comparison.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/introduction.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/lower-bounds.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/occupation.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement-sharpness.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/three-clause-refinements.tex
+Variance-of-the-Random-k-SAT-Hitting-Time//source/references.bib
+===========================
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/paper.tex ====
+\documentclass[11pt]{article}
+\input{preamble}
+\title{Variance of the Random \texorpdfstring{$k$}{k}-SAT Hitting Time}
+\author{OpenAI}
+\date{September 27, 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+Let $H_n$ be the index of the first unsatisfiable prefix in random $k$-SAT
+on $n$ variables, with independent uniformly signed clauses using $k$
+distinct variables and sampled with replacement. For every fixed $k\ge4$,
+we prove $\Var(H_n)=\Theta_k(n)$. For $k=3$, the variance is bounded below
+by a positive multiple of $n$ and above by a constant multiple of $n\log n$;
+the companion paper on random 3-SAT sharpens this to $\Theta(n)$.
+The same upper bounds proved here hold after clipping at any fixed positive
+multiple of $n$.
+\end{abstract}
+\input{sections/introduction}
+\input{sections/replacement}
+\input{sections/deletion}
+\input{sections/occupation}
+\input{sections/conventions}
+\input{sections/lower-bounds}
+\input{sections/three-clause-refinements}
+\appendix
+\input{sections/replacement-sharpness}
+\input{sections/direct-comparison}
+\input{sections/appendix-c}
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/paper.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/preamble.tex ====
+\ifdefined\pdfinfoomitdate\pdfinfoomitdate=1\fi
+\ifdefined\pdftrailerid\pdftrailerid{}\fi
+\ifdefined\pdfsuppressptexinfo\pdfsuppressptexinfo=15\fi
+\ifdefined\pdfgentounicode
+\pdfgentounicode=1
+\input{glyphtounicode-cmex}
+\fi
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{xurl}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{bookmark}
+\hypersetup{pdftitle={Variance of the Random k-SAT Hitting Time},pdfauthor={OpenAI},bookmarksnumbered=true}
+\renewcommand{\bibsection}{\section*{\refname}\addcontentsline{toc}{section}{\refname}}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{example}[theorem]{Example}
+\newcommand{\PP}{\mathbb P}
+\newcommand{\EE}{\mathbb E}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\Pois}{Pois}
+\DeclareMathOperator{\Bin}{Bin}
+\newcommand{\ind}[1]{\mathbf 1_{\{#1\}}}
+\newcommand{\sat}{\mathrm{SAT}}
+\newcommand{\UNSAT}{\mathrm{UNSAT}}
+\newcommand{\fall}[2]{(#1)_{#2}}
+\numberwithin{equation}{section}
+\urlstyle{same}
+\allowdisplaybreaks[1]
+\setlength{\emergencystretch}{2em}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\ThresholdTheorem}{1.1}
+\newcommand{\ThresholdVariance}{3.3}
+\newcommand{\ThresholdTransfer}{5.3}
+\newcommand{\ThresholdBalanced}{5.4}
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/preamble.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/appendix-c.tex ====
+\section{A three-clause proof using prefix exposure}\label{sec:appendix-c}
+\label{sec:prefix-exposure}
+
+We give a second variance estimate for three-clause formulas, revealing
+clause types only through the current prefix.  The argument truncates the
+number of clauses testing each variable of an omitted clause at
+\(\lceil\log n\rceil\), and pays separately for clauses meeting two or
+more of those variables.  It gives an \(O(n\log^4 n)\) bound.  The
+cube of the incidence cutoff contributes three logarithmic factors;
+the critical occupation integral contributes the fourth.  The main
+argument in Sections~\ref{sec:deletion}--\ref{sec:occupation} instead
+averages the bounded third moment of the actual incidence count, giving
+\(O(n\log n)\).  Comparing the two proofs shows where that improvement
+enters.  The replacement step below also gives a distinct finite-variable
+estimate: replacing one two-clause on \(u\) variables by \(g\)
+three-clauses loses at most \(64(g^{-2}+u^{-2})\) in killing probability.
+
+Throughout this section, \(C_1,C_2,\ldots\) are independent uniform
+proper three-clauses on \(n\ge3\) variables: a clause uses three distinct
+variables and independent fair signs, while whole clauses may repeat.
+Write \(H_n\) for the index of the first unsatisfiable prefix and put
+\[
+ L=10n,\qquad T_n=\min\{H_n,L\},\qquad m_n=\EE T_n.
+\]
+
+\begin{theorem}[Variance from prefix exposure]\label{thm:prefix-variance}
+There is an absolute constant \(C\) such that, for all integers \(n\ge3\),
+\[
+ \Var(T_n)\le Cn(\log n)^4.
+\]
+Consequently, for every \(t>0\),
+\[
+ \PP\bigl(|T_n-m_n|\ge t\sqrt n(\log n)^2\bigr)\le Ct^{-2}.
+\]
+\end{theorem}
+
+The proof has two uses of the same lifetime estimate.  It bounds the
+remaining duration of a deletion event and the total time spent at a
+given level of the probability of killing the surviving assignments.
+Three independent root-flip tests connect those two bounds.
+
+\subsection{Replacing pairs by triples on a finite variable set}
+
+For an integer \(u\ge3\) and \(S\subseteq\{0,1\}^u\), a collection of clauses
+\emph{kills} \(S\) if no member of \(S\) satisfies all of them.  A
+uniform proper \(r\)-clause here is chosen from the
+\(2^r\binom ur\) signed clauses on \(r\) distinct variables.  For an
+integer \(d\ge1\), let \(q_d(S)\) be the probability that \(d\)
+independent uniform proper two-clauses kill \(S\).  Let \(\tau(S)\)
+be the expected length of the first prefix of independent uniform proper
+three-clauses whose conjunction kills \(S\), and set
+\(\tau(\varnothing)=0\).  For nonempty \(S\), this
+expectation is finite because the probability of survival after \(m\)
+clauses is at most \(|S|(7/8)^m\).
+
+Replacing a shorter constraint by native clauses has a qualitative
+predecessor in Friedgut's half-cube argument
+\cite[Lemma~5.7]{Friedgut}.  The residual-set conditioning used below
+is the averaged replacement method of Carenini
+\cite[Theorem~4.3, Lemma~6.1, and Corollary~6.2]{Carenini}; the following
+bound supplies the finite-variable pair-to-triple estimate needed here.
+
+\begin{lemma}[One-pair replacement]\label{lem:prefix-one-pair}
+For every integer \(u\ge3\), every \(S\subseteq\{0,1\}^u\), and every integer
+\(g\ge1\), if the \(g\) triples are independent uniform proper
+three-clauses on these \(u\) variables, then
+\begin{equation}\label{eq:prefix-one-pair}
+ \PP(\text{the \(g\) triples kill \(S\)})
+ \ge q_1(S)-64(g^{-2}+u^{-2}).
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+If \(S=\varnothing\), both killing probabilities are one.  Suppose that
+\(S\ne\varnothing\), and let \(b\) be the number of variables taking a
+common value on all members of \(S\).  A single clause kills \(S\)
+exactly when every one of its variables is among these \(b\) frozen
+variables and every sign opposes the common value.  Thus the killing
+probability of a proper \(r\)-clause is
+\[
+ h_r=\frac{(b)_r}{2^r(u)_r},\qquad r=2,3,
+\]
+where \((x)_r=x(x-1)\cdots(x-r+1)\), and \((b)_r=0\) for integers
+\(0\le b<r\).  For \(b\ge3\),
+\[
+ \frac{h_3}{h_2^{3/2}}
+ =\frac{b-2}{\sqrt{b(b-1)}}\frac{\sqrt{u(u-1)}}{u-2}
+ \ge\frac14.
+\]
+Indeed, the first factor is at least \((b-2)/b\ge1/3\), and the
+second is at least one.
+
+Put \(h=h_2\le1/4\).  The block kills \(S\) whenever one of its
+clauses kills \(S\) by itself, so its killing probability is at least
+\(1-(1-h_3)^g\ge1-e^{-gh_3}\).  If \(b\ge3\) and
+\((g/4)\sqrt h\ge2\), then \(gh_3\ge2h\), and this probability is at
+least \(1-e^{-2h}\ge h\).  The last inequality follows because
+\(1-e^{-2h}-h\) vanishes at zero and has nonnegative derivative on
+\([0,1/4]\).  In the remaining case with \(b\ge3\), \(h\le64g^{-2}\).
+If \(b<3\), then
+\[
+ h\le\frac1{2u(u-1)}\le u^{-2}.
+\]
+The nonnegativity of the block killing probability now proves
+\eqref{eq:prefix-one-pair} in every case.
+\end{proof}
+
+\begin{remark}
+For \(k=3\), the cutoff-free estimate in Lemma~\ref{lem:one-replacement}
+has error \(256g^{-2}\).  Neither that error nor
+\(64(g^{-2}+u^{-2})\) is uniformly smaller: the latter is smaller for
+\(g<\sqrt3\,u\), the former is smaller for \(g>\sqrt3\,u\), and they
+are equal when \(g=\sqrt3\,u\).  The two estimates therefore retain
+different quantitative information.
+\end{remark}
+
+\begin{proposition}[Lifetime above the finite-variable cutoff]
+\label{prop:prefix-lifetime}
+Let \(K=64\).  There is an absolute constant \(K_1\) such that for
+every integer \(u\ge3\), every nonempty \(S\subseteq\{0,1\}^u\), every integer
+\(d\ge1\), and every \(a\) with \(4Kd/u^2\le a\le1\),
+\begin{equation}\label{eq:prefix-lifetime}
+ q_d(S)\ge a\quad\Longrightarrow\quad
+ \tau(S)\le K_1d^{3/2}a^{-3/2}.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Replace \(d\) independent two-clauses one at a time by independent
+blocks of \(g\) proper three-clauses.  At each step condition on the
+clauses in every other position, including the blocks already inserted.
+Their surviving assignments form a set \(S'\subseteq S\).  The pair
+being removed and the new block are independent of this conditioning.
+Lemma~\ref{lem:prefix-one-pair}, including its empty-set case, bounds
+the conditional loss by \(K(g^{-2}+u^{-2})\).  Averaging and telescoping
+over the replacements gives
+\begin{equation}\label{eq:prefix-many-pairs}
+ \PP(\text{\(dg\) independent uniform proper three-clauses kill \(S\)})
+ \ge q_d(S)-Kd(g^{-2}+u^{-2}).
+\end{equation}
+Choose \(g=\lceil\sqrt{4Kd/a}\rceil\).  Each of \(Kd/g^2\) and
+\(Kd/u^2\) is at most \(a/4\), so a block of \(dg\) triples kills
+the original set \(S\) with probability at least \(a/2\).  In an
+infinite independent sequence, disjoint blocks have independent events
+of killing that original set.  Their first successful block has expected
+index at most \(2/a\), and the cumulative sequence kills \(S\) by
+the end of that block.  Therefore
+\[
+ \tau(S)\le\frac{2dg}{a}\le 8\sqrt K\,d^{3/2}a^{-3/2},
+\]
+where \(g\le2\sqrt{4Kd/a}\) follows from \(d\ge1\) and \(a\le1\).
+This proves the assertion, for example with \(K_1=64\).
+\end{proof}
+
+\subsection{A deleted clause and an unexposed future}
+
+We now apply the lifetime estimate to the delay caused by omitting one
+clause.  We first assume \(n\) is sufficiently large, in particular
+\(n\ge6\); the final constant will cover the remaining sizes.  Keep
+the original clause indices, and for \(1\le i\le L\) and
+integer \(m\ge0\) put
+\[
+ B_m^{(i)}=\bigwedge_{\substack{1\le j\le m\\j\ne i}}C_j,
+ \qquad
+ T^{(i)}=\min\bigl\{\inf\{m\in\mathbb Z_{\ge0}:
+                   B_m^{(i)}\notin\sat\},L\bigr\},
+ \qquad D_i=T^{(i)}-T_n,
+\]
+with \(\inf\varnothing=\infty\).  Then \(D_i\ge0\), and
+\(T^{(i)}\) does not use coordinate \(C_i\).  The coordinate-omission
+inequality, Lemma~\ref{lem:coordinate-omission}, gives
+\begin{equation}\label{eq:prefix-omission}
+ \Var(T_n)\le\sum_{i=1}^{L}\EE D_i^2.
+\end{equation}
+Its martingale proof applies to precisely these index-preserving
+deletions and to the cap \(L=10n\).
+
+Fix \(i\) and condition on any particular clause \(C_i\).  Until the
+end of the variance proof, probabilities refer to this conditional law;
+the other clauses remain independent and uniform.  We call indices other
+than \(i\) the baseline indices for this deletion.  Let \(R\) be the
+three variables of \(C_i\), called its \emph{roots}, and let
+\(t\in\{0,1\}^{R}\) be their unique values that falsify \(C_i\).
+Put \(u=n-3\), abbreviate \(B_m=B_m^{(i)}\), and let
+\(\mathcal F_m=\sigma(C_j:1\le j\le m,\ j\ne i)\) under the
+conditional law.  In particular, \(u\ge3\).
+
+For \(i\le m<L\), define
+\begin{equation}\label{eq:prefix-delay-events}
+ A_m=\{T_n\le m<T^{(i)}\}
+     =\{B_m\in\sat,\ B_m\wedge C_i\notin\sat\}.
+\end{equation}
+On \(A_m\), every solution of \(B_m\) has root values \(t\).
+The two processes agree before index \(i\), so
+\begin{equation}\label{eq:prefix-delay-sum}
+ D_i=\sum_{m=i}^{L-1}\ind{A_m}.
+\end{equation}
+In particular \(D_L=0\).  For every \(m\ge i\), let
+\(S_m\subseteq\{0,1\}^u\) be the nonroot restrictions of solutions
+of \(B_m\) with root values \(t\).  The sets are decreasing,
+\(\mathcal F_m\)-measurable, and nonempty on \(A_m\).
+
+A clause is \emph{ordinary} if it uses only nonroots.  A fresh clause
+is ordinary with probability
+\[
+ p_0=\frac{\binom{u}{3}}{\binom n3},
+\]
+which is bounded below by a positive absolute constant for sufficiently
+large \(n\).  Let \(U_m\) be the number of trials after index \(m\),
+including the last trial, until the ordinary clauses among them kill
+the original set \(S_m\); put \(U_m=0\) when \(S_m=\varnothing\).
+These trials may continue past \(L\).  Conditional on \(\mathcal F_m\),
+the future ordinary clauses are independent uniform proper triples on
+the nonroots.  Their arrival gaps, counting the arrival trial, are
+independent geometric variables of mean \(1/p_0\), independent of the
+ordinary clauses themselves.  Conditioning first on the latter clauses
+and summing the means of the gaps through their killing time proves
+\begin{equation}\label{eq:prefix-future-mean}
+ \EE[U_m\mid\mathcal F_m]=\frac{\tau(S_m)}{p_0}.
+\end{equation}
+The assertion uses the fact that only the prefix has been revealed;
+for \(m\ge i\), all trials after \(m\) remain fresh even after fixing
+\(C_i\).
+
+\begin{lemma}[Remaining deletion time]\label{lem:prefix-future-delay}
+Set \(\mathcal W_m=\min\{L,\tau(S_m)/p_0\}\).  For \(i\le m<L\),
+on \(A_m\),
+\[
+ \EE\left[\sum_{\ell=m+1}^{L-1}\ind{A_\ell}
+                  \,\middle|\,\mathcal F_m\right]\le\mathcal W_m.
+\]
+Consequently,
+\begin{equation}\label{eq:prefix-weighted-delay}
+ \EE D_i^2\le3\sum_{m=i}^{L-1}\EE[\ind{A_m}\mathcal W_m].
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+On \(A_m\), any later solution of \(B_\ell\) still has root values
+\(t\), and its nonroot part lies in \(S_m\).  Once the subsequent
+ordinary clauses kill \(S_m\), no such solution remains.  Thus
+\(A_\ell\) is impossible for \(\ell\ge m+U_m\).  The number of later
+indices is at most both \(U_m\) and \(L\); its conditional expectation
+is therefore at most \(\min\{\EE[U_m\mid\mathcal F_m],L\}\).
+Equation~\eqref{eq:prefix-future-mean} proves the first assertion.
+
+On \(A_m\), the nonempty set \(S_m\) requires at least one triple to
+be killed, so \(\mathcal W_m\ge1\).  Expanding
+\eqref{eq:prefix-delay-sum}, conditioning each cross term on its earlier
+history, and using the first assertion gives
+\begin{align*}
+ \EE D_i^2
+ &=\sum_m\EE\ind{A_m}
+   +2\sum_m\EE\left[\ind{A_m}
+      \EE\left[\sum_{\ell=m+1}^{L-1}\ind{A_\ell}
+                  \,\middle|\,\mathcal F_m\right]\right]\\
+ &\le\sum_m\EE[\ind{A_m}(1+2\mathcal W_m)]
+ \le3\sum_m\EE[\ind{A_m}\mathcal W_m],
+\end{align*}
+where every outer sum runs from \(m=i\) to \(L-1\).
+\end{proof}
+
+\subsection{The three root-flip tests}
+
+The weight in \eqref{eq:prefix-weighted-delay} is determined by the
+surviving set.  To estimate the accompanying deletion probability, we
+hide the parts of clauses that are already satisfied at the fixed root
+values.  They will test whether a root can be flipped.
+
+The \emph{type} of a baseline clause through index \(m\) records the
+roots it contains and the signs of its root literals.  For \(j\in R\),
+let \(\mathcal I_{j,m}\) be the indices other than \(i\), at most
+\(m\), whose clause contains exactly root \(j\) and whose root literal
+is true at \(t\); put \(s_{j,m}=|\mathcal I_{j,m}|\).  Call a clause
+containing at least two roots a \emph{collision}, and let \(v_m\) count
+such clauses at baseline indices through \(m\).  Finally, let
+\(J_m\subseteq R\) contain those roots \(j\) for which no collision through \(m\)
+has exactly one root literal true under \(t\), at root \(j\).  A collision
+can exclude at most one root, hence
+\begin{equation}\label{eq:prefix-available-roots}
+ |J_m|\ge3-v_m.
+\end{equation}
+
+Let \(\mathcal G_m\) reveal all these prefix types and the entire signed
+nonroot part of every baseline clause through \(m\), except at indices
+in \(\bigcup_{j\in R}\mathcal I_{j,m}\).  Thus
+\(\mathcal G_m\subseteq\mathcal F_m\).  The hidden clauses are already
+satisfied by their root literal at \(t\), so their nonroot parts do not
+affect \(S_m\).  In particular \(S_m,J_m,s_{j,m},v_m\), and
+\(\mathcal W_m\) are \(\mathcal G_m\)-measurable.  Conditional on
+\(\mathcal G_m\), the hidden nonroot parts are independent uniform
+proper two-clauses on the \(u\) nonroots.  Indeed, conditioning the
+independent clauses on their types separately preserves their product
+law, and revealing nonroot parts at other indices does not change it.
+
+Put
+\[
+ d=\lceil\log n\rceil,\qquad q_m=q_d(S_m).
+\]
+
+\begin{lemma}[Root-flip tests under prefix conditioning]
+\label{lem:prefix-root-tests}
+For every \(i\le m<L\), on the \(\mathcal G_m\)-measurable event
+\(\{\max_{j\in R}s_{j,m}\le d,\ |J_m|\ge1\}\),
+\begin{equation}\label{eq:prefix-root-tests}
+ \PP(A_m\mid\mathcal G_m)
+ \le\ind{S_m\ne\varnothing}q_m^{|J_m|}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+If \(A_m\) occurs, then for each \(j\in J_m\) the pair clauses at
+indices in \(\mathcal I_{j,m}\) must kill \(S_m\).  Otherwise choose
+an assignment in \(S_m\) satisfying those pairs, extend it with root
+values \(t\), and flip only \(j\).  A clause with no true root literal
+before the flip has a satisfied nonroot part, which is unchanged.  A
+clause with a true root literal at a root other than \(j\) remains
+satisfied.  Any remaining clause has \(j\) as its unique true root
+before the flip.  It cannot be a collision because \(j\in J_m\), so
+it belongs to \(\mathcal I_{j,m}\) and its pair is satisfied by the
+chosen assignment.  The flipped assignment therefore satisfies
+\(B_m\) with root values different from \(t\), contradicting
+\eqref{eq:prefix-delay-events}.
+
+The required killing events for different \(j\) use disjoint families
+of the conditionally independent hidden pairs.  On a nonempty \(S_m\),
+each family has at most \(d\) members and therefore kills with
+probability at most \(q_d(S_m)=q_m\).  A family of zero pairs has
+killing probability zero, so it causes no exception.  Multiplication of
+these conditional bounds, together with the necessity of
+\(S_m\ne\varnothing\), proves \eqref{eq:prefix-root-tests}.
+\end{proof}
+
+\subsection{Truncating incidence counts and summing occupation}
+
+It remains to sum the right side of \eqref{eq:prefix-weighted-delay}.
+The tests make deletion unlikely when \(q_m\) is small.  When it is
+large, the lifetime estimate limits both the remaining deletion time
+and the number of indices at that level.  We first isolate the rare
+prefixes for which too many tests or collisions are present.
+
+\begin{lemma}[Prefix incidence counts]\label{lem:prefix-counts}
+Uniformly in \(i\le m<L\) and in the fixed value of \(C_i\),
+\begin{align}
+ \PP\bigl(\max_{j\in R}s_{j,m}>d\bigr)&=O(n^{-4}),
+ \label{eq:prefix-large-count}\\
+ \PP(v_m\ge1)&=O(n^{-1}),\qquad
+ \PP(v_m\ge2)=O(n^{-2}).
+ \label{eq:prefix-collision-counts}
+\end{align}
+\end{lemma}
+
+\begin{proof}
+A baseline clause contains a specified root with probability \(3/n\),
+independently across indices, and \(s_{j,m}\) is no greater than that
+root's incidence count.  A union bound over roots and choices of \(d\)
+indices among at most \(L=10n\) trials gives
+\begin{equation}\label{eq:prefix-count-numerical}
+ \PP\bigl(\max_{j\in R}s_{j,m}>d\bigr)
+ \le3\binom Ld(3/n)^d\le3(30e/d)^d=O(n^{-4}).
+\end{equation}
+The final bound holds for sufficiently large \(n\), since
+\(d=\lceil\log n\rceil\) and \(\log d\to\infty\).
+
+A trial contains any specified pair of roots with probability
+\(6/[n(n-1)]\).  The union over the three pairs bounds its collision
+probability by \(18/[n(n-1)]\).  A union bound over at most \(L\)
+independent trials gives \(\PP(v_m\ge1)=O(n^{-1})\); a union bound
+over pairs of trials gives
+\(\PP(v_m\ge2)\le\binom L2 O(n^{-4})=O(n^{-2})\).
+\end{proof}
+
+With \(K=64\), set
+\begin{equation}\label{eq:prefix-cutoff}
+ a_0=\frac{4Kd}{u^2}=\frac{256d}{(n-3)^2}.
+\end{equation}
+For sufficiently large \(n\), \(a_0<1\).  On \(S_m\ne\varnothing\),
+\begin{equation}\label{eq:prefix-weighted-lifetime}
+ \mathcal W_m q_m^{3/2}\le C d^{3/2}.
+\end{equation}
+For \(q_m\ge a_0\), this follows by applying
+Proposition~\ref{prop:prefix-lifetime} with \(a=q_m\), and then using
+\(\mathcal W_m\le\tau(S_m)/p_0\).  For \(q_m<a_0\), including
+\(q_m=0\), use \(\mathcal W_m\le L\) and
+\begin{equation}\label{eq:prefix-small-level}
+ L a_0^{3/2}
+ =10n\left(\frac{256d}{(n-3)^2}\right)^{3/2}
+ =O(d^{3/2}n^{-2})\le C d^{3/2}.
+\end{equation}
+
+\begin{lemma}[Reduction to occupation]\label{lem:prefix-reduction}
+For all sufficiently large \(n\), uniformly in \(i\) and in the value
+of \(C_i\),
+\begin{equation}\label{eq:prefix-reduction}
+ \EE D_i^2\le C(1+d^{3/2})+
+ C d^{3/2}\sum_{m=i}^{L-1}
+       \EE\bigl[\ind{S_m\ne\varnothing}q_m^{3/2}\bigr].
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+In \eqref{eq:prefix-weighted-delay}, the terms on
+\(\{\max_j s_{j,m}>d\}\cup\{v_m\ge2\}\) contribute at most
+\[
+ L\sum_{m=i}^{L-1}
+ \bigl[\PP(\max_j s_{j,m}>d)+\PP(v_m\ge2)\bigr]
+ =O\bigl(L^2(n^{-4}+n^{-2})\bigr)=O(1).
+\]
+For every remaining term, the restrictions, \(\mathcal W_m\), and
+\(S_m\) are \(\mathcal G_m\)-measurable.  If \(v_m=1\), then
+\(|J_m|\ge2\).  Conditioning on \(\mathcal G_m\) in
+Lemma~\ref{lem:prefix-root-tests} bounds its weighted probability by
+\(\ind{S_m\ne\varnothing}\mathcal W_mq_m^2\).  On a nonempty set,
+\eqref{eq:prefix-weighted-lifetime} and \(q_m\le1\) bound this by
+\(Cd^{3/2}\).  The one-collision contribution is therefore at most
+\[
+ Cd^{3/2}\sum_{m=i}^{L-1}\PP(v_m=1)=O(d^{3/2}).
+\]
+No independence between \(v_m\) and the surviving set is asserted or
+needed.
+
+If \(v_m=0\), all three roots are available, and the same conditional
+bound has exponent three.  By \eqref{eq:prefix-weighted-lifetime},
+\[
+ \ind{S_m\ne\varnothing}\mathcal W_mq_m^3
+ \le Cd^{3/2}\ind{S_m\ne\varnothing}q_m^{3/2}.
+\]
+We may now discard the incidence restrictions.  Summing the three
+cases and absorbing the factor three from
+\eqref{eq:prefix-weighted-delay} proves \eqref{eq:prefix-reduction}.
+\end{proof}
+
+We next bound how long the decreasing sets \(S_m\) can remain nonempty
+at a given pair-killing level.  The first visit to that level determines
+a set whose future lifetime controls all subsequent visits.
+
+\begin{lemma}[Occupation above a level]\label{lem:prefix-occupation}
+For all sufficiently large \(n\) and every \(a_0\le a\le1\),
+\begin{equation}\label{eq:prefix-occupation}
+ \sum_{m=i}^{L-1}\PP(S_m\ne\varnothing,\ q_m\ge a)
+ \le Cd^{3/2}a^{-3/2}.
+\end{equation}
+For \(0<a<a_0\), the same sum is at most \(L\).
+\end{lemma}
+
+\begin{proof}
+Let \(\sigma_a\) be the first index in \(\{i,\ldots,L-1\}\) for
+which \(S_m\ne\varnothing\) and \(q_m\ge a\), and set
+\(\sigma_a=\infty\) when none exists.  This is a stopping time for
+\(\mathcal F_m\), because \(q_d\) is a deterministic function of
+its set argument.  On \(\{\sigma_a=m\}\), every counted index is
+at least \(m\).  Also \(S_\ell=\varnothing\) for
+\(\ell\ge m+U_m\): by then the future ordinary clauses have killed
+\(S_m\), and any member of \(S_\ell\) would be a member of \(S_m\)
+satisfying all those clauses.  The number of counted indices is thus
+at most \(U_m\), including the first index \(m\).
+
+For \(a\ge a_0\), the event \(\{\sigma_a=m\}\) is
+\(\mathcal F_m\)-measurable, and on it the lifetime proposition applies.
+The fresh-future identity gives
+\begin{align*}
+ \EE[\ind{\sigma_a=m}U_m]
+ &=\EE\left[\ind{\sigma_a=m}\frac{\tau(S_m)}{p_0}\right]\\
+ &\le Cd^{3/2}a^{-3/2}\PP(\sigma_a=m).
+\end{align*}
+Summing over the disjoint first-visit events proves
+\eqref{eq:prefix-occupation}.  This conditioning is legitimate because
+\(m\ge i\) and all trials after \(m\) remain unexposed.  At a smaller
+level there are at most \(L\) indices to count.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:prefix-variance}]
+For \(0\le q\le1\),
+\(q^{3/2}=\int_0^1\frac32a^{1/2}\ind{q\ge a}\,da\).
+Applying this identity and Lemma~\ref{lem:prefix-occupation} gives
+\begin{align*}
+ \sum_{m=i}^{L-1}\EE[\ind{S_m\ne\varnothing}q_m^{3/2}]
+ &=\int_0^1\frac32a^{1/2}
+       \sum_{m=i}^{L-1}\PP(S_m\ne\varnothing,q_m\ge a)\,da\\
+ &\le L a_0^{3/2}+Cd^{3/2}\int_{a_0}^1\frac{da}{a}
+ \le Cd^{3/2}\log n.
+\end{align*}
+The final step uses \eqref{eq:prefix-small-level} and
+\(\log(1/a_0)\le2\log n\), since \(a_0\ge n^{-2}\).  The sum is finite
+and the integrands are
+nonnegative, so the interchange of sum, expectation, and integral is
+valid.  Lemma~\ref{lem:prefix-reduction} now yields, uniformly in the
+deleted index and the fixed clause,
+\begin{equation}\label{eq:prefix-squared-influence}
+ \EE D_i^2\le C(1+d^{3/2})+Cd^3\log n\le C(\log n)^4.
+\end{equation}
+Average over \(C_i\) to remove the conditioning, and sum
+\eqref{eq:prefix-squared-influence} in \eqref{eq:prefix-omission}.
+This gives \(\Var(T_n)\le Cn(\log n)^4\) for sufficiently large
+\(n\).  Enlarging \(C\) covers the remaining integers \(n\ge3\),
+since \(0\le T_n\le10n\).  Chebyshev's inequality proves the stated
+tail bound.
+\end{proof}
+
+For every fixed \(0<\eta<1/2\), the \(\eta\) and \(1-\eta\)
+quantiles of \(T_n\) therefore lie within
+\(O_\eta(\sqrt n\log^2 n)\) of \(m_n\).  The probability outside
+any diverging multiple of this scale tends to zero.  These statements
+use the finite-size mean \(m_n\).
+
+\subsection{Cap changes and the center comparison}
+
+The prefix proof supplies a second concentration input for
+Theorem~\ref{thm:proper-center-module}.  That theorem assumes a
+concentration bound and proves the center comparisons independently of
+how the bound is obtained.  We apply it here using the variance bound of
+Theorem~\ref{thm:prefix-variance}, together with the cap identities
+already proved in Section~\ref{sec:three-clause-refinements}.  Put
+\[
+ W_n=\min\{H_n-1,10n\},\qquad V_n=\min\{H_n-1,16n\},
+ \qquad e_n=\frac{\EE T_n}{n},\qquad P_n(j)=\PP(H_n>j).
+\]
+
+\begin{corollary}\label{cor:prefix-consequences}
+The variance and tail bounds of Theorem~\ref{thm:prefix-variance} hold
+also for \(W_n\) and \(V_n\), each centered at its own expectation.
+Moreover \(e_n\to\alpha_3\), the strict-side threshold of the proper
+three-clause model: for every fixed \(c\ge0\) with \(c\ne\alpha_3\),
+\[
+ P_n(\lfloor cn\rfloor)\longrightarrow
+ \begin{cases}1,&c<\alpha_3,\\0,&c>\alpha_3.\end{cases}
+\]
+There is an absolute constant \(C\) such that for all sufficiently large
+\(n=\min\{n_1,n_2\}\) with \(\max\{n_1,n_2\}\le3n\), and for all
+sufficiently large \(n\) in the second inequality,
+\begin{equation}\label{eq:prefix-center-comparisons}
+ e_{n_1+n_2}\ge\min\{e_{n_1},e_{n_2}\}-Cn^{-1/4},
+ \qquad e_{n+1}\ge e_n-Cn^{-1/4}.
+\end{equation}
+\end{corollary}
+
+\begin{proof}
+Set \(\rho=2(7/8)^{10}<1\).  With \(T=T_n\), \(W=W_n\), and
+\(V=V_n\), identities~\eqref{eq:three-same-cap}--\eqref{eq:three-cross-cap}
+show that the mean corrections from \(m_n-1\) are at most \(\rho^n\)
+and \((6n+1)\rho^n\), respectively.  The corresponding absolute differences
+of standard deviations are at most \(\rho^{n/2}\) and
+\((6n+1)\rho^{n/2}\); the sharper geometric bounds are those in
+Section~\ref{sec:three-clause-refinements}, obtained from
+Proposition~\ref{prop:cap-bridge}.  These exponentially small corrections
+transfer the variance estimate to both last-satisfiable statistics.
+Chebyshev's inequality gives their tails about their own means.
+
+For the center claim, choose a fixed \(0<c<e^{-2}\) and put
+\(j=\lfloor cn\rfloor\).  Lemma~\ref{lem:sparse-satisfiability} gives
+\(\EE T_n\ge jP_n(j)=cn-o(n)\).  The survival-sum bound
+\eqref{cmp:mean-upper} with \(k=3\) and density six gives
+\(\EE T_n\le\EE H_n\le6n+8[2(7/8)^6]^n\).
+Thus \(c_0\le e_n\le7<10\) eventually, for some absolute \(c_0>0\).
+The relevant survival identity is
+\(P_n(j)=\PP(T_n>j)\) for integers \(0\le j<10n\);
+the restriction below the cap is essential, whereas the last-SAT identity
+\(P_n(j)=\PP(W_n\ge j)\) includes \(j=10n\).
+Theorem~\ref{thm:prefix-variance} supplies the concentration input
+\begin{equation}\label{eq:prefix-center-concentration}
+ \PP\bigl(|T_n-m_n|\ge n^{3/4}\bigr)\le\eta_n,
+ \qquad \eta_n=C\frac{(\log n)^4}{\sqrt n}\longrightarrow0.
+\end{equation}
+Apply Theorem~\ref{thm:proper-center-module} with \(k=3\), \(B=10\),
+\(a=c_0\), \(A=7\), and \(\delta=1/4\).  It gives both comparisons
+in~\eqref{eq:prefix-center-comparisons}, in particular for the stated
+comparable sizes, and convergence with the proper strict-side limits.
+Uniqueness identifies the limit with \(\alpha_3\) of
+\cite[Theorem~\ThresholdTheorem]{FixedKThreshold}.  The one-sided
+estimate~\eqref{cmp:tree-bound} also gives, for every sufficiently large
+\(s\) and every \(N\ge s^2\),
+\[
+ e_N\ge e_s-C's^{-1/4}.
+\]
+\end{proof}
+
+For the comparable-size consequence, the coarser trial comparison gives
+a concrete error bound.  With \(N=n_1+n_2\),
+\(n=\min(n_1,n_2)\), \(e_*=\min(e_{n_1},e_{n_2})\), set
+\(\varepsilon=n^{-1/4}\) and
+\(M=\lfloor(e_*-2\varepsilon)N\rfloor\), as in the proof of
+Theorem~\ref{thm:proper-center-module}.  The anchors give
+\((c_0/4)N\le M\le7N\) for large \(n\).  Since \(C_3=27\) in
+Lemma~\ref{cmp:trial-comparison} and \(N\le4n\),
+\eqref{cmp:coarse-replacement} bounds the loss by
+\begin{equation}\label{eq:prefix-756-loss}
+ \frac{27M}{\varepsilon^3n^3}
+ \le\frac{27\cdot7\cdot4n}{n^{9/4}}
+ =756n^{-5/4}.
+\end{equation}
+The restriction \(\max(n_1,n_2)\le3n\) is used only for this numerical
+bound.  For neighboring sizes, set \(N=n+1\) and
+\(M=\lfloor m_n-2n^{3/4}\rfloor\).  The constant \(D_3=729/8\) gives loss
+\((729/8)M/(\varepsilon^3n^3)=O(n^{-5/4})\).
+In either case, the count-transfer index
+\(j=\lfloor(1-\varepsilon)M-N^{3/4}\rfloor\) is nonnegative for
+large \(n\) and lies strictly below \(10N\), as required in
+\eqref{cmp:count-transfer}.
+
+The deviation bounds above are about each statistic's finite-size mean.
+The comparison inequalities are one-sided and do not give a two-sided
+rate for \(e_n-\alpha_3\).
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/appendix-c.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/conventions.tex ====
+\section{Caps, uncapped times, and finite-size means}
+\label{sec:interfaces}
+
+The capped upper bound uses only finitely many clause coordinates.
+We now choose a sufficiently late cap and remove it, compare the
+first-unsatisfiable and last-satisfiable conventions with their exact
+endpoint corrections, and identify the limiting normalized means. The
+lower estimate, which requires a different input, is proved in
+Section~\ref{sec:lower-bounds}.
+
+\subsection{Exact cap comparisons}
+
+Fix $k\ge3$, put $q_k=1-2^{-k}$, and write $P_n(m)=\PP(H_n>m)$.
+We also write $F_{n,m}=F_m$ when displaying the number of variables.
+Each assignment survives $m$ independent proper clauses with probability
+$q_k^m$. The expected number of surviving assignments therefore gives
+\begin{equation}\label{eq:first-moment-tail}
+ P_n(m)\le \min\{1,2^nq_k^m\}\qquad(m\in\mathbb Z_{\ge0}).
+\end{equation}
+In particular, $H_n$ is almost surely finite and has finite moments of
+every order. For integer caps $a\ge1$ and $b\ge0$, define
+\[
+ X_a=\min\{H_n,a\},\qquad V_b=\min\{H_n-1,b\}.
+\]
+These have the exact prefix identities
+\begin{equation}\label{eq:prefix-conventions}
+ P_n(m)=\PP(X_a>m)\quad(0\le m<a),\qquad
+ P_n(m)=\PP(V_b\ge m)\quad(0\le m\le b).
+\end{equation}
+All clause counts in these identities are integers.
+
+\begin{proposition}[Finite and infinite cap comparisons]
+\label{prop:cap-bridge}
+For $b\ge a$, put $R_{a,b}=V_b-X_a+1$ and
+$D_a=H_n-X_a$. Then
+\begin{align}
+ R_{a,b}&=\sum_{m=a}^{b}\ind{H_n>m},
+ &0\le R_{a,b}&\le(b-a+1)\ind{H_n>a},\label{eq:finite-cap-identity}\\
+ D_a&=(H_n-a)_+.
+ \label{eq:uncapped-identity}
+\end{align}
+For either $Z=R_{a,b}$ or $Z=D_a$, writing $\xi_{n,a}=2^nq_k^a$,
+\begin{equation}\label{eq:cap-moments}
+ \EE Z\le 2^k\xi_{n,a},\qquad
+ \EE Z^2\le (2^{2k+1}-2^k)\xi_{n,a}.
+\end{equation}
+If $X=V_b$ or $X=H_n$, respectively, then
+\begin{align}
+ 0\le\sqrt{\Var(X)}-\sqrt{\Var(X_a)}
+ &\le 2^k\sqrt{1+q_k}\,\xi_{n,a}^{1/2},
+ \label{eq:cap-sigma}\\
+ 0\le\Var(X)-\Var(X_a)
+ &\le\bigl[2a\,2^k+2^{2k+1}-2^k\bigr]\xi_{n,a}.
+ \label{eq:cap-variance}
+\end{align}
+The mean identities are $\EE V_b=\EE X_a-1+\EE R_{a,b}$ and
+$\EE H_n=\EE X_a+\EE D_a$.
+\end{proposition}
+
+\begin{proof}
+The finite identity follows by considering $H_n\le a$ and $H_n>a$;
+it also gives $R_{a,b}=\min\{(H_n-a)_+,b-a+1\}$.
+For every integer $r\ge0$,
+\[
+ \PP(D_a>r)=P_n(a+r)\le\xi_{n,a}q_k^r.
+\]
+The integer tail-sum identities yield
+\begin{align*}
+ \EE D_a&=\sum_{r=0}^{\infty}P_n(a+r)
+       \le\frac{\xi_{n,a}}{1-q_k},\\
+ \EE D_a^2&=\sum_{r=0}^{\infty}(2r+1)P_n(a+r)
+       \le\frac{1+q_k}{(1-q_k)^2}\xi_{n,a}.
+\end{align*}
+For $R_{a,b}$ the same sums end at $r=b-a$, so the bounds also apply.
+Since $X_aZ=aZ$ for either remainder,
+\[
+ \operatorname{Cov}(X_a,Z)=(a-\EE X_a)\EE Z\ge0.
+\]
+The constant shift in the finite-cap identity does not affect variance.
+Thus
+\[
+ \Var(X)-\Var(X_a)
+ =2(a-\EE X_a)\EE Z+\Var(Z)\ge0.
+\]
+Using \eqref{eq:cap-moments} proves \eqref{eq:cap-variance}.
+The triangle inequality for centered variables in $L^2$ gives
+\[
+ \bigl|\sqrt{\Var(X)}-\sqrt{\Var(X_a)}\bigr|
+ \le\sqrt{\Var(Z)}\le\sqrt{\EE Z^2},
+\]
+which proves \eqref{eq:cap-sigma}.
+\end{proof}
+
+Recall the first-moment cap density
+\begin{equation}\label{eq:sufficient-cap}
+ U_k=\frac{\log2}{-\log q_k}.
+\end{equation}
+For any fixed $B>U_k$, let
+$\rho_{k,B}=2q_k^B<1$. The cap $a=\lfloor Bn\rfloor$ satisfies
+\begin{equation}\label{eq:cap-rounding}
+ \xi_{n,a}=q_k^{\lfloor Bn\rfloor-Bn}\rho_{k,B}^n
+ \le q_k^{-1}\rho_{k,B}^n.
+\end{equation}
+The factor $q_k^{-1}$ accounts for the floor; a ceiling cap needs no such
+factor. Equality $B=U_k$ does not give exponential decay by
+this argument. In particular, $B=2^{k+1}$ is sufficient for every fixed
+$k\ge3$.
+
+\begin{corollary}[Uncapped variance and finite-size concentration]
+\label{cor:uncapped}
+For independent uniform proper clauses with fixed $k\ge3$,
+\begin{equation}\label{eq:uncapped-variance}
+ \Var(H_n)=
+ \begin{cases}
+ O(n\log n),&k=3,\\
+ O_k(n),&k\ge4.
+ \end{cases}
+\end{equation}
+The same upper bounds hold for the uncapped last satisfiable index
+$H_n-1$ and, for every fixed $B>0$, for
+$\min\{H_n-1,\lfloor Bn\rfloor\}$.
+Write $s_k(n)=\sqrt{n\ell_k(n)}$, with $\ell_k$ as in the
+introduction.
+For each of these statistics, or for $T_{n,B}$ from
+Theorem~\ref{thm:variance}, there is a constant $C$ (depending on fixed
+$k$ and, when present, $B$) such that
+\begin{equation}\label{eq:mean-centered-concentration}
+ \PP\bigl(|X-\EE X|\ge t s_k(n)\bigr)\le C t^{-2}
+ \qquad(t>0)
+\end{equation}
+for all sufficiently large $n$.
+\end{corollary}
+
+\begin{proof}
+Choose a fixed $B>U_k$ and use
+the capped upper bound of Theorem~\ref{thm:variance} for $X_a=T_{n,B}$,
+$a=\lfloor Bn\rfloor$. Equations~\eqref{eq:cap-variance} and
+\eqref{eq:cap-rounding} transfer its bound to $H_n$, with an additive
+$O_{k,B}(n\rho_{k,B}^n)$ error. Subtracting one leaves variance unchanged.
+For any real random variable $Y$ with finite variance, any independent
+copy $Y'$, and any $1$-Lipschitz function $f$,
+\[
+ \Var(f(Y))=\tfrac12\EE(f(Y)-f(Y'))^2
+ \le\tfrac12\EE(Y-Y')^2=\Var(Y).
+\]
+Apply this to $f(y)=\min\{y,\lfloor Bn\rfloor\}$ and $Y=H_n-1$.
+Finally, Chebyshev's inequality gives
+\eqref{eq:mean-centered-concentration}. Increasing the upper-bound
+constants covers the finitely many remaining $n\ge k$, since all
+uncapped moments are finite.
+\end{proof}
+
+The mean correction is more precise than its normalized limiting effect:
+for $a=\lfloor Bn\rfloor$ with $B>U_k$,
+\begin{equation}\label{eq:normalized-mean-bridge}
+ 0\le\frac{\EE H_n-\EE T_{n,B}}n
+ \le\frac{2^kq_k^{-1}}n\rho_{k,B}^n.
+\end{equation}
+Theorem~\ThresholdTheorem{} of \cite{FixedKThreshold} gives a unique positive finite
+threshold $\alpha_k$ in exactly this proper-clause model.
+It also implies
+\begin{equation}\label{eq:mean-limit}
+ \frac{\EE H_n}{n}\longrightarrow\alpha_k,
+ \qquad
+ \frac{\EE T_{n,B}}n\longrightarrow\alpha_k
+ \quad(B>U_k).
+\end{equation}
+Here is the explicit expectation argument. Take $b=2^{k+1}n$.
+The theorem and monotonicity imply
+$\min\{H_n-1,b\}/n\to\alpha_k$ in probability; the first-moment bound
+implies $\alpha_k\le U_k<2^{k+1}$.
+The bounded statistic therefore converges in mean. Proposition~\ref{prop:cap-bridge}
+first compares it with $X_b$, then with $H_n$; the errors after the
+one-index shift are exponentially small. Equation~\eqref{eq:normalized-mean-bridge}
+handles the remaining caps.
+The same conclusion holds for last-satisfiable caps of density
+$B>U_k$. These limits give no rate for
+$\EE H_n-\alpha_k n$ or for the corresponding capped bias.
+The concentration in \eqref{eq:mean-centered-concentration} is centered
+at each finite-size expectation.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/conventions.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/deletion.tex ====
+\section{Clause omission and root tests}
+\label{sec:deletion}
+
+We now turn the lifetime estimate into a bound for the effect of
+deleting one clause.  Its variables provide tests of the assignments
+that remain after deletion.  We expose the incidence pattern through
+the whole cap, so that the number of tests is known, while keeping
+both their contents and the future ordinary clauses independent.
+The tests bound the probability of a deletion event; the ordinary
+clauses bound its remaining duration.
+
+Fix an integer \(k\ge3\), a real \(B>0\), and \(n\ge2k\).  Put
+\(L=\lfloor Bn\rfloor\), and for now suppose \(L\ge1\).
+Let \(C_1,C_2,\ldots\) be independent uniform proper \(k\)-clauses
+on \(n\) variables, let \(H\) be the first unsatisfiable prefix index,
+and put \(T=\min\{H,L\}\).  For \(1\le i\le L\), define
+\[
+ B_m^{(i)}=\bigwedge_{\substack{1\le j\le m\\j\ne i}}C_j,\qquad
+ T^{(i)}=\min\bigl\{\inf\{m\ge0:B_m^{(i)}\notin\sat\},L\bigr\},
+ \qquad D_i=T^{(i)}-T.
+\]
+The infimum is over integers and \(\inf\varnothing=\infty\).
+Deleting \(C_i\) retains all other clause indices.  It can only delay
+unsatisfiability, so \(D_i\ge0\); moreover \(T^{(i)}\) depends only
+on the first \(L\) clauses other than \(C_i\).
+
+\begin{lemma}[Coordinate omission]\label{lem:coordinate-omission}
+For the independent clause process above,
+\begin{equation}\label{eq:coordinate-omission}
+ \Var(T)\le\sum_{i=1}^{L}\EE D_i^2.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+This is the coordinate-omission form of the Efron--Stein
+method~\cite{EfronStein}, recorded in
+\cite[equation~(3.6)]{BBLM}.  Here is a direct martingale proof.
+Let \(\mathcal H_j=\sigma(C_1,\ldots,C_j)\), with \(\mathcal H_0\)
+trivial, and write
+\[
+ M_i=\EE[T\mid\mathcal H_i]-\EE[T\mid\mathcal H_{i-1}].
+\]
+Since \(T^{(i)}\) omits the independent coordinate \(C_i\),
+\(\EE[T^{(i)}\mid\mathcal H_i]
+=\EE[T^{(i)}\mid\mathcal H_{i-1}]\).  Thus, with
+\(X_i=T-T^{(i)}\),
+\[
+ M_i=\EE[X_i\mid\mathcal H_i]-\EE[X_i\mid\mathcal H_{i-1}].
+\]
+The tower property gives
+\[
+ \EE M_i^2
+ =\EE\bigl(\EE[X_i\mid\mathcal H_i]\bigr)^2
+  -\EE\bigl(\EE[X_i\mid\mathcal H_{i-1}]\bigr)^2
+ \le\EE X_i^2=\EE D_i^2,
+\]
+where the inequality uses conditional Jensen.  The martingale
+differences are orthogonal and \(T\) is \(\mathcal H_L\)-measurable,
+so summing proves the claim.
+\end{proof}
+
+\subsection{What the two filtrations reveal}
+
+Fix \(i\) and condition on a value of \(C_i\).  Until the end of
+Section~\ref{sec:occupation}, probabilities and expectations refer to
+this conditional law.  The bounds will be uniform in the fixed clause.
+Its set \(R\) of \(k\) variables will be called the roots, and
+\(t\in\{0,1\}^{R}\) is their unique assignment falsifying \(C_i\).
+There are \(u=n-k\ge k\) remaining variables.  Write \(B_m=B_m^{(i)}\).
+
+For \(i\le m<L\), define the deletion event
+\begin{equation}\label{eq:deletion-events}
+ A_m=\{B_m\in\sat,\ B_m\wedge C_i\notin\sat\}
+     =\{T\le m<T^{(i)}\}.
+\end{equation}
+On this event every solution of \(B_m\) has root values \(t\).
+The two prefix processes agree before \(i\), and hence
+\begin{equation}\label{eq:delay-identity}
+ D_i=\sum_{m=i}^{L-1}\mathbf1_{A_m}.
+\end{equation}
+In particular \(D_L=0\): the displayed sum is then empty.  The upper
+endpoint is \(L-1\) because both failure times have already been
+stopped at \(L\).
+
+For \(i\le m\le L\), define \(S_m\subseteq\{0,1\}^{u}\) to be the
+nonroot restrictions of solutions of \(B_m\) with root values \(t\).
+The sets are defined on every outcome and decrease with \(m\); for
+\(m<L\), \(A_m\) implies that \(S_m\) is nonempty.  We need to reveal
+this set while retaining independent randomness to test whether one
+of its assignments allows a root to be flipped.
+
+The \emph{root type} of a clause records the subset of its variables
+in \(R\) and the signs of their literals.  A clause is \emph{ordinary}
+if that subset is empty.  It is a \emph{test clause} if the subset
+contains exactly one root and its literal is true at \(t\).  Let
+\(O\) and \(Q\) be the ordinary and test indices among
+\(\{1,\ldots,L\}\setminus\{i\}\).
+
+Reveal the root type at every such index through \(L\).  At indices in
+\(\{1,\ldots,L\}\setminus(\{i\}\cup O\cup Q)\), also reveal the
+complete signed nonroot part.
+Let \(\mathcal E\) be the sigma-field generated by this static
+information.  Thus \(O,Q\) and the counts
+\begin{equation}\label{eq:global-root-counts}
+\begin{split}
+ Z&=\#\{j\le L:j\ne i,\ C_j\text{ meets }R\},\\
+ V&=\#\{j\le L:j\ne i,\ C_j\text{ meets at least two roots}\},
+ \qquad d=\max\{1,Z\}
+\end{split}
+\end{equation}
+are \(\mathcal E\)-measurable.  We call a clause counted by \(V\)
+a \emph{collision}.  The ordinary clauses and the nonroot parts of
+test clauses have not yet been revealed.
+
+\begin{lemma}[Conditional product law]\label{lem:conditional-product}
+Conditional on \(\mathcal E\), the clauses at indices in \(O\) are
+independent uniform proper \(k\)-clauses on the \(u\) nonroots.
+The nonroot parts at indices in \(Q\) are independent uniform proper
+\((k-1)\)-clauses on the nonroots.  These two collections are mutually
+independent.
+\end{lemma}
+
+\begin{proof}
+For a prescribed root type with \(h\) roots and prescribed root signs,
+there are exactly \(2^{k-h}\binom{u}{k-h}\) possible signed nonroot
+parts.  Since complete proper \(k\)-clauses are equiprobable, these
+parts are equiprobable conditional on the type.  Original clause
+independence makes this conditional law a product over the indices.
+Once the types are fixed, \(O\) and \(Q\) are fixed index sets.
+Revealing the parts outside \(O\cup Q\) preserves the product law
+on the other indices.  Their residual lengths are \(k\) on \(O\)
+and \(k-1\) on \(Q\), as asserted.
+\end{proof}
+
+A test clause is already true under \(t\), so its nonroot part
+imposes no condition on \(S_m\).
+Consequently \(S_m\) is measurable with respect to
+\[
+ \mathcal G_m
+ =\sigma\bigl(\mathcal E,\ C_j:j\in O,\ j\le m\bigr).
+\]
+We will bound the probability of \(A_m\) under this filtration, which
+knows \(S_m\) but leaves the test parts hidden.  To bound the remaining
+duration on \(A_m\), we also need to know whether \(A_m\) has occurred.
+For that purpose, enlarge the filtration by revealing the past test parts:
+\[
+ \mathcal F_m^*
+ =\sigma\bigl(\mathcal G_m,\ 
+       \text{nonroot parts of }C_j:j\in Q,\ j\le m\bigr).
+\]
+The full baseline prefix \(B_m\), and thus \(A_m\), is
+\(\mathcal F_m^*\)-measurable.  Under \(\mathcal G_m\), the past
+test parts remain independent with their original conditional laws.
+Under either filtration, the future ordinary clauses remain independent
+uniform proper \(k\)-clauses.  Both assertions follow from
+Lemma~\ref{lem:conditional-product}.  The static information includes
+future nonordinary data, but it includes no future ordinary contents.
+
+\subsection{Flipping a root gives an independent test}
+
+Recall that \(q_d(S)\) is the probability that \(d\) independent
+proper \((k-1)\)-clauses kill \(S\).  Here \(d=\max\{1,Z\}\) is already
+known under \(\mathcal E\).  Put
+\[
+ \beta=\frac{k}{k-1},\qquad q_m=q_d(S_m).
+\]
+For \(j\in R\), let \(\mathcal I_{j,m}\) be the test indices through
+\(m\) whose root is \(j\), and put \(s_{j,m}=|\mathcal I_{j,m}|\).
+Then \(s_{j,m}\le Z\le d\).  Let \(J_m\subseteq R\) consist of roots
+\(j\) for which no collision through \(m\) has exactly one root literal
+true under \(t\), at root \(j\).  A collision can exclude at most one
+root, so
+\begin{equation}\label{eq:available-root-tests}
+ |J_m|\ge k-V.
+\end{equation}
+The index sets and counts in this paragraph are
+\(\mathcal E\)-measurable.
+
+\begin{lemma}[Root-flip tests]\label{lem:root-flip-tests}
+For \(i\le m<L\), on the event \(\{|J_m|\ge1\}\),
+\begin{equation}\label{eq:root-flip-tests}
+ \PP(A_m\mid\mathcal G_m)
+ \le \mathbf1_{\{S_m\ne\varnothing\}}q_m^{|J_m|}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Suppose \(A_m\) occurs, and fix \(j\in J_m\).  The nonroot parts
+at the indices in \(\mathcal I_{j,m}\) must kill \(S_m\).
+If they did not, choose \(x\in S_m\) satisfying all of them.
+Extend \(x\) by the root assignment \(t\), then flip root \(j\).
+We check the clauses of \(B_m\).
+
+A clause with no true root literal under \(t\) has a satisfied nonroot
+part, because \((t,x)\) satisfies \(B_m\).  The flip does not change
+that part.  A clause with a true literal on another root remains true.
+Every remaining clause has \(j\) as its unique true root under \(t\).
+It cannot be a collision, by \(j\in J_m\), so it is a test clause at
+an index in \(\mathcal I_{j,m}\); its nonroot part is satisfied by
+the choice of \(x\).  The flipped assignment therefore satisfies
+\(B_m\) with root values different from \(t\), contradicting \(A_m\).
+
+Conditional on \(\mathcal G_m\), the test parts belonging to distinct
+roots are disjoint independent families of proper \((k-1)\)-clauses.
+For nonempty \(S_m\), a family of \(s_{j,m}\le d\) tests kills it with
+probability \(q_{s_{j,m}}(S_m)\le q_d(S_m)\).  This also covers
+\(s_{j,m}=0\), whose killing probability is zero.  The necessary
+tests for all roots in \(J_m\) thus have conditional probability at
+most \(q_m^{|J_m|}\).  Finally \(A_m\) requires \(S_m\ne\varnothing\).
+\end{proof}
+
+The proof has kept the actual incidence count \(d\), rather than
+discarding environments where it exceeds a chosen cutoff.  We next
+bound duration with that same parameter; its moments will be averaged
+only after all conditional estimates have been proved.
+
+\subsection{From ordinary clauses to chronological duration}
+
+For this comparison, keep the actual schedule and ordinary clauses
+through \(L\).  At every index after \(L\), append an auxiliary
+independent uniform proper \(k\)-clause on the \(u\) nonroots.
+The continuation is independent of the entire original process.
+
+For \(i\le m<L\) and \(S_m\ne\varnothing\), let \(K_m\) be the number
+of ordinary clauses strictly after \(m\), including the first one
+that completes the killing of the original set \(S_m\).  Use the
+continuation if necessary.  Let \(U_m\) be the number of chronological
+indices after \(m\) through that killing index.  Set \(K_m=U_m=0\)
+if \(S_m=\varnothing\).  The conditional product law and the independent
+continuation give
+\begin{equation}\label{eq:ordinary-future-mean}
+ \EE[K_m\mid\mathcal F_m^*]
+ =\EE[K_m\mid\mathcal G_m]=\tau_k(S_m).
+\end{equation}
+There are at most \(Z\) nonordinary indices between \(m\) and the
+kill: every one occurs before or at \(L\), and the deleted index
+\(i\) is not after \(m\).  Thus, pathwise,
+\begin{equation}\label{eq:chronological-domination}
+ U_m\le K_m+Z,\qquad
+ \EE[U_m\mid\mathcal F_m^*]\le\tau_k(S_m)+Z,\qquad
+ \EE[U_m\mid\mathcal G_m]\le\tau_k(S_m)+Z.
+\end{equation}
+The continuation makes these statements valid even when no pre-cap
+ordinary clause completes the kill.
+
+\begin{lemma}[Weighted deletion delay]\label{lem:weighted-delay}
+Let
+\[
+ W_m=\min\{L,\tau_k(S_m)+Z\}.
+\]
+This is \(\mathcal G_m\)-measurable.  For \(i\le m<L\), on \(A_m\),
+\begin{equation}\label{eq:future-deletion-delay}
+ \EE\left[\sum_{\ell=m+1}^{L-1}\mathbf1_{A_\ell}
+       \,\middle|\,\mathcal F_m^*\right]\le W_m.
+\end{equation}
+Consequently
+\begin{equation}\label{eq:conditional-weighted-delay}
+ \EE[D_i^2\mid\mathcal E]
+ \le3\sum_{m=i}^{L-1}
+        \EE[\mathbf1_{A_m}W_m\mid\mathcal E].
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+On \(A_m\), every later solution of \(B_\ell\) must have root values
+\(t\) and a nonroot restriction in \(S_m\).  Once the future ordinary
+clauses kill that original set, there can be no such solution, including
+at the killing index.  If the kill is after \(L\), the remaining capped
+interval ends first.  In either case the number of later deletion
+events is at most \(U_m\), and is also at most \(L\).
+Taking conditional expectations and using
+\eqref{eq:chronological-domination} gives
+\eqref{eq:future-deletion-delay}.
+
+On \(A_m\), the set \(S_m\) is nonempty and therefore needs at least
+one ordinary clause to be killed.  Hence \(\tau_k(S_m)\ge1\) and
+\(W_m\ge1\).  Expand the square of \eqref{eq:delay-identity}.
+For each cross term condition on the earlier \(\mathcal F_m^*\);
+it contains \(A_m\).  The tower property gives
+\begin{align*}
+ \EE[D_i^2\mid\mathcal E]
+ &=\sum_{m=i}^{L-1}\EE[\mathbf1_{A_m}\mid\mathcal E]\\
+ &\quad+2\sum_{m=i}^{L-1}
+  \EE\left[\mathbf1_{A_m}
+   \EE\left[\sum_{\ell=m+1}^{L-1}\mathbf1_{A_\ell}
+             \,\middle|\,\mathcal F_m^*\right]
+             \,\middle|\,\mathcal E\right]\\
+ &\le\sum_{m=i}^{L-1}
+        \EE[\mathbf1_{A_m}(1+2W_m)\mid\mathcal E]\\
+ &\le3\sum_{m=i}^{L-1}
+        \EE[\mathbf1_{A_m}W_m\mid\mathcal E].\qedhere
+\end{align*}
+\end{proof}
+
+Both the root-test probability and the remaining duration are now
+controlled by the same set \(S_m\).  We still have to bound how long
+that set can spend at each level of \(q_d(S_m)\), and then average the
+incidence counts.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/deletion.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/direct-comparison.tex ====
+\section{Comparing finite-size centers with proper clauses}
+\label{sec:direct-comparison}
+
+The variance estimate controls fluctuations at one size.  We now compare
+the corresponding centers at different sizes, using proper clauses at
+every step.  The comparison keeps the weights of the two variable blocks;
+this is what makes its error uniform even when one block is much larger
+than the other.  Once these probability comparisons are established, the
+deterministic balanced-comparison lemma of the threshold companion turns
+them into convergence. This gives a second route to convergence from a
+concentration estimate, without using the companion's limiting-threshold
+theorem as Section~\ref{sec:interfaces} does. The theorem below takes
+concentration as an input, so it also applies to the independent,
+weaker variance proof in Appendix~\ref{sec:appendix-c}.
+
+Interpolation between a system and independent parts appears in the
+thermodynamic-limit work of Guerra and Toninelli~\cite{GuerraToninelli}
+and the diluted-system work of Franz and Leone~\cite{FranzLeone} and
+Franz, Leone, and Toninelli~\cite{FranzLeoneToninelli}.
+Those works concern free energies under their respective model
+hypotheses; they provide methodological context for the size comparison.
+The one-clause interpolation here uses frozen variables, as in the
+satisfiability interpolation of Bayati, Gamarnik, and Tetali
+\cite[Section~4, Proposition~2]{BGT}.  Their clause law samples variable
+tuples with replacement.  Here the clauses have distinct variables, so
+the exact killing probabilities contain falling factorials.
+We control the resulting error locally before summing it over the trials.
+
+\subsection{A center theorem with an explicit concentration input}
+
+For fixed $k\ge3$ and $n\ge k$, let $H_n$ be the index of the first
+unsatisfiable prefix of independent uniform proper $k$-clauses on $n$
+variables, and write $P_n(j)=\PP(H_n>j)$ for integers $j\ge0$.
+Fix a real $B>0$ and set
+\[
+ L_n=\lfloor Bn\rfloor,\qquad T_n=\min\{H_n,L_n\},\qquad
+ \mu_n=\EE T_n,\qquad e_n=\mu_n/n.
+\]
+The endpoint for this first-unsatisfiable convention is strict:
+\begin{equation}\label{cmp:prefix-endpoint}
+ P_n(j)=\PP(T_n>j)\qquad(0\le j<L_n).
+\end{equation}
+At $j=L_n$, the probability on the right is zero, whereas $P_n(L_n)$
+need not vanish.  All statements below use only indices strictly below
+the cap when applying~\eqref{cmp:prefix-endpoint}.
+
+\begin{theorem}[Proper-clause center comparison from concentration]
+\label{thm:proper-center-module}\label{cmp:modular}
+\label{cmp:centers}\label{cmp:convergence}
+Fix $k\ge3$, $B>0$, and $0<\delta<1/2$.  Suppose that there are constants
+$0<a\le A<B$ and numbers $\eta_n\ge0$ tending to zero such that, for all
+sufficiently large $n$,
+\begin{equation}\label{cmp:module-input}
+ a\le e_n\le A,\qquad
+ \PP\bigl(|T_n-\mu_n|\ge n^{1-\delta}\bigr)\le\eta_n.
+\end{equation}
+Then there is a finite constant $K\ge0$ such that, for all sufficiently large
+$n=\min\{n_1,n_2\}$, with no restriction on $n_1/n_2$,
+\begin{equation}\label{cmp:sum}
+ e_{n_1+n_2}\ge\min\{e_{n_1},e_{n_2}\}-K n^{-\delta},
+\end{equation}
+and, for all sufficiently large $n$,
+\begin{equation}\label{cmp:neighbor}
+ e_{n+1}\ge e_n-K n^{-\delta}.
+\end{equation}
+Moreover $e_n$ converges to a number $\alpha\in[a,A]$, and
+\begin{equation}\label{cmp:strict-sides}
+ P_n(\lfloor cn\rfloor)\longrightarrow
+ \begin{cases}1,&0\le c<\alpha,\\0,&c>\alpha.\end{cases}
+\end{equation}
+For every sufficiently large $s$ and every $N\ge s^2$, one has the
+one-sided estimate
+\begin{equation}\label{cmp:tree-bound}
+ e_N\ge e_s-K(1+B_\delta)s^{-\delta},\qquad
+ B_\delta=\frac{(3/2)^\delta}{1-(2/3)^\delta}.
+\end{equation}
+\end{theorem}
+
+The theorem allows an arbitrary vanishing concentration error; it does
+not require a specified polynomial rate.  In particular, Chebyshev's
+inequality supplies~\eqref{cmp:module-input} whenever
+\begin{equation}\label{cmp:variance-input}
+ \Var(T_n)=o\bigl(n^{2-2\delta}\bigr).
+\end{equation}
+The proof uses concentration twice: to make the two local formulas likely
+to be satisfiable, and to turn a likely satisfiable diluted formula back
+into a lower bound for the center at the combined size.
+
+\subsection{Local clauses and diluted global clauses}
+
+\begin{lemma}[Proper-clause trial comparison]\label{cmp:trial-comparison}
+Partition $N=n_1+n_2$ variables into blocks of sizes $n_1,n_2\ge k$,
+and put $w_j=n_j/N$ and $n=\min\{n_1,n_2\}$.  Fix an integer $M\ge0$
+and $0<\varepsilon<1$.  Each of $M$ independent local trials chooses
+block $j$ with probability $w_j$ and inserts an independent uniform
+proper $k$-clause in that block.  Each of $M$ independent diluted global
+trials inserts an independent uniform proper $k$-clause on all $N$
+variables with probability $1-\varepsilon$, and inserts no clause
+otherwise.  Let $Q_{\mathrm{loc}}$ and $Q_{\mathrm{dil}}$ be the
+respective probabilities that the resulting formulas are satisfiable.
+Then
+\begin{align}
+ Q_{\mathrm{dil}}
+ &\ge Q_{\mathrm{loc}}-
+ C_k M\varepsilon^{-k}\sum_{j=1}^{2}\frac{w_j}{n_j^k},
+ & C_k&=\frac{[k(k-1)]^k}{2^k},\label{cmp:weighted-replacement}\\
+ Q_{\mathrm{dil}}
+ &\ge Q_{\mathrm{loc}}-\frac{C_kM}{\varepsilon^k n^k}.
+ \label{cmp:coarse-replacement}
+\end{align}
+For $N=n+1$, if all local trials instead use a fixed main set of
+$n\ge k$ variables, then
+\begin{equation}\label{cmp:neighbor-replacement}
+ Q_{\mathrm{dil}}\ge Q_{\mathrm{loc}}
+       -\frac{D_kM}{\varepsilon^k n^k},\qquad
+ D_k=\frac{k^{2k}}{2^k}.
+\end{equation}
+These statements impose no restriction on a block-size ratio.
+\end{lemma}
+
+\begin{proof}
+Condition on every trial except the one being replaced.  If the residual
+formula is unsatisfiable, both conditional satisfiability probabilities
+are zero.  Otherwise let $S$ be its nonempty solution set, and call a
+variable frozen when it has the same value in every member of $S$.
+Among any specified $v\ge k$ variables of which $b$ are frozen, a proper
+$k$-clause kills $S$ with probability
+\[
+ h_k(b,v)=\frac{(b)_k}{2^k(v)_k}.
+\]
+Indeed, each of the selected variables must be frozen and each sign must
+oppose its frozen value.  With $x=b/v$ and $y_+=\max\{y,0\}$,
+\begin{equation}\label{cmp:factorial-bounds}
+ \frac{(x-(k-1)/v)_+^k}{2^k}
+ \le h_k(b,v)\le\frac{x^k}{2^k}.
+\end{equation}
+For $b\ge k$, each factor $(b-r)/(v-r)$, $0\le r<k$, is at most $b/v$
+and at least $(b-k+1)/v$.  For $b<k$, both the middle expression and
+the positive part on the left vanish.  This proves the bounds.
+
+Let $\beta_j$ be the frozen fraction in block $j$, always with respect
+to the entire residual set $S$; its defining formula may contain clauses
+crossing the two blocks.  By convexity and~\eqref{cmp:factorial-bounds},
+the killing probability of a nondiluted global clause is at most
+\[
+ 2^{-k}\left(\sum_jw_j\beta_j\right)^k
+ \le 2^{-k}\sum_jw_j\beta_j^k,
+\]
+whereas the local killing probability is at least
+$2^{-k}\sum_jw_j(\beta_j-(k-1)/n_j)_+^k$.
+If $\beta_j\ge k(k-1)/(\varepsilon n_j)$, Bernoulli's inequality gives
+\[
+ (\beta_j-(k-1)/n_j)_+^k
+ \ge (1-\varepsilon/k)^k\beta_j^k
+ \ge (1-\varepsilon)\beta_j^k.
+\]
+Below that threshold,
+$\beta_j^k\le[k(k-1)]^k/(\varepsilon^k n_j^k)$.
+It follows that the diluted global killing probability exceeds the local
+one by at most $C_k\varepsilon^{-k}\sum_jw_j/n_j^k$.
+The estimate holds for every residual formula.  Replacing the trials one
+at a time, conditioning on all other independent trials at each step,
+and then averaging and telescoping proves~\eqref{cmp:weighted-replacement}.
+Since $n_j\ge n$ and $w_1+w_2=1$, it also proves the coarser bound.
+
+For neighboring sizes, let $b$ count the frozen variables in the main
+$n$-set and let $x\in\{0,1\}$ indicate whether the extra variable is
+frozen.  The global frozen fraction $\gamma=(b+x)/(n+1)$ obeys
+$b/n\ge\gamma-1/(n+1)$.  The local killing probability is therefore
+at least $2^{-k}(\gamma-k/n)_+^k$, while the nondiluted global one is at
+most $2^{-k}\gamma^k$.  Splitting at
+$\gamma=k^2/(\varepsilon n)$ and applying the same Bernoulli inequality
+bounds the per-trial loss by $D_k/(\varepsilon^k n^k)$.  Telescoping gives
+\eqref{cmp:neighbor-replacement}.
+\end{proof}
+
+At $k=3$ the constants are exactly $C_3=27$ and $D_3=729/8$.
+The stronger weighted bound will be used for unequal blocks.  The coarser
+bound remains useful when the block sizes are known to be comparable.
+
+\subsection{From a random clause count to a center}
+
+We first record the integer step needed in both center comparisons.
+From~\eqref{cmp:module-input} and~\eqref{cmp:prefix-endpoint}, for every
+integer $0\le j<L_n$ and all sufficiently large $n$,
+\begin{equation}\label{cmp:concentration}
+ \begin{aligned}
+ j\le\mu_n-n^{1-\delta}&\quad\Longrightarrow\quad P_n(j)\ge1-\eta_n,\\
+ j\ge\mu_n+n^{1-\delta}&\quad\Longrightarrow\quad P_n(j)\le\eta_n.
+ \end{aligned}
+\end{equation}
+Because $\eta_n\to0$, its tail supremum
+$\overline\eta_n=\sup_{v\ge n}\eta_v$ also tends to zero.  This will
+provide uniformity when one block is arbitrarily larger than the other.
+
+Suppose, for a fixed $a_0>0$, that
+$a_0N\le M\le AN$, $0<\varepsilon\le1/2$, and
+$Q_{\mathrm{dil}}\ge1-\zeta$.  The number of inserted clauses is
+$J\sim\operatorname{Bin}(M,1-\varepsilon)$.  Conditional on $J$, the
+inserted clauses have exactly the independent proper-clause law, so
+$Q_{\mathrm{dil}}=\EE P_N(J)$.  Put
+\[
+ j=\left\lfloor(1-\varepsilon)M-N^{1-\delta}\right\rfloor.
+\]
+For all sufficiently large $N$, the lower bound on $M$ gives $j\ge0$,
+and $j\le M\le AN<L_N$ because $A<B$.  Also $\Var(J)\le AN$, whence
+\[
+ \PP(J<j)\le A N^{-1+2\delta},\qquad
+ Q_{\mathrm{dil}}\le P_N(j)+\PP(J<j).
+\]
+The second inequality uses monotonicity of $P_N$.  If
+$\zeta+AN^{-1+2\delta}+\eta_N<1$, the upper implication
+in~\eqref{cmp:concentration} forces $j<\mu_N+N^{1-\delta}$.
+The floor in the definition of $j$ then gives
+\begin{equation}\label{cmp:count-transfer}
+ e_N>\frac{(1-\varepsilon)M}{N}-2N^{-\delta}-N^{-1}
+ \ge\frac{(1-\varepsilon)M}{N}-3N^{-\delta}.
+\end{equation}
+We will apply this implication with all three errors tending to zero.
+
+\begin{proof}[Proof of Theorem~\ref{thm:proper-center-module}]
+For the two-block comparison, put
+$N=n_1+n_2$, $n=\min\{n_1,n_2\}$,
+$e_* =\min\{e_{n_1},e_{n_2}\}$, and choose
+\[
+ \varepsilon=n^{-\delta},\qquad
+ M=\left\lfloor(e_*-2\varepsilon)N\right\rfloor.
+\]
+For sufficiently large $n$, the anchors imply
+$(a/4)N\le M\le AN$ and $\varepsilon\le1/2$.
+In the local model let $X_j$ count the clauses in block $j$.  Its marginal
+law is binomial, and
+\[
+ \EE X_j=Mn_j/N\le\mu_{n_j}-2\varepsilon n_j
+       \le\mu_{n_j}-2n_j^{1-\delta},\qquad
+ \Var(X_j)\le A n_j.
+\]
+Thus
+$\PP(X_j>\mu_{n_j}-n_j^{1-\delta})\le A n_j^{-1+2\delta}$.
+Conditional on the block choices, the clauses inside the two blocks have
+independent proper laws.  On the event
+$X_j\le\mu_{n_j}-n_j^{1-\delta}$, the integer count lies below $L_{n_j}$
+for large $n_j$, because $\mu_{n_j}\le A n_j$ and $A<B$.
+The lower implication in~\eqref{cmp:concentration} and a union bound
+therefore give
+\[
+ Q_{\mathrm{loc}}\ge1-
+ \sum_{j=1}^{2}\bigl(A n_j^{-1+2\delta}+\eta_{n_j}\bigr).
+\]
+The right-hand error is at most
+$2A n^{-1+2\delta}+2\overline\eta_n$, which tends to zero uniformly
+over all pairs of sizes with minimum $n$.
+
+The weighted replacement loss has the same uniformity:
+\begin{align}
+ C_kM\varepsilon^{-k}\sum_j\frac{w_j}{n_j^k}
+ &=C_k\frac{M}{N}\varepsilon^{-k}\sum_jn_j^{1-k}\notag\\
+ &\le2AC_k n^{1-k+k\delta}=o(1).
+ \label{cmp:uniform-replacement-loss}
+\end{align}
+Here $1-k+k\delta<0$ for $k\ge3$ and $\delta<1/2$.
+The factor $N$ has canceled, so no upper bound on $N/n$ is used.
+Lemma~\ref{cmp:trial-comparison} therefore gives
+$Q_{\mathrm{dil}}\ge1-\zeta_n$, where $\zeta_n\to0$ uniformly over
+these pairs.  Since $N\ge2n$, the count error at size $N$ and
+$\eta_N\le\overline\eta_n$ also vanish uniformly.  Applying
+\eqref{cmp:count-transfer}, and keeping the floor in $M$, yields
+\[
+ e_N\ge(1-\varepsilon)(e_*-2\varepsilon-N^{-1})-3N^{-\delta}
+       \ge e_*-K n^{-\delta},
+\]
+where the last inequality uses $e_*\le A$, $N\ge n$, and $\delta<1$.
+This proves~\eqref{cmp:sum} for arbitrary size ratios.
+
+For the neighboring comparison take $N=n+1$, put
+$\varepsilon=n^{-\delta}$, and let
+$M=\lfloor\mu_n-2n^{1-\delta}\rfloor$ local trials all use the main
+$n$ variables.  Again $(a/4)N\le M\le AN$ for sufficiently large $n$.
+The local formula has exactly the law at size $n$ and count $M$, so
+$Q_{\mathrm{loc}}\ge1-\eta_n$ by~\eqref{cmp:concentration}.
+The neighboring replacement loss is
+\[
+ \frac{D_kM}{\varepsilon^k n^k}=O_{k,A}(n^{1-k+k\delta})=o(1).
+\]
+Equation~\eqref{cmp:count-transfer} now gives
+\[
+ e_{n+1}\ge(1-\varepsilon)
+       \frac{ne_n-2n^{1-\delta}-1}{n+1}-3(n+1)^{-\delta}
+       \ge e_n-Kn^{-\delta}.
+\]
+For the last step, use $e_n\le A$ and
+$1-(1-\varepsilon)n/(n+1)\le\varepsilon+1/(n+1)$.
+This proves~\eqref{cmp:neighbor}.
+
+It remains to explain the deterministic step and check its inputs.
+The geometric summation of errors parallels Abbe and Montanari's
+approximate sum-superadditivity argument
+\cite[arXiv version, Lemma~8 and Remark~3]{AM}.  The required minimum
+comparison is the threshold companion's Lemma~\ThresholdBalanced{}
+(``Balanced comparisons'')~\cite{FixedKThreshold}.  For an integer
+$n_0\ge1$, it states that if a bounded real sequence $(u_n)_{n\ge n_0}$
+satisfies
+\[
+ u_{r+s}\ge\min\{u_r,u_s\}-K\min(r,s)^{-\delta}
+ \quad\text{for }1/3\le r/s\le3,\qquad
+ u_{s+1}\ge u_s-Ks^{-\delta},
+\]
+for all $r,s\ge n_0$ in the indicated ratio range and all $s\ge n_0$,
+respectively, with fixed $K\ge0$ and $\delta>0$, then it converges and,
+for every $s\ge\max\{n_0,2\}$ and every $N\ge s^2$,
+$u_N\ge u_s-K(1+B_\delta)s^{-\delta}$ with $B_\delta$ as above.
+The lemma is a deterministic minimum comparison: it uses leaves of sizes
+$s,s+1$, and its binary tree has child-size ratios at most three.
+Choose $n_0$ beyond the cutoffs in our anchors and two comparisons.
+Then the boundedness in~\eqref{cmp:module-input},
+the comparable-size part of \eqref{cmp:sum}, and~\eqref{cmp:neighbor}
+verify every hypothesis with $u_n=e_n$. The lemma gives~\eqref{cmp:tree-bound} and convergence to
+some $\alpha\in[a,A]$.
+
+For $0\le c<\alpha$, eventually
+$\lfloor cn\rfloor\le\mu_n-n^{1-\delta}$ and $\lfloor cn\rfloor<L_n$.
+For $\alpha<c<B$, eventually
+$\mu_n+n^{1-\delta}\le\lfloor cn\rfloor<L_n$.
+In both cases the fixed positive density gap eventually exceeds
+$n^{1-\delta}+1$, accounting for the floor.  Apply
+\eqref{cmp:concentration}.  Since $\alpha\le A<B$, choose one fixed
+$d\in(A,B)$; monotonicity extends the zero limit from $d$ to all
+$c\ge B$.  This proves~\eqref{cmp:strict-sides}.
+\end{proof}
+
+The comparison~\eqref{cmp:tree-bound} is one-sided.  It proves
+convergence of the finite-size means, but gives no two-sided estimate for
+$\mu_n-\alpha n$ on the fluctuation scale of the variance theorem.
+
+\subsection{Checking the inputs for the variance estimates}
+
+For the main application put $B_k=2^{k+1}$ and take $B=B_k$; at $k=3$
+we may also take $B=10$.  We verify the anchors without assuming threshold
+convergence.  Let $q_k=1-2^{-k}$.  The assignment first moment gives
+$P_n(j)\le2^nq_k^j$, hence, for every positive integer $d$,
+\begin{equation}\label{cmp:mean-upper}
+ \EE H_n=\sum_{j=0}^{\infty}P_n(j)
+       \le dn+2^k(2q_k^d)^n.
+\end{equation}
+For $d=2^k$, one has $2q_k^{2^k}<2/e<1$.  For $k=3$, the sharper choice
+$d=6$ satisfies $2(7/8)^6<1$.  Since $T_n\le H_n$, it follows that
+eventually
+\begin{equation}\label{cmp:center-upper}
+ e_n\le A_k<B,
+ \qquad A_k=\begin{cases}7,&k=3,\\2^k+1,&k\ge4.\end{cases}
+\end{equation}
+
+For the positive anchor, fix $0<c<\min\{e^{-2},B\}$ and let
+$j=\lfloor cn\rfloor$.  Lemma~\ref{lem:sparse-satisfiability} gives
+$P_n(j)=1-O_c(n^{-2})$ for the same independent proper-clause model.
+Since $c<B$, one has $j<L_n$ for sufficiently large $n$.  Therefore
+$\mu_n\ge jP_n(j)=cn-o(n)$, and with $c_0=c/2$ we obtain the full anchors
+\begin{equation}\label{cmp:center-bounds}
+ c_0\le e_n\le A_k<B
+ \qquad\text{for all sufficiently large }n.
+\end{equation}
+
+The capped variance theorem gives
+\[
+ \frac{\Var(T_n)}{n^{2-2\delta}}
+ =\begin{cases}
+ O(n^{-1+2\delta}\log n),&k=3,\\
+ O_k(n^{-1+2\delta}),&k\ge4,
+ \end{cases}
+\]
+which tends to zero for every fixed $0<\delta<1/2$.
+Theorem~\ref{thm:proper-center-module} now applies with $a=c_0$ and
+$A=A_k$.  Its strict-side limit is the same $\alpha_k$ as in the threshold
+companion~\cite[Theorem~\ThresholdTheorem]{FixedKThreshold}: if the two
+limits differed, a density strictly between them would be assigned opposite
+limiting probabilities.  In particular, the proper-clause comparisons
+\eqref{cmp:sum}--\eqref{cmp:neighbor} hold for every such fixed $\delta$.
+
+The weaker polynomial variance estimate of the threshold companion
+\cite[Proposition~\ThresholdVariance]{FixedKThreshold} can be used as a
+separate input.  For $a=B_kn$ and the same last-SAT cap $b=a$, the exact
+identity in Proposition~\ref{prop:cap-bridge} is
+\[
+ \min\{H_n-1,a\}=\min\{H_n,a\}-1+\ind{H_n>a}.
+\]
+That proposition gives
+$\Var(\min\{H_n,a\})\le\Var(\min\{H_n-1,a\})$.
+Consequently the companion's $O_k(n^{1+2/k})$ bound verifies
+\eqref{cmp:variance-input} for every
+$0<\delta<(k-2)/(2k)$, including the companion's stated choice
+$\delta=(k-2)/(4k)$.  This substitution uses the companion's own
+variance estimate.  The range $\delta<1/2$ for the local variance bounds
+is also strict; no endpoint assertion is made.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/direct-comparison.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/introduction.tex ====
+\section{Fluctuations of the satisfiability transition}\label{sec:introduction}
+
+Add independent random clauses to a Boolean formula until the formula
+becomes unsatisfiable. How much does the number of clauses at this first
+failure vary from one sample to another? For every fixed clause size
+$k\ge4$, we prove that its variance has order $n$, where $n$ is the
+number of variables. For three-literal clauses the variance lies between
+positive constant multiples of $n$ and $n\log n$.
+
+A \emph{proper $k$-clause} is a disjunction of literals on $k$ distinct
+variables. Fix $k\ge3$ and $n\ge k$, and let $C_1,C_2,\ldots$ be
+independent uniform choices from the $2^k\binom nk$ proper signed
+clauses on $n$ variables. Signs are independent and fair; whole clauses
+may repeat. Put
+\[
+ F_m=C_1\wedge\cdots\wedge C_m,\qquad F_0=\mathrm{true},\qquad
+ H_n=\min\{m\ge1:F_m\text{ is unsatisfiable}\}.
+\]
+For a fixed $B>0$, the capped first failure time is
+$T_{n,B}=\min\{H_n,\lfloor Bn\rfloor\}$.
+Each assignment survives a clause with probability $1-2^{-k}$, so
+\begin{equation}\label{eq:intro-first-moment}
+ \Pr(H_n>m)\le2^n(1-2^{-k})^m.
+\end{equation}
+Thus $H_n$ is almost surely finite and has finite moments.
+
+\begin{theorem}\label{thm:variance}
+Fix an integer $k\ge3$, and write
+\[
+ \ell_k(n)=\begin{cases}\log(en),&k=3,\\1,&k\ge4,\end{cases}
+ \qquad U_k=\frac{\log2}{-\log(1-2^{-k})}.
+\]
+There are constants $C_k,c_k>0$ such that
+\[
+ \Var(H_n)\le C_kn\ell_k(n)\quad(n\ge k),\qquad
+ \Var(H_n)\ge c_kn\quad\text{for all sufficiently large }n.
+\]
+For every fixed $B>0$ there is $C_{k,B}<\infty$ such that
+\[
+ \Var(T_{n,B})\le C_{k,B}n\ell_k(n)\quad(n\ge k).
+\]
+If $B>U_k$, then also $\Var(T_{n,B})\ge c_kn$ for all sufficiently
+large $n$, with the size cutoff allowed to depend on $k$ and $B$.
+\end{theorem}
+
+All constants concern fixed $k$. The lower condition on the cap is
+substantive: an early cap can stop the process before its random
+transition. In the proof, it is enough to have integer caps
+$L_n=O(n)$ with $\Pr(H_n>L_n-1)\le1/4$ eventually;
+$B>U_k$ is an explicit sufficient condition.
+This argument leaves a logarithmic gap for three-literal clauses; the
+companion paper~\cite{LinearThreeSATVariance} closes it and proves
+$\Var(H_n)=\Theta(n)$ for the uncapped proper 3-clause process.
+
+The identity $\Pr(F_m\text{ is satisfiable})=\Pr(H_n>m)$ turns these
+variance bounds into bounds on the transition window. Between any fixed
+probability levels $\eta$ and $1-\eta$, $0<\eta<1/2$, its width is
+$O_{k,\eta}(\sqrt{n\ell_k(n)})$. Chebyshev's inequality also gives
+\[
+ \Pr\bigl(|H_n-\EE H_n|\ge t\sqrt{n\ell_k(n)}\bigr)
+ \le C_kt^{-2}\qquad(t>0).
+\]
+This is concentration about the finite-size expectation. The limiting
+threshold $\alpha_k$ of \cite[Theorem~\ThresholdTheorem]{FixedKThreshold} identifies
+$\lim_n\EE H_n/n$, but supplies no bound on the bias
+$\EE H_n-\alpha_kn$ at the fluctuation scale above.
+For $k=3$, the separate companion~\cite[Theorem~1.1]{ComputableThreeSATThreshold}
+proves that the limiting threshold $\alpha_3$ is a computable real.
+
+\subsection{Earlier work and the new estimate}
+
+The location and the width of a threshold are different questions.
+Friedgut~\cite[Theorem~1.3]{Friedgut} proved a sharp threshold sequence
+for each fixed clause size, without asserting convergence of that
+sequence. Achlioptas and Peres~\cite[Theorems~1--2]{AchlioptasPeres}
+used a weighted second moment to locate the threshold within $O(k)$ of
+$2^k\log2$ as $k$ grows. Ding, Sly, and Sun~\cite[Theorem~1]{DSS}
+proved the predicted limiting threshold for all sufficiently large $k$.
+Carenini's paper~\cite[Corollary~1.2]{Carenini2026Polynomial}, made public
+on October 5, 2026, establishes the satisfiability conjecture for every
+fixed $k\ge3$. We credit Carenini with priority for the resolution of the
+satisfiability conjecture.
+The companion \cite[Theorem~\ThresholdTheorem]{FixedKThreshold} establishes a limiting
+location for every fixed $k\ge3$; its independent forcing argument gives
+the variance bound $O_k(n^{1+2/k})$ for the capped
+last-satisfiable prefix $\min(H_n-1,2^{k+1}n)$
+\cite[Proposition~\ThresholdVariance]{FixedKThreshold}.
+
+For transition width, Wilson~\cite[Corollary~4]{Wilson} proved an
+$\Omega_k(\sqrt n)$ separation of central quantiles in the independent
+proper-clause model. We convert that separation into the variance lower
+bound, keeping the integer endpoints so the argument allows atoms.
+Carenini~\cite[Corollaries~7.10--7.11]{Carenini} proves an
+$O_{k,\eta}(n/\log n)$ window upper bound for fixed $k\ge3$, including
+proper independent clauses. Her subsequent paper gives the polynomial
+window bound $O_{k,\eta}(n^{1/2+1/k})$ and the hitting-time variance bound
+$O_k(n^{1+2/k})$~\cite[Theorems~1.1 and~1.3]{Carenini2026Polynomial};
+the window estimate, together with the Abbe--Montanari criterion, yields
+the limiting-threshold theorem credited above.
+The upper bounds here sharpen these fluctuation estimates. For $k=3$,
+the companion~\cite{LinearThreeSATVariance} further removes the logarithmic
+loss in this paper's upper bound.
+
+Our upper bound uses the coordinate-omission form of the Efron--Stein
+inequality~\cite{EfronStein,BBLM}. Deleting one clause leaves its $k$
+variables available for root-flip tests of the remaining solutions.
+When no other clause meets two of these variables, the $k$ tests are
+independent and use clauses of length $k-1$; we account separately for
+such collisions. A set of assignments that is easily
+killed by those shorter clauses must also have a short expected lifetime
+under $k$-clauses. The replacement of a shorter constraint by a block of
+native clauses has a qualitative predecessor in Friedgut's half-cube
+argument~\cite[Lemma~5.7]{Friedgut}; sequential conditioning on a residual
+assignment set is developed in Carenini~\cite[Theorem~4.3 and Lemma~6.1]{Carenini}.
+We prove a block estimate uniform in the number of variables and the
+block length. It also covers assignment sets that no single $k$-clause
+can kill.
+
+The main improvement comes after this replacement step. Instead of
+bounding the number of clauses incident to the deleted clause's variables
+by a logarithmic cutoff, we retain that number as a random parameter.
+Its fixed moments are bounded. The proof must therefore use the
+incidence count without destroying the independence of the shorter-clause
+tests or of future ordinary clauses. Conditioning on the incidence
+pattern through the cap achieves both. Collisions involving two of the
+deleted clause's variables are paid for by joint incidence and collision
+moments.
+
+\subsection{The route through the upper bound}
+
+Write $L=\lfloor Bn\rfloor$. If deleting $C_i$ while preserving the
+other clause indices delays the capped first failure by $D_i$, then
+\[
+ \Var(T_{n,B})\le\sum_{i=1}^{L}\EE D_i^2.
+\]
+The delay $D_i$ counts the prefixes at which restoring $C_i$ destroys
+satisfiability, so $D_i^2$ counts ordered pairs of such prefixes. The
+problem is to control this occupation time.
+
+Here is the shorter-clause estimate used for that purpose. A collection
+of clauses \emph{kills} $S\subseteq\{0,1\}^u$ if no member of $S$
+satisfies every clause. Let $q_d(S)$ be the probability that $d$ independent
+proper $(k-1)$-clauses kill $S$, and let $\tau_k(S)$ be the expected
+number of independent proper $k$-clauses through its first kill. For
+$u\ge k$, $d\ge1$, and $\beta=k/(k-1)$, we prove in
+Section~\ref{sec:replacement} that
+\[
+ \tau_k(S)q_d(S)^\beta\le C_kd^\beta.
+\]
+This estimate holds for every assignment set, with no lower cutoff on
+$q_d(S)$.
+
+Section~\ref{sec:deletion} connects this statement to clause deletion.
+Call the variables of $C_i$ its roots, and fix them to the unique values
+that falsify $C_i$. Let $S_m$ be the nonroot parts of solutions of the
+prefix with $C_i$ omitted and the roots fixed this way. A clause disjoint
+from the roots is an ordinary $k$-clause on the nonroots. A clause meeting
+one root and satisfied by that root hides a $(k-1)$-clause: its nonroot
+part becomes a constraint when that root is flipped. If restoring $C_i$
+destroys satisfiability, each allowed root flip must fail. In the absence
+of collisions this gives $k$ independent tests killing $S_m$.
+
+Conditional on the exposed incidence pattern, let $Z$ be the number of
+clauses meeting the roots and put $d=\max\{1,Z\}$. The lifetime estimate
+bounds both the expected remaining duration of a deletion event and the
+total time spent at levels $q_d(S_m)\ge a$. Write $q=q_d(S_m)$.
+The $k$ independent tests contribute $q^k$, while the expected remaining
+duration costs a factor $q^{-\beta}$. Integrating the resulting
+$q^{k-\beta}$ over time costs a second lifetime factor: the expected
+occupation above level $a$ is bounded by a constant times $a^{-\beta}$.
+The near-zero part of the resulting integral is therefore
+\[
+ \int a^{\,k-2\beta-1}\,da.
+\]
+At $k=3$, $k=2\beta$ and the finite cap produces a logarithm; for
+$k\ge4$, $k>2\beta$ and the integral is bounded. Section~\ref{sec:occupation}
+then averages the root counts and proves the capped upper bound.
+Exponential tails remove a sufficiently late cap. Wilson's quantile
+bound supplies the separate lower-bound argument.
+
+Section~\ref{sec:interfaces} removes a sufficiently late cap and records
+the exact first-unsatisfiable and last-satisfiable endpoint identities.
+Section~\ref{sec:lower-bounds} proves the lower bound, completing the
+variance theorem. Section~\ref{sec:three-clause-refinements} specializes
+the cap constants to three clauses and transfers the proper-clause
+concentration to the Poisson clause law used in the threshold companion.
+After that main argument,
+Appendix~\ref{sec:replacement-sharpness} determines the limits of the
+two estimates for arbitrary assignment sets.
+Appendix~\ref{sec:direct-comparison} compares proper-clause models at
+different sizes, and Appendix~\ref{sec:appendix-c} gives a second
+three-clause proof based on prefix exposure and incidence truncation.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/introduction.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/lower-bounds.tex ====
+\section{Quantile separation and the variance lower bound}\label{sec:lower-bounds}
+
+The remaining part of Theorem~\ref{thm:variance} is a linear lower
+bound. We use a width theorem for the proper-clause model and convert
+it into a second-moment estimate. Keeping the two integer quantiles
+explicit makes the argument valid when the hitting-time law has atoms.
+
+An elementary sparse-prefix estimate will also supply the positive lower
+bounds on finite-size means in Appendices~\ref{sec:direct-comparison}
+and~\ref{sec:appendix-c}. We record it before turning to the quantile
+argument.
+
+\begin{lemma}[A sparse satisfiable prefix]\label{lem:sparse-satisfiability}
+For every real $0<c<e^{-2}$, every integer $k\ge3$, and every $n\ge k$,
+put $j=\lfloor cn\rfloor$. In the independent proper-clause model,
+\begin{equation}\label{eq:sparse-satisfiability}
+ 1-P_n(j)\le\frac{ec}{n^2}\sum_{t=1}^{\infty}t^2(e^2c)^t=O_c(n^{-2}).
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Form the bipartite incidence graph between the $j$ clause positions and
+the $n$ variables. A matching covering all clause positions supplies a
+satisfying assignment: set each matched variable to satisfy its literal
+in the clause matched to it. This criterion and the deficient-set union
+bound below appear in Franco and Van Gelder~\cite[Section~8]{FrancoVanGelder2003}.
+By Hall's theorem~\cite[Theorem~1]{Hall1935}, failure of such a matching
+implies that some set of $t$ variables contains at least $t+1$ whole
+clauses. A proper $k$-clause lies in a specified $t$-set with probability
+$(t)_k/(n)_k\le(t/n)^k$, interpreted as zero when $t<k$. Thus, using
+$k\ge3$, $j\le cn$, and $\binom ab\le(ea/b)^b$,
+\begin{align*}
+ 1-P_n(j)
+ &\le\sum_{\substack{1\le t\le n\\t+1\le j}}
+       \binom nt\binom j{t+1}(t/n)^{k(t+1)}\\
+ &\le\sum_{t=1}^{n}ec(e^2c)^t(t/n)^{t+2}
+ \le\frac{ec}{n^2}\sum_{t=1}^{\infty}t^2(e^2c)^t.
+\end{align*}
+The final series is finite because $e^2c<1$.
+\end{proof}
+
+
+Wilson's Corollary~4 \cite{Wilson} applies to independent uniform proper
+$k$-clauses sampled with replacement. At the fixed probability levels
+$3/4$ and $1/4$, its assertion for every fixed $k\ge3$ gives constants
+$d_k>0$ and $n_k$ such that, for $n\ge n_k$,
+\begin{equation}\label{eq:wilson-gap}
+ P_n(m_1)\ge\tfrac34,\quad P_n(m_2)\le\tfrac14
+ \quad\Longrightarrow\quad m_2-m_1\ge d_k\sqrt n
+\end{equation}
+The constants may depend on $k$. We spell out the conversion from this
+quantile-width statement to a variance bound, including possible atoms.
+
+\begin{proposition}[Linear variance lower bound]
+\label{prop:variance-lower}
+Let $L_n$ be positive integer caps of order $O(n)$ and suppose
+$P_n(L_n-1)\le1/4$ for all sufficiently large $n$. Then
+\[
+ \Var(\min\{H_n,L_n\})\ge c_k n
+\]
+for all sufficiently large $n$, with $c_k>0$.
+In particular, for every fixed $B>U_k$ and every fixed
+$k\ge4$,
+\begin{equation}\label{eq:sharp-variance}
+ \Var(H_n)=\Theta_k(n),\qquad
+ \Var(T_{n,B})=\Theta_{k,B}(n),\qquad
+ \Var(\min\{H_n-1,\lfloor Bn\rfloor\})=\Theta_{k,B}(n).
+\end{equation}
+For $k=3$, the corresponding variances lie between positive constant
+multiples of $n$ and $n\log n$.
+\end{proposition}
+
+\begin{proof}
+Write $X=\min\{H_n,L_n\}$ and $G(j)=\PP(X\le j)$. Define the integer
+quantiles
+\[
+ a=\min\{j:G(j)\ge1/4\},\qquad
+ b=\min\{j:G(j)\ge3/4\}.
+\]
+The cap hypothesis gives $b\le L_n-1$. Thus $a-1$ and $b$ are below the
+cap and, by minimality,
+\[
+ P_n(a-1)=1-G(a-1)>3/4,\qquad P_n(b)=1-G(b)\le1/4.
+\]
+Applying \eqref{eq:wilson-gap} to the endpoint probabilities above gives
+$b-a\ge d_k\sqrt n-1$.
+Minimality of the quantiles also gives
+\[
+ \PP(X\le a)\ge\tfrac14,\qquad
+ \PP(X\ge b)=1-G(b-1)>\tfrac14.
+\]
+For an independent copy $X'$, each of the disjoint events
+$\{X\le a,X'\ge b\}$ and $\{X'\le a,X\ge b\}$ has probability at
+least $1/16$ once $b>a$. Therefore
+\[
+ \Var(X)=\tfrac12\EE(X-X')^2
+ \ge\frac{(b-a)^2}{16}
+ \ge\frac{d_k^2}{64}n
+\]
+for sufficiently large $n$.
+If $L_n=\lfloor Bn\rfloor$ and $B>U_k$, then
+\[
+ P_n(L_n-1)\le q_k^{-2}\rho_{k,B}^n=o(1)
+\]
+by \eqref{eq:first-moment-tail}. The capped upper bounds proved above give the
+matching upper bounds. The exact identity
+\[
+ \min\{H_n-1,L_n\}=\min\{H_n,L_n+1\}-1
+\]
+proves the lower bound for last satisfiability, since its required
+condition is $P_n(L_n)\le1/4$. Finally
+$\Var(H_n)\ge\Var(\min\{H_n,L_n\})$ by
+Proposition~\ref{prop:cap-bridge}; Corollary~\ref{cor:uncapped} supplies
+the uncapped upper bound.
+This completes the variance assertions of Theorem~\ref{thm:variance}.
+\end{proof}
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/lower-bounds.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/occupation.tex ====
+\section{Occupation and incidence moments}
+\label{sec:occupation}
+
+Keep the deleted index \(i\), its fixed clause \(C_i\), and the
+environment \(\mathcal E\) of Section~\ref{sec:deletion}.  We first
+bound the time spent at each level of the shorter-clause killing
+probability \(q_m=q_d(S_m)\).  We then combine that occupation bound
+with the root tests and average the incidence counts.
+
+In this section \(C_k\) denotes a positive constant depending only on
+the fixed \(k\), which may increase between occurrences.  It need not
+equal the explicit constant in Proposition~\ref{prop:lifetime}.
+Recall \(\beta=k/(k-1)\), \(d=\max\{1,Z\}\), and
+\(W_m=\min\{L,\tau_k(S_m)+Z\}\).  On \(S_m\ne\varnothing\),
+\begin{equation}\label{eq:weighted-lifetime-product}
+ W_m q_m^\beta\le C_kd^\beta.
+\end{equation}
+Indeed, Proposition~\ref{prop:lifetime} bounds
+\(\tau_k(S_m)q_m^\beta\) by a constant times \(d^\beta\), and
+\[
+ Zq_m^\beta\le Z\le d\le d^\beta.
+\]
+The product bound remains valid when \(q_m=0\).
+
+\subsection{Time spent above a level}
+
+\begin{lemma}[Conditional occupation]\label{lem:conditional-occupation}
+There is a constant \(C_k\ge1\), independent of the environment,
+such that for every \(0<a\le1\), almost surely,
+\begin{equation}\label{eq:conditional-occupation}
+ \sum_{m=i}^{L-1}
+ \PP(S_m\ne\varnothing,\ q_m\ge a\mid\mathcal E)
+ \le\min\{L,C_kd^\beta a^{-\beta}\}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Define
+\[
+ N_a=\sum_{m=i}^{L-1}
+       \mathbf1_{\{S_m\ne\varnothing,\ q_m\ge a\}},
+\]
+and let \(\sigma_a\) be the first index counted by \(N_a\), or
+\(\infty\) if there is none.  Because \(d\)
+is known in \(\mathcal E\) and \(S_m\) is \(\mathcal G_m\)-measurable,
+\(\{\sigma_a=m\}\in\mathcal G_m\).
+
+On \(\{\sigma_a=m\}\), no eligible index precedes \(m\).  The future
+ordinary clauses used to define \(U_m\) kill the original \(S_m\)
+at index \(m+U_m\).  If that index is at most \(L\), then \(S_\ell\)
+is empty there and thereafter: a member would have to lie in \(S_m\)
+and satisfy those same ordinary clauses.  The eligible indices are
+therefore among \(m,\ldots,m+U_m-1\).  If the kill is after \(L\),
+the capped interval ends earlier.  Thus in both cases
+\[
+ N_a\le U_m\quad\text{on }\{\sigma_a=m\}.
+\]
+The first eligible index is included in these \(U_m\) possible indices.
+
+On \(\{\sigma_a=m\}\), the lifetime bound and
+\eqref{eq:chronological-domination} give
+\[
+ \EE[U_m\mid\mathcal G_m]
+ \le\tau_k(S_m)+Z
+ \le C_kd^\beta a^{-\beta},
+\]
+after increasing \(C_k\), since \(q_m\ge a\) and
+\(Z\le d\le d^\beta a^{-\beta}\).  The first-visit events are disjoint,
+so the tower property yields
+\begin{align*}
+ \EE[N_a\mid\mathcal E]
+ &\le\sum_{m=i}^{L-1}
+   \EE\left[\mathbf1_{\{\sigma_a=m\}}
+                \EE[U_m\mid\mathcal G_m]\mid\mathcal E\right]\\
+ &\le C_kd^\beta a^{-\beta}
+       \sum_{m=i}^{L-1}\PP(\sigma_a=m\mid\mathcal E)
+ \le C_kd^\beta a^{-\beta}.
+\end{align*}
+Also \(N_a\le L\).  These two bounds prove the claim.
+\end{proof}
+
+Only the first visit to the level is stopped on.  All later eligible
+indices are charged to the remaining lifetime of the same nested
+set.  This is why the argument needs fresh future ordinary contents
+under \(\mathcal G_m\), even though \(\mathcal E\) has already exposed
+future nonordinary data.
+
+To apply the occupation bound to the squared deletion delay, first
+consider an environment with \(V=0\).  All \(k\) root tests are then
+available.  Lemma~\ref{lem:root-flip-tests} supplies the factor
+\(q_m^k\) in the weighted-delay bound
+\eqref{eq:conditional-weighted-delay}.  On a nonempty \(S_m\),
+\eqref{eq:weighted-lifetime-product} gives
+\[
+ W_mq_m^k=(W_mq_m^\beta)q_m^{k-\beta}
+ \le C_kd^\beta q_m^{k-\beta}.
+\]
+The remaining occupation sum has exponent
+\[
+ \gamma=k-\beta=\frac{k(k-2)}{k-1}.
+\]
+The lifetime estimate has controlled the remaining deletion duration;
+Lemma~\ref{lem:conditional-occupation} contributes a second lifetime
+factor \(a^{-\beta}\) by bounding the time spent above level \(a\).
+The resulting layer-cake integral contains \(a^{\gamma-\beta-1}\).
+Its integrability at zero is determined by
+\(\gamma-\beta=k(k-3)/(k-1)\), which is zero exactly at \(k=3\).
+
+\begin{lemma}[Integrated occupation]\label{lem:integrated-occupation}
+For \(L\ge1\), almost surely and with a constant independent of the
+environment,
+\begin{equation}\label{eq:integrated-occupation}
+ \sum_{m=i}^{L-1}
+ \EE[\mathbf1_{\{S_m\ne\varnothing\}}q_m^\gamma\mid\mathcal E]
+ \le
+ \begin{cases}
+ C_kd^\beta(1+\log L),&k=3,\\
+ C_kd^\beta,&k\ge4.
+ \end{cases}
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Since \(0\le q_m\le1\), the layer-cake identity and
+Lemma~\ref{lem:conditional-occupation} give
+\begin{align}
+ &\sum_{m=i}^{L-1}
+ \EE[\mathbf1_{\{S_m\ne\varnothing\}}q_m^\gamma\mid\mathcal E]
+ \notag\\
+ &\quad=\int_0^1\gamma a^{\gamma-1}
+       \sum_{m=i}^{L-1}
+       \PP(S_m\ne\varnothing,\ q_m\ge a\mid\mathcal E)\,da
+ \notag\\
+ &\quad\le\int_0^1\gamma a^{\gamma-1}
+        \min\{L,Aa^{-\beta}\}\,da,\qquad
+ A=C_kd^\beta\ge1.
+ \label{eq:occupation-integral}
+\end{align}
+The terms are nonnegative, so the interchange of conditional
+expectation, the finite sum, and integration is valid.
+
+For \(k\ge4\), \(\gamma>\beta\).  Bounding the minimum by
+\(Aa^{-\beta}\) gives
+\[
+ \int_0^1\gamma a^{\gamma-1}\min\{L,Aa^{-\beta}\}\,da
+ \le\frac{\gamma A}{\gamma-\beta}.
+\]
+This is a constant times \(A\) for fixed \(k\).
+
+For \(k=3\), \(\gamma=\beta=3/2\).  If \(A\ge L\), the integral is
+at most \(L\le A\).  If \(A<L\), split at
+\(a_*=(A/L)^{1/\beta}\).  The lower part equals \(La_*^\beta=A\);
+the upper part is
+\[
+ \beta A\int_{a_*}^{1}\frac{da}{a}=A\log(L/A).
+\]
+Thus the integral is at most
+\(A[1+\log_+(L/A)]\le A(1+\log L)\), where
+\(\log_+x=\max\{\log x,0\}\).  This proves both cases.
+\end{proof}
+
+\subsection{The cost of collisions}
+
+The number \(V\) of collisions through the whole cap is fixed under
+\(\mathcal E\).  With no collisions all \(k\) root tests are
+available.  One collision may remove one test; two or more collisions
+will be handled by the deterministic cap.
+
+\begin{proposition}[Conditional squared delay]
+\label{prop:conditional-squared-delay}
+For \(L\ge1\), set
+\[
+ h_k(L)=
+ \begin{cases}
+ 1+\log L,&k=3,\\
+ 1,&k\ge4.
+ \end{cases}
+\]
+Then, almost surely,
+\begin{equation}\label{eq:conditional-squared-delay}
+ \EE[D_i^2\mid\mathcal E]
+ \le C_kd^{2\beta}h_k(L)\mathbf1_{\{V=0\}}
+      +C_kLd^\beta\mathbf1_{\{V=1\}}
+      +L^2\mathbf1_{\{V\ge2\}}.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Because \(W_m\) is \(\mathcal G_m\)-measurable, the tower property
+and the root-flip test bound imply, for every integer \(1\le j\le k\)
+on the \(\mathcal E\)-measurable event \(\{|J_m|\ge j\}\),
+\[
+ \EE[\mathbf1_{A_m}W_m\mid\mathcal E]
+ \le\EE[\mathbf1_{\{S_m\ne\varnothing\}}W_mq_m^j
+         \mid\mathcal E].
+\]
+Here we used \(q_m\le1\) if more than \(j\) tests are available.
+
+If \(V=0\), take \(j=k\) and use
+\(W_mq_m^k\le C_kd^\beta q_m^\gamma\) on nonempty sets, as above.
+Substituting in
+\eqref{eq:conditional-weighted-delay} and applying integrated
+occupation gives \(C_kd^{2\beta}h_k(L)\).
+
+If \(V=1\), at least \(k-1\) tests are available by
+\eqref{eq:available-root-tests}.  Since \(k-1\ge\beta\) for \(k\ge3\),
+\[
+ \mathbf1_{\{S_m\ne\varnothing\}}W_mq_m^{k-1}
+ \le C_kd^\beta.
+\]
+Use this bound at each of the at most \(L\) indices in
+\eqref{eq:conditional-weighted-delay}.  It gives \(C_kLd^\beta\).
+Finally, when \(V\ge2\), the pathwise bound \(0\le D_i\le L\)
+gives \(D_i^2\le L^2\).  This includes environments with no
+available test.
+\end{proof}
+
+The one-collision contribution contains \(d^\beta\).  Its average
+therefore needs the joint distribution of incidences and collisions,
+not just an upper bound on the probability of a collision.
+
+\subsection{Joint moments of incidences and collisions}
+
+\begin{lemma}[Weighted root counts]\label{lem:weighted-root-counts}
+Fix integers \(k\ge3\) and \(n\ge2k\), a real \(B>0\), and a set
+of \(k\) roots.  Take \(M\) independent uniform proper \(k\)-clauses
+on \(n\) variables, where \(M\) is a nonnegative integer with
+\(M\le Bn\).  Let \(Z\) count clauses
+meeting a root, \(V\) count clauses meeting at least two roots, and
+\(d=\max\{1,Z\}\).  For every fixed real \(p\ge0\),
+\begin{equation}\label{eq:incidence-moments}
+ \EE d^p\le C_{k,B,p}.
+\end{equation}
+For every fixed positive integer \(r\),
+\begin{equation}\label{eq:weighted-collision-moments}
+ \EE[d^p\mathbf1_{\{V\ge r\}}]\le C_{k,B,p,r}n^{-r}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+For one clause, let \(I\) indicate meeting a root and let \(J\)
+indicate meeting at least two.  Write \(p_1=\PP(I=1)\) and
+\(p_2=\PP(J=1)\).  Union bounds over roots and pairs of roots give
+\begin{equation}\label{eq:one-trial-root-counts}
+ p_1\le\frac{k^2}{n},\qquad
+ p_2\le\binom{k}{2}\frac{k(k-1)}{n(n-1)}
+      \le\frac{k^2(k-1)^2}{n^2}.
+\end{equation}
+Thus \(Z\sim\operatorname{Bin}(M,p_1)\), and
+\[
+ \EE e^Z=(1+p_1(e-1))^M
+ \le\exp(Bk^2(e-1)).
+\]
+For \(K_p=\sup_{x\ge0}\max\{1,x\}^pe^{-x}<\infty\), we have
+\(d^p\le K_pe^Z\).  This proves \eqref{eq:incidence-moments}.
+
+For the collision bound, retain the dependence between \(Z\) and \(V\).
+Write \((a)_r=a(a-1)\cdots(a-r+1)\).  For every nonnegative function
+\(f\) on the nonnegative integers and \(1\le r\le M\),
+\begin{equation}\label{eq:joint-factorial-identity}
+ \EE[f(Z)(V)_r]
+ =(M)_r p_2^r\,\EE f(r+X),
+ \qquad X\sim\operatorname{Bin}(M-r,p_1).
+\end{equation}
+To prove the identity, expand \((V)_r\) over ordered \(r\)-tuples
+of distinct clause indices.  A collision at each chosen index has
+probability \(p_2^r\) and forces its incidence indicator to be one.
+The remaining \(M-r\) incidence indicators retain their independent
+Bernoulli laws with parameter \(p_1\).  Each ordered tuple has the
+same expectation, giving the formula.
+
+Since \(\mathbf1_{\{V\ge r\}}\le(V)_r/r!\), use
+\(f(x)=\max\{1,x\}^p\) in \eqref{eq:joint-factorial-identity}:
+\begin{align*}
+ \EE[d^p\mathbf1_{\{V\ge r\}}]
+ &\le\frac{(M)_r p_2^r}{r!}\,
+          \EE\max\{1,r+X\}^p\\
+ &\le\frac{(M)_r p_2^r}{r!}\,
+          K_pe^r\exp(Bk^2(e-1))
+ \le C_{k,B,p,r}n^{-r}.
+\end{align*}
+The last inequality uses \(M\le Bn\) and
+\eqref{eq:one-trial-root-counts}.  If \(r>M\), the left side is zero.
+The same definitions cover \(M=0\) and \(p=0\).
+\end{proof}
+
+These moments are taken with the deleted clause fixed and the other
+clauses still random.  Once \(\mathcal E\) is fixed, \(Z\) and \(V\)
+are known; their rarity returns only when we average over
+\(\mathcal E\).
+
+\subsection{Completing the capped upper bound}
+
+\begin{proof}[Proof of the capped upper bound in Theorem~\ref{thm:variance}]
+Suppose first that \(n\ge2k\) and \(L\ge1\), and keep \(C_i\) fixed.
+The remaining \(L-1\le Bn\) clauses satisfy
+Lemma~\ref{lem:weighted-root-counts}.  Averaging
+\eqref{eq:conditional-squared-delay} over \(\mathcal E\), and using
+the lemma with \(p=2\beta\) in \eqref{eq:incidence-moments} and
+\((p,r)=(\beta,1),(0,2)\) in \eqref{eq:weighted-collision-moments},
+gives
+\begin{align*}
+ \EE[D_i^2\mid C_i]
+ &\le C_kh_k(L)\EE[d^{2\beta}\mid C_i]
+       +C_kL\EE[d^\beta\mathbf1_{\{V=1\}}\mid C_i]
+       +L^2\PP(V\ge2\mid C_i)\\
+ &\le C_{k,B}h_k(L)+C_{k,B}Ln^{-1}
+                         +C_{k,B}L^2n^{-2}\\
+ &\le C_{k,B}h_k(L).
+\end{align*}
+The constants are uniform in \(i\) and in the value of \(C_i\).
+Remove this conditioning and use coordinate omission:
+\[
+ \Var(T)\le\sum_{i=1}^{L}\EE D_i^2
+ \le C_{k,B}Lh_k(L).
+\]
+Since \(L\le Bn\), this is at most
+\[
+ C_{k,B}n\ell_k(n),\qquad
+ \ell_k(n)=
+ \begin{cases}
+ \log(en),&k=3,\\
+ 1,&k\ge4.
+ \end{cases}
+\]
+For \(k=3\), we used \(1+\log L\le C_B\log(en)\) when \(L\ge1\).
+If \(L=0\), the capped variable is identically zero.  The finitely
+many remaining sizes \(k\le n<2k\) are covered by increasing the
+constant, since \(0\le T\le\lfloor Bn\rfloor\).  This proves the
+upper bound for every fixed positive \(B\) and every \(n\ge k\).
+\end{proof}
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/occupation.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement-sharpness.tex ====
+\section{Sharpness for arbitrary assignment sets}
+\label{sec:replacement-sharpness}
+
+For each fixed integer \(k\ge3\), two exponents in
+Section~\ref{sec:replacement} are optimal for estimates uniform over
+arbitrary assignment sets: the power \(k/(k-1)\) of the inverse killing
+probability in the lifetime bound, and the power \(k-1\) of the inverse
+block length in the one-clause replacement error.  Both examples below
+use subcubes with many frozen coordinates.  A common observation
+identifies when a block of clauses can kill such a subcube.
+
+Write \(r=k-1\).  We retain the proper clause law:
+a proper \(s\)-clause on \(u\) coordinates chooses \(s\) distinct
+coordinates uniformly and gives them independent fair signs.  Different
+clauses are independent, with repetition of whole clauses allowed.
+Recall that \(q_1(S)\) is the probability that one proper \(r\)-clause
+kills \(S\), \(R_t(S)\) is the probability that \(t\) proper \(k\)-clauses
+kill \(S\), and \(\tau_k(S)=\EE H_k(S)\).  For nonempty \(S\),
+\(H_k(S)\) is the least positive index \(t\) for which the first \(t\)
+proper \(k\)-clauses jointly kill \(S\); the convention for the empty set
+is \(H_k(\varnothing)=0\).
+
+For integers \(u\ge b\ge k\), consider the nonempty subcube
+\[
+ S_{u,b}=\{x\in\{0,1\}^u:x_1=\cdots=x_b=0\}.
+\]
+Its first \(b\) coordinates are frozen and the others are free.  If
+\(h_s(S_{u,b})\) denotes the probability that one proper \(s\)-clause
+kills this subcube, the frozen-coordinate formula
+\eqref{eq:frozen-killing} reads
+\begin{equation}\label{eq:sharp-subcube-probabilities}
+ h_s(S_{u,b})=\frac{(b)_s}{2^s(u)_s}\quad(1\le s\le u),
+ \qquad q_1(S_{u,b})=h_r(S_{u,b}),
+\end{equation}
+where \((a)_s=a(a-1)\cdots(a-s+1)\).  In particular,
+\begin{equation}\label{eq:sharp-successive-ratio}
+ \frac{h_k(S_{u,b})}{q_1(S_{u,b})}
+ =\frac{b-r}{2(u-r)}.
+\end{equation}
+
+For every integer \(t\ge1\), the same subcube satisfies
+\begin{equation}\label{eq:sharp-subcube-bounds}
+ 1-\bigl(1-h_k(S_{u,b})\bigr)^t
+ \le R_t(S_{u,b})
+ \le t h_k(S_{u,b})+\binom t2\frac{k^2}{u}.
+\end{equation}
+The lower bound records the independent chances that a single clause
+kills the whole subcube.  To prove the upper bound, restrict all \(t\)
+clauses to the frozen values.  Each restricted clause is already true,
+is the empty false clause, or is a nonempty clause on free coordinates.
+If no restricted clause is empty and false, and no two original clauses
+share a free coordinate, then the remaining nonempty clauses use
+disjoint sets of variables.  Choose one literal in each and set it true,
+then assign the other free coordinates arbitrarily.  The resulting
+assignment lies in \(S_{u,b}\) and satisfies the block.
+Thus a block can kill the subcube only if an individually killing clause
+occurs or a pair of clauses shares a free coordinate.  For a fixed
+free coordinate, the probability that both independent proper clauses
+contain it is \((k/u)^2\).  Summing over the \(u-b\) free coordinates
+bounds the probability for a given pair by \(k^2/u\).  A union bound over
+clauses and pairs proves the upper bound in
+\eqref{eq:sharp-subcube-bounds}.
+
+\begin{proposition}[Optimality of the lifetime exponent]
+\label{prop:lifetime-sharp}
+Fix an integer \(k\ge3\), and put \(\beta=k/(k-1)\).  For every real
+\(\gamma<\beta\) and all constants \(D,A>0\), there exist arbitrarily
+large integers \(u\ge k\) and nonempty sets
+\(S\subseteq\{0,1\}^u\) such that
+\[
+ q_1(S)\ge A u^{-(k-1)},\qquad
+ \tau_k(S)>Dq_1(S)^{-\gamma}.
+\]
+Consequently, the killing-probability exponent \(\beta\) in
+Proposition~\ref{prop:lifetime} cannot be decreased in a bound uniform
+over arbitrary assignment sets,
+even above any fixed multiple of the scale \(u^{-(k-1)}\).
+\end{proposition}
+
+\begin{proof}
+Let the integer \(N\ge2\) tend to infinity, and put
+\[
+ u=N^{2k+1},\qquad b=N^{2k},\qquad S=S_{u,b}.
+\]
+Since \(k\) is fixed and \(b/u=N^{-1}\),
+\eqref{eq:sharp-subcube-probabilities} gives
+\begin{equation}\label{eq:sharp-frozen-probabilities}
+ a_N:=q_1(S)\sim 2^{-r}N^{-r},
+ \qquad h_N:=h_k(S)\sim 2^{-k}N^{-k}.
+\end{equation}
+Choose \(t_N=\lfloor1/(4h_N)\rfloor\).  This is positive for all
+sufficiently large \(N\), and \(t_N=\Theta_k(N^k)\).  A set survives
+the first \(t_N\) clauses exactly when \(H_k(S)>t_N\), so
+\eqref{eq:sharp-subcube-bounds} yields
+\begin{equation}\label{eq:sharp-survival}
+ \PP(H_k(S)>t_N)
+ =1-R_{t_N}(S)
+ \ge 1-t_Nh_N-\binom{t_N}{2}\frac{k^2}{u}
+ \ge\frac34-o(1).
+\end{equation}
+Here \(t_Nh_N\le1/4\), while \(t_N^2/u=O_k(N^{-1})\).
+It follows that
+\[
+ \tau_k(S)\ge t_N\PP(H_k(S)>t_N)=\Omega_k(N^k).
+\]
+For the reverse bound, let \(J\) be the index of the first clause that
+kills the original set \(S\) by itself.  The cumulative sequence kills \(S\)
+no later than \(J\).  Since \(J\) has the geometric distribution with
+success probability \(h_N>0\),
+\[
+ \tau_k(S)\le\EE J=h_N^{-1}=O_k(N^k).
+\]
+Thus
+\[
+ \tau_k(S)=\Theta_k(N^k)
+          =\Theta_k\bigl(a_N^{-\beta}\bigr).
+\]
+For each fixed \(\gamma<\beta\), the ratio
+\(\tau_k(S)/a_N^{-\gamma}\) tends to infinity, since
+\(k-r\gamma>0\).  Finally,
+\[
+ a_Nu^r\sim 2^{-r}N^{2kr}=2^{-r}b^r\longrightarrow\infty.
+\]
+For all sufficiently large \(N\), the two displayed requirements
+therefore hold for the prescribed \(D\) and \(A\).  The values of \(u\)
+are arbitrarily large.
+\end{proof}
+
+\begin{proposition}[Optimality of the block-error exponent]
+\label{prop:replacement-sharp}
+Fix an integer \(k\ge3\).  For integers \(g\ge2\), there are nonempty
+sets \(S_g\subseteq\{0,1\}^{u_g}\), with \(u_g\ge k\), for which
+\[
+ q_1(S_g)-R_g(S_g)\sim 2^{-k}g^{-(k-1)}
+ \qquad(g\to\infty).
+\]
+In particular, no error \(o(g^{-(k-1)})\), uniform over \(u\) and the
+assignment set, can replace the error in
+Lemma~\ref{lem:one-replacement}.
+\end{proposition}
+
+\begin{proof}
+For every integer \(g\ge2\), put
+\[
+ u_g=g^{k+2},\qquad b_g=g^{k+1},\qquad S_g=S_{u_g,b_g},
+\]
+and abbreviate \(a_g=q_1(S_g)\) and \(h_g=h_k(S_g)\).
+Equations~\eqref{eq:sharp-subcube-probabilities} and
+\eqref{eq:sharp-successive-ratio} give
+\[
+ a_g\sim2^{-r}g^{-r},\qquad
+ \frac{gh_g}{a_g}=\frac{g(b_g-r)}{2(u_g-r)}
+ \longrightarrow\frac12.
+\]
+The upper bound in \eqref{eq:sharp-subcube-bounds}, and the two-term
+inclusion--exclusion lower bound for the independent individual killing
+events, give
+\[
+ gh_g-\binom g2h_g^2
+ \le R_g(S_g)
+ \le gh_g+\binom g2\frac{k^2}{u_g}.
+\]
+The collision error is \(O_k(g^{-k})=o(a_g)\).  Also
+\(h_g=\Theta_k(g^{-k})\), so the inclusion--exclusion error is
+\(O_k(g^{-2(k-1)})=o(a_g)\).  Hence
+\[
+ R_g(S_g)=gh_g+o(a_g),\qquad
+ q_1(S_g)-R_g(S_g)
+   =\bigl(\tfrac12+o(1)\bigr)a_g
+   \sim2^{-k}g^{-r}.
+\]
+This is the stated asymptotic.
+\end{proof}
+
+These constructions delimit estimates uniform over arbitrary assignment
+sets.  They leave open stronger lifetime estimates for classes of sets
+with additional structure, and variance arguments using information
+beyond the killing probability.  In particular, they do not show that
+the logarithm in the three-clause variance upper bound is necessary.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement-sharpness.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement.tex ====
+\section{Survival of a set of assignments}
+\label{sec:replacement}
+
+The deletion argument will leave a set of assignments that must pass
+random tests of length \(k-1\).  We need to relate the probability that
+those tests eliminate the set to its lifetime under clauses of length
+\(k\).  This section proves the relation for every assignment set.
+Replacing a shorter constraint by a block of clauses of the original
+length has a qualitative predecessor in Friedgut's half-cube
+argument~\cite[Lemma~5.7]{Friedgut}.
+
+Fix integers \(k\ge3\) and \(u\ge k\), and put
+\[
+ r=k-1,\qquad \beta=\frac{k}{k-1}.
+\]
+A proper \(s\)-clause, for \(1\le s\le u\), chooses an \(s\)-element
+subset of the \(u\) variables uniformly and then chooses independent
+fair signs on that subset.  Clauses
+are independent, so a whole clause may occur more than once.  A
+collection of clauses \emph{kills} \(S\subseteq\{0,1\}^u\) when no
+member of \(S\) satisfies every clause in the collection.  For
+nonnegative integers \(d,g\), define
+\[
+ q_d(S)=\PP(\text{\(d\) proper \(r\)-clauses kill \(S\)}),
+ \qquad
+ R_g(S)=\PP(\text{\(g\) proper \(k\)-clauses kill \(S\)}).
+\]
+For a nonempty set, \(q_0(S)=R_0(S)=0\).  For the empty set these
+probabilities are one, including when there are zero clauses.
+Let \(H_k(S)\) be the first killing index in an infinite sequence of
+proper \(k\)-clauses, counting the killing clause, and put
+\[
+ H_k(\varnothing)=0,\qquad \tau_k(S)=\EE H_k(S).
+\]
+These expectations are finite: for every integer \(m\ge0\),
+\begin{equation}\label{eq:set-survival}
+ \PP(H_k(S)>m)
+ \le |S|(1-2^{-k})^m
+ \le 2^u\exp(-2^{-k}m).
+\end{equation}
+Indeed, each fixed assignment survives each independent clause with
+probability \(1-2^{-k}\), and the first inequality is a union bound.
+
+\subsection{Replacing one shorter clause}
+
+For a nonempty set \(S\), a coordinate is \emph{frozen} if every member
+of \(S\) has the same value there.  If \(b\) coordinates are frozen,
+the probability that one proper \(s\)-clause kills \(S\) is
+\begin{equation}\label{eq:frozen-killing}
+ h_s(S)=\frac{(b)_s}{2^s(u)_s},\qquad 1\le s\le u,
+\end{equation}
+where \((a)_s=a(a-1)\cdots(a-s+1)\), with value zero for a nonnegative
+integer \(a<s\).  To kill \(S\), every literal of the clause must be
+false for every assignment in \(S\).  Its variables must therefore
+be frozen, and each sign must oppose their common values.  This
+characterizes the killing clauses and proves the formula.
+
+Write \(h=h_r(S)\).  Then \(0\le h\le2^{-r}\le1/4\).  If \(b\ge k\),
+\begin{equation}\label{eq:frozen-power}
+ h_k(S)=h\frac{b-r}{2(u-r)}\ge\frac1k h^\beta.
+\end{equation}
+In fact \(b-r\ge b/k\), \(u-r\le u\), and
+\[
+ h=\frac1{2^r}\prod_{j=0}^{r-1}\frac{b-j}{u-j}
+ \le \left(\frac b{2u}\right)^r.
+\]
+Substituting these bounds into the equality proves
+\eqref{eq:frozen-power}.  Its hypothesis matters.  For the cylinder
+whose first \(r\) coordinates are fixed to zero,
+\begin{equation}\label{eq:frozen-exception}
+ h_k(S)=0,\qquad h_r(S)=\frac1{2^r\binom ur}>0.
+\end{equation}
+No single \(k\)-clause kills this set.  A sufficiently long block
+can still do so through the joint effect of its clauses.
+
+\begin{lemma}[One-clause replacement]\label{lem:one-replacement}
+For an integer \(k\ge3\), let
+\[
+ K_k=\bigl(2^k(k-1)\bigr)^{k-1}.
+\]
+For every integer \(u\ge k\), every \(S\subseteq\{0,1\}^u\), and
+every integer \(g\ge1\),
+\begin{equation}\label{eq:one-replacement}
+ R_g(S)\ge q_1(S)-K_k g^{-(k-1)}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+For \(S=\varnothing\), both probabilities are one.  Suppose \(S\) is
+nonempty and retain \(b,r,h\) above.  A block kills \(S\) if any
+one of its clauses does.  Independence gives
+\begin{equation}\label{eq:individual-block-bound}
+ R_g(S)\ge1-(1-h_k(S))^g\ge1-e^{-g h_k(S)}.
+\end{equation}
+
+First assume \(b\ge k\).  If \((g/k)h^{1/r}\ge2\), then
+\eqref{eq:frozen-power} gives \(g h_k(S)\ge2h\), and
+\[
+ R_g(S)\ge1-e^{-2h}\ge h.
+\]
+For the last inequality, \(1-e^{-2h}-h\) is zero at \(h=0\) and
+has nonnegative derivative on \([0,1/4]\).  If instead
+\((g/k)h^{1/r}<2\), then
+\[
+ h<(2k)^r g^{-r}\le K_k g^{-r},
+\]
+because \(2k\le2^k(k-1)\).  Nonnegativity of \(R_g(S)\) now suffices.
+
+If \(b<r\), then \(h=0\), which also proves the inequality.  The only
+remaining case is \(b=r\).  Formula~\eqref{eq:frozen-killing} gives
+\[
+ h=\frac1{2^r\binom ur}\le\left(\frac r{2u}\right)^r.
+\]
+When \(g<2^{k+1}u\), this is less than
+\((2^k r/g)^r=K_k g^{-r}\).  When \(g\ge2^{k+1}u\), apply
+\eqref{eq:set-survival} to the full cube:
+\[
+ R_g(S)\ge1-\exp((\log2-2)u)
+ \ge1-e^{-u}>\frac14\ge h.
+\]
+Here \(u\ge k\ge3\).  This last bound uses the whole block and remains
+valid even though \(h_k(S)=0\).
+\end{proof}
+
+\subsection{Several tests and the expected lifetime}
+
+Replacing tests one at a time requires a bound for arbitrary residual
+sets: conditioning on the other clauses need not leave a set with any
+special description.  The sequential conditioning follows the replacement
+argument of Carenini~\cite[Theorem~4.3]{Carenini}.  The uniform additive
+block estimate in Lemma~\ref{lem:one-replacement} takes the place of the
+cutoff-dependent comparison of single-clause killing probabilities in
+\cite[Lemma~6.1]{Carenini}; the exceptional case \(b=k-1\) above
+rules out a cutoff-free positive power lower bound for \(h_k\) in
+terms of \(h_r\).
+
+\begin{lemma}[Sequential replacement]\label{lem:sequential-replacement}
+For integers \(k\ge3\) and \(u\ge k\), every
+\(S\subseteq\{0,1\}^u\), and all integers \(d,g\ge1\),
+\begin{equation}\label{eq:sequential-replacement}
+ R_{dg}(S)\ge q_d(S)-dK_k g^{-(k-1)}.
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Choose independent proper \(r\)-clauses \(Q_1,\ldots,Q_d\) and
+independent blocks \(G_1,\ldots,G_d\), each containing \(g\) proper
+\(k\)-clauses; take all these choices mutually independent.  Let
+\(p_j\) be the probability that
+\(G_1,\ldots,G_j,Q_{j+1},\ldots,Q_d\) kill \(S\), for \(0\le j\le d\).
+
+For the replacement at index \(j\), condition on
+\(G_1,\ldots,G_{j-1},Q_{j+1},\ldots,Q_d\), and let \(S'\) be the
+members of \(S\) satisfying those clauses.  The omitted \(Q_j\) and
+fresh \(G_j\) remain independent with their original laws.  Their
+conditional killing probabilities are \(q_1(S')\) and \(R_g(S')\).
+Lemma~\ref{lem:one-replacement} applies also if \(S'=\varnothing\),
+so \(p_j\ge p_{j-1}-K_k g^{-r}\) after averaging.  Summing from
+\(j=1\) to \(d\), using \(p_0=q_d(S)\) and \(p_d=R_{dg}(S)\), proves
+the claim.
+\end{proof}
+
+\begin{proposition}[Lifetime from shorter-clause killing]
+\label{prop:lifetime}
+For an integer \(k\ge3\), put
+\[
+ \beta=\frac{k}{k-1},\qquad
+ K_k=\bigl(2^k(k-1)\bigr)^{k-1},\qquad
+ C_k=4(2K_k)^{1/(k-1)}.
+\]
+For every integer \(u\ge k\), every \(S\subseteq\{0,1\}^u\), and
+every integer \(d\ge1\),
+\begin{equation}\label{eq:lifetime-product}
+ \tau_k(S)q_d(S)^\beta\le C_k d^\beta.
+\end{equation}
+Consequently, for nonempty \(S\) and \(0<a\le q_d(S)\),
+\begin{equation}\label{eq:lifetime-level}
+ \tau_k(S)\le C_k d^\beta a^{-\beta}.
+\end{equation}
+There is no upper restriction on \(d\) and no positive lower cutoff
+on \(a\).
+\end{proposition}
+
+\begin{proof}
+For the empty set the lifetime is zero.  If \(S\ne\varnothing\) and
+\(q_d(S)=0\), the left side of \eqref{eq:lifetime-product} is zero,
+since the lifetime is finite.  Otherwise put \(q=q_d(S)>0\) and choose
+\[
+ g=\left\lceil\left(\frac{2K_kd}{q}\right)^{1/(k-1)}\right\rceil.
+\]
+Sequential replacement gives \(R_{dg}(S)\ge q/2\).  Split an infinite
+independent sequence of \(k\)-clauses into blocks of length \(dg\).
+The events that these blocks kill the \emph{original} set \(S\) are
+independent, each of probability at least \(q/2\).  The first successful
+block has expected index at most \(2/q\), and the cumulative sequence
+kills \(S\) no later than the end of that block.  Hence
+\[
+ \tau_k(S)\le\frac{2dg}{q}.
+\]
+The quantity inside the ceiling is at least one, so \(g\) is at most
+twice that quantity.  It follows that
+\[
+ \tau_k(S)
+ \le4(2K_k)^{1/(k-1)}
+       \left(\frac dq\right)^{1+1/(k-1)}
+ =C_kd^\beta q^{-\beta}.
+\]
+This proves the product bound and then the stated level bound.
+\end{proof}
+
+These inequalities also hold conditionally for a set \(S\) measurable
+with respect to an exposed history, provided the comparison clauses
+remain independent of that history.  Apply the deterministic-set
+inequality at each realization of \(S\).  In particular, sequential
+replacement conditions only on other independent clause positions;
+it does not condition the fresh clauses on a satisfiability event.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/replacement.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/three-clause-refinements.tex ====
+\section{Three-clause cap and Poisson refinements}
+\label{sec:three-clause-refinements}
+
+At clause size three, the cap identities connect the first-unsatisfiable
+statistic used in the variance proof to the last-satisfiable statistics
+used in the threshold companion~\cite{FixedKThreshold}. We give their
+exact constants, then transfer concentration to the companion's auxiliary
+Poisson clause law, which allows repeated variables within a clause.
+The Poisson density interval and the cap on the hitting time play
+different roles and can be chosen independently.
+For $k=3$, define the three distinct statistics
+\[
+ T=\min\{H_n,10n\},\qquad
+ W=\min\{H_n-1,10n\},\qquad
+ V=\min\{H_n-1,16n\}.
+\]
+With $\rho=2(7/8)^{10}<1$, Proposition~\ref{prop:cap-bridge} gives
+\begin{align}
+ W&=T-1+\ind{F_{n,10n}\in\sat},\label{eq:three-same-cap}\\
+ V&=T-1+R,\qquad
+ 0\le R\le(6n+1)\ind{F_{n,10n}\in\sat}.
+ \label{eq:three-cross-cap}
+\end{align}
+Consequently $0\le\EE V-(\EE T-1)\le(6n+1)\rho^n$ and
+$|\sqrt{\Var(V)}-\sqrt{\Var(T)}|\le(6n+1)\rho^{n/2}$.
+The sharper geometric bounds proved above are
+\[
+ \EE R\le8\rho^n,\qquad \EE R^2\le120\rho^n,\qquad
+ 0\le\Var(V)-\Var(T)\le(160n+120)\rho^n.
+\]
+The pathwise inequality $W\le6n+4n\ind{H_n>6n}$ and the
+density-six first moment, with $\sigma=2(7/8)^6<1$, give
+\begin{equation}\label{eq:three-center-upper}
+ \frac{\EE W}{n}\le6+4\sigma^n=6+o(1).
+\end{equation}
+The survival-sum bound $\EE H_n\le6n+8\sigma^n$ proves the same
+$6+o(1)$ upper bound for $T$ and $V$. Their normalized expectations are
+therefore all at most $7$ for sufficiently large $n$.
+
+On the density interval $0\le c\le8$, the three-clause Poisson law gives
+the following explicit transfer constants. Let $s_n(c)$ be
+the satisfiability probability for $\operatorname{Pois}(cn)$ clauses,
+where the three variable choices within each clause are independent
+uniform choices with replacement and the signs are independent and fair.
+Internal repetitions and tautologies are allowed in this auxiliary law.
+The distinct-variable fraction is exactly
+\[
+ \vartheta_n=\frac{(n)_3}{n^3}=1-\frac3n+\frac2{n^2}.
+\]
+Poisson thinning gives independent proper and repeated-variable clause
+collections. The proper count $J$ has distribution
+$\operatorname{Pois}(cn\vartheta_n)$, while the other count has mean
+\[
+ cn(1-\vartheta_n)=c(3-2/n)\le24\qquad(0\le c\le8).
+\]
+Requiring no repeated-variable clauses for a lower bound, and deleting
+them for an upper bound, gives
+\begin{equation}\label{eq:three-poisson-sandwich}
+ e^{-24}\EE P_n(J)\le s_n(c)\le\EE P_n(J),\qquad
+ cn-24\le\EE J\le cn,\qquad \Var(J)\le8n.
+\end{equation}
+Set $\omega_n=\EE W/n$. The variance upper bound implies, in particular,
+$\PP(|W-n\omega_n|\ge n^{11/12})=O(n^{-1/6})$.
+Chebyshev's inequality for $J$ and \eqref{eq:three-poisson-sandwich}
+therefore yield, uniformly for $c\in[0,8]$,
+\begin{align}
+ c\le\omega_n-2n^{-1/12}
+ &\quad\Longrightarrow\quad s_n(c)\ge e^{-24}/2,
+ \label{eq:three-poisson-lower}\\
+ c\ge\omega_n+2n^{-1/12}
+ &\quad\Longrightarrow\quad s_n(c)=O(n^{-1/6}).
+ \label{eq:three-poisson-upper}
+\end{align}
+Indeed, in the lower case $\EE J\le n\omega_n-2n^{11/12}$, so
+$J\le n\omega_n-n^{11/12}$ except with probability $O(n^{-5/6})$.
+In the upper case $\EE J\ge n\omega_n+2n^{11/12}-24$, and the opposite
+deviation has the same bound. Apply concentration at the indicated
+integer counts; for counts beyond $10n$, use monotonicity at
+$\lceil n\omega_n+n^{11/12}\rceil<10n$, valid by
+\eqref{eq:three-center-upper}.
+These statements use the last-SAT cap $10n$ and Poisson density ceiling
+$8$, giving the lower constant $e^{-24}/2$.
+The general transfer lemma of the threshold companion permits a cap
+density $\lambda$ and a separate Poisson density ceiling $D$, each above
+a fixed upper bound for the normalized centers
+\cite[Lemma~\ThresholdTransfer]{FixedKThreshold}. Specializing it to
+$k=3$ and $\lambda=D=16$ uses the last-SAT statistic $V$, center
+$\EE V/n$, and interval $c\in[0,16]$. In that specialization the
+repetition bound is $48$ and the lower constant is $e^{-48}/2$.
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/sections/three-clause-refinements.tex ====
+
+==== BEGIN Variance-of-the-Random-k-SAT-Hitting-Time//source/references.bib ====
+@article{Friedgut,
+  author = {Friedgut, Ehud},
+  title = {Sharp thresholds of graph properties, and the {$k$}-{SAT} problem},
+  journal = {Journal of the American Mathematical Society},
+  volume = {12},
+  number = {4},
+  pages = {1017--1054},
+  year = {1999},
+  doi = {10.1090/S0894-0347-99-00305-7},
+  url = {https://doi.org/10.1090/S0894-0347-99-00305-7},
+  note = {With an appendix by Jean Bourgain}
+}
+
+@article{DSS,
+  author = {Ding, Jian and Sly, Allan and Sun, Nike},
+  title = {Proof of the satisfiability conjecture for large {$k$}},
+  journal = {Annals of Mathematics},
+  volume = {196},
+  number = {1},
+  pages = {1--388},
+  year = {2022},
+  doi = {10.4007/annals.2022.196.1.1},
+  eprint = {1411.0650},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/1411.0650v3},
+  note = {Theorem 1 in arXiv:1411.0650v3, 15 April 2021}
+}
+
+@misc{FixedKThreshold,
+  author = {{OpenAI}},
+  title = {{A Limiting Satisfiability Threshold for Every Fixed Clause Size}},
+  howpublished = {OpenAI Math Release preprint
+                  \href{https://github.com/openai/math/blob/main/preprints/A-Limiting-Satisfiability-Threshold-for-Every-Fixed-Clause-Size-September-25-2026/article.pdf}{OAI:A-Limiting-Satisfiability-Threshold-for-Every-Fixed-Clause-Size-September-25-2026}},
+  year = {2026}
+}
+
+@techreport{Carenini,
+  author = {Carenini, Gaia},
+  title = {The Scaling Window of Random {$k$}-{SAT}},
+  institution = {Electronic Colloquium on Computational Complexity},
+  number = {TR26-145},
+  year = {2026},
+  eprint = {2609.26222},
+  archivePrefix = {arXiv},
+  url = {https://eccc.weizmann.ac.il/report/2026/145/},
+  note = {Also arXiv:2609.26222v1}
+}
+
+@article{EfronStein,
+  author = {Efron, Bradley and Stein, Charles},
+  title = {The Jackknife Estimate of Variance},
+  journal = {The Annals of Statistics},
+  volume = {9},
+  number = {3},
+  pages = {586--596},
+  year = {1981},
+  doi = {10.1214/aos/1176345462},
+  url = {https://doi.org/10.1214/aos/1176345462}
+}
+
+@article{BBLM,
+  author = {Boucheron, St{\'e}phane and Bousquet, Olivier and Lugosi, G{\'a}bor and Massart, Pascal},
+  title = {Moment inequalities for functions of independent random variables},
+  journal = {The Annals of Probability},
+  volume = {33},
+  number = {2},
+  pages = {514--560},
+  year = {2005},
+  doi = {10.1214/009117904000000856},
+  eprint = {math/0503651},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/math/0503651v1},
+  note = {Equation (3.6) in the electronic reprint, arXiv:math/0503651v1}
+}
+
+@article{BGT,
+  author = {Bayati, Mohsen and Gamarnik, David and Tetali, Prasad},
+  title = {Combinatorial approach to the interpolation method and scaling limits in sparse random graphs},
+  journal = {The Annals of Probability},
+  volume = {41},
+  number = {6},
+  pages = {4080--4115},
+  year = {2013},
+  doi = {10.1214/12-AOP816},
+  eprint = {0912.2444},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/0912.2444v3},
+  note = {Version 3, 16 December 2013; Section 4, K-SAT case}
+}
+
+@article{AM,
+  author = {Abbe, Emmanuel and Montanari, Andrea},
+  title = {On the concentration of the number of solutions of random satisfiability formulas},
+  journal = {Random Structures \& Algorithms},
+  volume = {45},
+  number = {3},
+  pages = {362--382},
+  year = {2014},
+  doi = {10.1002/rsa.20501},
+  eprint = {1006.3786},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/1006.3786v1},
+  note = {Lemma 8 in arXiv:1006.3786v1, 18 June 2010}
+}
+
+@article{Wilson,
+  author = {Wilson, David B.},
+  title = {On the critical exponents of random {$k$}-{SAT}},
+  journal = {Random Structures \& Algorithms},
+  volume = {21},
+  number = {2},
+  pages = {182--195},
+  year = {2002},
+  doi = {10.1002/rsa.10050},
+  eprint = {math/0005136},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/math/0005136v2},
+  note = {Corollary 4 in arXiv:math/0005136v2, 3 July 2002}
+}
+
+@article{GuerraToninelli,
+  author = {Guerra, Francesco and Toninelli, Fabio Lucio},
+  title = {The Thermodynamic Limit in Mean Field Spin Glass Models},
+  journal = {Communications in Mathematical Physics},
+  volume = {230},
+  number = {1},
+  pages = {71--79},
+  year = {2002},
+  doi = {10.1007/s00220-002-0699-y},
+  eprint = {cond-mat/0204280},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/cond-mat/0204280v1}
+}
+@article{FranzLeone,
+  author = {Franz, Silvio and Leone, Michele},
+  title = {Replica Bounds for Optimization Problems and Diluted Spin Systems},
+  journal = {Journal of Statistical Physics},
+  volume = {111},
+  pages = {535--564},
+  year = {2003},
+  doi = {10.1023/A:1022885828956},
+  eprint = {cond-mat/0208280},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/cond-mat/0208280v1}
+}
+@article{FranzLeoneToninelli,
+  author = {Franz, Silvio and Leone, Michele and Toninelli, Fabio Lucio},
+  title = {Replica Bounds for Diluted Non-{Poissonian} Spin Systems},
+  journal = {Journal of Physics A: Mathematical and General},
+  volume = {36},
+  number = {43},
+  pages = {10967--10985},
+  year = {2003},
+  doi = {10.1088/0305-4470/36/43/021},
+  eprint = {cond-mat/0307367},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/cond-mat/0307367v2}
+}
+@article{AchlioptasPeres,
+  author = {Achlioptas, Dimitris and Peres, Yuval},
+  title = {The Threshold for Random {$k$}-{SAT} is {$2^k \log 2-O(k)$}},
+  journal = {Journal of the American Mathematical Society},
+  volume = {17},
+  number = {4},
+  pages = {947--973},
+  year = {2004},
+  doi = {10.1090/S0894-0347-04-00464-3},
+  eprint = {cs/0305009},
+  archivePrefix = {arXiv},
+  url = {https://arxiv.org/abs/cs/0305009v2}
+}
+
+@article{Hall1935,
+  author = {Hall, P.},
+  title = {On Representatives of Subsets},
+  journal = {Journal of the London Mathematical Society},
+  volume = {s1-10},
+  number = {1},
+  pages = {26--30},
+  year = {1935},
+  doi = {10.1112/jlms/s1-10.37.26},
+  url = {https://doi.org/10.1112/jlms/s1-10.37.26}
+}
+
+@article{FrancoVanGelder2003,
+  author = {Franco, John and Van Gelder, Allen},
+  title = {A perspective on certain polynomial-time solvable classes of satisfiability},
+  journal = {Discrete Applied Mathematics},
+  volume = {125},
+  number = {2--3},
+  pages = {177--214},
+  year = {2003},
+  doi = {10.1016/S0166-218X(01)00358-4},
+  url = {https://doi.org/10.1016/S0166-218X(01)00358-4},
+  note = {See also the \href{https://citeseerx.ist.psu.edu/document?doi=a79e4c87237fc557de1acc74371bc986f575a571&repid=rep1&type=pdf}{author manuscript dated 7 August 1998}, Section~8}
+}
+
+@misc{ComputableThreeSATThreshold,
+  author = {{OpenAI}},
+  title = {{Computing the Random 3-SAT Threshold}},
+  howpublished = {OpenAI Math Release preprint
+                  \href{https://github.com/openai/math/blob/main/preprints/Computing-the-Random-3-SAT-Threshold-September-27-2026/article.pdf}{OAI:Computing-the-Random-3-SAT-Threshold-September-27-2026}},
+  year = {2026}
+}
+
+@techreport{Carenini2026Polynomial,
+  author = {Carenini, Gaia},
+  title = {{A polynomial scaling window for random $k$-SAT and a proof of the satisfiability conjecture}},
+  institution = {Electronic Colloquium on Computational Complexity},
+  number = {TR26-229},
+  year = {2026},
+  url = {https://eccc.weizmann.ac.il/report/2026/229/},
+  note = {Published 5 October 2026}
+}
+
+@misc{LinearThreeSATVariance,
+  author = {{OpenAI}},
+  title = {{Linear Variance of the Random 3-SAT Hitting Time}},
+  howpublished = {OpenAI Math Release preprint
+                  \href{https://github.com/openai/math/blob/main/preprints/Linear-Variance-of-the-Random-3-SAT-Hitting-Time-October-5-2026/linear-variance-of-the-random-3-sat-hitting-time.pdf}{OAI:Linear-Variance-of-the-Random-3-SAT-Hitting-Time-October-5-2026}},
+  year = {2026}
+}
+==== END Variance-of-the-Random-k-SAT-Hitting-Time//source/references.bib ====
+
