@@ -1,0 +1,2236 @@
+==========================================================================
+            POLYNOMIAL MIXING OF THE SWITCH CHAIN
+                 for every graphical degree sequence
+==========================================================================
+
+An accessible exposition for a curious high school reader.
+September 2026.
+
+--------------------------------------------------------------------------
+BEFORE YOU READ: what is this about, in one paragraph?
+--------------------------------------------------------------------------
+
+You have a bunch of people at a party.  Each person knows a certain
+number of other people there.  But there are usually MANY different
+"who-knows-whom" networks that give every person exactly the same
+number of friends.  A natural question: pick one such network truly at
+random, uniformly over all the possibilities.  How would you do it?
+This paper settles the modern form of that question: there is a simple
+"tweak one connection at a time" algorithm that produces a random
+network in polynomial time -- even though the number of networks might
+be astronomically large -- and moreover the tweaking really does
+converge to uniform, exactly and in expected polynomial time.
+
+That single sentence hides a long and beautiful mathematical story.
+This paper proves the *simple undirected form of the Kannan-Tetali-
+Vempala conjecture*: the switch chain on simple undirected graphs mixes
+in polynomial time for EVERY degree sequence that can actually occur.
+It also gives an EXACT uniform sampler.  What you are reading now is a
+guided tour that keeps every ingredient of the original proof but
+explains each step in plain language, so a diligent high schooler can
+follow along.
+
+--------------------------------------------------------------------------
+HOW TO READ THIS
+--------------------------------------------------------------------------
+
+The paper is structured so that you can stop at any section and still
+have learned something real.  Section 1 fixes vocabulary and states the
+main theorem.  Sections 2-8 are the "engine room": they prove a single
+operator inequality H^2 >= H.  Section 9 converts that into a mixing
+time.  Section 10 upgrades nearby-uniform to exactly uniform.
+
+Three simple objects recur throughout:
+
+  * a SWITCH: pick two disjoint edges uv, xy; replace with ux, vy
+    (if those edges are absent).  Degrees are preserved.
+
+  * a PAIR RESAMPLING (of vertices a={i,j}): shuffle all outside
+    vertices that have exactly one neighbor in {i,j}; decide which of
+    them are adjacent to i versus to j.  Degrees are preserved.
+
+  * the OPERATOR H: sum over all vertex pairs of "how far f is from
+    being an average over the pair-resampling fiber".  H measures how
+    much a test function f on graphs sees the pair resampling.
+
+The main engine inequality H^2 >= H is proved in two pieces:
+  (a) triple of pairs inside a 3-vertex set (Sections 4-5)
+  (b) pairs that share no vertex (Sections 6-7)
+Then Section 8 assembles the two pieces and shows the kernel of H is
+constants, which is what gives a spectral gap.
+
+You do NOT need to understand every technical lemma to follow the arc
+of the argument.  But if you do follow the arc, you will end up knowing
+what a spectral gap is, why mixing time has anything to do with
+eigenvalues, and how to correct the small bias of a Markov chain to
+make sampling exactly uniform.  Those are three of the deepest
+everyday ideas in modern probability, and they are all on show here.
+
+--------------------------------------------------------------------------
+SECTION 1. VOCABULARY AND THE MAIN THEOREM
+--------------------------------------------------------------------------
+
+A GRAPH on a vertex set V = {1, 2, ..., n} is a set E of two-element
+subsets of V.  Think of V as people and E as friendships.  A graph is
+SIMPLE if no person is friends with themself and no two people are
+recorded as friends twice; that is exactly the "two-element subsets"
+condition.  Throughout this paper all graphs are simple.
+
+The DEGREE of a vertex v, written deg(v), is the number of edges at v,
+i.e. the number of friends v has.  The DEGREE SEQUENCE of a graph is the
+list d = (d_1, ..., d_n) of the degrees, in the order of the labels.
+A degree sequence d is GRAPHICAL if at least one simple graph has
+degree vector exactly d.
+
+Given a graphical degree vector d, let
+
+    Omega_d = { G : G is a simple graph on V = {1,...,n} with deg = d }
+
+be the set of realizations.  This set is nonempty by assumption.  Let
+
+    pi_d = the uniform probability measure on Omega_d
+
+so each realization receives probability 1/|Omega_d|.  The central
+question of this paper:
+
+    Given d, how do you generate a graph that is EXACTLY uniform on
+    Omega_d, using only a random number generator -- and how fast can
+    you do it?
+
+Naively you cannot even list Omega_d: there are 2^C(n,2) possible simple
+graphs on n vertices, so brute force is hopeless.  The classical idea is
+to walk around Omega_d with a Markov chain that has pi_d as stationary
+distribution, and hope that after not too many steps the walk is close
+to uniform regardless of where it started.  "Close" needs a number.
+
+--------------------------------------------------------------------------
+1.1  The switch chain
+--------------------------------------------------------------------------
+
+A SWITCH removes two disjoint edges and inserts a different perfect
+matching on their four vertices, IF the two new edges are absent so
+that simplicity is preserved.  Picture this concretely.  Four distinct
+vertices u, v, x, y.  Suppose edges uv and xy are present, but ux and
+vy are absent.  The switch deletes uv and xy, and adds ux and vy:
+
+    { uv, xy }  -->  { ux, vy }.
+
+Every vertex degree is unchanged: u lost v as a friend but gained x,
+v lost u but gained y, x lost y but gained u, y lost x but gained v.
+That is the whole point -- switches preserve the degree sequence.
+
+Two distinct perfect matchings of the complete graph on four vertices
+are exactly the six ways to pair up {u,v,x,y} as two disjoint edges:
+
+    {uv,xy}, {ux,vy}, {uy,vx}
+
+and the "swap" reading of the same three pairings, so six ordered
+(F,F') pairs total.  The switch chain picks one of these at every step.
+
+Precise discrete-time convention (this matters for the mixing constant):
+At each step,
+
+  * with probability 1/2 the chain stays put (a lazy step);
+  * otherwise it picks a uniformly random four-element set S of V,
+    picks a uniformly random one of the six ordered pairs (F, F') of
+    distinct perfect matchings on S, and:
+       - if every edge of F is present and every edge of F' is absent,
+         replaces F by F' (a valid switch);
+       - otherwise stays put (a rejected proposal).
+
+Let P_d denote the resulting transition kernel.  Since every valid
+proposal is matched by a reverse proposal with the same probability,
+pi_d is stationary for P_d -- in fact REVERSIBLE, meaning that the
+detailed balance identity pi_d(G) P_d(G,G') = pi_d(G') P_d(G',G)
+holds for every pair (G, G').  Reversibility is a technical convenience
+used later when we relate eigenvalues to total variation.
+
+--------------------------------------------------------------------------
+1.2  Mixing time and total variation
+--------------------------------------------------------------------------
+
+For probability measures mu, nu on a finite set Omega, the TOTAL
+VARIATION distance is
+
+    ||mu - nu||_TV = (1/2) * sum_{G in Omega} |mu(G) - nu(G)|.
+
+It is exactly the largest possible discrepancy you can create with a
+single yes/no question about the state: if a gambler bets on any subset
+A of Omega, the difference |mu(A) - nu(A)| is at most ||mu - nu||_TV,
+and some choice of A achieves this bound.  TV distance 1/4 is the
+standard, forgiving threshold for "very close": nobody could
+statistically distinguish two laws that are 1/4 apart in total
+variation using the output of a single test.
+
+The MIXING TIME (at threshold 1/4) of P_d is
+
+    t_mix(d) = min{ t in {0,1,2,...} :
+                    max_{G in Omega_d} ||P_d^t(G,.) - pi_d||_TV <= 1/4 }.
+
+So t_mix(d) is the number of steps you must run the chain so that no
+matter which graph you started from, the distribution is within TV 1/4
+of the uniform law.  The smaller t_mix the better; if t_mix is
+polynomial in n for every graphical d, we say the switch chain mixes
+rapidly --- and rapidly in the strongest sense: uniformly over all
+graphical degree sequences.
+
+--------------------------------------------------------------------------
+1.3  Main theorem
+--------------------------------------------------------------------------
+
+THEOREM 1 (Main theorem).  For every integer n >= 4 and every graphical
+degree vector d = (d_1, ..., d_n),
+
+    t_mix(d) <= 2 n^8.
+
+Moreover, if |Omega_d| > 1 (so the chain is nontrivial), the spectral
+gap of P_d is at least [ 24 n^2 * C(n,4) ]^{-1}, where C(n,4) denotes
+the binomial coefficient "n choose 4".
+
+COROLLARY 2 (Exact uniform sampling).  There is a uniform randomized
+algorithm that, given any finite graphical labeled degree vector
+d = (d_1, ..., d_n), uses only unbiased random bits, terminates almost
+surely, and outputs a graph chosen EXACTLY uniformly from Omega_d.  Its
+expected bit-running-time is bounded by a fixed polynomial in the
+binary encoding length of d (which is roughly n log n bits).
+
+The time bound in Corollary 2 is a bound on the EXPECTED running time.
+Some executions may take much longer, and this is unavoidable: the
+algorithm occasionally has to enumerate Omega_d on a rare branch.  See
+Section 10.
+
+Remarks on the shape of the bound.
+  * The exponent 8 in the mixing time is not the main point.  What
+    matters is that for every graphical d, at fixed threshold 1/4, the
+    mixing time is bounded by a polynomial in n.  Improving the
+    constant is possible and irrelevant to the result.
+  * The spectral gap bound is 1 / [24 n^2 C(n,4)], roughly 1/n^6.
+    Since t_mix is roughly (gap^{-1}) * log(1/pi_min) and pi_min ~
+    2^{-n^2}, this matches the theorem's 2 n^8 up to logarithmic
+    factors.  Nothing exotic is hiding in the constants.
+
+--------------------------------------------------------------------------
+1.4  History: what did we already know?
+--------------------------------------------------------------------------
+
+Approximate uniform generation of graphs with prescribed degrees is a
+classic algorithmic problem, with applications in statistics,
+network science, and combinatorics.  The switch chain (a.k.a. the
+degree-preserving network randomization or the swap chain) was
+proposed as a practical algorithm long before anyone could analyse it.
+
+The Kannan-Tetali-Vempala 1999 paper launched the switch-chain
+program, analysed regular bipartite sequences, and raised the
+possibility of broad applicability.  Cooper-Dyer-Greenhill 2007 (with
+a 2012 corrigendum) proved rapid mixing for regular sequences.  Feder-
+Guetz-Mihail-Saberi (2006) handled early irregular families.  Greenhill
+(2015) and Greenhill-Sfragara (2018) proved rapid mixing under certain
+degree-sparsity restrictions.  Amanatidis-Kleer (2020) gave the strong-
+stability route.  Jerrum-Sinclair (1990) and Jerrum-McKay-Sinclair
+(1992) introduced the notion of stability of degree sequences that
+becomes the algorithmic toolkit.  Erdos-Greenhill-Mezei-Miklos-Soltesz-
+Soukup (2022) unified all "P-stable" families.  Erdős-Miklós-Soukup
+(2025) and Erdős-Lippner-Nevo-Soukup (2025) developed further rapidly
+mixing families via geometric methods.
+
+The modern form of the Kannan-Tetali-Vempala conjecture predicted rapid
+mixing for EVERY realizable degree specification, in each of three
+parallel models: bipartite graphs, directed graphs, and simple
+undirected graphs.  Fu-Qin-Wang (2026) proved the bipartite form.
+Theorem 1 here proves the simple undirected form.  The three
+conjectures are genuinely distinct, though the techniques overlap
+heavily.
+
+Along the way, an "undirected Curveball" resampling was studied by
+Verhelst (2008), Strona et al. (2014, 2016), and Carstens-Berger-Strona
+(2018).  Carstens-Berger-Strona already observed that the trades on
+disjoint vertex pairs can be DEPENDENT; the current paper is the first
+to quantify that dependence tightly enough to prove polynomial mixing
+for all graphical d.
+
+The exact sampling approach used in Section 10 is a rare-branch
+correction due to Gobel-Liu-Manurangsi-Pappik (2024), combined with
+exact tabulation of the residual law.  A similar tabulation appears in
+the recent contingency-table sampler of OpenAI (2026).
+
+--------------------------------------------------------------------------
+SECTION 2. PAIR RESAMPLINGS AND THE OPERATOR H
+--------------------------------------------------------------------------
+
+The mixing time result will be proved not by analysing the switch chain
+directly, but by analysing a related family of "macro moves" called
+pair resamplings.  A pair resampling is coarser than a switch -- one
+move at once rearranges many edges -- and that coarse structure makes
+it tractable.  Once we have a spectral gap for the pair resamplings,
+a short comparison turns it into a gap for the switch chain itself.
+
+Notation.  All function spaces are REAL.  On Omega_d use the inner
+product and norm
+
+    <f, g> = E_{pi_d}[fg],          ||f||^2 = <f, f>.
+
+For self-adjoint operators, the shorthand A >= B means
+
+    <f, (A - B) f> >= 0  for every real f.
+
+Call this the quadratic-form order.  It is only partial: A >= B and
+B >= A are both true iff A = B.  The engine inequality H^2 >= H is
+understood in this order.
+
+--------------------------------------------------------------------------
+2.1  Pair-fibers
+--------------------------------------------------------------------------
+
+Fix an unordered vertex pair a = {i, j}.  To describe what a pair
+resampling of a is allowed to do, we split the data of a graph into
+two groups: the data that will be HELD FIXED and the data that will be
+RESAMPLED.
+
+The data held fixed by a resampling of a = {i, j} are:
+
+  (F1) every edge with neither endpoint in {i, j};
+  (F2) whether the edge ij is present;
+  (F3) for each outside vertex w not equal to i, j: the total number
+       of edges from w to {i, j}.  (This total is 0, 1, or 2.)
+
+The result of fixing all this data is called an a-FIBER.  Every graph
+G in Omega_d belongs to exactly one a-fiber; the a-fiber is the
+equivalence class of G under all resamplings of a.
+
+Inside an a-fiber, some freedom remains: an outside vertex w that has
+EXACTLY ONE neighbor in {i, j} -- call it a SINGLETON of this fiber --
+can be "assigned" either to i or to j.  An outside vertex with zero
+neighbors in {i, j}, or with both possible edges present, has no
+choice inside the fiber and contributes no freedom.  But the degree of
+i is fixed, so the number of singletons assigned to i is pinned down
+by the data (F1)-(F3).  If there are N singletons in the fiber and
+q of them must be assigned to i, the resampling of a simply samples a
+uniform q-subset of the N singletons to be adjacent to i; the remaining
+N - q go to j.  Every such choice gives a valid graph in Omega_d --
+simplicity and degrees are preserved -- and every graph in the fiber
+arises exactly once.
+
+Call this motion the PAIR TRADE on a fiber.  It is the "undirected
+Curveball trade" of Carstens-Berger-Strona (2018).  Uniform q-subsets
+are the only thing happening on a fiber; this clean structure is what
+will let us compare things later.
+
+--------------------------------------------------------------------------
+2.2  The projection E_a and the residual h_a
+--------------------------------------------------------------------------
+
+Because a-fibers partition Omega_d, we may define
+
+    E_a f (G)  =  the average of f over the a-fiber containing G.
+
+In words, E_a "smears out" f over the fiber.  It is a projection:
+
+    E_a E_a = E_a,        E_a is self-adjoint w.r.t. pi_d,
+    E_a >= 0,             and E_a 1 = 1 (constants fixed).
+
+The RESIDUAL is the complementary projection
+
+    h_a = I - E_a.
+
+The function h_a f vanishes exactly on the fiber of G whenever f is
+already a-fiber-constant, and otherwise measures how far f deviates
+from its fiber average.  Both E_a and h_a are ORTHOGONAL projections:
+    E_a^2 = E_a,  E_a^* = E_a,  h_a^2 = h_a,  h_a^* = h_a,
+with h_a killing constants and h_a f orthogonal to E_a-fiber-functions.
+
+This construction is the partition-based heat-bath of Dyer-Greenhill-
+Ullrich (2014).  It eliminates any need for "conditional distributions"
+or "transition matrices" in the analysis: we work entirely with
+orthogonal projections built out of fibers.
+
+--------------------------------------------------------------------------
+2.3  The sum operator H
+--------------------------------------------------------------------------
+
+Sum the residuals over every vertex pair:
+
+    H  =  sum_{a in C(V,2)}  h_a.
+
+Two useful facts.
+
+  * H is positive semidefinite.  Being a sum of orthogonal projections
+    h_a >= 0, H >= 0.  So <f, Hf> >= 0 always.
+
+  * H kills constants.  Each h_a does, so H 1 = 0, and
+    <1, H 1> = 0 confirms the constants sit in the kernel.
+
+The engine inequality is
+
+    (ENGINE)                H^2  >=  H.
+
+In eigenvalue terms (writing H for a symmetric operator on the finite-
+dimensional space of all real functions on Omega_d, orthogonal
+decomposition relative to pi_d): on the 1-dimensional space of
+constants, H acts by 0, so both H and H^2 act by 0 there and the
+inequality is trivially true.  On the orthogonal complement (the
+"centered" functions), ENGINE says that every eigenvalue lambda of H
+restricted to centered functions satisfies
+
+    lambda^2  >=  lambda,  i.e.  lambda >= 1  (or lambda = 0).
+
+Equivalently, H has a SPECTRAL GAP of at least 1 on the centered
+subspace: H >= the projection onto the centered subspace.
+
+Once ENGINE is proved, Section 9 will use it to bound the mixing time
+of P_d.  Section 8 will additionally verify that the only functions
+killed by H are constants, which upgrades "gap >= 1 on centered
+functions" to a genuinely non-degenerate gap.
+
+Why this form of H is tractable.  H is a sum of ~ n^2 projections.
+Its square is a sum of ~ n^4 ordered pairs h_a h_b; what matters about
+each pair is whether it COMMUTES with the other.  The partition of
+pairs into "intersecting" and "disjoint" is natural.  Two pairs a, b
+sharing a vertex do NOT commute: each resamples the shared vertex's
+neighborhood, and the two choices clash.  Pairs with a and b disjoint
+also do NOT commute: they both touch the four edges between the two
+pairs (Carstens-Berger-Strona noticed this "dependence of undirected
+trades" in 2018).  So the engine inequality is not a triviality that
+falls out of a commuting family of operators.  Each family needs its
+own estimate.
+
+--------------------------------------------------------------------------
+2.4  Plan of attack, section by section
+--------------------------------------------------------------------------
+
+Split the sum over ordered pairs (a, b) of vertex pairs into two
+groups:
+
+  (TRIPLES)  a and b share a vertex, so a union b is a vertex TRIPLE
+             T.  On a fixed triple T, there are three vertex pairs,
+             and every ordered pair of distinct pairs has union T.
+             Contribution: sum over triples T of H_T^2, where
+             H_T = sum_{a in C(T,2)} h_a is the projection to a single
+             triple.  Sections 3-4 prove  H_T^2 >= H_T.
+
+  (DISJOINT) a and b do not share a vertex.  Contribution:
+             D = sum_{a, b disjoint} h_a h_b.  Sections 5-7 prove D
+             is positive semidefinite.
+
+If both pieces hold, then
+
+    H^2  =  sum_T H_T^2  -  (n - 3) H  +  D
+          >= sum_T H_T     -  (n - 3) H  +  0
+          =  (n - 2) H  -  (n - 3) H  =  H,
+
+where the combinatorial identity H^2 = sum_T H_T^2 - (n - 3) H + D is
+a regrouping of the ordered double sum (see Section 8).  This is
+exactly ENGINE, and it is the core of the paper.
+
+Sections 3-4 handle the triple terms with a variance inequality for a
+3-row binary matrix.  Sections 5-7 handle the disjoint terms, first by
+identifying a rank-one correlation between the two resamplings, then
+bounding that correlation with a slice inequality.  Sections 8-10 wrap
+everything up.
+
+--------------------------------------------------------------------------
+SECTION 3. THE THREE-ROW VARIANCE INEQUALITY
+--------------------------------------------------------------------------
+
+The estimate proved in this section has nothing to do with graphs.  It
+concerns 3-row binary matrices with prescribed row and column sums, and
+it says that the variance of a sum of three "row functions" is at most
+twice the sum of their variances.  The factor 2 is the crucial detail
+of the whole paper.  A sloppier constant (say 3) would still give
+polynomial mixing; a constant that GREW with n would not.  So the tight
+factor 2 is earned.
+
+The result is equivalent to a conditional-projection inequality proved
+by Fu-Qin-Wang (2026, Theorem 5.1) in the bipartite setting.  Their
+proof goes through a swap chain and a variance argument; the version
+below uses "transpositions and spectral decomposition", which is more
+elementary.  Both proofs share the same count-coupling step (their
+Lemmas 5.2-5.4).
+
+The variance argument via transpositions is inspired by the symmetric-
+group heat-flow method of Carlen-Lieb-Loss (2006).  Section 3 below is
+self-contained; only the count-coupling step explicitly carries the
+Fu-Qin-Wang attribution.
+
+--------------------------------------------------------------------------
+3.1  Two-row warm-up: what does the inequality say?
+--------------------------------------------------------------------------
+
+Before the technicalities, look at the simplest case.  Fix a 2-row
+binary matrix M with prescribed row sums and column sums.  Each column
+of M is one of three types: (1,0), (0,1), or (1,1).  Write U_1 for
+the set of "1,0" columns, U_2 for "0,1" columns, W for "(1,1)" columns.
+The column-sum constraint pins down |U_1|, |U_2|, and |W| exactly.
+
+Now choose M UNIFORMLY from all 2-row matrices with those margins.
+That means: choose a uniform ordered partition (U_1, U_2) of a fixed
+set of "single-one" columns, and put all the "(1,1)" columns in W.
+Each row function f_i (M) depends only on row i of M, i.e. on the
+choice of U_i and W.
+
+The variance identity you probably know is
+
+    Var(X + Y) = Var(X) + Var(Y) + 2 Cov(X, Y).
+
+If X and Y were independent, the cross term would vanish and we would
+have Var(X + Y) = Var(X) + Var(Y).  Here X and Y are NOT independent:
+the choice of U_1 and U_2 is complementary.  Sometimes the negative
+cross term can be as bad as -Var(X) - Var(Y), in which case the
+variance of X + Y can be ZERO even when X, Y vary independently --
+think of X = -Y.  The whole content of the 3-row inequality is that
+when there are THREE rows instead of two, you still have enough
+freedom in the third coordinate that the variance cannot collapse:
+
+    Var(X_1 + X_2 + X_3)  <=  2 ( Var(X_1) + Var(X_2) + Var(X_3) ).
+
+The factor 2 is necessary: with only 2 rows, you can make the variance
+of a sum arbitrarily much smaller than the sum of variances, and there
+is no analogous bound.  With 3 rows, the third coordinate acts as an
+independent "outlet", and the factor-2 bound is possible.  Fu-Qin-Wang
+proved the bipartite version of this in 2026, and it is the technical
+heart of both their paper and ours.
+
+--------------------------------------------------------------------------
+3.2  The fixed-block case
+--------------------------------------------------------------------------
+
+Formally: let U and W be finite labelled sets.  Let (U_1, U_2, U_3) be
+a uniform ordered partition of U with prescribed block sizes; let
+(W_1, W_2, W_3) be a uniform ordered partition of W with prescribed
+block sizes; assume the two partitions are independent.  For three
+dimensionless real functions g_1, g_2, g_3, where g_i depends only on
+the pair (U_i, W_i), we claim
+
+    LEMMA 3.1 (fixed block sizes).
+    Var(g_1 + g_2 + g_3)  <=  2 ( Var(g_1) + Var(g_2) + Var(g_3) ).
+
+Note that g_i is a function of row i only; "block sizes fixed" means
+|U_i| and |W_i| are constants, not random.
+
+Proof sketch for the curious.  The idea is to find a self-adjoint
+operator J on functions of (U_1,U_2,U_3;W_1,W_2,W_3) whose kernel is
+the constants, and whose quadratic form is the sum of squared
+"differences" over all transpositions of labels.  Specifically,
+
+    J = sum_{tau}  (I - T_tau)
+
+where tau ranges over transpositions of 2 labels within U or within W,
+and T_tau acts by permuting those labels.  Each T_tau is a self-adjoint
+involution; the contribution of transposition tau to <f, Jf> is exactly
+(1/2) E(f - T_tau f)^2.  The permutations of U, W generated by these
+transpositions act transitively on the ordered partitions with given
+sizes; so J kills exactly the constants.
+
+Two facts follow from this.  First, for any function g_i of row i, the
+space of such functions is invariant under J: a transposition within U
+changes g_i only when it swaps labels between U_i and another block, and
+the resulting block is determined by U_i and the two labels -- not by
+which other block contains the "outside" label.  Same for W.  So if g_i
+has spectral decomposition sum_lambda g_{i,lambda} (eigenfunctions of J),
+each g_{i,lambda} is again a function of row i.
+
+Second, apply J to the sum g_1 + g_2 + g_3.  For a single transposition
+tau, at most two of the three g_i change (because a transposition
+swaps exactly 2 labels, so it moves labels into and out of exactly 2 of
+the 3 U-blocks -- same for W-blocks).  The elementary inequality
+
+    (x + y + z)^2  <=  3 (x^2 + y^2 + z^2)
+
+would give a factor 3, but we can do better: since only two of the three
+terms are nonzero at each transposition, we get
+
+    (x + y + z)^2 <= 2 (x^2 + y^2 + z^2)
+
+with the factor 2.  Sum over transpositions and evaluate <(g_1+g_2+g_3),
+J(g_1+g_2+g_3)> using the spectral decomposition: it equals
+sum_lambda lambda * ||g_1,lambda + g_2,lambda + g_3,lambda||^2, and
+by the transposition bound this is at most
+2 * sum_lambda lambda * (||g_1,lambda||^2 + ||g_2,lambda||^2 + ||g_3,lambda||^2)
+= 2 * sum_i <g_i, J g_i> = 2 * sum_i Var(g_i).
+The left side is Var(g_1 + g_2 + g_3) after subtracting the means; the
+divisibility by lambda at each eigenvalue (and lambda > 0 on centered
+functions) closes the argument.
+
+End of proof sketch.  Full details: the invariant-coordinate
+observation (transposition of a U-label swaps in/out of exactly 2
+U-blocks) and the transitivity of the permutation action are the only
+places specific facts about U, W are used.  Empty blocks and singleton
+label sets cause no trouble: a one-state space has no nonzero centered
+functions, so both sides of the inequality are zero there.
+
+--------------------------------------------------------------------------
+3.3  The random-block-count case
+--------------------------------------------------------------------------
+
+The block sizes are fixed above.  But in the graph application, the
+block sizes themselves are random: which columns of the matrix are
+"(1,1)" columns depends on the graph.
+
+Formally: fix nonnegative integers m, alpha_1, alpha_2, alpha_3.  Let
+x = (x_1, x_2, x_3) be a random nonnegative integer triple with
+x_1 + x_2 + x_3 = m, distributed with probability proportional to
+
+    w_1(x_1) w_2(x_2) w_3(x_3),
+    w_i(t) = 1 / ( t! (t + alpha_i)! ).
+
+For any three real functions b_1, b_2, b_3 of one integer coordinate,
+
+    LEMMA 3.2 (random block counts).
+
+    Var(b_1(x_1) + b_2(x_2) + b_3(x_3))
+      <=  2 ( Var(b_1(x_1)) + Var(b_2(x_2)) + Var(b_3(x_3)) ).
+
+The proof needs a small tool: a STOCHASTIC COMPARISON for the
+distributions of x_i at adjacent totals.  Fu-Qin-Wang's Lemma 5.2 (see
+also Lemma 5.4 of their paper) shows that the distribution of x_i is
+monotone as the total m grows: it is stochastically increasing, in the
+sense that P(x_i >= t) is non-decreasing in m.  Their proof: the ratio
+of the probabilities at t and at t-1 has the form 1/[(s-t)(s-t+alpha)]
+for an index s, which is non-decreasing in t; reweighting any measure by
+a non-decreasing function increases the expectation of any non-decreasing
+test function (a covariance identity that follows from the 2-point
+positivity of the covariance kernel).
+
+The key consequence is a COUPLING: if we fix the total m and consider
+the two distributions of x_i at totals m and m-1, we can couple them on
+a common probability space so that exactly one of the coordinates
+increases by one (or zero, depending on which coordinate they come
+from).  Specifically, Fu-Qin-Wang's Lemma 5.2 constructs a coupling
+with
+
+    x_i^{(m-1)}  <=  x_i^{(m)}  <=  x_i^{(m-1)} + 1
+    (for the appropriate choice of two coordinates).
+
+Precise statement: at a fixed total, the pair (x_j, x_k) with
+x_j + x_k = s, for two of the three indices, has a joint law
+proportional to w_j(y) w_k(z) on y + z = s.  As s grows by one, the
+marginal of x_j is stochastically non-decreasing, and the marginal of
+x_k is stochastically non-increasing, but the SUPPORT allows only
+shifts of 0 or 1 in x_j.  A coupling via quantile functions (the
+inverse-cumulative-distribution trick, which is a completely
+elementary construction) makes the "0 or 1" jump deterministic.  This
+is the content of Fu-Qin-Wang's Lemma 5.2 and the count-coupling
+observation of Carlen-Lieb-Loss (their Section 2).
+
+Given the coupling, the proof of Lemma 3.2 is short.  Let A be the
+linear map
+
+    A(b_1, b_2, b_3) = b_1(x_1) + b_2(x_2) + b_3(x_3).
+
+The squared norm of (b_1, b_2, b_3) on the direct-sum space is
+sum_i ||b_i||^2; the squared norm of the sum is what we want to bound.
+Equivalently: bound the LARGEST EIGENVALUE lambda of A^* A by 2.  A
+corresponding eigenvector gives a system (one equation per coordinate):
+
+    lambda * b_i(t)  =  E[ b_1(x_1) + b_2(x_2) + b_3(x_3) | x_i = t ].
+
+Conditioning on x_i = t leaves the other two coordinates with total
+s = m - t.  For adjacent values t and t+1, couple the other two
+coordinates via the coupling above: one of them decreases by one
+(deterministically), so the conditional expectation of
+b_1(x_1) + b_2(x_2) + b_3(x_3), as a function of the (i-th excluded)
+coordinates, changes by at most the maximum adjacent increment
+
+    M = max over i, t  of  | b_i(t+1) - b_i(t) |.
+
+Subtract the eigen-equation at t and at t+1:
+
+    | (lambda - 1) (b_i(t+1) - b_i(t)) |  <=  M.
+
+Choose i, t attaining M; divide by M > 0 (M is positive because
+otherwise every b_i is constant and hence zero after centering, which
+contradicts lambda being the largest eigenvalue of A^*A restricted to
+centered functions):
+
+    |lambda - 1|  <=  1.
+
+So lambda  <=  2.  That is Lemma 3.2.
+
+--------------------------------------------------------------------------
+3.4  Combining: the three-row variance inequality
+--------------------------------------------------------------------------
+
+Now put the two pieces together.  Fix row sums r_1, r_2, r_3 and column
+sums c_1, ..., c_N for a 3-row binary matrix with N columns.  Let M
+be a uniform random binary matrix with those prescribed margins, and
+let S_i denote the i-th row of M.  For arbitrary real functions f_1,
+f_2, f_3:
+
+    LEMMA 3.3 (three-row variance inequality).
+
+    Var(f_1(S_1) + f_2(S_2) + f_3(S_3))
+      <=  2 ( Var(f_1(S_1)) + Var(f_2(S_2)) + Var(f_3(S_3)) ).
+
+Here is how the two previous lemmas combine.  A column of sum 0 or 3
+is deterministic: it either contributes nothing to any row, or a "1"
+to every row.  Remove all such columns and adjust the row sums; they
+contribute a constant to f_i(S_i), so they do not affect any variance.
+
+Remaining columns have sum 1 or 2.  Color each remaining column by its
+type: a "1-column" has exactly one 1, and this distinguishes one of the
+three rows; a "2-column" has exactly one 0, and this distinguishes one
+of the three rows.  Let U_i be the set of "1-columns" whose unique 1
+is in row i, and let W_i be the set of "2-columns" whose unique 0 is
+in row i.  The nondeterministic part of row i is exactly (U_i, W_i): the
+set of "1-columns" assigned to i, plus the set of "2-columns" assigned
+to i (i.e. columns that are 0 at row i and 1 at the other two rows).
+
+Let k_i = |W_i|.  Row-sum constraint at i gives the number of "1-
+columns" at row i:
+
+    |U_i|  =  k_i + delta_i,
+
+where delta_i is a sum of small integers fixed by the row sum of M.
+So conditional on the vector k = (k_1, k_2, k_3), the two partitions
+(U_1, U_2, U_3) and (W_1, W_2, W_3) are independent uniform ordered
+partitions with prescribed block sizes.  Lemma 3.1 applies.
+
+Now the distribution of k itself.  Counting the partitions shows:
+
+    P(k is proportional to prod_i 1/( k_i! * (k_i + delta_i)! ) ),
+    with k_i >= 0, k_i + delta_i >= 0, k_1 + k_2 + k_3 = |W|.
+
+This is exactly the shape of Lemma 3.2 with
+    l_i = max(0, -delta_i),  x_i = k_i - l_i,
+    alpha_i = |delta_i|,      m = |W| - sum_i l_i,
+after which the support is all nonnegative triples of sum m and the
+weights are prod_i 1/( x_i! (x_i + alpha_i)! ).  Lemma 3.2 applies.
+
+The final combination is the law of total variance:
+
+    Var(f_1(S_1) + f_2(S_2) + f_3(S_3))
+      = E[ Var(f_1 + f_2 + f_3 | k) ]
+      + Var( E[f_1 + f_2 + f_3 | k] ).
+
+Apply Lemma 3.1 (fixed block sizes) to the first term, giving at most
+2 E[ sum_i Var(f_i | k) ].  Then note that E[f_i(S_i) | k] depends only
+on k_i (as |U_i| = k_i + delta_i), so the second term is a sum of three
+functions b_i(x_i) and Lemma 3.2 gives at most 2 sum_i Var(b_i(x_i)).
+Adding, and using the identity
+
+    Var(f_i(S_i))  =  E[ Var(f_i | k) ] + Var( E[f_i | k] ),
+
+we get  Var(sum f_i)  <=  2 sum_i Var(f_i)  as claimed.
+
+End of Section 3.
+
+--------------------------------------------------------------------------
+SECTION 4. TRIPLE RESAMPLINGS: H_T^2 >= H_T
+--------------------------------------------------------------------------
+
+Now we use Section 3 to handle the "intersecting pairs" piece of
+ENGINE.  Fix a vertex triple T = {i, j, k} of size 3.  There are three
+vertex pairs inside T:
+
+    {i,j}, {j,k}, {i,k}.
+
+Every pair {x,y} inside T corresponds to a projection h_{ {x,y} }.  Sum
+them:
+
+    H_T  =  h_{ {i,j} }  +  h_{ {j,k} }  +  h_{ {i,k} }.
+
+This is exactly the sum of three residuals over the three vertex pairs
+of T.  The goal of this section is
+
+    PROPOSITION 4.1.      H_T^2  >=  H_T.
+
+Since the three h_a are projections (h_a^2 = h_a, self-adjoint), H_T
+is self-adjoint and positive semidefinite.  H_T kills constants, since
+each h_a does.  To prove H_T^2 >= H_T we must show every eigenvalue of
+H_T on centered functions is either 0 or >= 1.
+
+The key idea: on each "cell" of a natural partition, H_T is CONJUGATE
+(via a bijection of the state space) to the variance operator of a 3-
+row binary matrix with fixed margins.  Once you are in that domain,
+Lemma 3.3 (three-row variance) does the whole job.
+
+--------------------------------------------------------------------------
+4.1  The cell partition
+--------------------------------------------------------------------------
+
+Partition Omega_d by recording:
+
+  (C1) the graph induced on V \ T, i.e. all edges with neither endpoint
+       in T;
+  (C2) for each outside vertex w not in T, the number of edges from w
+       to T.  This number is an integer in {0, 1, 2, 3}.
+
+This is a "T-cell".  A pair resampling of {i,j} (for i, j in T) preserves
+this cell: it changes only which of i or j receives each singleton-w
+neighbor w (from the perspective of {i,j}-fibers), and cells (C1)-(C2)
+record counts that do not distinguish i from j inside the pair.
+
+Fix a nonempty cell.  Its conditional uniform measure makes the graphs
+in the cell into a "finite probability space of fixed-margin binary
+matrices".  The next subsection proves this precisely and identifies
+H_T with a variance of row functions.
+
+Within a cell, let e = number of edges of G that lie inside T.  Since
+d is fixed by the cell (degrees of all vertices fixed), e is fixed by
+the cell (sum of degrees in T = 2e + sum over outside contributions to
+T).  So e is a constant of the cell, in {0, 1, 2, 3}.
+
+--------------------------------------------------------------------------
+4.2  The matrix encoding
+--------------------------------------------------------------------------
+
+We build a binary matrix with rows indexed by T (three rows) and columns
+indexed by V \ T (n-3 columns) plus, if e is 1 or 2, ONE extra column
+(indexed, say, by the symbol *).  The entries are:
+
+  * for w in V \ T and i in T: M[i, w] = 1 if edge iw is present,
+    else 0.  This is exactly what "the number of edges from w to T"
+    records (its column sum);
+
+  * the extra column, when present, encodes the internal edges of T:
+    - e = 0: no extra column.  Row sums are d_i (each i has all its
+      degree coming from V \ T alone).
+    - e = 3: no extra column.  Row sums are d_i - 2 (each i has two
+      of its degree inside T).
+    - e = 1: the sole edge is, say, ij.  Extra column is s = (s_i, s_j,
+      s_k) = (1, 1, 0).  Row sums are d_i - 1 for all i.
+    - e = 2: the two edges form a path, centered at some vertex, say
+      i, with edges i-j and i-k.  The extra column entries are
+      (s_i - 1, s_j - 1, s_k - 1) = (1, 0, 0), sum 1.
+
+The original paper uses a table.  Reproduced in plain text:
+
+  e  |  internal graph    |  extra column  |  row sums at i in T
+  ---+--------------------+----------------+---------------------
+   0 |  empty             |  none          |  d_i
+   1 |  single edge       |  s_i, sum 2    |  d_i
+   2 |  path              |  s_i - 1, sum 1|  d_i - 1
+   3 |  triangle          |  none          |  d_i - 2
+
+Explanation of the "extra column" column:
+
+  e = 1: the extra column has a single 1 at row i and a single 1 at
+  row j (the endpoints of the edge), so the "extra column sum" is 2.
+  Encoding: entries (1,1,0) on (i,j,k).  Each vertex of T loses 1 to
+  the internal edge, so its internal-external degree is d_i - 1 from
+  the outside; the external column sums are exactly that.
+
+  e = 2: a path has a center (say vertex i, with two edges i-j, i-k).
+  The extra column has a single 1 at the center i (sum 1).  Each
+  vertex contributes 1 or 2 to the internal sum, so the outside degree
+  corrected by s_i - 1 = 1 for center, 0 for endpoints, works out to
+  d_i - 1.
+
+  e = 0: no extra column; internal degrees all 0; row sum = d_i.
+
+  e = 3: no extra column; internal degrees all 2; row sum = d_i - 2.
+
+The crucial observation: this encoding is a BIJECTION from cell graphs to
+binary matrices with the prescribed row sums and column sums (columns
+include the extra column iff e = 1 or e = 2).  Two directions:
+
+  -> (graph to matrix): read off edges from T to outside; record the
+     extra column from the internal graph.
+
+  <- (matrix to graph): the outside edges come from the entries in
+     V \ T columns; the internal edges come from the extra column (or
+     are deterministic when e = 0, 3).
+
+Every cell graph arises exactly once, and every fixed-margin matrix
+gives a valid cell graph.  Since the cell measure is uniform on graphs,
+it is uniform on matrices.
+
+Question: is the conditional measure really UNIFORM on this matrix
+space?  Yes: the definition of a cell fixes the total number of edges
+from each vertex, i.e. the row sums of the matrix; the definition of
+the column sums is by construction; and within a cell every completion
+to a valid graph has the same number of "underlying" edge-configurations
+because the graph space is simply the product of outside-edges and
+internal-edges, and the internal edges are encoded exactly by the
+extra column.  So each fixed-margin matrix has equal probability 1/(#of
+matrices).  Uniform.
+
+--------------------------------------------------------------------------
+4.3  The three projections on a cell
+--------------------------------------------------------------------------
+
+Now identify what h_{ {j,k} }, h_{ {i,k} }, h_{ {i,j} } do, inside this
+cell, in matrix terms.
+
+Fix i in T, let {j,k} = T \ {i}.  Consider h_{ {j,k} }, i.e. E_{ {j,k} }
+projected on {j,k}-fibers.
+
+Claim: within the cell, E_{ {j,k} } f = E[ f | S_i ], where S_i is
+(augmented) row i of the matrix.
+
+Reason:
+
+  * External entries of row i determine the singleton assignment of
+    each w in V \ T to i: w is adjacent to i in the {j,k}-fiber iff
+    the entry M[i, w] is 1.
+
+  * Whether M[i, *] is 1 (the extra column) is determined by the e
+    and the internal structure, hence by the cell data -- the specific
+    internal degree s_i is encoded in the extra column and is pinned by
+    cell data + degree.
+
+  * So the {j,k}-fiber is determined by: the cell data (fixed), plus
+    the external neighbors of i (row i of the matrix in the V \ T
+    columns).
+
+  * Conversely, fixing the {j,k}-fiber fixes the external neighbors of
+    i (those vertices w that are in the fiber with i as neighbor are
+    exactly the ones with M[i,w]=1).  So the projection onto {j,k}-
+    fibers equals conditioning on row i.
+
+Nothing else about the fiber is left free: the "outside graph" is
+determined by cell data; the internal graph (edge jk, or path / triangle
+involving i) is determined by extra column, which is determined by
+row i's augmented entries and by the cell constants.
+
+Hence h_{ {j,k} } acts within the cell as the PROJECTION onto the
+complement of row-i-functions.  Since E_{ {j,k} } = E[.|S_i], the
+residual h_{ {j,k} } = I - E[.|S_i], giving
+
+    <f, h_{ {j,k} } f>  =  ||f||^2 - ||E[f | S_i]||^2.
+
+In matrix language: h_{ {j,k} } measures how far f is from being a
+function of row i alone.
+
+Similarly, h_{ {i,k} } is "conditional on row j", h_{ {i,j} } is
+"conditional on row k".  So
+
+    H_T f  =  sum_i (f - E[f | S_i])  =  3f - sum_i E[f | S_i],
+
+where sum is over the three rows.
+
+--------------------------------------------------------------------------
+4.4  The variance inequality
+--------------------------------------------------------------------------
+
+Let f be a function on the cell, centered in the sense E[f] = 0
+relative to the uniform cell measure.  (Constants play no role in H_T;
+we subtract the cell mean.)
+
+Define P_i f = E[f | S_i], the projection onto row-i-functions (as an
+operator on the cell's function space).  These are orthogonal
+projections commuting with nothing much, but each is a genuine
+projection: P_i is averaging over the i-fiber, so P_i^2 = P_i and P_i
+is self-adjoint.  Also each P_i f is a row-i function, hence a function
+of S_i.
+
+We need to compute <f, H_T f> = sum_i <f, (I - P_i) f>.  For each i:
+
+    <f, (I - P_i) f>  =  ||f||^2 - <f, P_i f>
+                       =  ||f||^2 - ||P_i f||^2  (P_i^2 = P_i)
+                       =  ||f||^2 - <P_i f, P_i f>.
+
+Sum over i:
+
+    <f, H_T f>  =  3 ||f||^2 - sum_i ||P_i f||^2.
+
+Lemma 3.3 (three-row variance) applies to a sum of three row functions
+of a common fixed-margin matrix.  The quantity we want to bound is
+
+    b  =  sum_i ||P_i f||^2,
+
+where each P_i f is a function of the single row S_i of our matrix.
+Rewrite b as an inner product.  Since each P_i is a projection fixing
+row-i functions, <f, P_i f> = <P_i f, P_i f> = ||P_i f||^2.  So
+
+    b  =  sum_i <f, P_i f>  =  <f, (sum_i P_i) f>,
+
+and Cauchy-Schwarz gives
+
+    b  <=  ||f|| * || sum_i P_i f ||.
+
+Now sum_i P_i f is a sum of three row functions.  Since f is centered
+in the cell and each P_i is a projection fixing constants, E[P_i f] = 0.
+So Var(sum_i P_i f) = ||sum_i P_i f||^2.  Apply Lemma 3.3:
+
+    || sum_i P_i f ||^2  =  Var( sum_i P_i f )
+                        <=  2 sum_i Var( P_i f )
+                        =   2 sum_i ||P_i f||^2
+                        =   2 b.
+
+So b <= ||f|| * sqrt(2b).  If b = 0 the conclusion b <= 2||f||^2 is
+trivial; otherwise divide by sqrt(b) to get sqrt(b) <= sqrt(2) ||f||,
+i.e. b <= 2 ||f||^2 either way.
+
+Therefore
+
+    <f, H_T f>  =  3 ||f||^2 - b  >=  3 ||f||^2 - 2||f||^2  =  ||f||^2.
+
+Since f was arbitrary, H_T >= I on centered functions.  To convert
+that to H_T^2 >= H_T: on centered functions every eigenvalue lambda of
+the self-adjoint operator H_T is at least 1, hence lambda^2 >= lambda.
+That is exactly H_T^2 >= H_T on the same subspace.  So the argument is:
+
+  1. H_T is self-adjoint and positive semidefinite (sum of projections).
+
+  2. H_T kills constants (each h_a does).
+
+  3. On the orthogonal complement of constants, H_T >= I (just shown).
+
+  4. So on the orthogonal complement of constants, every eigenvalue
+     lambda of H_T satisfies lambda >= 1, hence lambda^2 >= lambda.
+
+  5. On constants, both H_T and H_T^2 act by 0.
+
+  Combining: H_T^2 >= H_T on the whole space.
+
+That is Proposition 4.1.  QED.
+
+--------------------------------------------------------------------------
+4.5  From cells to the whole space
+--------------------------------------------------------------------------
+
+There is one last technical point.  Proposition 4.1 is proved cell by
+cell (each cell has its own uniform measure and its own model as a 3-
+row matrix).  Does the cellwise inequality on H_T^2 >= H_T imply the
+global inequality on H_T^2 >= H_T?
+
+Yes, because H_T PRESERVES CELLS.  Each cell is a "block diagonal"
+subspace for H_T: the operator h_a maps cell-constant functions to
+cell-constant functions and does not mix cells.  So H_T = sum over
+cells of "H_T restricted to cell".  The quadratic form <f, H_T^2 f> is
+a sum over cells of the cellwise <f_cell, H_T^2|_{cell} f_cell>.  Same
+for <f, H_T f>.  The cellwise inequality implies the global one.
+
+(There is one harmless corner case: a cell might be a SINGLE graph.
+That is, its conditional measure puts all mass on one point.  Then the
+cell's function space is 1-dimensional, f is constant on the cell, and
+H_T acts by 0, both on H_T and H_T^2.  Trivially H_T^2 >= H_T.)
+
+So Proposition 4.1 holds on Omega_d for every triple T.  This finishes
+the first half of the engine inequality.
+
+End of Section 4.
+
+--------------------------------------------------------------------------
+SECTION 5. DISJOINT-PAIR INTERACTION
+--------------------------------------------------------------------------
+
+We turn to the second half of ENGINE: disjoint vertex pairs.  Here the
+story gets genuinely subtle.  Two pairs a = {i, j} and b = {k, l} that
+share no vertex can BOTH rearrange the four edges between them, and
+those two rearrangements interfere: they modify the SAME four edges.
+Carstens-Berger-Strona (2018) already observed this "dependence of
+undirected trades" and used it as a reason to avoid the analysis.  We
+cannot avoid it.  What we can do is CONTROL it precisely: on each a-
+fiber the two resamplings overlap in at most a rank-one subspace, and
+that rank-one subspace is bounded by a new projection which in turn is
+dominated by the "available" switch energy (proved in Section 6).
+
+The clean local statement is Proposition 5.1 below.  Sections 5.1-5.6
+prove it.  Section 7 sums it over all disjoint pairs.
+
+--------------------------------------------------------------------------
+5.1  The cross-switch T_{a,b} and the operator g_{a,b}
+--------------------------------------------------------------------------
+
+Fix disjoint vertex pairs a = {i, j} and b = {k, l}.  Consider the
+2-by-2 CROSS MATRIX between a and b:
+
+    M(G)  =  ( M[i,k], M[i,l] ; M[j,k], M[j,l] )   (2 rows, 2 cols)
+
+whose entry in position (x, y) is 1 iff xy is an edge of G.  There are
+16 possible 2-by-2 binary matrices; the SET of achievable ones depends
+on the rest of G, but every entry records an actual edge-or-not.
+
+Define the involutive map T_{a,b} on Omega_d:
+
+    If M(G) has every row sum and every column sum equal to 1
+    (i.e., M is one of the two "permutation matrices"),
+       T_{a,b}(G) = G' whose cross entries are the OTHER permutation
+       matrix on the same support (equivalently: swap the two entries
+       of each row), with every other edge of G unchanged.
+    Otherwise,
+       T_{a,b}(G) = G (the identity).
+
+So T_{a,b} toggles the four cross edges when the cross matrix is a
+permutation matrix.  Each of the four vertices i, j, k, l loses exactly
+one cross edge and gains exactly one.  Zero sum.  Degree-preserving,
+simple-graph-preserving.  Also T_{a,b} is an involution: T_{a,b}^2 = I.
+And T_{a,b} is an isometry of pi_d.
+
+Define the ANTISYMMETRIC projection
+
+    g_{a,b}  =  (I - T_{a,b}) / 2.
+
+This is an orthogonal projection (over reals, T_{a,b} is self-adjoint).
+It kills everything fixed by T_{a,b} and projects onto the antisymmetric
+part.  Also g_{a,b} = g_{b,a}.
+
+Two useful facts follow from the definition of T_{a,b}:
+
+  * T_{a,b} preserves the a-fiber and the b-fiber of G.  A cross-toggle
+    only swaps which neighbor is adjacent to which vertex WITHIN the
+    pair {i, j} or WITHIN the pair {k, l}; the total number of edges
+    from each outside vertex w into {i, j} (respectively into {k, l})
+    is unchanged.  So T_{a,b} maps each a-fiber to itself and each
+    b-fiber to itself.
+  * T_{a,b} commutes with E_a and E_b.  Both E_a and E_b average over
+    fiber data that T_{a,b} preserves, so applying T_{a,b} before or
+    after averaging gives the same result.  Consequently g_{a,b}
+    commutes with E_a and E_b too, and therefore kills both A = functions
+    of X (the a-fiber data) and B = functions of Y (the b-fiber data).
+    So ran(g_{a,b}) fits inside J = (A+B)^perp.
+
+Let's not be too abstract; concrete is better.  Here is the setup.
+
+--------------------------------------------------------------------------
+5.2  The cell decomposition
+--------------------------------------------------------------------------
+
+Fix disjoint vertex pairs a = {i,j} and b = {k,l}.  Let
+
+    O  =  V \ (a union b)          (the other n - 4 vertices).
+
+Partition Omega_d by recording:
+
+  (D1) the graph induced on O;
+  (D2) whether edge ij is present;
+  (D3) whether edge kl is present;
+  (D4) for each w in O, the number of edges from w into a (0, 1, or 2);
+  (D5) for each w in O, the number of edges from w into b (0, 1, or 2).
+
+Each such "cell" is a set of graphs with a common value of (D1)-(D5).
+Both pair resamplings of a and of b preserve every cell.
+
+Two key counts within a cell that will not vary:
+
+    A_0 = { w in O : w has exactly 1 neighbor in a }   (the a-singletons)
+    B_0 = { w in O : w has exactly 1 neighbor in b }   (the b-singletons)
+
+and the degree-sum identity
+
+    d_i + d_j + d_k + d_l
+      = 2 s + 2 [ij present] + 2 [kl present]
+        + sum_{w in O} (neighbors_a(w) + neighbors_b(w))
+
+where s = number of edges between a and b.  Every term on the right
+except s is fixed by cell data, so s is fixed by the cell.  Important:
+s determines which cases we are in.
+
+Fix a nonempty cell.  Call its conditional uniform measure the CELL
+WEIGHT.
+
+--------------------------------------------------------------------------
+5.3  The (M, U, W) encoding
+--------------------------------------------------------------------------
+
+Inside a cell, the data not yet fixed by cell alone are exactly:
+
+    M = (edges between a and b),  a 2-by-2 binary matrix:
+        M[ik], M[il]; M[jk], M[jl].
+    U = the subset of A_0 whose unique neighbor inside a is i;
+        equivalently U = {w in A_0 : i-w is an edge}.
+    W = the subset of B_0 whose unique neighbor inside b is k;
+        equivalently W = {w in B_0 : k-w is an edge}.
+
+The graph is fully determined by (M, U, W) plus the cell data.  Indeed:
+
+  * every edge in O is fixed by (D1);
+  * the edges ij, kl come from (D2)-(D3);
+  * every edge from w in O to a comes from w's count (D4) plus its
+    indicator "w in U";
+  * every edge from w in O to b comes from w's count (D5) plus its
+    indicator "w in W";
+  * every edge from a to b comes from M.
+
+Conversely, any (M, U, W) with the right sizes gives a valid cell graph.
+
+Size constraints.  Let
+
+    r = M[ik] + M[il]   (row sum at i, count of b-neighbors of i)
+    c = M[ik] + M[jk]   (col sum at k, count of a-neighbors of k)
+
+are the row-i sum and column-k sum of M.  Then the degree constraints at
+i and k give
+
+    |U|  =  q_0 - r,            |W|  =  q_1 - c,
+
+where q_0, q_1 are fixed nonnegative integers (functions of the cell).
+Symmetric constraints hold at j and l: |A_0| - |U| = q_0' - (s - r)
+and |B_0| - |W| = q_1' - (s - c) for two more cell-constants q_0', q_1'.
+
+Consequence: conditional on M, the pair (U, W) is distributed as
+
+    U = uniform random q_0 - r-subset of A_0,
+    W = uniform random q_1 - c-subset of B_0,
+    U independent of W.
+
+And marginal in M: M is uniform over the binary 2-by-2 matrices of
+total s that are feasible with the cell sizes.
+
+Uniform over the cell.  This encoding is a bijection, and every (M,U,W)
+satisfying the size constraints corresponds to exactly one graph.  So
+the cell measure is uniform on this set.
+
+Two-fiber data.  The a-fiber at a graph in this cell contains ALL graphs
+with the SAME (c, W) and the SAME cell data, varying only M subject to
+c fixed (so r varies) and varying U.  Similarly the b-fiber data is
+Y = (r, U), varying M subject to r fixed and varying W.  So:
+
+    X = (c, W)      = the a-fiber label
+    Y = (r, U)      = the b-fiber label
+
+    E_a f = E[ f | X ],       E_b f = E[ f | Y ].
+
+Note two facts:
+
+    (i)  T_{a,b} preserves X and Y: it swaps the two entries of each
+         row of M, so c and r are unchanged; U and W are unchanged.
+         Hence T_{a,b} acts on (A + B)^perp, and ran(g_{a,b}) fits in J.
+
+    (ii) The full graph data is (X, Y): from X = (c, W) we know c and W,
+         from Y = (r, U) we know r and U.  Given (c, r) and the cell (so s
+         is known), the matrix M is uniquely determined UNLESS
+         s = 2 and (r, c) = (1, 1); see the table below.
+
+--------------------------------------------------------------------------
+5.4  The case table for s
+--------------------------------------------------------------------------
+
+The total number of cross-edges s runs from 0 to 4.  Here is the
+behaviour of each case.
+
+  s = 0  or  s = 4.
+      M is all zeros or all ones.  Then r and c are forced: 0 in the
+      first case, 2 in the second.  So X = (0, W) and Y = (0, U), and
+      U, W are independent uniform subsets of fixed sizes.  Hence X, Y
+      are INDEPENDENT.  Also T_{a,b} is the identity (no permutation
+      matrix is ever reached), so g_{a,b} = 0.
+
+  s = 1  or  s = 3.
+      M has a single 1 (s = 1) or a single 0 (s = 3).  In both cases
+      (r, c) determines M uniquely: for s = 1, it specifies the
+      position of the unique 1; for s = 3, the unique 0.  So given
+      the cell and (r, c), M is determined.  The sizes |U| = q_0 - r
+      and |W| = q_1 - c are then fixed.  Since the subset restrictions
+      on U and W are independent and each is a uniform fixed-size
+      subset, X, Y are again INDEPENDENT.
+
+  s = 2, center absent.
+      The "center" is (r, c) = (1, 1).  For s = 2 the six possible
+      matrices are:
+
+             c=0         c=1         c=2
+        r=0   --       [0 0;1 1]     --
+        r=1 [0 1;0 1] [1 0;0 1]      [1 0;1 0]
+                      [0 1;1 0]
+        r=2   --       [1 1;0 0]     --
+
+      If the center is infeasible (no (1,1) matrix is compatible with
+      cell sizes), the support is confined to a single row OR column
+      of the table: either no r differs from 1, or no c differs from
+      1.  Suppose it's a single row, say r = 1.  Then Y = (1, U)
+      with r fixed; X = (c, W) with c varying but W uniform of size
+      q_1 - c independent of c.  By the same calculation as s = 1,
+      X and Y are INDEPENDENT.
+
+  s = 2, center present but P(r != 1) = 0 or P(c != 1) = 0.
+      Same as above: one coordinate is deterministic, so X and Y
+      share no randomness, and are INDEPENDENT.
+
+  s = 2, center present and BOTH D_r and D_c have positive probability.
+      Here is the ONLY case where X and Y are correlated.  Write
+      D_r = {r != 1}, D_c = {c != 1}; both are nonempty, and in the
+      table D_r and D_c are disjoint events (they occupy different
+      cells).  The center obeys the two matrices being exchanged by
+      T_{a,b}.  Sub-case 5.5 handles this.
+
+Declaration for all INDEPENDENT cases.  When X, Y are independent,
+E_a E_b = E_b E_a = the projection onto constants (in the cell).
+Consequently h_a h_b = projection onto J, and for any f:
+
+    2 <h_a f, h_b f>  =  2 ||proj_J f||^2  >=  2 ||g_{a,b} f||^2,
+
+because ran(g_{a,b}) fits in J.  This is STRONGER than the bound
+we need.  So Proposition 5.1 trivially holds in every case EXCEPT the
+last one.
+
+--------------------------------------------------------------------------
+5.5  The rank-one correlated case (s = 2, center present)
+--------------------------------------------------------------------------
+
+We now attack the ONLY case where X and Y are genuinely dependent.  Set
+
+    p_r  =  P(r != 1)   =  P(D_r),
+    p_c  =  P(c != 1)   =  P(D_c),
+
+both in (0, 1) by hypothesis.  Note D_r and D_c are DISJOINT events:
+in the s = 2 table, cells with r != 1 and cells with c != 1 never
+overlap.  So p_r + p_c = 1 - P(center) < 1.
+
+Define
+
+    u  =  ( 1_{D_c} - p_c ) / sqrt(p_c (1 - p_c))    [ in A ]
+    v  =  ( 1_{D_r} - p_r ) / sqrt(p_r (1 - p_r))    [ in B ]
+
+Since D_r and D_c are disjoint and both have probability in (0,1):
+
+    <u, v>  =  -rho,
+    rho  =  sqrt( p_c p_r / ((1 - p_c) (1 - p_r)) )  in (0, 1).
+
+(Proof: <1_{D_c}, 1_{D_r}> = 0, <1_{D_c}, 1> = p_c, etc., then
+normalize.)
+
+Conditional expectation identities.  Given X = (c, W), the event D_c
+is determined by c.  When c != 1 (so D_c holds), the table forces
+r = 1 (so D_r fails).  When c = 1, r is allowed to be 0, 1, or 2.
+A symmetric statement holds for E_b given Y = (r, U).  Working these
+out gives
+
+    E_a v  =  -rho u,    E_b u  =  -rho v,
+
+    E_a u  =  u,         E_b v  =  v.
+
+Orthogonal decomposition.  Since u in A centered, v in B centered,
+their span is a 2-dim piece of A + B.  Set
+
+    A'  =  A  intersect  span(1, u)^perp          (A centered, perp u)
+    B'  =  B  intersect  span(1, v)^perp          (B centered, perp v)
+    J   =  (A + B)^perp
+
+Then (all summands orthogonal, and all invariant under E_a, E_b):
+
+    function space  =  span(1)  (+)  A'  (+)  B'  (+)  span(u, v)  (+)  J.
+
+Action of E_a, E_b piecewise:
+
+  piece      |  E_a(f)         |  E_b(f)
+  -----------+-----------------+-----------------
+  span(1)    |  f              |  f
+  A'         |  f              |  0
+  B'         |  0              |  f
+  span(u,v)  |  (x - rho y) u  |  (y - rho x) v
+  J          |  0              |  0
+
+(Here f = x u + y v on the plane piece.)  Derived from E_a u = u,
+E_a v = -rho u, E_b u = -rho v, E_b v = v, and independence on A', B', J.
+
+Consequently the residual h_a = I - E_a puts each piece where:
+
+  piece      |  h_a f                     |  h_b f
+  -----------+----------------------------+---------------------------
+  span(1)    |  0                         |  0
+  A'         |  0                         |  f
+  B'         |  f                         |  0
+  span(u,v)  |  y (v + rho u)             |  x (u + rho v)
+  J          |  f                         |  f
+
+And cross terms between different pieces vanish in <h_a f, h_b f>
+either because one factor is zero, or because the pieces are
+orthogonal.  So
+
+    <h_a f, h_b f>  =  xy rho (1 - rho^2)  +  ||proj_J f||^2.
+
+[A short computation: <y(v + rho u), x(u + rho v)> = xy rho(1 - rho^2),
+using <u, v> = -rho and ||u|| = ||v|| = 1.]
+
+Two immediate consequences.
+
+    (a)  ran(g_{a,b}) is inside J, so ||proj_J f||^2 >= ||g_{a,b} f||^2.
+    (b)  The plane contribution can be negative.  Bound it from below.
+
+The second-line bound.  Note:
+
+    (i)  ||v + rho u||^2  =  1 + rho^2 + 2 rho <v, u>  =  1 - rho^2.
+    (ii) ||u + rho v||^2  =  1 - rho^2.
+    (iii) <f_uv, v + rho u> = y (1 - rho^2), and
+          proj_{span(v + rho u)} f = y (v + rho u) = h_a f_uv.
+
+The projection of f onto the line through v + rho u has squared length
+
+    <f, v + rho u>^2 / ||v + rho u||^2  =  y^2 (1 - rho^2).
+
+And the projection of f onto the line through u + rho v has squared
+length x^2 (1 - rho^2).  Add:
+
+    - (y^2 + x^2)(1 - rho^2)   =   - ||h_a f_uv||^2 - ||h_b f_uv||^2.
+
+Now use the elementary inequality 2 xy rho >= -(x^2 + y^2) rho >=
+-(x^2 + y^2) (both valid because 0 < rho < 1 and 2|xy| <= x^2 + y^2):
+
+    2 <h_a f_uv, h_b f_uv>  =  2 xy rho (1 - rho^2)
+                            >=  -(x^2 + y^2)(1 - rho^2)
+                            =   - ||h_a f_uv||^2 - ||h_b f_uv||^2.
+
+That is the plane inequality.
+
+--------------------------------------------------------------------------
+5.6  The error lines belong to the slice projections
+--------------------------------------------------------------------------
+
+Now the punchline.  We need to bound ||h_a f_uv||^2 = y^2 (1 - rho^2) by
+||R_{a,b} f||^2, where R_{a,b} is the projection defined in the
+introduction.  Recall:
+
+    z_{kl}^F (G)  =  1_{ x_k = x_l }  -  P( x_k = x_l | F ),  on a-fiber F,
+    R_{a,b} = orthogonal projection onto span(z_{kl}^F), summed over
+    all a-fibers F; zero if z_{kl}^F = 0.
+
+Here x_k, x_l in {0,1} are the "assignment variables" of k and l to
+the two endpoints of a.  Specifically, on an a-fiber F,
+
+    x_k  =  1  iff edge i-k is present (i is the "first endpoint" of a),
+    x_l  =  1  iff edge i-l is present.
+
+Note that on a-fibers with c != 1 (i.e., c = 0 or c = 2), one of k, l
+is NOT a singleton into a.  Then x_k, x_l are determined and z_{kl}^F = 0.
+
+CLAIM:  v - E_a v  is proportional to z_{kl}^F on each a-fiber F.
+
+Reason.  Both v and E_a v are in the b-fiber algebra B, and v depends on
+G only through r = row sum of M at i.  So v - E_a v depends on G only
+through r - E[r | X] = r - E[r | c, W].
+
+On an a-fiber with c != 1: the s = 2 table forces r = 1, so r is
+deterministic given X, and v - E_a v = 0 = z_{kl}^F (consistent).
+
+On an a-fiber with c = 1: both k and l are singleton into a (each has
+exactly 1 neighbor in a).  Then r = x_k + x_l, so
+
+So r = x_k + x_l.  For x_k, x_l in {0,1}:
+
+    r  =  1     iff   x_k != x_l,
+    r  =  0     iff   x_k = x_l = 0,
+    r  =  2     iff   x_k = x_l = 1.
+
+Hence D_r = {r != 1} equals {x_k = x_l} on this fiber.
+
+Let q be the fiber-level probability that x_k = x_l.  The centered
+function z_{kl}^F = 1_{x_k = x_l} - q.  Then
+
+    v             =  ( 1_{x_k = x_l} - p_r ) / sqrt(p_r(1-p_r)),
+    E[v | X]      =  ( q - p_r ) / sqrt(p_r(1-p_r)),
+    v - E[v | X]  =  ( 1_{x_k = x_l} - q ) / sqrt(p_r(1-p_r))
+                  =  z_{kl}^F / sqrt(p_r(1-p_r)).
+
+So v - E_a v = z_{kl}^F / sqrt(p_r(1-p_r)) on every a-fiber, up to a
+positive scalar depending only on the fiber.
+
+Therefore v - E_a v ∈ ran(R_{a,b}).  By symmetry, u - E_b u ∈ ran(R_{b,a}).
+
+Consequence via orthogonal projection.  In any subspace,
+span(w) ⊂ ran(P) implies  ||P f|| >= ||proj_{span(w)} f||.  Apply to
+w = v - E_a v = v + rho u (since E_a v = -rho u):
+
+    ||R_{a,b} f||^2  >=  || proj_{span(v + rho u)} f ||^2
+                     =   y^2 (1 - rho^2)
+                     =   ||h_a f_uv||^2.
+
+Similarly ||R_{b,a} f||^2 >= ||h_b f_uv||^2 = x^2 (1 - rho^2).
+
+Combine with the plane inequality:
+
+    2 <h_a f_uv, h_b f_uv>
+      >=  -(x^2 + y^2)(1 - rho^2)
+      =   -||h_a f_uv||^2 - ||h_b f_uv||^2
+      >=  -||R_{a,b} f||^2 - ||R_{b,a} f||^2.
+
+And add the J piece 2||proj_J f||^2 >= 2||g_{a,b} f||^2.  So
+
+    2 <h_a f, h_b f>  >=  2 ||g_{a,b} f||^2  -  ||R_{a,b} f||^2
+                                                  -  ||R_{b,a} f||^2.
+
+This is exactly Proposition 5.1.
+
+--------------------------------------------------------------------------
+5.7  Proposition 5.1 (restated and proved on the cell) and lifting
+--------------------------------------------------------------------------
+
+PROPOSITION 5.1 (Disjoint-pair interaction).
+For every pair of disjoint vertex pairs a, b, and every real function f
+on Omega_d:
+
+    2 <h_a f, h_b f>  >=  2 ||g_{a,b} f||^2
+                        - ||R_{a,b} f||^2
+                        - ||R_{b,a} f||^2.
+
+Proof.  Fix a cell.  If the cell is a singleton (probability 1 on one
+graph) the cell contribution is trivially satisfied: h_a h_b f = 0
+there and both sides are zero.  Otherwise:
+
+  * Cases s ∈ {0, 1, 3, 4}: X, Y independent, so
+    2 <h_a f, h_b f> = 2 ||proj_J f||^2 >= 2 ||g_{a,b} f||^2 (stronger
+    than needed since the two error terms are >= 0).
+
+  * Cases s = 2 with center absent or one coordinate deterministic:
+    same independence argument, same conclusion.
+
+  * Case s = 2 with center present and both probabilities positive:
+    preceding calculation, giving exactly the stated inequality.
+
+Sum over cells (all involved operators preserve cells), done.  End.
+
+All that remains to prove (Proposition 5.1 to be summed in Section 7)
+is controlling the two error terms via a slice inequality, which is
+the content of Section 6.
+
+--------------------------------------------------------------------------
+SECTION 6. THE SLICE INEQUALITY
+--------------------------------------------------------------------------
+
+This section proves the technical core that controls the two error terms
+in Proposition 5.1.  It has nothing to do with graphs: it is a statement
+about the uniform measure on the q-subsets of an N-element set.
+
+--------------------------------------------------------------------------
+6.1  Statement
+--------------------------------------------------------------------------
+
+Fix integers N >= 0 and 0 <= q <= N.  Consider the SLICE
+
+    X_{N,q}  =  { x in {0,1}^N :  sum_{i=1}^N x_i = q }
+
+with its uniform measure.  Let tau_{ij} interchange coordinates i and j,
+and set
+
+    G  =  (1/2) * sum_{i < j} ( I - tau_{ij} ).
+
+G is positive semidefinite (sum of projections).
+
+For each pair i < j, let Q_{ij} be the ORTHOGONAL PROJECTION onto the
+centered function
+
+    z_{ij}(x)  =  1_{ x_i = x_j }  -  P( x_i = x_j ),
+
+using the convention Q_{ij} = 0 if z_{ij} = 0.  On X_{N,q},
+
+    P( x_i = x_j )  =  p  =  ( q(q-1) + r(r-1) ) / ( N(N-1) ),   r := N - q.
+
+LEMMA 6.1 (slice inequality).
+
+    S  :=  sum_{i<j} Q_{ij}   <=   G.
+
+Intuition.  Both S and G are built out of the pair-comparisons "are
+coordinates i and j the same?".  G is the natural "transposition
+energy" of the symmetric group acting on the slice: it measures how
+far f is from being permutation-invariant.  S is a coarser object: it
+projects onto the specific quadratic functions (equal-or-not indicators)
+centered.  The lemma says the coarser object is dominated by the finer.
+
+The proof is a computation.  It uses the SLICE DECOMPOSITION of
+functions on X_{N,q}, sometimes called the Johnson scheme:
+
+    any f on X_{N,q}  =  ( constant in degree 0 )
+                       + ( linear in x in degree 1 )
+                       + ( quadratic in x in degree 2 )
+                       + ... ( higher degrees )
+
+See Filmus (2016, Lemmas 18 and 24) for a gentle treatment.  The key
+observation is that the centered indicators z_{ij} are QUADRATIC in x:
+we have z_{ij}(x) = 1 - p - x_i - x_j + 2 x_i x_j, which is quadratic
+with linear and constant terms.  So S lies entirely within degrees 1
+and 2 (not degree 0 since z_{ij} is centered, and not degree >=3 since
+S only uses quadratics).  That is why this lemma can be proved by
+linear algebra.
+
+--------------------------------------------------------------------------
+6.2  Coefficient-space decomposition
+--------------------------------------------------------------------------
+
+Index pairs i < j by M = C(N,2) coordinates.  Consider the embedding
+
+    B:  R^M  ->  L^2( X_{N,q} ),       Bc  :=  sum_{i<j} c_{ij} * z_{ij} / s,
+    s := sqrt( p(1-p) ).
+
+Then S = B B^* by definition (each Q_{ij} is projection onto z_{ij}/||z_{ij}||,
+and ||z_{ij}|| = s).  The Gram matrix is K = B^* B, and we study
+its eigenvalues.
+
+The coefficient space R^M decomposes ORTHOGONALLY as
+
+    R^M  =  C_0  (+)  C_1  (+)  C_2,
+
+where
+
+    C_0 = { c_{ij} constants }
+    C_1 = { c_{ij} = u_i + u_j,  sum_i u_i = 0 }              (vertex potentials)
+    C_2 = { sum_{j != i} c_{ij} = 0 for every i }             (row-zero)
+
+Dimensions: |C_0| = 1 (dim for constants), |C_1| = N - 1, |C_2| = M - N.
+
+Why orthogonal?  The map u -> (u_i + u_j) is injective for N >= 3
+(its kernel vanishes on every triangle thus on every vertex).  Its image
+is C_0 + C_1.  The orthogonal complement is C_2, because the row-sum
+conditions are the adjoints of the map u -> (u_i + u_j) plus the total
+sum condition.
+
+Two basic identities.  On X_{N,q}:
+
+    sum_{i<j} 1_{ x_i = x_j }  =  C(q,2) + C(r,2)  (constant on X_{N,q}).
+
+So B kills C_0.  Also, for any c in C_1 with c_{ij} = u_i + u_j:
+
+    sum_{i<j} (u_i + u_j) z_{ij}  =  ( 2q - N )  sum_i u_i x_i       (a)
+
+(direct expansion using sum_i x_i = q).  Similarly, for any c in C_2,
+the constant and linear terms of z_{ij} vanish when we sum (relevant
+later when computing the action of G on B(C_2)).
+
+--------------------------------------------------------------------------
+6.3  Eigenvalues of K
+--------------------------------------------------------------------------
+
+By permutation invariance of the slice, K is a linear combination of
+three "rank" operators (identity, meet-one, disjoint).  So K acts by a
+scalar on each C_i:
+
+    K|C_0 = 0    (B kills C_0),
+    K|C_1 = mu_1,    K|C_2 = mu_2.
+
+Compute mu_1.  Take c in C_1, so c_{ij} = u_i + u_j with sum u_i = 0.
+Using (a) and the two identities
+
+    Var( sum_i u_i x_i )  =  (qr / (N(N-1))) sum_i u_i^2,
+    sum_{i<j} (u_i + u_j)^2 = (N - 2) sum_i u_i^2,
+
+plug into ||Bc||^2 = mu_1 ||c||^2 and solve:
+
+    mu_1  =  ( 2q - N )^2  /  ( 2 (N - 2) p )   <=   N / 2.
+
+The inequality uses q, r >= 1 and q + r = N:
+
+    N(N-2) p - (2q - N)^2  =  ( 2N / (N-1) )( qr - (N-1) )  >=  0.
+
+Compute mu_2.  K has diagonal all ones, so trace K = M = C(N,2).  Since
+K is positive semidefinite with K|C_1 contributing mu_1 and dim C_1 =
+N - 1, dim C_2 = M - N:
+
+    (M - N) mu_2  <=  M,     hence  0 <= mu_2  <=  (N - 1) / (N - 3)  <=  N - 1.
+
+(For N <= 3, C_2 is empty, no bound needed.)
+
+So S = B B^* acts as
+
+    on B(C_1):   S acts as mu_1  <=  N/2,
+    on B(C_2):   S acts as mu_2  <=  N - 1,
+    on B(C_0):   S acts as 0     (empty).
+
+--------------------------------------------------------------------------
+6.4  Action of G on the images
+--------------------------------------------------------------------------
+
+Now compute what G does on the images U_1 = B(C_1), U_2 = B(C_2).
+Recall G = (1/2) sum_{i<j} (I - tau_{ij}).  Direct summation:
+
+    G x_i       =  ( N x_i - q ) / 2,                       (linear)
+    G (x_i x_j) =  (N-1) x_i x_j
+                 - (q-1)/2 ( x_i + x_j ).                   (quadratic)
+
+Identity 1: on U_1.  Since z_{ij} is a quadratic plus linear plus
+constant and we are in the case where the constant sum is fixed, we can
+use B applied to (a).  Combined with the linear identity above:
+
+    G (linear part)  =  (N/2) * (linear part),
+
+since the constant -q/2 is killed by sum_i u_i = 0.  So G acts on U_1 as
+N/2.
+
+Identity 2: on U_2.  For c in C_2, the linear term of sum_{i<j} c_{ij} z_{ij}
+vanishes (row sums are zero).  Only the quadratic part survives.  Using
+the quadratic identity above:
+
+    G (quadratic part)  =  (N-1) * (quadratic part),
+
+so G acts on U_2 as N - 1.
+
+Also, the operator G is self-adjoint and preserves U_1 + U_2
+(given the above).  So it also preserves the orthogonal complement.
+
+--------------------------------------------------------------------------
+6.5  Putting it together
+--------------------------------------------------------------------------
+
+On U_1: mu_1 <= N/2 (the action of G), so S <= G there.
+On U_2: mu_2 <= N - 1 (the action of G), so S <= G there.
+On (U_1 + U_2)^perp: B is zero (since C_0 + C_1 + C_2 is everything),
+so S = 0 there, while G >= 0.  Hence S <= G there too.
+
+Therefore S <= G globally.  Lemma 6.1 proved.
+
+--------------------------------------------------------------------------
+6.6  Lifting to the graph space
+--------------------------------------------------------------------------
+
+COROLLARY 6.2 (summed equality-indicator energy).  For every vertex
+pair a and every function f on Omega_d,
+
+    sum_{b : b intersect a = empty}  ||R_{a,b} f||^2
+      <=
+    sum_{b : b intersect a = empty}  ||g_{a,b} f||^2.
+
+Proof.  Work in ONE a-fiber F.  Its assignments form a uniform q-subset
+slice of the N singleton vertices of F.  Label these N vertices; the
+b's with b ∩ a = ∅ correspond to pairs {k, l} of these N labels.  On F:
+
+    g_{a,b}  =  (I - tau_{kl}) / 2     (the pair-trade involution)
+    R_{a,b}  =  Q_{kl}                  (projection onto z_{kl}^F centered)
+
+Check the first identity: two graphs in the a-fiber differing by a
+cross-toggle T_{a,b} differ in exactly which of the two endpoints of
+a is adjacent to k (or to l).  So T_{a,b} acts as the transposition of
+the k, l coordinates on the q-subset slice.  That is exactly tau_{kl}.
+
+Apply Lemma 6.1 on this fiber:
+
+    sum_{k<l} ||Q_{kl} f||^2  <=  sum_{k<l} <f, (I - tau_{kl})/2 f>.
+
+Lift to the whole a-fiber: the "sum over k < l" is exactly the "sum over
+b disjoint from a", and each <f, (I - tau_{kl})/2 f> is exactly
+||g_{a,b} f||^2 in the CROSS-switch sense.  Summing over a-fibers (which
+are preserved by all these operators) gives the corollary.
+
+--------------------------------------------------------------------------
+SECTION 7. ASSEMBLY: H^2 >= H AND THE KERNEL IS CONSTANTS
+--------------------------------------------------------------------------
+
+We assemble the local estimates into the global engine inequality, and
+verify that H's kernel is exactly the constants (which upgrades "gap on
+centered functions" into a non-degenerate gap on the switch chain).
+
+--------------------------------------------------------------------------
+7.1  The regrouping identity
+--------------------------------------------------------------------------
+
+Recall H = sum_a h_a.  Compute H^2 by expanding:
+
+    H^2  =  sum_{a, b ordered} h_a h_b
+         =  sum_a h_a^2  +  sum_{a != b} h_a h_b
+         =  H  +  sum_{a != b} h_a h_b,
+
+since h_a^2 = h_a.
+
+Group the off-diagonal sum by unordered pairs {a, b} of distinct vertex
+pairs.  Each unordered pair contributes 2 h_a h_b (one in each order).
+Split into pairs sharing a vertex, and disjoint pairs:
+
+    H^2  =  H  +  2 sum_{{a,b} share vertex} h_a h_b  +  D,
+    D   =  sum_{a <_lex b, a ∩ b = ∅} 2 h_a h_b  =  sum_{a, b disjoint} h_a h_b.
+
+Now regroup the shared-vertex terms.  Pairs {a, b} that share a vertex
+satisfy a ∪ b = T for a unique triple T; conversely, for each triple T
+there are 3 such unordered pairs (the 3 ways to choose 2 pairs from
+the triple's 3 vertex pairs).  And
+
+    H_T^2  =  (sum_{a in C(T,2)} h_a)^2  =  H_T  +  2 sum_{{a,b} in T} h_a h_b.
+
+So sum_T H_T^2 = sum_T H_T + 2 sum_{{a,b} share vertex} h_a h_b.
+
+Also sum_T H_T = (n-2) H because each vertex pair belongs to exactly
+(n-2) triples.  Substitute:
+
+    H^2  =  sum_T H_T^2  -  (n-3) H  +  D.
+
+(Check: RHS = [sum_T H_T + 2 sum_{shared}] - (n-3) H + D = (n-2) H - (n-3) H + 2 sum_{shared} + D = H + 2 sum_{shared} + D = LHS.  Good.)
+
+This is the "exact identity" used in Section 8 to prove H^2 >= H.
+
+--------------------------------------------------------------------------
+7.2  D is positive semidefinite
+--------------------------------------------------------------------------
+
+PROPOSITION 7.1.  The operator D = sum_{a, b disjoint} h_a h_b is
+self-adjoint and positive semidefinite.
+
+Proof.  Self-adjointness: D is a sum of h_a h_b; with a, b disjoint,
+the term for (b, a) is also in the sum, so D = D^*.
+
+Positive semidefiniteness: take any real f.  Compute:
+
+    <f, Df>  =  sum_{a, b disjoint} <h_a f, h_b f>
+
+Pair terms for unordered {a, b} (disjoint).  The unordered pair {a, b}
+contributes 2<h_a f, h_b f>.  Using Proposition 5.1:
+
+    2 <h_a f, h_b f>  >=  2 ||g_{a,b} f||^2
+                        - ||R_{a,b} f||^2
+                        - ||R_{b,a} f||^2.
+
+Sum over unordered pairs:
+
+    <f, Df>  >=  sum_{{a,b} disjoint} 2 ||g_{a,b} f||^2
+              -  sum_{{a,b} disjoint} ( ||R_{a,b} f||^2 + ||R_{b,a} f||^2 ).
+
+Rewrite the right side as sum over a of [something]:
+
+    sum_{{a,b} disjoint} 2||g_{a,b} f||^2
+      =  sum_a sum_{b: b ∩ a = ∅} ||g_{a,b} f||^2   (both orders of each pair)
+
+    sum_{{a,b} disjoint} (||R_{a,b} f||^2 + ||R_{b,a} f||^2)
+      =  sum_a sum_{b: b ∩ a = ∅} ||R_{a,b} f||^2   (both orders of each pair)
+
+So
+
+    <f, Df>  >=  sum_a [ sum_{b disjoint} ||g_{a,b} f||^2
+                        - sum_{b disjoint} ||R_{a,b} f||^2 ].
+
+By Corollary 6.2, the bracket is >= 0 for every a.  Hence <f, Df> >= 0.
+End.
+
+--------------------------------------------------------------------------
+7.3  The engine inequality
+--------------------------------------------------------------------------
+
+PROPOSITION 7.2 (engine inequality).  H^2 >= H.
+
+Proof.  From the regrouping identity:
+
+    H^2  =  sum_T H_T^2  -  (n-3) H  +  D
+         >= sum_T H_T    -  (n-3) H  +  0     [Proposition 4.1, Prop 7.1]
+         =  (n-2) H      -  (n-3) H
+         =  H.                                 End.
+
+So every eigenvalue of H on centered functions is either 0 or at
+least 1.  (If lambda >= 0 satisfies lambda^2 >= lambda, then lambda = 0
+or lambda >= 1.)
+
+--------------------------------------------------------------------------
+7.4  The kernel of H is the constants
+--------------------------------------------------------------------------
+
+H f = 0 iff <f, Hf> = 0 (H is PSD), iff sum_a ||h_a f||^2 = 0, iff
+h_a f = 0 for every vertex pair a.  The last condition says f is
+constant on every a-fiber for every a.
+
+PROPOSITION 7.3.  If f is constant on every a-fiber for every vertex
+pair a, then f is constant on Omega_d.
+
+Proof.  It suffices to show that f is invariant under every valid
+switch, since then CONNECTIVITY (Lemma 7.4 below) makes f constant.
+
+Take a valid switch {uv, xy} -> {ux, vy}.  The four vertices u, v, x, y
+are distinct.  Consider the vertex pair a = {u, y}.  In this fiber:
+
+  * v has exactly one neighbor in {u, y}, namely u (v is adjacent to u
+    via uv, and NOT to y because u-y is either absent or fixed by
+    other data; either way v's assignment inside this fiber is "v goes
+    with u");
+  * x has exactly one neighbor in {u, y}, namely y (x is adjacent to y
+    via xy, not to u);
+  * all other vertices have their assignment determined by fixed data.
+
+So v and x are both singletons in this fiber, and the fiber freedom is
+precisely to exchange their assignments: put v with y and x with u.
+The resulting graph is: uv is replaced by vy, and xy is replaced by ux.
+That is EXACTLY our switch target graph.
+
+So the switch is a pair-trade on a = {u, y}.  Since f is constant on
+this a-fiber, f takes the same value on the switch source and target.
+The same argument applies to every switch.  Hence f is switch-invariant.
+By connectivity, f is constant.  End.
+
+LEMMA 7.4 (connectivity).  Any two graphs in Omega_d are connected by a
+sequence of switches.
+
+Proof (Havel).  Fix a target order of neighbors and prescribe edges one
+vertex at a time, from lowest labelled vertex upward.  Suppose the
+vertices in {1, ..., v-1} have the correct neighbor sets in the current
+graph G, and let R = {v, ..., n}.  Prescribe the neighbors of v: the
+d_v^R vertices of R \ {v} of highest residual degree, ties by label.
+If the current neighbors of v differ, there is a missing desired
+neighbor j and an undesired actual neighbor i, with
+d_j^R >= d_i^R.  Removing a possible edge ij subtracts the same amount
+from both residual degrees, so
+
+    |N_R(j) \ {i}|  >=  |N_R(i) \ {j}|.
+
+Since v ∈ (N_R(i) \ {j}) \ (N_R(j) \ {i}) (v is not adjacent to i or
+j inside R \ {v}, but v IS adjacent to i, its undesired neighbor),
+the set N_R(j) \ {i} must contain vertices not in N_R(i) \ {j}.
+Pick k in (N_R(j) \ {i}) \ (N_R(i) \ {j}).  Then:
+
+  vi, jk are edges;   vj, ik are NOT edges;   k is distinct from v, i, j.
+
+So {vi, jk} -> {vj, ik} is a valid SWITCH.  It fixes every other edge
+of v and increases the number of v's correctly placed neighbors by 1.
+
+Repeat until v has the prescribed neighbors.  Then freeze v (its degree
+and neighbors are now correct, and future switches involve only R \ {v}).
+Proceed to the next vertex.  The procedure terminates: each frozen
+vertex is prescribed independently of the starting graph.
+
+Consequently every realization reaches the SAME canonical graph, so
+any two are connected.  End.
+
+--------------------------------------------------------------------------
+SECTION 8. FROM H TO THE SWITCH CHAIN: MIXING TIME
+--------------------------------------------------------------------------
+
+We now convert the pair-resampling gap (H >= identity on centered
+functions) into a mixing-time bound for the switch chain P_d.
+
+--------------------------------------------------------------------------
+8.1  Comparison with single switches
+--------------------------------------------------------------------------
+
+Let L be the UNNORMALIZED LAPLACIAN of the switch chain:
+
+    (Lf)(G)  =  sum_{G' switch neighbor of G} ( f(G) - f(G') ).
+
+Each distinct neighbor appears once in the sum so <f, Lf> = sum over
+unordered {G, G'} pi(G) [f(G) - f(G')]^2 = expected squared gain, which
+is nonnegative.
+
+For a vertex pair a, define J_a on each a-fiber as
+
+    J_a  =  sum_{1 <= k < l <= N} ( I - tau_{k,l} )
+
+where tau_{k,l} exchanges the assignments of the k-th and l-th
+singleton of the fiber, and N is the fiber's singleton count.
+
+LEMMA 8.1 (comparison).
+    (i)   h_a  <=  n^2  J_a           (for every pair a);
+    (ii)  sum_{a in C(V,2)} J_a  =  2 L;
+    (iii) H  <=  2 n^2  L.
+
+Proof of (i).  Work in one fiber, uniform on q-subsets of N singletons.
+Let S_0 be a uniform q-subset and σ an independent uniform permutation
+of {1,...,N}.  Then σ S_0 is also uniform and independent of S_0, so
+
+    Var(f)  =  (1/2) E[ ( f(S_0) - f(σ S_0) )^2 ].
+
+Fix, for each permutation σ, a decomposition into at most N
+transpositions (for example from its cycle decomposition), padded
+with identities to length N.  Let S_j = τ_1 ... τ_j S_0 so S_N = σ S_0.
+Telescoping:
+
+    f(S_0) - f(S_N)  =  sum_{j=0}^{N-1} [ f(S_j) - f(τ_{j+1} S_j) ].
+
+Cauchy-Schwarz on the sum:
+
+    (sum_j (f(S_j) - f(τ_{j+1} S_j)))^2
+      <=  N  sum_j (f(S_j) - f(τ_{j+1} S_j))^2.
+
+Conditional on σ, every S_j is uniform on q-subsets (S_0 uniform, each
+τ_j preserves uniformity).  So
+
+    E[ (f(S_j) - f(τ_{j+1} S_j))^2 | σ ]
+      =  E_S[ (f(S) - f(τ_{j+1} S))^2 ].
+
+Each j is a specific transposition type; the sum of such terms over all
+C(N,2) types is at most N times the largest single-type contribution,
+so
+
+    sum_j E_S[ ( f(S) - f(τ_{j+1} S) )^2 ]  <=  N  sum_{k<l} E_S[ ( f(S) - f(τ_{k,l} S) )^2 ].
+
+Substitute and use Var(f) = (1/2) E[f(S_0) - f(σ S_0)]^2:
+
+    Var(f)  <=  (1/2) * N * N  sum_{k<l} E_S[ ( f(S) - f(τ_{k,l} S) )^2 ]
+            =  N^2  sum_{k<l} (1/2) E_S[ ( f(S) - f(τ_{k,l} S) )^2 ]
+            =  N^2  < f, J_a f >.
+
+Since Var(f) = <f, h_a f> on this fiber (h_a is exactly fiber-variance),
+and N <= n, we get  <f, h_a f> <= n^2 <f, J_a f>.  That is h_a <= n^2 J_a.
+
+Proof of (ii).  Each individual SWITCH {uv, xy} -> {ux, vy} is realized
+by exactly two pair trades:
+
+    a = {u, y}: exchange v and x
+    a = {v, x}: exchange u and y
+
+These are the ONLY realizations: a singleton transposition on a pair
+a = {p, q} toggles the four edges between {p, q} and the two singleton
+vertices that are exchanged.  The four toggled vertices form a 4-cycle
+with two natural bipartitions {p, q} and {the two exchanged singletons}.
+Each partition choice determines its transposition uniquely.  So both
+realizations occur, and only those.  Hence sum_a J_a generates the
+same sum of squared differences as L, applied twice (once per unordered
+switch).  So sum_a J_a = 2 L.
+
+Proof of (iii).  Sum (i) over a and use (ii):
+
+    H  =  sum_a h_a  <=  sum_a n^2 J_a  =  n^2 * 2 L  =  2 n^2 L.  End.
+
+--------------------------------------------------------------------------
+8.2  The gap of P_d
+--------------------------------------------------------------------------
+
+By Corollary 7.3 and Proposition 7.2, on centered functions H >= I (up
+to the 1-dim constants which H kills).  So
+
+    Var_{pi_d}(f)  =  <f, Hf>  <=  2 n^2 <f, Lf>  (by Lemma 8.1(iii)).
+
+If |Omega_d| > 1, then the spectral gap of L at pi_d is at least
+1/(2 n^2).
+
+For any distinct switch neighbors G, G', the transition probability is
+
+    P_d(G, G')  =  (1/2) * (1 / C(n, 4)) * (1/6)  =  1 / (12 C(n,4)).
+
+Symmetrically for the reverse transition, so pi_d is reversible, and
+
+    I - P_d  =  L / (12 C(n,4)).
+
+Therefore the gap of P_d is at least
+
+    gamma_0  =  1 / (24 n^2 C(n,4)).
+
+Also: the holding probability 1/2 guarantees nonnegative eigenvalues.
+Formally, P_d = (I + Q)/2 where Q is the reversible Markov kernel
+consisting of the proposal step including rejected proposals.  Jensen's
+inequality and stationarity show that Q is a contraction on L^2(pi_d),
+so its eigenvalues lie in [-1, 1]; hence every eigenvalue of P_d on the
+centered subspace lies in [0, 1 - gamma_0].
+
+So for any centered function f and any t >= 0:
+
+    ||P_d^t f||  <=  (1 - gamma_0)^t  ||f||  <=  e^{-gamma_0 t} ||f||.
+
+--------------------------------------------------------------------------
+8.3  The mixing time bound
+--------------------------------------------------------------------------
+
+Let M = |Omega_d|.  The TV distance from any fixed start G is:
+
+    ||P_d^t(G, .) - pi_d||_TV  <=  (1/2) sqrt(M) * (1 - gamma_0)^t.
+
+Proof.  Let h^t(H) = P_d^t(G, H) / pi_d(H) - 1 be the density of
+P_d^t(G, .) with respect to pi_d, minus 1.  Then h^t = P_d^t h^0 where
+h^0(H) = 1_{H = G} / pi_d(G) - 1 is the initial density.
+
+Compute ||h^0||^2 = E_pi[ (h^0)^2 ].  Since pi_d(G) = 1/M:
+
+    h^0(G)  =  M - 1,
+    h^0(H)  =  -1  (for H != G),
+    ||h^0||^2  =  (1/M)(M-1)^2 + (1 - 1/M)(-1)^2  =  (M-1)/M  <=  1.
+
+Wait, small correction: ||h^0||^2 <= 1/pi_d(G) = M.  The exact bound:
+(1/M)(M-1)^2 + (M-1)/M = (M-1)(M-1+1)/M = M - 1 <= M.  Good.
+
+So ||h^t||^2  <=  (1 - gamma_0)^{2t} ||h^0||^2  <=  M (1 - gamma_0)^{2t}.
+
+And TV distance:
+||P_d^t(G, .) - pi_d||_TV  =  (1/2) sum_H pi_d(H) |P_d^t(G, H)/pi_d(H) - 1|
+                          =  (1/2) E_pi |h^t|
+                          <=  (1/2) sqrt( E_pi |h^t|^2 )  (Cauchy-Schwarz)
+                          =  (1/2) ||h^t||
+                          <=  (1/2) sqrt(M) (1 - gamma_0)^t.  Good.
+
+Mixing time bound: pick
+
+    t  =  ceil( (24 n^2 C(n,4)) * ( log 2 + (1/2) log M ) ).
+
+Then (1 - gamma_0)^t e^{gamma_0 t} <= ... hmm, we need (1-gamma)^t <= e^{-gamma t} (valid since log(1-x) <= -x), and using log 2 + (1/2) log M as our target:
+
+    (1 - gamma_0)^t  <=  e^{-gamma_0 t}  =  e^{-gamma_0 ceil(gamma_0^{-1} * target)}
+                     <=  e^{-target}  =  e^{-log 2 - (1/2) log M}  =  1/(2 sqrt M).
+
+So (1/2) sqrt(M) * (1 - gamma_0)^t <= 1/4.  Good, t_mix <= t.
+
+Now simplify t.  Use M <= 2^{C(n,2)}, so (1/2) log M <= (1/2) C(n,2) log 2.
+Also for n >= 4: 1 + C(n,2)/2 = 1 + n(n-1)/4 <= n^2.
+And 24 n^2 C(n,4) <= n^6.  So
+
+    t  <=  ceil( n^6 * n^2 * log 2 * (1 + C(n,2)/2) / n^0 * ... )
+
+Hmm let me redo.  t = ceil(24 n^2 C(n,4) * (log 2 + (1/2) log M))
+
+  <= ceil(24 n^2 C(n,4) * log 2 * (1 + C(n,2)/2))
+
+  <= ceil(n^6 * log 2 * n^2)
+
+  = ceil(n^8 log 2)
+
+  <= ceil(n^8)  =  n^8  <=  2 n^8.
+
+So t_mix(d) <= 2 n^8.  Theorem 1 proven.
+
+Remarks.  The chain has trivial case |Omega_d| = 1: t_mix = 0.  The
+bound 2 n^8 is polynomial in n for every graphical d, which is the
+content of the Kannan-Tetali-Vempala conjecture in the simple-undirected
+model.
+
+--------------------------------------------------------------------------
+SECTION 9. EXACT UNIFORM SAMPLING
+--------------------------------------------------------------------------
+
+Sections 1-8 give a chain that becomes CLOSE to uniform after
+O(n^8) steps.  "Close" is not "exactly uniform".  This section
+converts the nearby-uniform law into an exact uniform sampler, using a
+rare-branch correction.  This is the standard "exact sampling from a
+rapidly mixing chain" technique due to Gobel-Liu-Manurangsi-Pappik
+(2024, Section 3.1).  A similar tabulation appears in the recent
+contingency-table sampler of OpenAI (2026); see the references.
+
+--------------------------------------------------------------------------
+9.1  The mixture idea
+--------------------------------------------------------------------------
+
+Suppose we have a probability law p that is VERY close to uniform on
+Omega_d, in the sense that p_G is at most 1/M + delta^2 for every G,
+where M = |Omega_d|.  If 0 < delta < 1 and M * delta <= 1, then
+
+    (1 - delta) p_G  <=  (1 - delta) (1/M + delta^2)
+                     <=  1/M  +  (1 - delta) delta^2  -  delta/M
+                     <=  1/M            (using M delta <= 1).
+
+So the mixture  pi_d - (1-delta) p  is a NONNEGATIVE measure on Omega_d;
+divided by its total mass delta (which equals 1 - (1-delta) = delta
+since both are probability laws), it is a probability law
+
+    r  =  ( pi_d - (1-delta) p ) / delta.
+
+And (1-delta) p + delta r  =  pi_d.  So the mixture of two samplers --
+"ordinary branch" runs the fast chain, "rare branch" samples from r --
+produces EXACT uniform samples.
+
+If delta is exponentially small (say 2^{-2B} where B = C(n,2)), then
+the rare branch almost never fires.  On the rare branch we can afford to
+do exponential work (enumerate everything), because the expected work is
+delta * (exponential) = polynomial.
+
+Filling in the parameters:
+
+    p_G  =  P_d^t (G_0, G)   for a fixed starting graph G_0 in Omega_d.
+
+We need p to satisfy the domination bound.  From the mixing time bound:
+for t = ceil( gamma_0^{-1} ( B + 2D + 2 ) ) with D := 4B + 10 and
+delta := 2^{-D}:
+
+    ||p - pi_d||_TV  <=  (1/2) sqrt(M) e^{-gamma_0 t}
+                     <=  (1/2) 2^{B/2} e^{-(B+2D+2)}
+                     <=  2^{-2D}  =  delta^2.
+
+Applying total variation to a singleton event gives p_G <= 1/M + delta^2
+(after a bit of bookkeeping; the paper's exact derivation is in the
+original).  And M delta = M / 2^{4B+10} <= 2^B / 2^{4B+10} <= 1
+(uses M <= 2^B).  So the domination bound holds.
+
+The parameters, in overview:
+
+    B  =  C(n,2)  =  number of vertex pairs,
+    M  =  |Omega_d|  =  number of realizations (unknown a priori,
+                        computable by exact enumeration),
+    q  =  12 C(n,4)  =  reciprocal of P_d off-diagonal transition,
+    D  =  4B + 10   (accuracy bits),
+    delta  =  2^{-D}   (rare-branch probability),
+    t  =  ceil( gamma_0^{-1} (B + 2D + 2) )   (chain length to sample p).
+
+The algorithm.
+
+  Draw D fresh unbiased bits.  If not all zero, run t steps of the chain
+  from G_0 and output the resulting graph.
+
+  If ALL zero, do the EXACT calculation below on the rare branch and
+  output a sample from r.
+
+Because the rare branch fires with probability exactly delta = 2^{-D},
+the overall output law is (1-delta) p + delta r = pi_d.
+
+--------------------------------------------------------------------------
+9.2  The exact rare branch
+--------------------------------------------------------------------------
+
+On the rare branch we need to compute r_G = (1/M - (1-delta) p_G)/delta
+and sample from it.  We cannot avoid enumerating Omega_d here -- that is
+the price of exactness, and it is what makes the branch expensive.
+
+Enumeration.
+  List all 2^B bit-strings on the vertex pairs.  For each, check if the
+  labeled degree sequence equals d.  Keep the ones that do.  This gives
+  M and Omega_d.  Cost: 2^B times poly(n) bit operations.
+
+Tabulation of p.
+  Construct the integer matrix A = q P_d.  Every entry of A is a
+  nonnegative integer, and every row sum is exactly q.  (Verify: q *
+  (1/(12 C(n,4))) = 1 for a switch neighbor, 0 otherwise; and the
+  diagonal entry is q - (number of neighbors), which is a nonnegative
+  integer.)  Starting from the point mass a^(0) at G_0 (a^(0)_G = 1 iff
+  G = G_0), propagate
+
+      a^(s+1)  =  a^(s) A     (0 <= s < t).
+
+  Then p_G = a^(t)_G / q^t.  Numerator bit lengths are O(t log q) =
+  poly(n).  Cost: 2B for the number of pairs, times tM^2 = O(2^{2B} t)
+  for the propagation, times poly(n) per arithmetic op.  Total:
+  2^{2B} * poly(n) bit operations.
+
+Integer weights.
+  Set
+
+      w_G  =  2^D q^t  -  M (2^D - 1) a_G^(t)      (for G in Omega_d).
+
+  By the domination bound, w_G >= 0.  Their sum:
+  sum_G w_G = 2^D q^t M - M (2^D - 1) sum a^(t) = 2^D q^t M - M(2^D-1) q^t = M q^t.
+  (Uses sum_G a_G^(t) = q^t, which is inherited from the row-sum-q
+  property.)
+
+  Draw a uniform integer in {0, 1, ..., M q^t - 1}.  Find which interval
+  [sum_{preceding G's} w_H, sum_{<= G's} w_H] it falls in.  Output that G.
+
+  The resulting output law is w_G / (M q^t) = r_G as claimed.
+
+  Total expected cost of the rare branch: (probability of rare branch) *
+  (cost of enumeration) = delta * 2^{2B} * poly(n) = 2^{-D} * 2^{2B} *
+  poly(n) = 2^{-2B-10} * poly(n) <= poly(n).
+
+--------------------------------------------------------------------------
+9.3  Correctness and cost
+--------------------------------------------------------------------------
+
+The two branches (ordinary and rare) are independent: the ordinary
+branch uses fresh random bits after the initial D-bit choice; the rare
+branch uses fresh random bits for its uniform integer draw.  So the
+output law is exactly the mixture (1-delta) p + delta r = pi_d.
+
+Every element of the algorithm is finite: the enumeration is over a
+finite set (2^B bit-strings), the integer arithmetic operates on bounded
+values (bit lengths O(D + t log q + log M) = poly(n)), and the uniform
+draws terminate almost surely.  Rejection sampling for uniformly random
+integers in {0, ..., K-1} takes fewer than 2 attempts in expectation.
+
+So the algorithm:
+
+  * uses only unbiased random bits;
+  * terminates almost surely;
+  * outputs a graph chosen EXACTLY uniformly from Omega_d;
+  * has expected bit running time bounded by poly(n).
+
+This proves Corollary 2.
+
+The correction branch may take exponential time.  The corollary
+promises only EXPECTED polynomial time.  A polynomial bound on every
+execution is impossible: computing |Omega_d| exactly (which the branch
+does) is #P-hard in general.
+
+--------------------------------------------------------------------------
+SECTION 10. FINAL REMARKS
+--------------------------------------------------------------------------
+
+What we have proved.  For every graphical labeled degree vector d on
+n >= 4 vertices, the simple-undirected switch chain mixes in
+total-variation distance 1/4 from any start in at most 2 n^8 steps, and
+there is an exactly uniform sampler for the same degree vector running
+in expected polynomial bit time.  This resolves the simple-undirected
+form of the Kannan-Tetali-Vempala conjecture.
+
+What is missing.  The bipartite and directed forms are analogous
+problems with their own techniques; Fu-Qin-Wang (2026) proved the
+bipartite form.  The general-host versions (prescribed degrees in
+arbitrary hosts, weighted edges, etc.) are open in general.  Bounds
+for sampling FROM a specific distribution other than uniform remain
+an active problem.
+
+The big idea you should take away.  Three moves, all simple in
+hindsight:
+
+  1. Replace "one switch at a time" by "resample a whole fiber at once".
+     Fibers are uniform q-subsets, so the analysis reduces to classical
+     slice combinatorics.
+
+  2. Show one operator inequality, H^2 >= H, by splitting into "three
+     pairs on a triple" (a three-row variance bound) and "disjoint
+     pairs" (a rank-one correlation corrected by a slice inequality).
+
+  3. Compare back to the switch chain using the same fiber structure.
+     The gap is 1/(24 n^2 C(n,4)).
+
+  4. Upgrade to exact uniform via a rare-branch correction.
+
+Four moves, actually.  The whole paper is these four moves, developed
+carefully.
+
+If you followed this far, you know what a spectral gap is, why mixing
+time depends on it, how to compare one Markov chain to another, and how
+to correct a small bias to make sampling exactly uniform.  Those are
+four of the most useful ideas in modern probability, and they are all
+here.
