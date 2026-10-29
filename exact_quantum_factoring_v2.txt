@@ -1,0 +1,1974 @@
+EXACT QUANTUM FACTORING OVER A FIXED FINITE GATE SET
+====================================================
+
+A note to young readers
+-----------------------
+
+This is a complete proof of a theorem about quantum computers and
+factoring. The reader is assumed to know modular arithmetic (a^n mod m,
+gcd, Euler's totient phi), complex numbers, and matrix multiplication.
+No prior knowledge of quantum computing is assumed; each unfamiliar
+object is defined when it first appears.
+
+If this is your first pass, read Section 1 (the big picture), Section 2
+(the setup), then the STATEMENT of every lemma, proposition, and theorem,
+skipping the proofs. Read the proofs on a second pass. Each formal
+statement is a finished claim on its own; each proof uses only material
+from earlier in the paper plus the reference it cites.
+
+Every lemma, proposition, and theorem is proven in full. There is no
+"we omit the proof" and no "standard argument gives". If you get stuck
+on a line, the surrounding paragraphs contain the missing steps.
+
+Abstract
+--------
+
+We prove: there is a polynomial-time uniform family of polynomial-size
+quantum circuits that, on input any integer N >= 2, outputs the complete
+prime factorization of N with probability exactly one. Every circuit in
+the family uses the same fixed finite gate set, and both the number of
+gates and the number of qubits are bounded by a fixed polynomial in the
+bit length of N. Neither arbitrary-angle rotations nor a growing gate
+library are needed. The proof is constructive and covers every step from
+the arithmetic to the final measurement.
+
+Contents
+--------
+
+  1. Introduction
+  2. Exact circuits and classical records
+  3. An order trial with a prescribed success probability
+  4. Factoring with verifiable auxiliary data
+  5. From verified runs to certain output
+  A. An elementary polynomial-time primality test
+     Bibliography
+
+SECTION 1. INTRODUCTION
+-----------------------
+
+The integer factoring problem asks: on input a binary integer N >= 2,
+output the nondecreasing list of primes whose product is N, including
+multiplicities. For example, on input 360 the answer is
+2, 2, 2, 3, 3, 5.
+
+We work with quantum circuits: machines that operate on quantum bits
+("qubits") whose joint state is described by a complex vector of unit
+length, and whose gates are certain matrices on those vectors. The
+concept is a formal model, no more mysterious than an ordinary circuit,
+once a few basic definitions are in place (Section 2).
+
+Theorem 1 (Main theorem). There is a polynomial-time uniform family of
+polynomial-size quantum circuits with the following properties.
+
+  - On input N >= 2, the circuit outputs the complete prime
+    factorization of N with probability 1.
+  - The number of gates and the number of qubits are bounded by a fixed
+    polynomial in n = n(N), where n(N) is roughly the bit length of N.
+  - All circuits in the family use only the fixed finite gate set G
+    described in Section 2: NOT, CNOT, Toffoli, Hadamard, S = diag(1,i),
+    their inverses, and their singly controlled versions.
+
+"Polynomial-time uniform" means a single deterministic classical
+algorithm, running in time polynomial in the input length, writes down
+the description of the circuit for each input length. "Probability 1"
+means no failure. Both are worst case.
+
+1.1 What is hard about this
+---------------------------
+
+Shor's quantum algorithms (reference [Shor] in the bibliography) gave
+polynomial-time quantum algorithms for factoring and discrete logarithms
+with bounded error. Their factoring reduction uses multiplicative
+orders: if a has order r modulo m and r is even, then gcd(a^(r/2)-1, m)
+can split m. We use the same order-based reduction. Section 4 proves
+the splitting argument directly.
+
+Three obstacles stand between "bounded error" and "probability 1":
+
+  (i)   Retrying a bounded-error algorithm until success gives expected
+        polynomial time, not worst-case polynomial time. There is no
+        a priori bound on the number of retries.
+  (ii)  Approximating arbitrary-angle rotations to ever higher precision
+        still leaves a nonzero error, so it does not by itself yield
+        probability-one correctness over a fixed gate set.
+  (iii) The final step of Shor's, extract-an-order-from-a-Fourier-peak,
+        yields the true order only with nonzero error; the order is
+        unknown, so its test probability cannot be checked ahead of
+        time.
+
+The present proof solves all three. Orders are made to have an exactly
+computable probability (Sections 3-4), the run verifies its own
+auxiliary data afterwards (Section 4), and the final step uses a single
+exact amplitude-amplification reflection at probability exactly 1/4
+(Section 5). No parameter is tuned; the polynomial-size parameters are
+chosen explicitly.
+
+1.2 Prior work
+--------------
+
+Shor [Shor] gave polynomial-time quantum factoring and discrete log
+with bounded error. Miller [Miller] introduced the order-to-gcd
+reduction.
+
+Exact transforms and algorithms appear in several quantum models.
+Mosca and Zalka [MZ] construct exact Fourier transforms using "computed
+rotations": gate parameters obtained during the computation. In that
+model they obtain exact discrete-log for known group orders, and they
+report Mosca's exact factoring algorithm in a generalized model
+([MZ] Section 5.2, see also [Imran] Section 1). Imran [Imran]
+constructs an exact order-finding algorithm that takes a supplied
+multiple of the unknown order. A suitable multiple of polynomial bit
+length is additional information that factoring does not provide
+initially. Both are material model and input distinctions. Nishimura
+and Ozawa [NO] study exact computation by finitely generated uniform
+circuit families and show why approximate universality cannot replace
+explicit gate analysis.
+
+Recent resource-oriented algorithms include Regev [Regev] and
+Pilatte [Pilatte]. Regev's construction initially required a
+number-theoretic hypothesis; Pilatte proves unconditional correctness
+for modified versions. Their success guarantees remain probabilistic.
+This paper addresses a different axis: certainty and worst-case
+polynomial bounds in a specified exact gate model, with no claim to
+practical resource improvement.
+
+Amplitude amplification (Grover [Grover], Brassard-Hoyer-Mosca-Tapp
+[BHMT]) is the tool of the final step. Exact probability engineering at
+success 1/4 already appears in Brassard-Hoyer's exact algorithm for
+Simon's problem [BH], and Mosca-Zalka use success 1/4 plus one ordinary
+amplification step ([MZ] Section 2.1). General schemes for exact
+amplification with phases depending on the success probability are
+[Hoyer,BHMT]. Here the factoring preparation makes the success
+probability exactly 1/4 with fixed gates and dyadic arithmetic; then
+the standard one-step reflection suffices.
+
+1.3 Strategy and the ancestry of its ingredients
+------------------------------------------------
+
+The proof has two main ingredients, beyond the order-to-gcd reduction.
+
+First, an order trial whose mass on the true order is a prescribed
+dyadic rational. For a unit a modulo m, its order r is the least
+positive integer with a^r = 1 mod m. Our trial returns no candidate, or
+a positive multiple of r, and the probability that it returns r is
+explicitly phi(r) * lambda(r), where lambda(d) = 2 ^ (-ceil(log_2 d) - 10).
+The construction has a phase register that realizes a piecewise-linear
+interpolant g of the complex exponential e(z) = exp(-2 pi i z). Its
+use of controlled modular shifts is a phase-kickback construction in
+the style of Cleve-Ekert-Macchiavello-Mosca ([CEMM] Section 7), but the
+auxiliary state here is a four-phase step state, not a Fourier
+eigenstate. Testing the auxiliary's return produces the interpolated
+matrix with its actual, unnormalized probability.
+
+Lev's four-phase approximation to the order-sampling transform
+([Lev] Sections 3-4) provides a related route to avoiding fine phase
+rotations; the interpolation and corrections below give a different
+selected-branch transform and a specific success law. The
+residue-class probabilities admit dyadic majorants whose sums can be
+computed by a bounded number of polynomial pieces and exact power sums.
+Mosca-Zalka use power sums to approximate a transform's success
+probability to arbitrary precision and then use a computed-angle
+rotation to obtain an exact transform ([MZ] Sections 4.1-4.2). Here the
+finite polynomial pieces give exact dyadic sums. Two small correction
+branches make the true-order mass exact; neither the true order nor its
+factorization is needed to run the trial.
+
+Second, a factoring run also generates the prime factorizations of p-1
+for its prime factors p > 2, recursively. This auxiliary occurrence
+tree D(N) has polynomial size. Its recursive shape resembles Pratt's
+succinct primality certificates [Pratt], but its role here is different:
+prime labels are checked by a deterministic primality test proven in
+Appendix A, and the auxiliary factorizations determine orders and
+transition probabilities retrospectively. Appendix A adapts the
+polynomial-congruence method of Agrawal-Kayal-Saxena [AKS], with its
+constants and auxiliary-prime choice established directly.
+
+Once a run has completed and its data have been verified, those data
+determine the exact probabilities needed to test earlier outputs.
+Ordinary transitions are mixed with uniform guesses of their outputs,
+and filters are computed from the completed data. Each transition has
+the same exact retained mass. The crucial argument identifies these
+deferred tests with a hypothetical sequence of tests using the true
+data. Both descriptions mark the same recorded runs. The analysis
+introduces neither advice nor conditioning on eventual completion.
+
+This separation --- "make a useful event have a computable exact
+mass" and "recover the information needed to evaluate that mass on
+completed runs" --- is the technical heart of the proof.
+
+Quantum rejection sampling [ORR] is a related use of selective
+retention and amplification with different state-conversion inputs and
+parameterized rotations. Our one-transition completion argument is
+stated independently in Lemma 5.1. Efficient application also requires
+verification of the auxiliary data and the all-good generation
+property. A second dyadic correction makes the full preparation's
+success probability exactly 1/4.
+
+1.4 Road map
+------------
+
+Section 2 fixes the gate set and the exact dyadic arithmetic used
+throughout. Section 3 constructs the order trial with its prescribed
+success probability. Section 4 builds the factoring process, including
+its auxiliary data and its verifier. Section 5 makes transition masses
+equal, identifies the deferred and analytical events, and proves
+Theorem 1 by one exact amplification step. Appendix A gives the
+deterministic polynomial-time primality test used in Section 4.
+
+SECTION 2. EXACT CIRCUITS AND CLASSICAL RECORDS
+-----------------------------------------------
+
+This section fixes the computational conventions used for exact
+probabilities. Every "polynomial" in the paper means polynomial in the
+parameter n defined below unless indicated otherwise. Every logarithm
+in bit bounds is base two.
+
+2.1 The parameters
+------------------
+
+Definition 2.0. For an input integer N >= 2, set
+
+    n = max{128, floor(log_2 N) + 1},   B = 2^n.
+
+Then N < B. The cutoff at 128 is a fixed constant; it has no effect on
+polynomial-time uniformity and simplifies every strict inequality later
+by avoiding small-n edge cases. From now on n and B are as above.
+
+2.2 The gate set
+----------------
+
+Definition 2.1. The fixed finite gate set G consists of:
+
+  NOT = [[0,1],[1,0]],
+  CNOT = the two-qubit gate |a>|b> -> |a>|b XOR a>,
+  Toffoli = the three-qubit gate |a>|b>|c> -> |a>|b>|c XOR (a AND b)>,
+  H = (1/sqrt(2)) [[1,1],[1,-1]],
+  S = diag(1, i) = [[1,0],[0,i]],
+
+together with their inverses and their singly controlled versions.
+
+This is a fixed finite set of bounded-arity gates. Two consequences are
+used repeatedly.
+
+  (a) Gates with more controls are free: to test the conjunction of k
+      controls, compute the conjunction into a scratch bit with
+      k-1 Toffolis, apply a singly controlled target gate, then
+      uncompute the conjunction.
+
+  (b) Signs conditioned on a polynomial-size Boolean test are exact:
+      compute the test into a scratch bit, apply S^2 = diag(1,-1) to
+      its result, then uncompute the test.
+
+2.3 Dyadic arithmetic
+---------------------
+
+Definition 2.2. A dyadic rational is a number A/2^T with A an integer
+and T a nonnegative integer. Its representation has polynomial bit
+length when T and the bit length of |A| are both polynomially bounded.
+
+We always represent integers, rationals, and Gaussian rationals
+exactly. Euclidean division, gcd, and modular powering with
+polynomial-length binary exponents take polynomial bit time. We use the
+reversible simulation and cleanup method of Bennett [Bennett],
+compiled into the Boolean gates of Toffoli ([Toffoli] Section 5):
+
+  - Unroll a deterministic computation with a polynomial clock bound
+    into a uniformly generated Boolean circuit.
+  - Compute each intermediate AND into fresh scratch with a Toffoli;
+    use NOT and CNOT for complements, XOR operations, and copies.
+  - Retain the intermediate values, copy the answer, and reverse the
+    gates to clear scratch.
+
+This gives polynomial time and space overhead. Exact arithmetic networks
+over this basis are also developed by Vedral-Barenco-Ekert [VBE].
+
+2.4 Exact dyadic sampling
+-------------------------
+
+Lemma 2.1 (Exact dyadic sampling). Let a classical basis label specify
+a dyadic q in [0,1] by a polynomial-time computation with polynomially
+bounded bit lengths. A circuit over the stated gates can append a flag
+that equals 1 with probability exactly q, in polynomial time, without
+altering the label.
+
+Proof. Choose a common polynomial bound T on the denominator exponent,
+and compute A such that q = A/2^T. Apply T Hadamards to fresh zero bits
+to obtain a uniform label u in {0, 1, ..., 2^T - 1}. Reversibly compute
+the flag [u < A]. Keep u and all required work bits. Exactly A labels
+set the flag, so the flag equals 1 with probability A/2^T = q. Padding
+to the common T handles a denominator that depends on the input label.
+[]
+
+When a procedure is said to RETAIN an event with probability q, it
+appends such a flag and requires that flag for its eventual success. It
+does not discard and renormalize the other branches.
+
+An ancillary projection likewise denotes a tested event whose actual
+squared norm contributes to the success probability. It is not an
+instruction to force that outcome.
+
+2.5 Retained classical records
+------------------------------
+
+The next lemma lets us analyze procedures that mix quantum gates with
+classical measurements and classical controls as if they were single
+unitaries whose history is retained.
+
+Lemma 2.2 (Retained classical records). Consider a procedure with
+polynomially bounded time and workspace that uses the stated gates,
+computational-basis measurements, and polynomial-time classical control.
+Suppose subsequent quantum operations are controlled by the measurement
+outcomes as classical data. It has a polynomial-size uniform unitary
+implementation with the same distribution on its classical outputs and
+success flag, while retaining polynomially many history and work
+qubits. The inverse implementation uses the same fixed gate set.
+
+Proof. In place of a basis measurement, copy its outcome, by CNOT
+gates, into fresh history bits. Retain this copy and thereafter use it
+only as a classical control. The branches indexed by different recorded
+histories remain orthogonal.
+
+Induction over the procedure shows that their squared norms and
+subsequent outcome distributions equal those in the measured procedure.
+Quantum work that is not measured in the original procedure remains
+quantum work; in particular, no label is copied before an intended
+interference computation. This is the reason we never copy a phase-
+register value between the preparation and the test.
+
+For the classical controller: run it for a fixed polynomial number of
+ticks, keeping its history and using a halted flag after termination.
+If a bounded-arity instruction selects registers by addresses, enumerate
+all tuples of addresses in the polynomial workspace. For each tuple,
+compute whether the controller selects it, apply the corresponding
+singly controlled primitive, and uncompute this test. The number of
+tuples is polynomial because the arity is fixed. A polynomial bound on
+ticks, workspace, and stored records therefore gives a polynomial
+circuit whose description can be generated in polynomial time. Reverse
+the gate list and invert each primitive to obtain the inverse. []
+
+We will use the following consequence when analyzing an adaptive
+procedure.
+
+Lemma 2.3 (Fresh registers reset the distribution). Fix a retained
+classical history h. Its current classical inputs are fixed basis
+labels, while old quantum work may be in an arbitrary state rho_h. If
+the next trial uses fresh zero registers and leaves the old work alone,
+it acts as I_old (x) U_h. Its outcome probabilities are those of U_h
+alone, independently of rho_h.
+
+Proof. Immediate from the composition rule: the ancilla in state
+|0...0> is unaffected by rho_h, and tensor products of ancilla outcome
+distributions with an arbitrary rho_h yield the same scalar marginal
+over the ancilla. []
+
+This observation permits conditional probability calculations along
+recorded histories, even though the full implementation is unitary.
+
+2.6 Deterministic primality
+---------------------------
+
+Exact deterministic primality is needed in Section 4 to verify
+prime-factor lists. Lemma A.1 in Appendix A gives an elementary
+polynomial-time test for all 2 <= m < B. For the main construction, its
+only required interface is an exact yes-or-no decision with a
+polynomial bit-time bound. The construction of Appendix A is
+independent of anything else in the paper.
+
+SECTION 3. AN ORDER TRIAL WITH A PRESCRIBED SUCCESS PROBABILITY
+---------------------------------------------------------------
+
+This is the technical heart. For a unit a modulo m, we construct a
+quantum trial whose probability of returning the true order is an
+explicit dyadic function of that order. No knowledge of the order
+itself, or of its factorization, is required to run the trial. This
+additional control of the success probability is what allows the
+final factoring algorithm to be exact.
+
+3.1 Definitions and the target proposition
+------------------------------------------
+
+Definition 3.0. For a unit a modulo m, write ord_m(a) for its
+multiplicative order modulo m: the least positive integer r with
+a^r = 1 mod m. Write phi(d) for Euler's totient:
+
+    phi(d) = |{0 <= j < d : gcd(j, d) = 1}|,   phi(1) = 1.
+
+For an integer d >= 1, write lambda(d) = 2 ^ (-ceil(log_2 d) - 10).
+
+So lambda(d) is a dyadic rational bounded between 2^{-10}/(2d) and
+2^{-10}/d. For small d this is around 1/1024 to 1/2048; it becomes
+small as d grows but stays polynomially representable because d < B.
+
+Proposition 3.1 (Order trial). Let 2 <= m < B and let a be a unit
+modulo m, of order r. There is a uniform quantum trial of worst-case
+cost polynomial in n that returns either no candidate or an integer d
+satisfying 1 <= d < B and r | d. Moreover,
+
+    Pr(trial returns r) = phi(r) * lambda(r).
+
+The trial uses only the fixed finite gate set G and does not require r
+or any factorization of r.
+
+Two comments. (1) "No candidate" is an allowed outcome; if the trial
+returns some d then d is a positive multiple of r. (2) The mass at r
+is exactly phi(r) lambda(r), not merely bounded below. This is the
+crucial feature.
+
+The construction has two parts. First we replace the Fourier phases in
+order sampling by a piecewise-linear phase function g that admits exact
+dyadic arithmetic. Second we add two small classical sampling branches
+that make the mass at each reduced fraction of denominator r exactly
+lambda(r). The proof of Proposition 3.1 is completed at the end of
+this section (Section 3.8).
+
+3.2 The piecewise-linear phase function g
+-----------------------------------------
+
+Set
+
+    Q = B^16 = 2^b,   b = 16n.
+
+So Q is a large power of two, and log_2 Q = b = 16n is linear in n.
+
+Definition 3.1. Let g : R -> C be the continuous, 1-periodic function
+obtained by linear interpolation of exp(-2 pi i z) at the
+quarter-integers. Explicitly, for integer q and 0 <= t <= 1:
+
+    g((q + t)/4) = (1 - t) (-i)^q + t (-i)^{q+1}.
+
+Two facts will be used repeatedly.
+
+    (a) g(z + 1/2) = -g(z).
+    (b) g has Lipschitz constant at most 4 sqrt(2), and |g(z)| <= 1.
+
+The controlled-shift mechanism below is a form of phase kickback
+([CEMM] Section 7). Here the auxiliary state is not a shift eigenstate;
+its overlap with a shifted copy gives g. The success test in Lemma 3.1
+is therefore part of the matrix's probability, rather than an
+instruction to apply an ideal Fourier transform.
+
+3.3 The transform lemma
+-----------------------
+
+Lemma 3.1 (Piecewise-linear transform). There is a circuit of size
+polynomial in b, on a b-qubit data register and ancillary registers
+initially in the all-zero state, with a designated ancillary success
+outcome, such that its unnormalized matrix on that outcome is
+
+    A_{k,x} = Q^{-1/2} g(k x / Q),    0 <= x, k < Q.
+
+The circuit uses only the fixed finite gate set G.
+
+Proof. Prepare a b-qubit phase register in the state
+
+    |chi> = Q^{-1/2} sum_{y=0}^{Q-1} i^{floor(4y/Q)} |y>.
+
+This requires Hadamards on its bits, followed by a Z = S^2 phase on the
+most significant bit (this contributes (-1)^{y_{b-1}}) and an S phase
+on the next bit (this contributes i^{y_{b-2}}). The two together
+produce i^{2 y_{b-1} + y_{b-2}} = i^{floor(4y/Q)}, because
+floor(4y/Q) = floor(y / 2^{b-2}) = 2 y_{b-1} + y_{b-2}.
+
+For an integer D, let T_D denote the forward cyclic shift
+|y> -> |y + D mod Q> on this phase register. We first verify the
+phase-overlap identity
+
+    <chi | T_D | chi> = g(D/Q).                              (*)
+
+Write D = q Q/4 + s modulo Q with 0 <= q < 4 and 0 <= s < Q/4, and
+put t = 4s/Q. The sum defining <chi|T_D|chi> is sum_y conj(chi_y)
+chi_{y-D}. Let a(y) = 4y/Q. Then floor(4(y-D)/Q) equals
+floor(a(y) - t) - q, and floor(a(y) - t) equals
+floor(a(y)) - [frac(a(y)) < t]. Thus the difference
+
+    Delta(y) := floor(a(y)) - floor(4(y-D)/Q) = q + [frac(a(y)) < t],
+
+and conj(chi_y) chi_{y-D} = i^{-Delta(y)}. The Q values a(0), a(1),
+..., a(Q-1) are equally spaced by 4/Q in [0, 4), and a fraction t of
+them have fractional part below t. Therefore
+
+    <chi|T_D|chi>
+    = (1 - t) i^{-q} + t i^{-(q+1)}
+    = (1 - t)(-i)^q + t (-i)^{q+1}
+    = g((q + t)/4) = g(D/Q),
+
+where the third line uses i^{-1} = -i, so i^{-q} = (-i)^q and
+i^{-(q+1)} = (-i)^{q+1}. The FORWARD convention is fixed by checking a
+shift by Q/4 (q=1, s=0, t=0): its overlap is g(1/4) = -i.
+
+For fixed input x and output k, each data bit has exactly its specified
+value before and after its single Hadamard. The product of the Hadamard
+matrix elements is Q^{-1/2} (-1)^h, where h = sum_{i+j=b-1} x_i k_j,
+and the total phase-register shift is D, where
+
+    D = sum_{i+j < b-1} 2^{i+j} x_i k_j.
+
+All omitted terms in the product x k are accounted for by
+
+    x k = D + (Q/2) h  (mod Q).
+
+Using (*) and g(z + 1/2) = -g(z) gives the claimed matrix entry after
+projecting the phase register back onto |chi>:
+
+    Q^{-1/2} (-1)^h <chi | T_D | chi>
+    = Q^{-1/2} (-1)^h g(D/Q)
+    = Q^{-1/2} g(x k / Q).
+
+Now the bit-by-bit construction. Number input and output bits from the
+units bit: x = sum_{i=0}^{b-1} 2^i x_i and k = sum_{j=0}^{b-1} 2^j k_j.
+For j = 0, 1, ..., b-1 perform the following operations in order:
+
+  - apply a Hadamard to the physical bit that initially carried
+    x_{b-1-j}; its new value is k_j;
+  - for every i < b-1-j, apply the shift T_{2^{i+j} x_i k_j} to the
+    phase register.
+
+Both controls are available at the moment they are needed: k_j is the
+bit just produced, whereas x_i has not yet been overwritten. The
+logical output bits are in reverse physical order from the input bits;
+a wire reversal (swaps) puts them in conventional order.
+
+[For a cross-check of (*), the case b=4, Q=16, D=1 gives both sides
+equal to 3/4 - i/4. The phase-kickback idiom is the one of [CEMM]
+Section 7.]
+
+There are O(b^2) controlled shifts. Each is a reversible modular binary
+addition on b bits, with its scratch bits uncomputed afterwards, and
+therefore has polynomial cost in the stated finite gate set. All other
+operations also have polynomial cost. []
+
+3.4 Recovering fraction labels by continued fractions
+-----------------------------------------------------
+
+Given a phase-register output k in {0, ..., Q-1}, we must recover which
+reduced fraction j/d it is close to. This is the classical decoding
+step of the order-sampling algorithm, made exact here.
+
+For every reduced fraction j/d with 0 <= j < d < B, define
+
+    k(d,j) = floor( (j Q)/d + 1/2 ),
+    eta    = k(d,j) - (j Q)/d.
+
+Then |eta| <= 1/2, and 0 <= k(d,j) < Q. We call (d, j) the label of
+this bin.
+
+Lemma 3.2 (Recovering labels). Given 0 <= k < Q, one can determine in
+polynomial bit time whether k = k(d,j) for a reduced fraction
+0 <= j < d < B, and recover (d, j) when it exists. Such a label is
+unique.
+
+Proof. Compute the finite simple continued fraction of k/Q, and let
+p/v be its last convergent with denominator less than B. If all
+convergents have denominator less than B, use the terminal one. We
+claim
+
+    |k/Q - p/v| <= 1/(v B).                                  (**)
+
+Indeed, suppose p/v is not terminal. Let (p', v') be the preceding
+numerator-denominator pair, using the formal pair (1, 0) when p/v is
+the first convergent. The remaining continued-fraction tail theta
+gives
+
+    k/Q = (p theta + p') / (v theta + v'),   |p v' - p' v| = 1.
+
+The next denominator is (v c + v') >= B, where c is the integer part
+of theta. Consequently the error is
+
+    1 / [v (v theta + v')] <= 1 / [v (v c + v')] <= 1 / (v B).
+
+The determinant identity follows inductively from the convergent
+recurrence, which replaces each numerator-denominator pair by c times
+the latest pair plus the preceding pair. If the convergent is terminal,
+its error is zero.
+
+Now suppose k has a label (d,j). If j/d != p/v, integrality of the
+cross-product gives
+
+    |j/d - p/v| = |j v - p d| / (d v) >= 1/(d v) >= 1/((B-1) v)
+               > 1/(v B) + 1/(2 Q).
+
+For the strict inequality, note that 2 Q > v B (B-1) because v < B and
+Q = B^16. This contradicts (**) together with |k/Q - j/d| <= 1/(2Q).
+Thus j/d = p/v. It remains only to check 0 <= p < v < B and the exact
+rule k(d,j) = k; these checks accept precisely the valid labels. They
+also prove uniqueness. When k = 0, the terminal convergent is 0/1, so
+the case d = 1 is included. The Euclidean algorithm and all these
+checks use integers with O(n) bits and take polynomial bit time. []
+
+3.5 The residue probabilities
+-----------------------------
+
+We now apply Lemma 3.1 to the order-sampling state
+
+    Q^{-1/2} sum_{x=0}^{Q-1} |x> |a^x mod m>.
+
+Reversible modular powering prepares this state in polynomial time; its
+temporary work is uncomputed, leaving no additional information about
+x. This is the order-sampling setup of the quantum factoring algorithm
+[Shor], with the transform of Lemma 3.1 in place of the Fourier
+transform.
+
+For any reduced label (d,j) and 0 <= t < d, define the arithmetic
+quantity
+
+    P(d,j,t) = | (1/Q) sum_{0<=x<Q, x=t mod d} g(k(d,j) x / Q) |^2.  (***)
+
+For d = r = ord_m(a), it has the following direct probabilistic
+meaning:
+
+    Pr(phase-register success and k = k(r,j))
+    = sum_{t=0}^{r-1} P(r, j, t).
+
+To see this, the unnormalized second-register vector for a fixed
+output k is
+
+    (1/Q) sum_{x=0}^{Q-1} g(k x / Q) | a^x mod m >.
+
+The labels a^x mod m coincide exactly on residue classes modulo r; the
+distinct classes give orthogonal basis states. Taking its squared norm
+proves the identity, including the actual probability of the
+phase-register test.
+
+Definition (***) will also be used for candidate values d != r; for
+those values no physical-probability interpretation is asserted. The
+next step is to compute and correct the masses using arithmetic on
+candidate labels, without knowing the true order.
+
+3.6 A dyadic majorant with an exactly computable sum
+----------------------------------------------------
+
+The quantum experiment gives the probabilities in (***), but their
+dependence on the bin is inconvenient. We will supplement the
+experiment with classical random choices so that, at the true order
+d = r, every reduced numerator contributes exactly lambda(d). The next
+lemma supplies the arithmetic needed to do this without knowing r.
+
+The construction has three steps. First, compute each progression sum
+exactly. Second, approximate its mass by a piecewise polynomial J.
+Third, round that polynomial upward so its TOTAL can be summed without
+enumerating residues. Mosca-Zalka use power sums to approximate a
+success probability to arbitrary precision ([MZ] Section 4.1); here the
+polynomial pieces have bounded degree, so the dyadic envelope can be
+summed exactly.
+
+Lemma 3.3 (Dyadic majorant with exact sum). For every 1 <= d < B and
+0 <= j < d with gcd(j, d) = 1, there are nonnegative dyadic numbers
+U(d,j,u), 0 <= u < d, such that
+
+    0 <= U(d,j,jt mod d) - P(d,j,t) <= 128/Q    for 0 <= t < d,   (a)
+
+    1/(128 d) <= S(d,j) := (1/2) sum_{u=0}^{d-1} U(d,j,u) <= 2.  (b)
+
+Given their integer arguments, P(d,j,t), U(d,j,u), and S(d,j) are
+exactly computable in time polynomial in n, and are dyadic numbers of
+polynomial bit length. In particular, computing S(d,j) does not require
+enumerating its d summands.
+
+Proof. Fix d, j, and abbreviate k = k(d,j) and eta = k - jQ/d (so
+|eta| <= 1/2 by Lemma 3.2 and eta = 0 exactly when jQ/d is an integer).
+
+Step 1: exact P. For x = t mod d, put u = jt mod d, represented in
+{0, ..., d-1}. Because g is 1-periodic,
+
+    g(kx/Q) = g(u/d + eta x/Q).                                  (i)
+
+As x traverses the progression (x = t, t+d, t+2d, ...), the argument
+u/d + eta x/Q moves a distance at most |eta| * (d/Q) * (Q/d) = |eta|
+<= 1/2 in total, so it meets only a bounded number of the quarter-
+integer breakpoints of g. Split the progression at those breakpoints by
+rational comparisons and integer division. On each resulting part, the
+real and imaginary coordinates of g are affine in the progression
+index, so their sums come from the number of terms and the sum of
+consecutive integers. This computes P(d,j,t) with a bounded number of
+arithmetic operations on O(n)-bit integers and rationals.
+
+P is dyadic. Each g(kx/Q) is built from (-i)^{floor(4kx/Q)} and
+(-i)^{floor(4kx/Q)+1} with real and imaginary parts having denominators
+dividing Q. Summing Q/d such terms gives a sum whose denominator divides
+Q. Dividing by Q gives a value with denominator dividing Q^2. Squaring
+and adding gives a modulus-squared with denominator dividing Q^4 = 2^{64n}.
+This has polynomial bit length.
+
+Step 2: a Riemann-sum approximation. Although each P(d,j,t) is
+efficiently computable, direct summation over t requires d evaluations,
+which need not be polynomial in n. We replace the summand by a smooth
+approximation whose total is accessible.
+
+For real 0 <= u < d, define
+
+    I(u) = (1/d) int_0^1 g(u/d + eta v) dv,
+    J(u) = |I(u)|^2.
+
+We first record two uniform estimates:
+
+    |P(d,j,t) - J(jt mod d)| <= 32/Q,   and
+    1/(8d) <= |I(u)| <= 1/d.                                       (ii)
+
+For the first estimate, let h = d/Q < 1 and f(v) = g(u/d + eta v). The
+function g has magnitude at most one and Lipschitz constant at most
+4 sqrt(2); multiplying by eta (|eta| <= 1/2) gives f Lipschitz constant
+at most 2 sqrt(2) < 3. The progression points x/Q are the left
+endpoints of intervals of length h; together they span [0, 1] up to two
+endpieces of total length less than 2h. The error of the left rectangle
+rule is at most 2h(1+h), and the two endpoint discrepancies contribute
+at most 2h. Consequently, writing
+
+    A_t = (1/Q) sum_{0 <= x < Q, x = t mod d} g(kx/Q),
+
+we have, with u = jt mod d,
+
+    |A_t - I(u)| <= (1/d)(2h(1+h) + 2h) <= 6/Q <= 8/Q.
+
+Since |A_t| <= 1/d + 1/Q and |I(u)| <= 1/d, we have
+|A_t + I| <= 2/d + 1/Q <= 3/d, and
+
+    |P(d,j,t) - J(u)| = | |A_t|^2 - |I(u)|^2 |
+                     = |(A_t - I)(A_t + I)|  (up to real part)
+                     <= (8/Q)(3/d) <= 24/Q <= 32/Q.
+
+This gives the first inequality in (ii). The upper bound |I(u)| <= 1/d
+follows from |g| <= 1.
+
+For the lower bound on |I|, temporarily replace g in the integral by
+the exact exponential e(z) = exp(-2 pi i z). The resulting integral has
+magnitude
+
+    (1/d) | int_0^1 exp(-2 pi i eta v) dv |
+    = (1/d) |sin(pi eta) / (pi eta)|
+    >= 2/(pi d),
+
+where the quotient is interpreted as 1 at eta = 0, and the last
+inequality follows from concavity of sin on [0, pi/2]: sin(x)/x is
+decreasing on [0, pi/2], so on |pi eta| <= pi/2 it is at least
+sin(pi/2)/(pi/2) = 2/pi.
+
+Now bound the interpolation error between g and e. Linear interpolation
+on intervals of length 1/4 changes e by at most
+
+    (1/8)(1/4)^2 sup_z |d^2/dz^2 exp(-2 pi i z)|
+    = (1/8)(1/16)(4 pi^2) = pi^2/32.
+
+(This interpolation bound follows by Taylor expansion at the
+interpolated point and linear averaging of the two endpoint remainders;
+it applies equally to complex-valued functions.) Therefore
+
+    |I(u)| >= (1/d)(2/pi - pi^2/32) > 1/(8d).
+
+For the numerical check: pi < 2 sqrt(3), obtained from
+tan(pi/6) > pi/6, so 2/pi > 1/sqrt(3). And pi^2 < 12, so
+pi^2/32 < 12/32 = 3/8. Hence 2/pi - pi^2/32 > 1/sqrt(3) - 3/8, which
+is about 0.202 and certainly > 1/8. The upper bound |I| <= 1/d follows
+from |g| <= 1.
+
+Step 3: piecewise-polynomial representation of J. Let G be the
+continuous primitive of g satisfying G(0) = 0. Because g is piecewise
+linear with breakpoints at the quarter-integers, G's real and imaginary
+parts are quadratic polynomials with rational coefficients on each
+quarter interval. When eta != 0,
+
+    I(u) = (G(u/d + eta) - G(u/d)) / (d eta).                    (iii)
+
+The two arguments range in [-1/2, 3/2], so only a bounded number of
+quarter-pieces occur, and their boundaries in u arise when either
+argument is a quarter-integer. On each piece, I is a complex polynomial
+in u of degree at most two; hence J is a rational polynomial of degree
+at most four. If eta = 0, the identity I(u) = g(u/d)/d gives the same
+conclusion (in fact degree at most two for J). All boundaries and
+coefficients have O(n) bits and can be computed with a bounded number
+of rational operations.
+
+One point deserves note. In (iii), eta = (kd - jQ)/d, so every nonzero
+eta has |eta| >= 1/d. The division by d eta in (iii) has no hidden
+precision cost: no cancellation blow-up occurs because the numerator
+has a matching lower bound.
+
+Step 4: dyadic rounding upward. On each piece write
+J(u) = sum_{q=0}^{4} a_q u^q, allowing zero coefficients, and set
+D = Q B^8. Replace a_q by
+
+    tilde_a_q = ceil(D a_q) / D.
+
+Denote the resulting piecewise polynomial by tilde_J, assigning boundary
+points consistently to one adjacent piece, and define
+
+    U(d,j,u) = tilde_J(u) + 64/Q     for u = 0, 1, ..., d-1.     (iv)
+
+Because u >= 0, rounding each coefficient upward increases the value
+even when that coefficient is negative. Moreover,
+
+    0 <= tilde_J(u) - J(u) <= (1 + u + u^2 + u^3 + u^4) / (Q B^8)
+                           <= 5 B^4 / (Q B^8) = 5/(Q B^4) < 1/Q.
+
+Together with (ii), this yields
+
+    0 <= U(d,j,jt mod d) - P(d,j,t)
+    = (tilde_J - J)(jt mod d) + (J(jt mod d) - P(d,j,t)) + 64/Q
+    >= 0 + (-32/Q) + 64/Q = 32/Q,
+    <= 1/Q + 32/Q + 64/Q = 97/Q <= 128/Q,
+
+proving (a). It also gives
+
+    (1/2) sum_{u=0}^{d-1} U(d,j,u)
+    >= (1/2) sum_u (J(u) + 64/Q)
+    >= (1/2) d (1/(64 d^2) + 64/Q) >= 1/(128 d),
+
+where the middle step used the lower bound |I(u)| >= 1/(8d) from (ii),
+and
+
+    (1/2) sum_{u=0}^{d-1} U(d,j,u)
+    <= (1/2) sum_u (J(u) + 1/Q + 64/Q)
+    <= (1/2) d (1/d^2 + 65/Q)
+    = 1/(2d) + 65 d / (2 Q)
+    <= 1/2 + 65 B / (2 Q) <= 2,
+
+using d < B and Q = B^16 (so 65 B / (2 Q) = 65/(2 B^15) < 1/2). This
+proves (b) for the STATED U.
+
+Step 5: computing S(d,j) without enumerating residues. What remains is
+computing (1/2) sum_{u=0}^{d-1} U(d,j,u) in polynomial time. Since U is
+a sum of a bounded number of piecewise polynomials, sum over each
+piece's integer range.
+
+Intersect the bounded collection of rational piece intervals with the
+integers 0, ..., d-1, using floors and ceilings and assigning each
+boundary integer only once. There are at most 17 pieces (the quarter
+intervals of [-1/2, 3/2], each crossed with the argument u/d, plus the
+eta = 0 special case). Sum each piece-polynomial by the integer power
+sums through degree four. These sums are computed, for example,
+recursively from
+
+    M^{q+1} = sum_{l=0}^{q} binom(q+1, l) sum_{u=0}^{M-1} u^l
+                (0 <= q <= 4),
+
+which follows from M^{q+1} = sum_{u=0}^{M-1} ((u+1)^{q+1} - u^{q+1}). The
+zeroth power sum is the count M, with u^0 = 1 also at zero. These sums
+have O(n) bits for M <= B, and there are only a bounded number of
+pieces. This computes S(d,j) in polynomial time without enumerating the
+residues.
+
+Since D = Q B^8 is a power of two, both U and S are dyadic with O(n)-bit
+representations. All operations used to compute them are rational
+arithmetic, integer division, and rounding. The proof is complete. []
+
+The next subsection uses this majorant to add the discrepancy between
+P and U by uniform random choices. A further, smaller correction makes
+the mass per reduced numerator exactly lambda(d).
+
+3.7 Three modes with a prescribed mass
+--------------------------------------
+
+Lemma 3.3 lets us add the discrepancy between P and U by uniform random
+choices. A further, smaller correction makes the mass per reduced
+numerator exactly lambda(d). Neither the true order nor its
+factorization needs to be known to run the trial; the additional
+classical randomness is drawn in the same basis labels and retained by
+Lemma 2.2.
+
+For each reduced label, the natural scaling coefficient lambda(d)/S(d,j)
+need not be dyadic. We round it downward and reserve the remaining mass
+for the third mode.
+
+Definition 3.2. For 1 <= d < B and 0 <= j < d with gcd(j, d) = 1, put
+
+    c(d,j)   = 2^{-10n} * floor( 2^{10n} * lambda(d) / S(d,j) ),
+    rho(d,j) = lambda(d) - c(d,j) * S(d,j).
+
+From Lemma 3.3(b) and lambda(d) <= 2^{-10}/d (because lambda is
+2^{-ceil(log_2 d) - 10} <= 2^{-log_2 d - 10} = 2^{-10}/d), we have
+
+    0 <= c(d,j) <= lambda(d)/S(d,j) <= (2^{-10}/d)/(1/(128d)) = 1/8,
+    0 <= rho(d,j) <= 2^{-10n} * S(d,j) <= 2 * 2^{-10n}.
+
+Both c(d,j) and rho(d,j) are dyadic rationals of polynomial bit length,
+and both are exactly computable from (d, j) in polynomial time.
+
+Definition 3.3. The trial chooses one of three modes with probabilities
+1/2, 1/4, 1/4 respectively. In EVERY mode, the label is first passed
+through the validation predicate
+
+    valid(d, j) := (1 <= d < B) AND (0 <= j < d)
+                   AND (gcd(j, d) = 1) AND (a^d = 1 mod m).
+
+An invalid label, or a failed retention test (below), produces NO
+candidate. Only valid labels are ever returned.
+
+  Mode 1 (probability 1/2). Run the quantum experiment of Lemma 3.1 on
+  the state Q^{-1/2} sum_x |x> |a^x mod m>. Require its phase-register
+  success. Recover the reduced label (d, j) from the observed phase
+  output k via Lemma 3.2. Require valid(d, j), and retain the candidate
+  d with probability c(d, j).
+
+  Mode 2 (probability 1/4). Choose independent uniform n-bit labels
+  d, j, t (so each triple has probability B^{-3}). Require t < d and
+  valid(d, j). Retain the candidate d with probability
+
+      2 B^3 * ( U(d, j, jt mod d) - P(d, j, t) ) * c(d, j).
+
+  Mode 3 (probability 1/4). Choose independent uniform n-bit labels
+  d, j (each pair probability B^{-2}). Require valid(d, j). Retain the
+  candidate d with probability
+
+      4 B^2 * rho(d, j).
+
+These retention probabilities are all dyadic and in [0, 1]. Mode 1 is
+in [0, 1/8] via c <= 1/8. Mode 2 is at most
+
+    2 B^3 * (128/Q) * (1/8) = 32 B^{-13} <= 1
+
+via (a) and c <= 1/8. Mode 3 is at most
+
+    4 B^2 * (2 * 2^{-10n}) = 8 B^{-8} <= 1.
+
+Each retention test is therefore implemented exactly by comparing fresh
+fair bits with an integer numerator. The number of bits used and all
+arithmetic and quantum costs are polynomial in n.
+
+3.8 Completion of the proofs of Proposition 3.1
+-----------------------------------------------
+
+Proof of Proposition 3.1. Let r = ord_m(a). We compute the exact mass
+the trial places on r, and check that every returned candidate is a
+multiple of r.
+
+Mass at a reduced label (r, j). Fix d = r and a reduced numerator j
+with 0 <= j < r. The three modes contribute disjoint types of runs:
+Mode 1 runs execute the quantum experiment, Mode 2 runs sample
+classical triples, Mode 3 runs sample classical pairs. The mass at
+(r, j) is the antichain sum (no run executes two modes).
+
+Mode 1 contribution. By (***) with d = r, the probability that the
+phase-register success occurs and the recovered label is (r, j) equals
+
+    sum_{t=0}^{r-1} P(r, j, t).
+
+The retention multiplies by c(r, j), and the mode has probability 1/2.
+So Mode 1 contributes
+
+    (1/2) * c(r, j) * sum_{t=0}^{r-1} P(r, j, t).
+
+Mode 2 contribution. Each triple (d, j, t) = (r, j, t) has probability
+1/B^3. The retention probability is
+2 B^3 ( U(r, j, jt mod r) - P(r, j, t) ) c(r, j). The mode has
+probability 1/4. So Mode 2 contributes
+
+    (1/4) * sum_{t=0}^{r-1} [ (1/B^3) * 2 B^3
+                              (U(r, j, jt mod r) - P(r, j, t)) c(r, j) ]
+    = (1/2) * c(r, j) * sum_{t=0}^{r-1}
+                            (U(r, j, jt mod r) - P(r, j, t)).
+
+Mode 3 contribution. Each pair (d, j) = (r, j) has probability 1/B^2.
+The retention is 4 B^2 rho(r, j), so Mode 3 contributes
+
+    (1/4) * (1/B^2) * 4 B^2 rho(r, j) = rho(r, j).
+
+Adding Mode 1 and Mode 2. Their P terms cancel:
+    (1/2) c sum_t P + (1/2) c sum_t (U - P) = (1/2) c sum_t U.
+Since gcd(j, r) = 1, the map t -> jt mod r permutes {0, ..., r-1}. Hence
+sum_{t=0}^{r-1} U(r, j, jt mod r) = sum_{u=0}^{r-1} U(r, j, u) = 2 S(r, j),
+and Mode 1 + Mode 2 = c(r, j) S(r, j). Then
+
+    Mode 1 + Mode 2 + Mode 3 = c(r, j) S(r, j) + rho(r, j) = lambda(r).
+
+This holds for every reduced j.
+
+Sum over j. By Lemma 3.2, the bins for the true order are distinct: for
+each reduced j with 0 <= j < r, the value k(r, j) is a distinct element
+of {0, ..., Q-1}. So the total mass at d = r is the sum over phi(r)
+reduced numerators, giving
+
+    Pr(trial returns r) = sum_j lambda(r) = phi(r) * lambda(r).
+
+The case r = 1 is included: its sole reduced label is j = 0.
+
+Multiple guarantee. Every returned candidate has passed the validation
+predicate valid(d, j), whose conjunction includes a^d = 1 mod m. Since
+r is the least positive integer with this property, r | d. A return
+with no candidate is also allowed by the statement.
+
+Polynomial cost. All arithmetic is exact: the P, U, S, c, rho are
+dyadic with polynomial bit length (Lemma 3.3, Definition 3.2), and the
+integer arithmetic performed on them uses only polynomial-bit integers.
+The quantum part is Lemma 3.1 (cost polynomial in b = 16n), applied a
+bounded number of times. The classical checks (valid(d,j), the
+retention comparisons, and the sum over phi(r) numerators) are
+polynomial bit operations. There is no dependence on r or on the
+factorization of r. This proves all claims of Proposition 3.1. []
+
+Remark. The error term in (a) is not zero, and at false labels no
+identity between the artificial P(d, j, t) and a quantum probability
+was used. The correctness at the true label r uses only equation (***),
+which is a genuine probability. False labels are simply not attempted;
+validation rejects them. This is why the trial makes no claim about
+false-label mass, and this is also why the mass at r is known exactly
+despite the trial not knowing r.
+
+SECTION 4. FACTORING WITH VERIFIABLE AUXILIARY DATA
+---------------------------------------------------
+
+We next organize the order trial into a factoring process. Its
+successful output contains enough auxiliary information to compute,
+retrospectively, the exact probabilities of all its useful transitions.
+This information is produced by the process itself; it is not supplied
+as advice.
+
+Throughout this section, n and B = 2^n retain their values for the
+original input N, even when we work on a smaller integer. We use K
+repetitions within each randomized transition, at most L transition
+slots, and W bits per transition output, where
+
+    K = n^5,   L = n^10,   W = n(K + 1).
+
+4.1 The auxiliary tree D(M)
+---------------------------
+
+Definition 4.0. For M >= 2, define D(M) as the following rooted
+occurrence tree.
+
+  - The root records M and its distinct prime factors in increasing
+    order, together with their positive exponents.
+  - For each distinct odd prime p in that factorization, it has one
+    child containing D(p - 1); the children are ordered by p.
+  - Equal labels under different parents are separate occurrences.
+  - There is no child for p = 2.
+
+Every descent decreases the label, so this defines unique finite data.
+Write D = D(N).
+
+Example. The root of D(21) has children D(2) and D(6), associated with
+its prime factors 3 and 7. The second child has its own D(2) child,
+associated with the prime factor 3 of 6. The two occurrences of D(2)
+remain separate.
+
+The recursive p - 1 structure recalls Pratt's succinct primality
+certificates [Pratt]. Here there are no primitive-root witness fields:
+prime labels are checked by Lemma A.1, and the auxiliary factorizations
+determine exact orders and transition probabilities retrospectively. The
+order-to-gcd splitting mechanism follows the Miller-Shor reduction
+[Miller, Shor]; the required unconditional counting argument is
+included in Section 4.7.
+
+4.2 The target proposition
+--------------------------
+
+Proposition 4.1 (A process with verifiable transition probabilities).
+There is a uniformly polynomial-time process, using the order trial of
+Proposition 3.1, with the following properties.
+
+  (i) It either aborts or generates D. A deterministic polynomial-time
+  verifier accepts exactly these complete data. The classical controller
+  makes at most L transitions, and completed runs are padded to exactly
+  L by constant-output dummy transitions. Each transition output has a
+  fixed W-bit encoding.
+
+  (ii) Given D and the recorded classical input of a transition, one
+  can compute a good-output predicate, one canonical good encoding, and
+  the exact probability s that an ordinary execution of that transition
+  has a good output. The probability s is dyadic, has polynomial bit
+  length, and obeys s >= 1 - 2^{-2n}. For a dummy transition, its
+  constant output is good and canonical, and s = 1.
+
+  (iii) Every evolution whose transition outputs are all good
+  completes the tasks and generates D without aborting or reaching a
+  resource cap. This assertion also holds when good outputs are
+  supplied directly. The work is polynomially bounded on arbitrary
+  output sequences, with malformed outputs causing an abort.
+
+Only the transition output is included in its W-bit encoding. Internal
+order-trial registers and recorded computational history are separate
+workspace and may be retained.
+
+The W-bit output is the string consumed by the controller. The completed
+tree supplies the arithmetic information for later tests, while the
+separate history and quantum work registers are retained for the inverse
+circuit. These are three different records; the output width does not
+bound the whole workspace.
+
+4.3 What information D(M) contains
+----------------------------------
+
+Suppose that a subfactor m is being split while factoring a node M.
+From D we can factor m by division from the prime list for M. Moreover,
+D supplies the factorization of p - 1 for every odd prime p | m. Thus D
+supplies the factorization of
+
+    phi(m) = prod_{p^e || m} (p - 1) p^{e-1}.                    (4.1)
+
+Here the formula follows by counting units modulo a prime power and
+using the Chinese remainder bijection; the latter follows from Bezout's
+identity. The contribution from p = 2 needs no child.
+
+Given this factorization and a unit a modulo m, its order is computable
+exactly.
+
+  - Start with exponent v = phi(m).
+  - For each prime q in its known factorization, repeatedly replace v
+    by v/q while q | v and a^{v/q} = 1 mod m.
+  - The final v is the order, and the remaining prime exponents give
+    its factorization.
+
+The order divides phi(m) by the coset proof of Lagrange's theorem.
+Throughout the procedure it divides v, and at termination no excess
+prime factor can remain. Hence the final v is ord_m(a). There are
+polynomially many modular powerings. The same procedure applies to each
+prime-power component of m.
+
+These computations are retrospective: they are used to evaluate
+recorded transitions once the data have been generated.
+
+We shall use the elementary bound
+
+    phi(d) / d >= 1/(n + 1)   for 1 <= d < B.                   (4.2)
+
+Indeed, if p_1 < p_2 < ... < p_k are the distinct prime divisors of d,
+then k <= n and p_i >= i + 1, so the product formula gives
+
+    phi(d)/d = prod_{i=1}^k (1 - 1/p_i)
+             >= prod_{i=1}^k (1 - 1/(i + 1))
+             = prod_{i=1}^k i/(i + 1) = 1/(k + 1) >= 1/(n + 1).
+
+The empty product covers d = 1.
+
+4.4 The controller and its two transitions
+------------------------------------------
+
+To factor a node, apply the deterministic primality test in Lemma A.1
+to each current factor. A prime is recorded; an even composite can be
+split by 2; and a composite perfect power can be split by finding an
+integral root. Root searches for exponents at most n take polynomial
+time. Consequently the remaining case is an odd m having at least two
+distinct prime divisors. We use the following two kinds of transition
+for this case.
+
+Encoding. Let b_m = ceil(log_2 m), so m <= 2^{b_m} < 2m. A list output
+consists of K fields of b_m bits, followed by zero padding to width W;
+an order output consists of one n-bit integer followed by zero padding
+to width W. A dummy output is the all-zero W-bit string. The controller
+rejects malformed padding, and every good-output predicate below
+requires a valid encoding.
+
+List transition. It generates K independent uniform b_m-bit integers.
+Entries outside [0, m) and nonunits are ignored. A list is GOOD if some
+usable entry a has unequal values of
+
+    v_2( ord_{p^e}(a) ),   p^e || m,
+
+where v_2 is the exponent of 2 in a positive integer's factorization.
+(The prime 2 contributes no component to the comparison, because there
+is no order modulo a power of 2 in D(M).)
+
+A canonical good list has first entry equal to the Chinese remainder
+residue that is 1 on the component corresponding to the smallest prime
+and -1 on all other components, followed by zeros. Its first entry has
+2-adic levels 0 on the smallest-prime component and 1 on every other,
+so unequal by inspection. No entry beyond the first is usable, so this
+canonical list spawns one order transition.
+
+Order transition. For each usable entry a in a list, run K independent
+order trials of Proposition 3.1. Output the smallest returned candidate,
+or 0 if there was none. If r = ord_m(a), goodness means the output is
+r, which is also the canonical good output for this input.
+
+Dummy transition. Outputs the all-zero W-bit string. Its good predicate
+is constantly true and its canonical good output is the empty field.
+
+Splitting. For every positive even order output r', try
+gcd(a^{r'/2} - 1, m) and accept it only if it is a proper nontrivial
+divisor. If no entry produces a split, abort. Section 4.7 will show
+that an all-good run always finds a split.
+
+4.5 The list good probability
+-----------------------------
+
+We now compute the good probability of the list transition without
+enumerating residues. The key fact is that a uniform unit modulo m has
+all 2-adic levels equal with probability at most 1/2.
+
+Cyclic structure of a prime field. Let p be an odd prime with p^e || m.
+The nonzero elements of the residue field F_p form a cyclic group under
+multiplication.
+
+Proof. Let T be the exponent of F_p^*: the least T with x^T = 1 for all
+nonzero x. Lagrange gives ord(x) | p - 1 for every x, so T | p - 1.
+
+The exponent of a finite abelian group is attained. For each prime
+power q^k || T, take x_k with q^k | ord(x_k). Then
+x_k^{ord(x_k)/q^k} has order exactly q^k. The product over the distinct
+q's has order T.
+
+The polynomial X^T - 1 has at most T roots in any field, but every
+nonzero element of F_p is a root, so p - 1 <= T. Combining with
+T | p - 1 gives T = p - 1. An element of order p - 1 generates F_p^*.
+
+Two-adic levels in F_p. Write p - 1 = h 2^l with h odd. In a cyclic
+group of order p - 1, the count of elements with v_2(order) = t is
+
+    c_p(0) = h,    c_p(t) = 2^{t-1} h   for 1 <= t <= l.
+
+The sum is h(1 + 1 + 2 + ... + 2^{l-1}) = h 2^l = p - 1. The maximum
+is at t = l, with c_p(l) = 2^{l-1} h = (p - 1)/2. So no level has more
+than half the nonzero elements.
+
+Lifting to p^e. The reduction map (Z/p^e)^* -> (Z/p)^* has kernel of
+size p^{e-1}, which is odd. So the order of any lift has the same
+2-adic level as the reduction. The level counts modulo p^e are
+therefore p^{e-1} times the counts modulo p:
+
+    p^{e-1} h,  p^{e-1} h,  2 p^{e-1} h,  ...,  2^{l-1} p^{e-1} h.
+
+The maximum is 2^{l-1} p^{e-1} h = phi(p^e)/2, again exactly half the
+units modulo p^e.
+
+Independence under CRT. The Chinese remainder bijection makes
+(Z/m)^* isomorphic to prod_i (Z/p_i^{e_i})^*. For a uniform unit mod m,
+the level of the i-th component is independently distributed as above.
+
+All-equal count. Let c_i(t) be the count of level t in the i-th
+component, phi_i = phi(p_i^{e_i}), and q_i(t) = c_i(t)/phi_i, so q_i(t)
+is the level-t probability for component i. Since at least two
+components exist (we are in the odd m with >= 2 distinct primes case),
+the number of units a mod m whose levels are ALL equal to t is
+prod_i c_i(t). The total all-equal count is
+
+    sum_{t} prod_i c_i(t) = phi(m) * sum_{t} prod_i q_i(t).
+
+For each t, prod_i q_i(t) <= q_1(t) q_2(t) because every factor is in
+[0, 1]. Counting,
+
+    sum_t prod_i q_i(t) <= sum_t q_1(t) q_2(t)
+                        <= (max_t q_1(t)) * (sum_t q_2(t))
+                        <= (1/2) * 1 = 1/2.
+
+Hence sum_t prod_i c_i(t) <= phi(m)/2. Define
+
+    F = phi(m) - sum_t prod_i c_i(t)  >=  phi(m)/2.
+
+F is exactly the count of units with at least one unequal level pair.
+
+Good probability. A single uniform b_m-bit integer is a unit with
+unequal levels with probability F/2^{b_m}. Across K independent
+draws,
+
+    s = 1 - (1 - F/2^{b_m})^K.
+
+By (4.2), phi(m) >= m/(n+1), and by definition 2^{b_m} < 2m, so
+
+    F/2^{b_m} >= phi(m)/(2 * 2^{b_m}) >= m/(2 * 2m * (n+1))
+                                        = 1/(4(n+1)).
+
+Hence with K = n^5,
+
+    s >= 1 - (1 - 1/(4(n+1)))^{n^5}
+      >= 1 - exp(-n^5/(4(n+1)))
+      >= 1 - exp(-n^4/8)
+      >= 1 - 2^{-2n}    (for n >= 128).
+
+The denominator of s is at most 2^{b_m * K} <= 2^{nK}, polynomial in n.
+
+4.6 The order good probability
+------------------------------
+
+Let m be an odd composite with at least two distinct prime divisors,
+let a be a usable entry (a unit mod m), and let r = ord_m(a). The order
+transition runs K trials of Proposition 3.1 and outputs the smallest
+returned candidate, or 0 if there was none. Goodness means the output
+is r, which is also the canonical good output.
+
+By Proposition 3.1, every candidate is a positive multiple of r, and
+the probability that a single trial returns r is phi(r) lambda(r).
+Therefore
+
+    s = 1 - (1 - phi(r) lambda(r))^K.
+
+Bound. Using (4.2) with d = r, phi(r) >= r/(n+1). And
+
+    lambda(r) = 2^{-ceil(log_2 r) - 10}.
+
+Since 2^{ceil(log_2 r)} < 2r, we have
+lambda(r) > 2^{-log_2 r - 11} = 2^{-11}/r. Therefore
+
+    phi(r) lambda(r) > (r/(n+1)) * (2^{-11}/r) = 1/(2048 (n+1)).
+
+Then with K = n^5,
+
+    s >= 1 - (1 - 1/(2048(n+1)))^{n^5}
+      >= 1 - exp(-n^5/(2048(n+1)))
+      >= 1 - exp(-n^4/4096)
+      >= 1 - 2^{-2n}    (for n >= 128).
+
+Denominator. Since r < B = 2^n, phi(r) < 2^n. And
+lambda(r) = 2^{-ceil(log_2 r) - 10} with ceil(log_2 r) <= n. So
+phi(r) lambda(r) has denominator dividing 2^{n+10}. Then s has
+denominator dividing 2^{(n+10)K}, polynomial in n.
+
+4.7 Why good transitions split
+------------------------------
+
+Suppose the list is good (some usable entry has unequal levels) and
+every order transition on its usable entries is good (each returns r_a
+= ord_m(a) for its input a). We show that the split procedure finds a
+proper nontrivial divisor of m.
+
+Choose an entry a with unequal levels. Let r = ord_m(a); this is the
+output of the good order transition on a. Write p_i^{e_i} || m for the
+distinct odd prime powers and r_i = ord_{p_i^{e_i}}(a). Then
+
+    r = lcm_i r_i,   and so   v_2(r) = max_i v_2(r_i).
+
+Let M = { i : v_2(r_i) = v_2(r) } be the highest-level set. By
+definition M is nonempty. Since levels are unequal, some i has
+v_2(r_i) < v_2(r), so the complement of M is also nonempty. Since the
+levels are unequal and every level is >= 0, the maximum v_2(r) is at
+least 1; otherwise all levels would be 0 and equal. So r is even.
+
+Compute a^{r/2} modulo each p_i^{e_i}.
+
+  - If i is in the complement of M (that is, v_2(r_i) < v_2(r)):
+    then r/r_i is even, so r_i | r/2, and a^{r/2} = 1 mod p_i^{e_i}.
+  - If i is in M (that is, v_2(r_i) = v_2(r)): then r/r_i is odd, say
+    r/r_i = 2k + 1. Then r = (2k+1) r_i and
+    r/2 = k r_i + r_i/2. Therefore
+    a^{r/2} = (a^{r_i})^k * a^{r_i/2} = a^{r_i/2} mod p_i^{e_i}.
+    The element a^{r_i/2} has order 2 modulo p_i^{e_i} (its square is
+    a^{r_i} = 1, and it is not 1 since ord(a) = r_i). The only square
+    roots of 1 modulo an odd prime power are +1 and -1: in
+    (x-1)(x+1) = 0 mod p_i^{e_i}, the entire odd prime power p_i^{e_i}
+    divides one factor. So a^{r_i/2} = -1 mod p_i^{e_i}.
+
+Assembling by CRT, a^{r/2} is +1 on the complement of M and -1 on M.
+
+Now gcd(a^{r/2} - 1, m). On a component i in the complement of M, the
+value a^{r/2} - 1 is 1 - 1 = 0 mod p_i^{e_i}, so p_i^{e_i} divides the
+gcd. On a component i in M, a^{r/2} - 1 is -1 - 1 = -2 mod p_i^{e_i},
+which is coprime to p_i^{e_i} (since p_i is odd). Hence the gcd is
+exactly the product of p_i^{e_i} over the complement of M.
+
+Since both M and its complement are nonempty, this product is a
+nonempty proper subproduct of the prime power factorization of m, so it
+is a proper nontrivial divisor of m. Therefore an all-good run always
+produces a split.
+
+4.8 Size bounds
+---------------
+
+The following bounds hold for any output sequence, good or bad.
+
+Binary splitting tree per node. For one node M, the binary splitting
+tree has at most log_2 M leaves: every leaf is a prime >= 2 and their
+product is M. A partial run (starting from M and splitting) has at
+most log_2 M + 1 split attempts as well, counting a possible final
+failed attempt.
+
+Auxiliary tree. At each auxiliary-tree descent,
+
+    sum_{p | M, p > 2} log_2(p - 1) <= sum_{p | M} log_2 p <= log_2 M.
+
+Hence the total logarithmic size at any depth of D is at most
+log_2 N < n.
+
+Halving. In two successive descents M -> p - 1 -> q - 1, q > 2 is an
+odd prime divisor of p - 1, so q <= (p - 1)/2 and
+
+    q - 1 < (p - 1)/2 < p/2 <= M/2.
+
+Level count. After every two descents the label halves. Since every
+label is at least 2, the tree has fewer than 2n + 2 levels.
+
+Node count. Since every node contributes at least 1 to the log, the
+number of node occurrences per level is at most n; the total number of
+node occurrences is at most (2n + 2) n.
+
+Transition count. Summing the split-attempt bound log_2 M over all
+node occurrences gives at most (2n + 2) n split tasks. Each split
+consumes at most K + 1 transitions (a list transition plus up to K
+order transitions). Therefore
+
+    # { list and order transitions }
+    <= (2n + 2) n (K + 1) <= 6 n^7 < n^10 = L.
+
+All deterministic work and all K trials within an order transition
+have polynomial bounds.
+
+4.9 Verification of D
+---------------------
+
+The complete data are polynomially verifiable. The verifier is a
+deterministic classical algorithm that accepts exactly the legitimate
+trees D.
+
+Structural checks. Require the root label to be N. Before any
+arithmetic, reject node labels outside [2, B), proposed prime labels
+outside [2, M] at a node M, exponents outside [1, n], and any list or
+tree exceeding the polynomial size caps (2n + 2) n node occurrences and
+n entries per node.
+
+Arithmetic checks. At a node M, require strictly increasing prime
+labels, check primality using Lemma A.1, and check the factorization's
+product. A partial product may be rejected as soon as it exceeds M;
+this keeps the verification polynomial even on arbitrary invalid
+records.
+
+Children. Then require exactly the ordered children p - 1 for the
+distinct odd primes p in that node's list, and apply the same checks
+recursively. Reject missing or extra children and malformed or
+oversized records.
+
+Enumeration of accepted trees. Unique prime factorization implies that
+an accepted tree is exactly D(N). Only the operational split history
+(the order in which splits occurred, and which entries produced them)
+may vary. The all-good splitting argument (Section 4.7) ensures that
+every all-good evolution supplies such a complete tree.
+
+Bounded storage. Each node's prime list has at most n entries of
+polynomial bit length, so the node-occurrence bound also bounds the
+storage for the complete data. A list has at most nK unpadded bits,
+and an order value (including zero) has n bits. Hence the specified
+encodings fit within W bits and give each canonical output a unique
+string. (The controller depends only on these classical outputs; the
+internal quantum work can be retained without being treated as part of
+an output.)
+
+4.10 Completion of the proof of Proposition 4.1
+-----------------------------------------------
+
+We assemble the pieces of the preceding subsections.
+
+(i) Abort or generate D. A run either terminates by submitting a
+well-formed tree D' (accepted by 4.9) or aborts. By 4.7, each node's
+good list yields at least one split; the recursion terminates because
+labels strictly decrease. Completed runs are padded to exactly L by
+dummies. Each transition output uses at most W bits (Section 4.4).
+
+(ii) Good predicate, canonical output, and exact s. Given D and the
+recorded classical input of a transition, the good predicate, the
+canonical output, and the exact s are computable from D alone:
+
+  - List transition: good predicate and canonical list are stated in
+    4.4; s is computed by 4.5 as a dyadic with s >= 1 - 2^{-2n}.
+  - Order transition: good predicate and canonical output are stated
+    in 4.4; s is computed by 4.6 as a dyadic with s >= 1 - 2^{-2n}.
+  - Dummy transition: s = 1 by 4.4.
+
+Denominators are bounded by 2^{nK} and 2^{(n+10)K} respectively, so
+they have polynomial bit length.
+
+(iii) All-good runs complete and generate D. Suppose every transition
+output is good. Then every list has an unequal-level entry, and every
+order transition for that entry returns r = ord_m(a). By 4.7, the
+resulting gcd is a proper nontrivial divisor of m. Recurse until all
+factors are prime (Lemma A.1 identifies them). The final tree is
+exactly D(N) by unique factorization. At most L transitions are made
+(4.8). The assertion also holds when canonical good outputs are
+supplied directly: the canonical list splits, the canonical
+r is returned, and dummy slots pad. Polynomial work per transition is
+established by 4.4-4.9. For arbitrary (not necessarily good) output
+sequences, malformed encodings abort immediately, and bad outputs can
+only shorten a run or waste one useful attempt; the L-transition cap
+is unaffected.
+
+This proves all three parts of Proposition 4.1.
+
+SECTION 5. FROM VERIFIED RUNS TO CERTAIN OUTPUT
+-----------------------------------------------
+
+The process in Proposition 4.1 has two properties. Every transition
+has a high probability of a good output, and a completed run supplies
+the data needed to calculate that probability exactly. We now use
+these data, but only after they have been generated. The aim is a
+preparation whose success probability is known BEFORE it runs.
+
+There are two normalization stages. First, every transition will have
+the same retained mass z, so L slots have known success probability z^L.
+Second, a further correction applied to the complete preparation will
+make that probability exactly 1/4, and one exact amplification step will
+make it 1.
+
+5.1 Equalizing a transition
+---------------------------
+
+Lemma 5.1 (Dyadic completion). Let W be a nonnegative integer. Consider
+an ordinary transition with output in {0,1}^W, a designated set of good
+outputs of dyadic probability 0 < s <= 1, and a specified good output
+y_0. Let delta, z be dyadic rationals with 0 < delta < 1 and
+0 < z <= A := (1 - delta) s, and suppose delta = 2^{-t} for a positive
+integer t. With probability 1 - delta run the ordinary transition, and
+otherwise guess a uniform W-bit output. For E = W + t + 2, define
+
+    C = 2^{-E} * floor( 2^E * z / A ),
+    R = z - C A.
+
+In the ordinary branch require a good output and retain with
+probability C. In the guessing branch require the particular output
+y_0 and retain with probability R 2^W / delta. These are valid dyadic
+retention probabilities, and the total probability of passing is
+exactly z. All computations are polynomial-time when the dyadic inputs
+and the integers W, t are polynomially bounded.
+
+Proof. Since z <= A, we have 0 <= z/A <= 1, hence 0 <= C <= 1.
+Downward rounding gives
+
+    0 <= R = z - CA < A * 2^{-E} <= 2^{-E}.
+
+Consequently the guessing-branch retention R 2^W / delta satisfies
+
+    0 <= R 2^W / delta < 2^{-E} 2^W / 2^{-t}
+                       = 2^{W + t - (W + t + 2)} = 2^{-2} = 1/4 < 1.
+
+The two passing masses are:
+
+  - ordinary branch: (1 - delta) * s * C = AC.
+  - guessing branch: delta * 2^{-W} * (R 2^W / delta) = R.
+
+Their sum is AC + R = AC + (z - CA) = z.
+
+Although z/A need not itself be dyadic, the scaled floor
+floor(2^E z/A) is obtained by exact integer division of two integers of
+polynomial bit length whenever z and A are dyadic with polynomial
+representations. Every probability that is actually sampled (C and
+R 2^W / delta) is a dyadic rational. The values of C, R, and their
+denominators have polynomial bit length. []
+
+5.2 Filters computed after completion
+-------------------------------------
+
+Use the process, output width, and slot bound of Proposition 4.1:
+
+    K = n^5,   L = n^10,   W = n(K + 1).
+
+Every completed execution has exactly L slots, with constant-output
+dummy transitions after its real work. Their good probability is 1. Set
+
+    delta = 2^{-2n},   z = 1 - 2^{-n},   E = W + 2n + 2.
+
+(So t = 2n.) At each slot, run the ordinary transition with probability
+1 - delta, and otherwise guess its W-bit output uniformly. Record the
+branch and the output. Subsequent deterministic computation uses that
+output in the usual way. Malformed encodings may abort, and a proposed
+divisor is always checked before a split is made. In an ordinary order
+transition the internal trial registers are retained separately; the
+guessed string encodes only the transition's classical output.
+
+The actual algorithm does not yet test whether these outputs are good.
+It first attempts to complete all the factorizations defining D(N).
+If it aborts or its generated data fail the complete verifier in
+Section 4.9, it sets its success flag to zero. Otherwise, for every
+recorded slot it reconstructs the transition inputs and computes, from
+the verified data, the good-output predicate, its probability s, and
+the canonical output y_0. It then applies the two filters of Lemma 5.1,
+using fresh independent dyadic coins. Success requires every filter
+to pass.
+
+The filters are well-defined. Writing epsilon = 2^{-n}, the transition
+bound s >= 1 - 2^{-2n} gives
+
+    (1 - delta) s >= (1 - epsilon^2)^2
+                   = 1 - 2 epsilon^2 + epsilon^4
+                   >= 1 - epsilon = z,
+
+where the last step uses epsilon - 2 epsilon^2 + epsilon^4 > 0 for the
+present range (n >= 128, epsilon <= 2^{-128}). The same bound holds in
+dummy slots. Exact dyadic sampling is provided by Lemma 2.1.
+
+Proposition 5.1 (Known probability from deferred filters). The
+implemented preparation just described has success probability exactly
+
+    p_* = (1 - 2^{-n})^{n^{10}}.
+
+Every successful branch outputs the correct prime factorization of N.
+The preparation has polynomial worst-case time and workspace, and
+p_* > 1/2 is an initially known dyadic with polynomial bit length.
+
+5.3 Proof of Proposition 5.1
+------------------------------
+
+Proof. Let D(N) be the true auxiliary tree. It is fixed for the
+analysis only; the algorithm never sees it, and uses only its own
+generated data D' after completion.
+
+Two descriptions of acceptance. Let h = (h_1, ..., h_L) denote a
+recorded controller run with h_i = (branch_i, output_i) for each slot
+i in {1, ..., L}. Let xi = (xi_1, ..., xi_L) denote fresh retention
+coins, one per slot, drawn after completion.
+
+  Implemented event A(h, xi). The run completes, verification accepts
+  its generated data D', and every deferred filter using D', the
+  recorded outputs, and xi passes.
+
+  Analytical event T(h, xi). All L slots are recorded and pass their
+  tests against the true data D(N) using the same outputs and xi.
+  Concretely, for each i:
+    - if h_i is (ordinary, y), then y is good against D(N) (that is,
+      good_predicate(D(N), input_i, y) = 1), and xi_i passes for the
+      threshold C(D(N), input_i);
+    - if h_i is (guess, y), then y = y_0(D(N), input_i), and xi_i
+      passes for the threshold R(D(N), input_i) 2^W / delta.
+  These tests are computed with D(N) only for their deferred
+  THRESHOLDS; they do not alter the controller's evolution.
+
+Claim 1: T implies A. If T holds, every recorded output is good
+against D(N) (each ordinary-branch output passed its good predicate,
+and each guess-branch output equals its canonical y_0, which is good).
+By Proposition 4.1(iii) the controller completes and generates D(N).
+Verification (4.9) accepts D(N). The deferred filters computed from
+D' = D(N) use the same outputs and coins as in T, so they coincide
+with T's tests and all pass. Thus A.
+
+Claim 2: A implies T. If A holds, verification accepts some D'. By
+4.9, accepted trees are exactly D(N) (by unique prime factorization),
+so D' = D(N). Then the deferred filters used D(N), getting exactly
+the corresponding true-data tests on the same outputs and coins. Thus
+T.
+
+So T = A as events on the SAME probability space (h from the run's
+internal randomness, xi fresh).
+
+Computing P(T). Structural induction over i from 1 to L. The
+induction hypothesis is: for any prefix h_{<i} = (h_1, ..., h_{i-1})
+whose own slots all pass (in the T sense), the conditional probability
+that slot i passes (in the T sense) equals z. Later slots are
+independent of this slot given the prefix; the product over i from 1
+to L is z^L.
+
+Base step (i = 1). The controller's first slot is chosen by
+Proposition 4.1 (real transition on N, or dummy). By Lemma 2.3 (fresh
+registers), any quantum work from elsewhere is in a fixed state and
+this slot's distribution depends only on its classical input. By Lemma
+5.1 with the D(N)-based s, C, R, y_0, the pass probability is z.
+
+Inductive step (i > 1). Condition on h_{<i} all-passing. The
+controller is in a well-defined state: either a real transition (with
+fixed input (m, or (m,a)) determined by the prefix) or a dummy. By
+Lemma 2.3 and Lemma 5.1 as above, the pass probability for slot i
+equals z, independent of xi_i.
+
+Therefore P(T) = z^L = (1 - 2^{-n})^L = (1 - 2^{-n})^{n^{10}}.
+
+Correctness of output. On any successful branch, verification
+accepted the D' = D(N) generated. Its root prime list is exactly the
+factorization of N, by the D labels and factorization checks in 4.9.
+So the output is correct.
+
+Polynomial bounds. Each of the L conditional pass probabilities is a
+dyadic with denominators dividing 2^E where E = W + 2n + 2 =
+O(n^6), or from the transition's own s with denominators dividing
+2^{(n+10)K} = 2^{n^6 + 10 n^5}. Both are polynomial. Evaluating the
+deferred tests over L slots, using the retained histories, costs
+polynomial time and workspace. The output string is polynomially
+long. This completes the proof. []
+
+Final bound. p_* = (1 - 2^{-n})^{n^{10}}. Bernoulli gives
+(1 - 2^{-n})^{n^{10}} >= 1 - n^{10} 2^{-n}. At n = 128 the subtracted
+term is 2^{-58}, and the function x^{10} 2^{-x} is decreasing for real
+x >= 128 because its logarithmic derivative 10/x - ln 2 is negative
+there. So p_* > 1 - 2^{-58} > 1/2. Its denominator 2^{n^{11}} is
+polynomial in n. []
+
+5.4 A known quarter of success
+------------------------------
+
+The target 1/4 is the one-step exact-amplification case of the
+standard reflection formula ([BHMT] Section 2), used explicitly for
+exact transforms by Mosca-Zalka ([MZ] Section 2.1). The task here is
+to reach that probability with the fixed gates; the remaining rounding
+is independent of the factoring process.
+
+Encoding. Encode the root factorization by n entries of n bits each:
+positive primes in nondecreasing order with multiplicity, followed by
+zeros. Put J = n^2. Because N < 2^n, there are fewer than n prime
+factors with multiplicity, and each prime is below 2^n. Exactly one
+J-bit string is valid. Lemma A.1, the ordering check, and the product
+check recognize it in polynomial time. The product of an arbitrary
+guessed list has at most n^2 bits, so this verification is also
+polynomial on invalid guesses.
+
+Lemma 5.2 (Quarter-success preparation). There is a polynomial-size
+uniform unitary V_N whose flag is 1 with probability exactly 1/4 and
+whose flagged output is always the fixed encoding of the prime
+factorization of N.
+
+Proof. With probability 1/2, run Proposition 5.1 and retain its success
+with the further probability
+
+    c_* = 2^{-(J+2)} * floor( 2^{J+2} / (2 p_*) ).
+
+With probability 1/2, guess a uniform J-bit string, require it to be
+the valid root factor list, and retain with probability
+
+    2^{J+1} e,    e = 1/4 - p_* c_* / 2.
+
+Since 1/2 < p_* <= 1, we have 0 <= p_* c_* <= 1/2, hence 0 <= c_* <= 1
+and e >= 0. Downward rounding gives
+
+    0 <= e < p_* 2^{-(J+3)},    0 <= 2^{J+1} e <= 1/4.
+
+Both retentions are valid polynomial-bit dyadics.
+
+The first branch contributes p_* c_* / 2 to the success probability.
+The second branch: the unique valid guess has probability 2^{-J}, its
+retention is 2^{J+1} e, and the branch probability is 1/2, so the
+contribution is (1/2) * 2^{-J} * 2^{J+1} e = e. Their sum is
+
+    p_* c_* / 2 + e = 1/4.
+
+Place the same fixed-encoding root factor list in the output register
+on either successful branch. All work and flags are retained by
+Lemma 2.2, giving the unitary V_N. []
+
+5.5 Proof of Theorem 1
+----------------------
+
+Proof of Theorem 1. Let psi = V_N |0>, let Pi project onto flag 1, and
+put g_* = Pi psi. By Lemma 5.2, ||g_*||^2 = 1/4. First apply the sign
+flip I - 2 Pi, then the reflection 2 |psi><psi| - I. Since
+
+    <psi | psi - 2 g_*> = 1 - 2 ||g_*||^2 = 1/2,
+
+the resulting state is
+
+    (2 |psi><psi| - I)(psi - 2 g_*) = 2 g_*.
+
+It has norm one and lies entirely in the successful subspace. Every
+basis outcome in that subspace has the correct factor list, so
+measuring the output gives the factorization with certainty.
+
+Exactness over the fixed gates. Both reflections are exact over G.
+
+  - The success sign is a bit test. Multi-control signs use the
+    reversible gates and S^2 from Section 2.
+  - For fixed classical input N, the reflection around psi is
+
+        V_N (2 |0><0| - I) V_N^{-1},
+
+    where the middle test concerns all initially zero workspace, and
+    the read-only input is held fixed. Its sign convention may differ
+    by an irrelevant global minus sign from a sign flip on zero.
+  - A circuit for inputs of a fixed bit length performs these same
+    operations controlled by the unchanged input bits, so its
+    description remains polynomial-time uniform. Inverting V_N
+    includes all its work and history registers; none needs to be
+    erased separately.
+
+Cost. Each use of V_N or its inverse has polynomial size and workspace.
+Equation above is a single amplification step at the exactly known
+probability 1/4, the corresponding special case of [BHMT] Section 2.
+No arbitrary-angle rotation or unbounded repetition is involved. All
+steps are exact dyadic calculations over G. This proves the asserted
+worst-case bound and exact output. []
+
+APPENDIX A. AN ELEMENTARY POLYNOMIAL-TIME PRIMALITY TEST
+--------------------------------------------------------
+
+The factorization procedure needs an exact test for its prime leaves
+and for the prime factors appearing in its certificates. We give the
+required test here, including its correctness proof. It is a
+convenient variant of the polynomial-congruence method of
+Agrawal-Kayal-Saxena ([AKS] Section 4); the auxiliary prime and the
+constants used below are proven directly.
+
+Lemma A.1. There is a uniform deterministic algorithm that, given
+integers n >= 128 and 2 <= m < 2^n, decides whether m is prime using a
+number of bit operations polynomial in n.
+
+Proof. The algorithm has four steps.
+
+  1. Reject m if it is a perfect power b^e with integers b, e >= 2.
+  2. Find a prime s <= n^8 such that
+       gcd(s, m) = 1   and   ord_s(m) > n^2.
+  3. If m <= 8s, decide primality by trial division and stop.
+     Otherwise, reject if any integer from 2 to 8s divides m.
+  4. Accept if and only if all the congruences
+       (X + a)^m = X^m + a   mod (m, X^s - 1),   1 <= a <= 8s,
+     hold.
+
+We prove: (i) the search in step 2 succeeds, (ii) the algorithm is
+correct, (iii) the running time is polynomial.
+
+(i) Existence of s. Let R = 2 floor(n^8/2), and let
+P_R = prod_{l <= R, l prime} l be the product of primes at most R.
+The central binomial coefficient C = binom(R, R/2) satisfies
+C >= 2^R / (R + 1). For every prime l, the factorial valuation formula
+gives
+
+    v_l(C) = sum_{j >= 1} ( floor(R/l^j) - 2 floor(R/(2 l^j)) )
+           <= floor(log_l R).
+
+Each summand is 0 or 1, and each term vanishes when l^j > R. Hence,
+writing pi(R) for the count of primes <= R,
+
+    log_2 C <= pi(R) log_2 R <= (log_2 P_R) log_2 R,
+
+where the second inequality uses log_2 P_R >= pi(R) (since each l >= 2
+contributes log_2 l >= 1). Combining with the lower bound on C:
+
+    log_2 P_R >= (R - log_2(R + 1)) / log_2 R > n^6.
+
+For the last inequality: 8 log_2 n + 1 < n for n >= 128 (the bound
+holds at n = 128 and is monotonic in n), so a short computation gives
+(R - log_2(R+1)) / log_2 R > (n^8 - 1 - n) / n > n^6.
+
+On the other hand,
+
+    log_2 (m * prod_{j=1}^{n^2} (m^j - 1)) < n (1 + n^2(n^2+1)/2) < n^6.
+
+Therefore some prime s <= R divides P_R but not m and not any m^j - 1
+with 1 <= j <= n^2. (The condition for all j = 1, ..., n^2 that s does
+not divide m^j - 1, together with gcd(s, m) = 1, is exactly
+ord_s(m) > n^2.) Note that s = 2 cannot be chosen: for s = 2 the group
+(Z/2)^* is trivial, so ord_2(m) = 1 < n^2. The search can therefore
+enumerate primes s = 3, 5, 7, ... up to R and try each; at least one
+qualifies.
+
+(ii) Correctness. Primes pass the perfect-power and trial-division
+checks. If m is prime, the binomial theorem in characteristic m gives
+(X + a)^m = X^m + a^m = X^m + a mod m, so the congruences also hold.
+
+Suppose conversely that a composite m is accepted. It is not a perfect
+power, and every prime p dividing it satisfies p > 8s. Choose one such
+p. In an algebraic extension of F_p, choose a root w of
+1 + X + ... + X^{s-1}. Its value at 1 is s != 0 in F_p (since
+gcd(s, m) = 1 and p | m, we have s != p; and s is prime), so w != 1.
+Since s is prime, w has multiplicative order exactly s.
+
+For a product f of the tested linear factors X + a, reduction of the
+congruence modulo p gives f(X)^m = f(X^m) mod (X^s - 1). Frobenius
+gives f(X)^p = f(X^p) mod (X^s - 1). These identities compose:
+substitution X -> X^b preserves the ideal (X^s - 1), so identities for
+exponents b, c imply the identity for the product bc. Hence, for all
+nonnegative integers u, v,
+
+    f(w)^k = f(w^k),   k = m^u p^v.
+
+Let H be the subgroup of (Z/sZ)^* generated by the residues of m and
+p, and put h = |H|. By the choice of s we have n^2 < h <= s - 1. The
+nonnegative powers m^u p^v already range over H, because inverses in a
+finite group are nonnegative powers.
+
+We now obtain incompatible lower and upper bounds on the number of
+values f(w). These bounds adapt the root-counting arguments in
+[AKS] Lemmas 4.7-4.8 and their footnotes.
+
+Lower bound. Consider all products of h - 1 distinct factors from
+X + 1, ..., X + 8s. The factors are pairwise distinct over F_p
+because p > 8s, so different subsets give different monic polynomials.
+If two such polynomials f_1, f_2 had the same value at w, then the
+propagation identity would give f_1(w^k) = f_2(w^k) for every k mod s
+in H. This would give h distinct roots of the nonzero polynomial
+f_1 - f_2, whose degree is at most h - 1. Contradiction. Thus all
+these values are distinct, and their number is at least
+
+    binom(8s, h - 1) >= (8s/(h-1))^{h-1} >= 8^{h-1}.
+
+Here binom(M, t) >= (M/t)^t follows by comparing each factor
+(M - i)/(t - i) with M/t. No division by f(w) has been used: indeed
+f(w) = 0 is itself impossible, since otherwise the propagation
+identity would give h roots of the nonzero polynomial f, of degree
+h - 1.
+
+Upper bound. Put q = floor(sqrt(h)), so (q+1)^2 > h. Among the
+(q+1)^2 > h pairs (u, v) with 0 <= u, v <= q, two distinct pairs give
+integers m^u p^v that coincide modulo s. Call them k_1 and k_2. They
+are different as integers: since m is composite and not a perfect
+power, it has at least two distinct prime divisors, so there is a
+prime p' != p dividing m. Equality of k_1 = m^u p^v and
+k_2 = m^{u'} p^{v'} would force u = u' by taking p'-adic valuations of
+both sides, and then v = v'.
+
+Now w^{k_1} = w^{k_2}, so the propagation identity makes every value
+counted in the lower bound a root of the nonzero polynomial
+T^{k_1} - T^{k_2}. Its degree is at most
+
+    max(k_1, k_2) <= m^{2q} < 2^{2nq} <= 2^{2n sqrt(h)} < 2^{2h}.
+
+But the lower bound is at least 8^{h-1} = 2^{3h-3} > 2^{2h}, since
+h > n^2 >= 128^2. Contradiction. So composite m is rejected.
+
+(iii) Running time. Every exponent in a representation m = b^e with
+b >= 2 satisfies e < n, so binary search for integer roots with
+exponents 2, ..., n implements step 1 in polynomial time. The search
+for s uses trial division to recognize primes up to n^8, followed by
+gcd and successive modular powers to test the condition. These
+operations are polynomial in n and do not use the primality test under
+construction, so no circularity. The trial divisions involving m are
+also bounded by a polynomial in n.
+
+For the congruences: elements of (Z/mZ)[X]/(X^s - 1) are represented
+by s coefficients of at most n bits each. Schoolbook cyclic
+multiplication and repeated squaring test each of the 8s congruences
+using polynomially many bit operations, since s <= n^8 and the
+exponent m has at most n bits. The prime factor p, the extension
+field, and the exponents in the root count are used only in the
+correctness proof and need not be computed. All loops have uniform
+polynomial bounds, completing the proof. []
+
+BIBLIOGRAPHY
+------------
+
+[AKS] M. Agrawal, N. Kayal, and N. Saxena, PRIMES is in P,
+    Annals of Mathematics (2) 160 (2004), no. 2, 781-793.
+
+[Bennett] C. H. Bennett, Logical reversibility of computation,
+    IBM J. Res. Develop. 17 (1973), no. 6, 525-532.
+
+[BH] G. Brassard and P. Hoyer, An exact quantum polynomial-time
+    algorithm for Simon's problem, Proceedings of the Fifth Israeli
+    Symposium on Theory of Computing and Systems, IEEE Computer
+    Society, 1997, 12-23.
+
+[BHMT] G. Brassard, P. Hoyer, M. Mosca, and A. Tapp, Quantum
+    amplitude amplification and estimation, Contemp. Math. 305
+    (2002), 53-74.
+
+[CEMM] R. Cleve, A. Ekert, C. Macchiavello, and M. Mosca, Quantum
+    algorithms revisited, Proc. R. Soc. Lond. A 454 (1998), no.
+    1969, 339-354.
+
+[Grover] L. K. Grover, A fast quantum mechanical algorithm for
+    database search, Proceedings of the 28th Annual ACM Symposium
+    on Theory of Computing (STOC 1996), ACM, 1996, 212-219.
+
+[Hoyer] P. Hoyer, Arbitrary phases in quantum amplitude
+    amplification, Phys. Rev. A 62 (2000), 052304.
+
+[Imran] M. Imran, An exact quantum order finding algorithm and its
+    applications, arXiv:2205.04240v4, 2022.
+
+[Lev] F. M. Lev, An integral version of Shor's factoring algorithm,
+    2001, arXiv:quant-ph/0109103v1.
+
+[Miller] G. L. Miller, Riemann's hypothesis and tests for primality,
+    J. Comput. System Sci. 13 (1976), no. 3, 300-317.
+
+[MZ] M. Mosca and C. Zalka, Exact quantum Fourier transforms and
+    discrete logarithm algorithms, Int. J. Quantum Inf. 2 (2004),
+    no. 1, 91-100.
+
+[NO] H. Nishimura and M. Ozawa, Perfect computational equivalence
+    between quantum Turing machines and finitely generated uniform
+    quantum circuit families, Quantum Inf. Process. 8 (2009), no.
+    1, 13-24.
+
+[ORR] M. Ozols, M. Roetteler, and J. Roland, Quantum rejection
+    sampling, Proceedings of the 3rd Innovations in Theoretical
+    Computer Science Conference (ITCS 2012), ACM, 2012, 290-308.
+
+[Pilatte] C. Pilatte, Unconditional correctness of recent quantum
+    algorithms for factoring and computing discrete logarithms,
+    Forum Math. Pi 14 (2026), e5.
+
+[Pratt] V. R. Pratt, Every prime has a succinct certificate, SIAM J.
+    Comput. 4 (1975), no. 3, 214-220.
+
+[Regev] O. Regev, An efficient quantum factoring algorithm, 2023,
+    revised 2024, arXiv:2308.06572v3.
+
+[Shor] P. W. Shor, Polynomial-time algorithms for prime
+    factorization and discrete logarithms on a quantum computer,
+    SIAM J. Comput. 26 (1997), no. 5, 1484-1509.
+
+[Toffoli] T. Toffoli, Reversible computing, in Automata, Languages
+    and Programming (J. de Bakker and J. van Leeuwen, eds.),
+    Lecture Notes in Computer Science, vol. 85, Springer,
+    Berlin-Heidelberg, 1980, pp. 632-644.
+
+[VBE] V. Vedral, A. Barenco, and A. Ekert, Quantum networks for
+    elementary arithmetic operations, Phys. Rev. A 54 (1996), no.
+    1, 147-153.
