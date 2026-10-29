@@ -1,0 +1,3549 @@
+
+================================================================================
+L1 EMBEDDINGS OF GRAPHS OF BOUNDED TREEWIDTH
+a complete self-contained proof in plain ASCII
+================================================================================
+
+WHAT IS PROVED.
+
+   For every integer k >= 2 there is a constant C_k >= 1 with the
+   following property.  Let G = (V,E) be any finite connected simple
+   undirected graph with a tree decomposition whose bags have size at
+   most k.  Give each edge e of G an arbitrary positive real length
+   ell(e).  Let d(u,v) be the resulting shortest-path distance.  Then
+   there is a map F from V into a real L1 space such that
+
+        d(u,v)  <=  ||F(u) - F(v)||_1  <=  C_k * d(u,v)
+                                                        for all u,v in V.
+
+   The constant C_k depends on k only.  It does NOT depend on the
+   number n = |V| of vertices, on the decomposition tree T, on how
+   deep T gets, or on the ratios ell(e')/ell(e'') between the shortest
+   and longest edge lengths.
+
+The same theorem can be rephrased: the family of shortest-path metrics
+of graphs of treewidth at most k-1 embeds into L1 with uniformly bounded
+distortion.  Since the excluded-planar-minor theorem of Robertson and
+Seymour says "bounded treewidth" = "does not contain a fixed planar
+graph as a minor" up to a constant, we also get: any family of graphs
+excluding some fixed planar graph as a minor embeds into L1 with
+uniformly bounded distortion.  The bound is existence only.  We do not
+estimate C_k in terms of k.
+
+--------------------------------------------------------------------------------
+WHY IT MATTERS AND WHY IT IS HARD
+--------------------------------------------------------------------------------
+
+WHAT "L1" MEANS.  A natural way to cut a finite set V of n points is
+to choose a subset S of V and split V into S and its complement V\S.
+That cut contributes the elementary metric
+
+   delta_S(u,v) = |1_S(u) - 1_S(v)|,
+
+where 1_S = 1 on S, 0 outside.  delta_S(u,v) is 1 if the cut separates
+u from v (that is, exactly one of u,v lies in S), and 0 otherwise.
+Every nonnegative combination
+
+   D(u,v) = sum over S subset of V of  w_S * delta_S(u,v),
+   w_S >= 0,
+
+is a finite "cut metric".  It is well known (and we explain it in
+Part 0) that a finite metric is a cut metric with distortion bound C if
+and only if it can be mapped into real L1 with distortion at most C.
+So the theorem can be restated like this:
+
+   Find a nonnegative weighting w_S of cuts of V so that:
+     (upper)   for every edge e = uv, the sum
+               sum_S w_S * delta_S(u,v)  charges at most
+               (some constant U) times ell(e);
+     (lower)   for every pair u,v, the sum separates u and v by at
+               least (some constant c) times d(u,v).
+
+The upper bound "extends by triangle inequality" from edges to all
+pairs: if every edge uv satisfies D(u,v) <= U * ell(uv), then every
+shortest path u = x_0, x_1, ..., x_m = v satisfies
+D(u,v) <= sum_{i<m} D(x_i, x_{i+1}) <= U * sum_{i<m} ell(x_i x_{i+1})
+= U * d(u,v).  So the whole content is:
+   UPPER: control D(edge) <= U ell(edge) [easy if cuts are small].
+   LOWER: D(u,v) >= c d(u,v) for all pairs [the hard part].
+
+The Linial-London-Rabinovich theorem ties the SAME cut data to the
+nonuniform sparsest-cut problem: the worst flow-cut gap on a fixed
+graph equals the worst L1 distortion of its weighted shortest-path
+metrics (Gupta-Newman-Rabinovich-Sinclair, Section 3, Theorem 3.2).
+So a C_k-bounded distortion bound also gives a C_k-bounded flow-cut
+gap on these graphs.
+
+WHY BOUNDED TREEWIDTH IS NOT OBVIOUS.  A tempting shortcut: bounded
+treewidth means the graph "looks like a tree of small pieces"; maybe
+we can sample a dominating tree metric, and trees embed isometrically
+into L1.  This fails.  Series-parallel graphs have treewidth 2, yet
+some of their shortest-path metrics need expected distortion
+Omega(log n) against ANY random dominating tree (Gupta-Newman-
+Rabinovich-Sinclair, Theorem 5.6).  So the tree-sampling route cannot
+give a uniform bound for treewidth 2, let alone general k.
+
+The right idea is to use the tree decomposition to keep many cut
+measures "in flight" simultaneously, in a way that does not lose
+information as we cross bags.  Because treewidth is bounded, the
+only state needed at any bag is a bounded-size object.  This makes
+the construction tractable.
+
+WHAT IS ALREADY KNOWN.
+  - k = 2 (treewidth 1, i.e. up to treewidth 1) is classical and
+    easy; treewidth 2 (series-parallel) is Gupta et al.; optimal
+    distortion 2 (Chakrabarti-Jaffe-Lee-Vincent upper, Lee-
+    Raghavendra lower).
+  - k-outerplanar and other bounded-size pieces: known.
+  - Bounded pathwidth: Lee-Sidiropoulos, then O(sqrt(p)) by
+    Abraham-Filtser-Gupta-Neiman.
+  - Chlamtac-Krauthgamer-Raghavendra (CKR) get bounded L1 distortion
+    when the metric's restrictions to (t+3)-vertex subsets admit
+    consistent isometric cut representations.  We do not assume such
+    consistency; we build it.
+  - Filtser et al. prove optimal "padded partitions" for bounded
+    treewidth and derive a size-dependent O(sqrt(log(2+t) log n))
+    distortion bound.  Our bound does not grow with n.
+
+THE SHAPE OF OUR PROOF (bird's eye).  There are three reusable
+ingredients:
+
+   (1) CONSISTENT BAG LAWS  (Part 1, Part 2).  On each bag B_t of
+       a fixed tree decomposition assign a finite measure on cuts
+       of B_t.  If adjacent bag measures agree on the intersection
+       of their bags, they glue canonically by a Markov procedure
+       to one global measure of cuts of V, which we call
+       "Markov gluing".  This is a measure-theoretic version of
+       conditional sampling.  Consistency is what makes the local
+       data global.
+
+   (2) TRANSPORT OF UNCERTAINTY  (Part 2).  If one small cut
+       measure appears as a summand in EVERY bag along a path of
+       bags, and if it is genuinely uncertain at the far end z
+       with respect to a testing bag P, then the glued metric
+       separates the ends of the path by a definite fraction of
+       that uncertainty.  The proportion is a function of k only,
+       not the path length.
+
+   (3) PARTICLES AND RESERVATIONS  (Part 3).  Each bag law is carried
+       by a fixed-size list of "particles", that is, real functions
+       on V.  Sweeping a threshold through a particle's values gives
+       a cut measure.  Swapping a pair (F_i, F_j) for (f+g, f-g)
+       where f = (F_i+F_j)/2 and g vanishes on the current bag leaves
+       the bag's cut measure UNCHANGED but gives the pair a "head
+       start" of |g(z)| in distant parts of the graph.  A uniform
+       bound shows that any finite number of such swaps still keeps
+       every particle uniformly Lipschitz.  A "reservation" freezes a
+       pair so its cut measure is unchanged along a stretch of bags.
+       At most a bounded number of reservations are held at once.
+
+   Assembling (1) (2) (3) we build TWO cut pseudometrics:
+
+   - D_bag  (Part 4):  has an upper bound D_bag <= U_bag * d and, if
+                       u,v share a bag, D_bag(u,v) >= a_bag * d(u,v).
+   - D_anc  (Part 5):  has an upper bound D_anc <= U * d and an
+                       "anchor" separation for distant vertices.
+
+   Then (Part 6) if D_bag + D_anc failed to be a real lower bound, we
+   would get a sequence of normalized counterexamples.  Using a
+   compactness device (a nonprincipal ultrafilter), the bounded cache
+   of anchors would produce a "youngest reservation crossing from
+   bounded distance to vanishing distance"; the noise carried by the
+   reservation then forces a younger crossing reservation to exist,
+   contradicting "youngest".  So D_bag + D_anc >= lambda_k * d for
+   some lambda_k > 0 depending on k only.
+
+   Part 7 assembles the two cut pseudometrics into one cut measure.
+   Any finite cut metric embeds isometrically into finite-dimensional
+   L1 (revisit the cut representation in Part 0), so the theorem
+   follows with C_k = (U_bag + U) / lambda_k.
+
+--------------------------------------------------------------------------------
+NOTATION CHEAT SHEET
+--------------------------------------------------------------------------------
+
+   * or juxtaposition     multiplication
+   ^                      superscript (power, or label like T^2)
+   _                      subscript (index or label like B_t)
+   ==, !=                 equal, not equal
+   <=, >=, <, >           usual order
+   ~                      "is comparable to within a fixed constant"
+   ->                     function arrow, or limit
+   in, notin              element of, not element of
+   subset, subseteq       subset, subset-or-equal
+   sum_, prod_            summation and product over the stated index
+   int_                   integral
+   forall, exists, s.t.   "for every", "there exists", "such that"
+   w.r.t.                 with respect to
+   w.l.o.g.               without loss of generality
+   iff                    "if and only if"
+   o(1)                   tending to 0 along the sequence
+   Theta, Omega, O        standard asymptotic up to constants
+
+   Sets:
+     R    real numbers
+     N    nonnegative integers
+     |S|  cardinality of the finite set S
+     V    the vertex set of a graph
+     E    the edge set of a graph
+
+   Graph, edge lengths, metric:
+     G = (V,E)          finite connected simple undirected graph
+     ell(e) > 0         length of edge e (any positive real)
+     d(u,v)             shortest-path distance using lengths ell
+     Delta              max_{u,v in V} d(u,v)  (the diameter)
+     d(x,A)             min_{a in A} d(x,a) for a nonempty A subset of V
+     d(x,A) = +inf      if A is empty (we never actually use that case)
+
+   Tree decomposition:
+     T                  the tree indexing the bags
+     B_t                the bag at node t (a subset of V)
+     k                  bound on |B_t|; so treewidth <= k-1
+     T_v                the set of nodes t with v in B_t
+
+   L1, cuts:
+     Omega_S = {0,1}^S  all binary labelings of a finite set S
+     delta_S(u,v) = |1_S(u) - 1_S(v)|  for S subset of V
+     ||F(u)-F(v)||_1   the L1 distance of an embedding F
+
+   Bag measures:
+     mu_t               a labeled cut measure on Omega_{B_t}
+     nu | R             trace of nu to subset R (pushforward under
+                        restriction omega -> omega|R)
+     nu^c               complement measure (omega -> 1 - omega)
+     nu^{sym} = (nu+nu^c)/2     symmetrization
+     m                  common total mass of a consistent family
+     D_nu(u,v)          cut pseudometric of nu (prob of separating u,v)
+
+   Uncertainty, transport:
+     E_nu(z | P) = sum_{b in Omega_P}
+                     min{nu(omega|P = b, omega(z) = 0),
+                          nu(omega|P = b, omega(z) = 1)}
+                        "mass of the less frequent label at z"
+     b_k                a constant > 0, depends on k only
+     C(2^k)             the constant of the symmetric Markov-flow bound
+
+   Particles:
+     N                  number of particles (a fixed integer)
+     F_1,...,F_N        particles: real functions on V
+     sigma_F^M          sweep measure: push Lebesgue measure on [-M,M]
+                        through t -> 1_{F > t}
+     Q_r = r(N-r)       the "quadratic" invariant used to bound all
+                        particles' Lipschitz constants uniformly
+     (f+g, f-g)         an "update at P": replace two particles by
+                        f=(F_i+F_j)/2 and a perturbation g with g|P=0
+     reservation        a frozen pair assigned to a stretch of path
+     q or q_0           cap on simultaneous reservations in one
+                        memory copy
+     U                  a uniform upper Lipschitz constant for all
+                        cut pseudometrics we build
+     L, B               global bounds: Lip(g) <= L, |g| <= B * Delta
+
+   The two cut pseudometrics we build:
+     D_bag              common-bag metric (Part 4)
+     D_anc              anchor metric (Part 5)
+     U_bag, a_bag       constants for D_bag (upper, co-bag lower)
+     lambda_k           the ultimate lower constant for D_bag + D_anc
+     C_k = (U_bag+U)/lambda_k  the distortion of the final embedding
+
+Square brackets [like this] are informal margin notes.  Skip them on
+a first pass.  Nothing in the logic is lost by skipping them.
+
+================================================================================
+
+
+================================================================================
+PART 0.  BACKGROUND: METRICS, L1, AND TREE DECOMPOSITIONS
+================================================================================
+
+--------------------------------------------------------------------------------
+0.1  A GRAPH, ITS EDGE LENGTHS, ITS SHORTEST-PATH METRIC
+--------------------------------------------------------------------------------
+
+Let G = (V,E) be a finite, connected, simple, undirected graph.  Simple
+means no loops and no two edges connect the same pair.  Connected means
+every pair of vertices can be joined by a walk in G.  Give every edge
+e in E a positive real length ell(e) > 0.  Nothing else is assumed
+about these lengths; they may be wildly different from one another.
+
+For vertices u,v in V, define
+
+     d(u,v) = the smallest total length of a walk in G from u to v.
+
+Because all ell(e) are positive and G is finite and connected, the set
+of walk-lengths between u and v is a nonempty set of positive numbers
+that descends to some minimum; d(u,v) is that minimum.  Then d is a
+metric: d(u,v) = d(v,u), d(u,u) = 0, and the triangle inequality
+d(u,v) <= d(u,w) + d(w,v) holds (concatenate a shortest u-to-w path
+and a shortest w-to-v path).  Distinct vertices u != v have d(u,v) > 0.
+Note: d(u,v) may be much bigger than the length of a single edge on it,
+and may be smaller than the straight ratio ell(u,v)/ell(any) suggests;
+the metric only "knows" shortest-path sums.
+
+Two quantities appear constantly.
+
+     Delta = max_{u,v in V} d(u,v).     (the diameter)
+
+     d(x,A) = min_{a in A} d(x,a)      for x in V, A subset of V nonempty.
+
+The function x -> d(x,A) is 1-Lipschitz with respect to d:
+
+     |d(x,A) - d(y,A)| <= d(x,y)       for all x,y in V.
+
+That is a one-line triangle inequality (choose a nearest a in A for x;
+swap roles).  We will use this often.
+
+We will also use the phrase "1-Lipschitz" in general: a function
+g : V -> R is 1-Lipschitz (or Lip(g) <= 1) if |g(x)-g(y)| <= d(x,y)
+for every x,y in V.  If we say "g has Lipschitz constant at most L",
+that means |g(x)-g(y)| <= L d(x,y).
+
+--------------------------------------------------------------------------------
+0.2  L1 SPACES, CUTS, AND THE LAYER-CAKE IDENTITY
+--------------------------------------------------------------------------------
+
+For a finite set V, a "cut" of V is a subset S of V.  It serves as a
+binary labeling 1_S : V -> {0,1} (1 on S, 0 off S).  The distance
+between labeling values is
+
+     delta_S(u,v) = |1_S(u) - 1_S(v)|,   which is 1 if u,v separated by S, else 0.
+
+A "cut combination" is a finite list of cuts S_1,...,S_m with weights
+w_1,...,w_m >= 0:
+
+     D(u,v) = sum_{i=1}^m  w_i * delta_{S_i}(u,v).                (0.1)
+
+We claim (0.1) is the same as an embedding into the L1 space R^m.
+Indeed, define F : V -> R^m by
+
+     F(v) = ( sqrt(w_1) * 1_{S_1}(v), ..., sqrt(w_m) * 1_{S_m}(v) ).
+
+Then
+
+     ||F(u) - F(v)||_1
+       = sum_i | sqrt(w_i) * (1_{S_i}(u) - 1_{S_i}(v)) |
+       = sum_i w_i * |1_{S_i}(u) - 1_{S_i}(v)|
+       = D(u,v).
+
+So a cut combination is literally an L1 embedding.  Conversely, an
+L1 embedding F : V -> R^M decomposes into M one-coordinate functions
+F_1,...,F_M, and we can split D_nu(u,v) = sum_j |F_j(u) - F_j(v)|.
+Each |F_j(u) - F_j(v)| is a "cut combination" via the LAYER-CAKE
+identity:
+
+     |a - b| = int_{-inf}^{inf}  |1_{a > t} - 1_{b > t}|  dt,     (0.2)
+
+which holds for any real a,b (sweep a vertical line across the two
+values: it separates them on an interval of length |a-b| exactly).
+Apply (0.2) to a = F_j(u), b = F_j(v) and integrate; the left side is
+the coordinate's contribution.  Because V is FINITE, the function
+F_j takes only finitely many values, so (0.2) is a finite sum over the
+finitely many thresholds where the labeling 1_{F_j > t} can change.
+Thus the coordinate is a finite cut combination.
+
+There is a more helpful version of this for us.  Define, for any real
+function F on V and any "cutoff" M > 0 with F(V) subset of [-M, M],
+the SWEEP MEASURE
+
+     sigma_F^M   =   pushforward of Lebesgue measure on [-M, M]
+                     under  t -> 1_{F > t}  in Omega_V = {0,1}^V.       (0.3)
+
+That is, a Borel set A of labelings gets mass sigma_F^M(A) = the
+Lebesgue measure of the set of thresholds t in [-M,M] for which
+1_{F > t} lies in A.  Then by (0.2)
+
+     the cut pseudometric  D( sigma_F^M )(u,v)  is exactly |F(u)-F(v)|
+
+       (as long as [-M, M] contains every value of F, so that the
+        Lebesgue run of thresholds pokes through both values).
+
+The total mass of sigma_F^M is 2M.  We often symmetrize a labeled cut
+measure nu on Omega_V by
+
+     nu^{sym} = (nu + nu^c) / 2,    where  nu^c is the image
+                                     of nu under omega -> 1 - omega.
+
+Symmetrization leaves the cut pseudometric D_nu(u,v) = nu{omega: omega(u) != omega(v)} unchanged (the two sides of "!= " complement to each other).
+
+So the following are equivalent on a finite set V, up to a
+multiplicative scalar on the metric:
+
+     (L1')  There exists F : V -> R^M with ||F(u)-F(v)||_1 = D(u,v).
+     (CUT') There is a finite labeled cut measure nu on Omega_V with
+            D(u,v) = nu{omega : omega(u) != omega(v)}.
+
+Both contain the same information; the L1 coordinates are a
+convenient way to store the cut weights.  When we say "we construct a
+cut pseudometric" we mean we construct the cut measure nu, and the L1
+realization is then immediate from (CUT').
+
+Remark on pseudometrics.  If we only know "D(u,v) >= 0, symmetric,
+D(u,u)=0, triangle inequality", but D(u,v) = 0 is permitted for
+u != v, D is a PSEUDOmetric.  Any pseudometric with D(u,v)=0 for some
+u != v collapses those points to a single point; this is harmless
+here (and we do not want to distinguish coinciding vertices, so we
+state results as pseudometrics; when put together with a strict lower
+bound lambda_k d, they automatically become proper metrics).
+
+--------------------------------------------------------------------------------
+0.3  TREE DECOMPOSITIONS AND SEPARATORS
+--------------------------------------------------------------------------------
+
+A TREE DECOMPOSITION of a graph G = (V,E) is:
+   - a finite tree T (its vertices are called NODES here, to
+     distinguish them from the graph's vertices in V);
+   - for each node t of T, a "bag" B_t  subset of V.
+
+Two rules.
+   (COVER)   Every v in V lies in at least one bag, and for every edge
+             e = uv in E there is some bag B_t containing both u and v.
+   (RUNS)    For every v in V, the set of nodes t with v in B_t induces
+             a CONNECTED subtree of T.
+
+The WIDTH of the decomposition is (max_t |B_t|) - 1.  The TREEWIDTH of
+G is the minimum width of one of its tree decompositions.  In this
+file, k is an upper bound on BAG SIZE, so treewidth(G) <= k-1.
+
+Two important simplifications valid for the rest of the file.
+
+   (S1) We may assume all bags are nonempty.  [Proof: if B_t = empty,
+   delete node t; this cuts T into components.  Each component's union
+   of bags has no graph edge to any other component's union (an edge
+   uw needs a bag containing u,w; the edge's two endpoints lie in a
+   single component), and (since G is connected) all but one component
+   contain no vertices of V.  Delete those.  Repeat.]
+
+   (S2) Bags are INDEXED OBJECTS.  Two nodes t,t' of T may have the
+   same vertex set B_t = B_{t'}; they are still different bags, and we
+   track them separately.  (Used for anchors in Part 5.)
+
+LEMMA 0.1 (Separator facts).  In a tree decomposition of a connected
+graph G = (V,E), the following hold.
+
+   (a) If a bag B lies on the tree path from bag A to bag C in T,
+       then every path in G from a vertex of A to a vertex of C meets B.
+
+   (b) For adjacent bags A,C of T, the set A cap C separates the
+       union of bags on one side of the tree edge from the union on
+       the other side.  In particular, adjacent nonempty bags have
+       nonempty intersection.
+
+   (c) If bags A_0, A_1, ..., A_r along a tree path, and z is a
+       vertex that belongs to A_r, then the sequence
+
+             d(z, A_0), d(z, A_1), ..., d(z, A_r)
+
+       is nonincreasing in the index i.  In fact, if B lies between
+       some A and a bag that contains z, we can choose a vertex v in B
+       on some shortest z-A path with the equality
+
+             d(z,A) - d(v,A) = d(z,v).                    (0.4)
+
+Proof of (a).  Delete node t_B (the node of T whose bag is B).
+The tree T splits into components C_1, ..., C_m.  Every vertex x of
+V \ B has its occurrence tree T_x inside one such component, by
+(RUNS) and x not in B.  If two graph-adjacent vertices x,y in V \ B
+had occurrence trees in DIFFERENT components, the edge xy has to lie
+in a bag, so a bag containing both x and y exists; but then T_x and
+T_y intersect at the node of that bag, and their connected subtrees
+lie in the same component of T - t_B, contradiction.  So all edges
+between V \ B stay within a single component.  A path in G avoiding B
+therefore starts and ends in the same component; if it goes from a
+vertex of A to a vertex of C, they must be on the same side of t_B,
+but t_B was strictly interior by hypothesis (a), so A and C are on
+opposite sides, contradiction.  Done.
+
+Proof of (b).  Let A and C be adjacent bags; let "left side" be the
+union of bags on A's side of the tree edge, similarly "right side" on
+C's side.  If a vertex v occurs on both sides, T_v is a connected
+subtree crossing the edge, so it contains both nodes (A's node and C's
+node), so v in A and v in C, so v in A cap C.  Hence: a vertex lies on
+both sides precisely iff it is in A cap C.  If there is an edge u'w'
+joining a vertex u' strictly on the left (u' not in A cap C) to w'
+strictly on the right (w' not in A cap C), the edge sits in some bag,
+which sits on one side or the other; but then both endpoints sit in
+that bag and hence on the same side, contradicting "strictly left
+endpoint" and "strictly right endpoint".  So A cap C separates the
+two sides.  If A cap C were empty, then since A and C are nonempty
+and lie on the two sides, they would be disconnected from each other;
+in particular no path from A to C in G would exist, contrary to G
+connected and A,C subset of V nonempty.  So A cap C is nonempty.
+
+Proof of (c).  Take a shortest path in G from z to A_i, then continue
+to A_{i+1}: it starts at z and ends at A_{i+1}, but we can shorten it
+by continuing to A_{i+1} via (a): the shortest z to A_i path hits
+A_{i+1} (because A_{i+1} is between z's last bag and A_i's bag on the
+tree path).  So d(z, A_{i+1}) <= d(z, A_i).  For the equality (0.4):
+take any shortest z-to-A path; let v be any vertex of it that lies in
+B.  Its initial segment ends at v and has length d(v,A): if there were
+a shorter path from v to A, replacing the suffix z-to-v-to-A by
+z-to-v-then-shorter-A would shorten z-A, contradiction.  The remaining
+segment (v to z) has length d(z,v) (again shortest, otherwise shorten
+z-A).  Their sum equals d(z,A) by definition.  Done.  []
+
+A consequence used often.  Suppose A is a bag chosen earlier (that is,
+closer to the root of T, once we fix a root) and B is a bag below it,
+and p is a vertex of B.  Then
+
+     d(p,A')  DECREASES  as the bag A' moves DOWN toward B along the
+     tree path from A to B,
+
+because every such A' sits between A and B, so (c) with z=p, A_r = B
+shows d(p, A') is nonincreasing in the sequence.  This "monotonicity
+of distance-to-a-fixed-upper-bag" will be used to argue that distance
+lists are ordered (Part 5).
+
+--------------------------------------------------------------------------------
+0.4  SUMMARY: WHAT PART 0 GIVES US
+--------------------------------------------------------------------------------
+
+     * Every "cut combination" is an L1 embedding, and conversely every
+       finite L1 embedding is a cut combination (on finite V).  Both
+       are equivalent to a finite labeled cut measure on Omega_V.
+     * Shortest-path distance d is a genuine metric, and d(x,A) is a
+       1-Lipschitz function of x.
+     * Tree decompositions, bags, and the three Separator facts (a),
+       (b), (c).
+
+Everything else in this file is built on these.  We construct cut
+measures; the L1 embedding follows immediately.
+
+================================================================================
+
+
+================================================================================
+PART 1.  BAG MEASURES ON A TREE DECOMPOSITION AND MARKOV GLUING
+================================================================================
+
+Throughout this part we fix:
+   * a finite connected graph G = (V,E) with positive edge lengths,
+   * its shortest-path metric d,
+   * a tree decomposition (T, {B_t}) with bags of size at most k, all
+     bags nonempty (Part 0, (S1)).
+
+The plan is to construct bag cut measures that agree on overlaps, then
+glue them into a single cut measure of V.
+
+--------------------------------------------------------------------------------
+1.1  THE INGREDIENTS
+--------------------------------------------------------------------------------
+
+For a finite set S, write Omega_S = {0,1}^S: all binary labelings of S.
+A LABELED CUT MEASURE on S is a finite nonnegative measure nu on
+Omega_S.  (Omega_S is finite, so nu assigns a nonnegative number
+nu(omega) to every labeling omega and everything is a finite sum.)
+
+Given R subseteq S, define the TRACE nu|_R as the pushforward of nu
+under restriction of labelings:
+
+     nu|_R ( b )  =  nu( { omega in Omega_S : omega|_R = b } ),
+        b in Omega_R.
+
+So nu|_R remembers only what nu says about labels on R.
+
+The COMPLEMENT of a labeling is omega^c defined by omega^c(v) = 1-omega(v);
+N^c is the pushforward by omega -> omega^c.  The SYMMETRIZATION of a
+labeled cut measure nu is
+
+     nu^{sym} = (nu + nu^c) / 2.
+
+A measure is SYMMETRIC if nu = nu^c.
+
+The CUT PSEUDOMETRIC of a labeled cut measure nu on S is
+
+     D_nu(u,v) = nu( { omega in Omega_S : omega(u) != omega(v) } ),  u,v in S.
+
+Equivalently, D_nu(u,v) is the total mass of the labelings that put u
+and v into different classes.  Symmetrization does not change D_nu:
+D_{nu^{sym}}(u,v) = D_nu(u,v), because "omega(u) != omega(v)" is the
+same as "omega^c(u) != omega^c(v)" for the complemented labeling.
+
+Now a CONSISTENT FAMILY is a collection mu = (mu_t)_{t in V(T)} of bag
+cut measures, one per bag, satisfying:
+
+   (CM1) all mu_t have the SAME total mass m > 0;
+
+   (CM2) for every tree edge ts in T (so t and t' are adjacent nodes
+         of T, with bags B_t, B_{t'}), we have
+
+              mu_t | (B_t cap B_{t'})  ==  mu_{t'} | (B_t cap B_{t'}).
+
+        (The common trace on B_t cap B_{t'} will be called mu_{ts}.)
+
+This is the "glue on overlaps" condition.  The next result is the only
+place where we actually glue bag measures.
+
+--------------------------------------------------------------------------------
+1.2  MARKOV GLUING
+--------------------------------------------------------------------------------
+
+LEMMA 1.1 (Markov gluing).  Let mu = (mu_t) be a consistent family of
+bag cut measures, with bags of size at most k and every bag nonempty.
+Then there exists a LABELED CUT MEASURE rho_mu on Omega_V = {0,1}^V,
+of the same total mass m, whose trace on every bag equals the
+corresponding bag measure:
+
+     (rho_mu) | B_t   ==   mu_t       for every node t in V(T).
+
+Moreover:
+
+   (MG1) rho_mu is independent of the choice of root of the tree T.
+
+   (MG2) If every mu_t is symmetric, so is rho_mu.
+
+   (MG3) Along any tree path B_{t_0}, ..., B_{t_r}, the successive
+         intersection assignments
+
+              (omega restricted to B_{t_i} cap B_{t_{i+1}})  for
+              i = 0, ..., r-1
+
+         form a Markov chain under rho_mu/m.
+
+   (MG4) On the finite measure space (Omega_V, rho_mu), the coordinate
+         functions F_v(omega) = omega(v) realize the cut pseudometric:
+
+              rho_mu{omega: omega(u) != omega(v)} = D_mu(u,v)
+              ||F_v - F_u||_1  =  D_mu(u,v)        (in L1(Omega_V, rho_mu)).
+
+Proof.
+
+Construction.  Root T at any node t_0.  Sample the root labeling
+omega|_{B_{t_0}}  from mu_{t_0}/m.  Then process the tree top-down.
+When node t has just been given its parent s (so omega on B_s is
+known), keep omega on B_s cap B_t (which is known) and sample the
+remaining labels on B_t \ B_s from the conditional law
+
+     mu_t( . | omega restricted to B_s cap B_t ),
+
+that is, the conditional law of mu_t given the labels that are already
+fixed on S = B_s cap B_t.
+
+Two facts make this work.
+
+Fact (i): after the step at t, every vertex v that was already assigned
+before processing t and lies in B_t belongs to S = B_s cap B_t.
+Indeed, v was assigned in some earlier bag, so it belongs to that
+bag; and it belongs to B_t; by (RUNS), its subtree of T contains the
+path from the earlier bag to t, and this path passes through s (the
+parent).  So v lies in B_s.  Hence v in B_s cap B_t = S.
+
+Fact (ii): the sampling produced labelings on each bag with marginals
+mu_t/m.  Base case: root is sampled from mu_{t_0}/m.  Induction: node
+t is sampled conditional on its B_t cap B_s; by consistency, the
+partial labeling on S is distributed as mu_s|_S = mu_t|_S.  By the
+tower property of conditional expectation, the resulting marginal on
+B_t is mu_t/m.  In fact, for any node t, "mu_t on B_t" is the
+marginal by a simple calculation: conditioning on S at the second
+last step and unconditioning (integrating) gives back mu_t/m on B_t,
+because the conditional laws combine to mu_t/m = marginal of
+unconditional sampling from mu_t.
+
+Combined, after processing every node of T, we have an assignment of
+labels to every vertex that appears in at least one bag, which is all
+of V by (COVER).  Rule (COVER) ensures each vertex is in some bag; and
+(RUNS) ensures the assignment is consistent (when a vertex occurs in
+several bags it receives the same label, because each step keeps the
+overlap labels).
+
+This composition of constraint-preserving samplings yields a probability
+measure on Omega_V; multiply by m to get rho_mu.  Its marginals on every
+bag are mu_t, by induction.  So (rho_mu)|B_t = mu_t.
+
+Independence of root (MG1).  This is a standard consequence of the
+"Markov random field on a tree" factorization: the joint density, when
+all traces on edges are positive, is
+
+     rho_mu(omega)  =  ( prod_t mu_t(omega|_{B_t}) )
+                     / ( prod_{ts in E(T)} mu_{ts}(omega|_{B_t cap B_s}) ),
+
+and every factor is symmetric in the tree; every root gives the same
+answer.  If some trace has zero mass, the same formula in the limit
+gives zero for this assignment, and the already established marginals
+suffice.  Root-independence of the pseudometric D_mu(u,v) is
+immediate because D_mu is defined from rho_mu and the formula is
+independent of root.
+
+Symmetry (MG2).  Every factor is invariant under global complement;
+prod is invariant.  So rho_mu = rho_mu^c.
+
+Markov chain along a path (MG3).  Apply the tree construction rooting
+at the first bag B_0 of the path.  When we process the next path bag
+B_1, the step depends on the labels already set, which are exactly
+those on B_0 cap B_1 plus those coming from side-branches of T.
+Fact (i) above with t = B_1 and s = B_0 shows that side branches
+contribute only labels on B_0; and inside B_0, the side-branch labels
+are exactly those on B_0 (in the marginal).  Conditioning on the labels
+of B_0 cap B_1 completely determines the sampling of the next
+intersection: integrate out the rest of B_0 and then sample the rest
+of B_1.  So successive intersections form a Markov chain.  (Any
+side-branch contributions are integrated out because we look only at
+the path.)
+
+L1 realization (MG4).  On the probability space (Omega_V, rho_mu/m),
+the coordinate functions F_v satisfy
+
+     int |F_v - F_u| d(rho_mu/m)  =  (rho_mu/m) {omega: omega(u) != omega(v)}
+                                  =  D_mu(u,v) / m.
+
+After multiplying the measure by m, the same functions give
+D_mu(u,v) as their L1 distance in L1(rho_mu).  Finally, rho_mu is a
+measure on the finite set Omega_V; we can index it by cuts S subseteq
+V, giving the cut representation in Part 0.  []
+
+The canonical construction of Lemma 1.1 is the ONLY gluing procedure
+used in this file.  Everything downstream is a bag-local operation;
+the gluing is the automatic global closure.
+
+NOTATIONAL CONVENTION.  We will often write D_mu for the glued cut
+pseudometric, and treat it as attached to the family mu.  For a
+specific labeled cut measure nu on V, the notation D_nu(u,v) already
+meant "probability omega(u) != omega(v)".  This matches the glued
+pseudometric when nu = rho_mu.
+
+--------------------------------------------------------------------------------
+1.3  TWO IMMEDIATE CONSEQUENCES
+--------------------------------------------------------------------------------
+
+Consequence A (edge extension).  Suppose every edge e = uv has its
+endpoints in some bag B_t and satisfies the bag-local bound
+
+     D_{mu_t}(u,v)  <=  U * ell(uv)         for every edge uv.         (1.1)
+
+Then the global glued pseudometric satisfies a path-sum bound:
+
+     D_mu(u,v)  <=  U * d(u,v)               for every u,v in V.       (1.2)
+
+Proof.  For the edge uv, its bag marginal is mu_t, so
+D_mu(u,v) = D_{mu_t}(u,v) <= U ell(uv).  Sum along a shortest path
+using the triangle inequality.  []
+
+Consequence B (averaging over auxiliary randomness).  Suppose the
+family mu depends measurably on an auxiliary random variable X taking
+values in some probability space, and that for almost every realization
+X = x the total mass of mu(x) equals a FIXED integer m (so is
+integrable).  Define
+
+     rho*  =  E_X [ rho_{mu(X)} ]      (as a finite measure on Omega_V),
+
+where rho_{mu(X)} is the Markov gluing for realization X.  Then rho* is
+a labeled cut measure on Omega_V of total mass m, and its cut
+pseudometric
+
+     D_{rho*}(u,v)  =  E_X [ D_{mu(X)}(u,v) ]
+
+is itself a cut pseudometric.  In particular, if D_{mu(X)}(u,v) >= c d(u,v)
+holds for almost every X, so does D_{rho*}(u,v) >= c d(u,v); and if
+D_{mu(X)}(u,v) <= U d(u,v) for almost every X, so does D_{rho*}(u,v) <= U d(u,v).
+
+Proof.  This is Fubini.  Each rho_{mu(X)} is a finite measure of mass
+m; integrability (mass 2M in applications) makes the expectation well
+defined.  Linearity of the cut representation and the fact that "omega(u)
+!= omega(v)" is a bounded (0-1) random variable under each rho_{mu(X)}
+give the expectation formula for D_{rho*}.  []
+
+================================================================================
+PART 2.  UNCERTAINTY TRANSPORT: A RIGIDITY OF MARKOV GLUING
+================================================================================
+
+The Markov gluing combines bag laws into ONE global law.  A subtle
+but crucial issue: the glued measure on V need NOT be organized
+"path-by-path" the way a naive product would suggest.  So if a cut
+measure appears as a SUMAND of the bag laws along a path, we need an
+additional estimate to say how much separation it forces in D_mu
+between the two ENDS of the path.  This is the transport inequality
+of Proposition 2.2.  It is where the external CKR theorem enters.
+
+--------------------------------------------------------------------------------
+2.1  THE EXTERNAL SYMMETRIC MARKOV FLOW BOUND
+--------------------------------------------------------------------------------
+
+We use the following theorem, proved in Chlamtac, Krauthgamer,
+Raghavendra, "Approximating sparsest cut in graphs of bounded
+treewidth", APPROX/RANDOM 2010 (Section 4, Theorem 4.4, and its
+finite-measure form as stated there).
+
+A MARKOV FLOW GRAPH for a finite Markov chain X_0, X_1, ..., X_r with
+state sets L_0, ..., L_r is a directed graph: its vertices are
+{(i, a) : i = 0,...,r, a in L_i}; edges only go from layer i-1 to layer i;
+each such edge ((i-1,a),(i,b)) has capacity Pr[X_{i-1} = a, X_i = b].
+
+SYMMETRIC Markov flow graph: each layer L_i has a fixed-point-free
+involution theta_i (think theta_i(x) = "the complement of x", or "swap
+the two states"), and the joint law of (theta_i(X_i))_{i=0}^r equals
+that of (X_i)_{i=0}^r.
+
+A FEASIBLE FLOW from s_0 to t_1 means a nonnegative function on the
+edges that satisfies node conservation everywhere except at s_0 (source)
+and t_1 (sink), and is bounded by the edge capacities.  Its VALUE is
+the total flow out of s_0.
+
+THEOREM 2.1 (CKR 2010, Theorem 4.4).  For every integer w >= 2 there is
+a constant C(w) >= 1 with the following property.  Let a symmetric
+Markov flow graph have at most w states per layer, first layer
+{s_0, s_1}, and last layer {t_0, t_1}, and let its layer involutions
+interchange the two states in each endpoint layer.  Then every feasible
+flow from s_0 to t_1 has value at most
+
+     C(w) * Pr[X_0 = s_0, X_r = t_1].
+
+C(w) is a function of w alone.  It does not depend on r or on the
+transition probabilities.
+
+Two small enrichments, for convenience (and justified where we use it):
+
+   * Deterministic transitions are allowed (the capacities include
+     zero for impossible pairs).
+   * Zero-probability states may be removed in involution-pairs
+     (their incident capacities vanish, so neither feasible flows nor
+     endpoint probabilities change; and involutions pair them up).
+
+We fix once and for all:
+
+     b_k = 1 / C(2^k) > 0.                                        (2.1)
+
+The only feature of "2^k" is that it upper bounds the number of binary
+labelings of a set of size k, and so upper bounds every layer size in
+the transport argument below.  The constant b_k is therefore a
+function of k only.
+
+--------------------------------------------------------------------------------
+2.2  UNCERTAINTY AND THE TRANSPORT PROPOSITION
+--------------------------------------------------------------------------------
+
+Let nu be a labeled cut measure on V, P subseteq V, z in V.  Define
+the UNCERTAINTY of nu at z given P:
+
+     E_nu(z | P)  =   sum_{b in Omega_P}
+                        min{ nu(omega|P = b, omega(z) = 0),
+                             nu(omega|P = b, omega(z) = 1) }.       (2.2)
+
+Read this as: for each possible labeling b on P, look at the two
+masses of the two possible labels at z; take the smaller; sum over b.
+Two properties are immediate:
+
+   (UNC1) E_nu >= 0; E_nu is monotone in nu, positively homogeneous,
+          and concave in nu.
+          [All three follow from properties of min{a,b} and of sum.]
+
+   (UNC2) E_{nu^{sym}}(z|P) >= E_nu(z|P).
+          [The measure nu^{sym} may average the mass of labels at z
+          by complement.  Under the reindexing b -> 1-b, "omega(z)=0"
+          and "omega(z)=1" trade places; the min takes the smaller,
+          so complementing cannot decrease the total less-frequent
+          mass.]
+
+PROPOSITION 2.2 (Transport of uncertainty).  Let mu be a consistent
+family of SYMMETRIC bag cut measures, of bags of size at most k.  Let
+B_0, B_1, ..., B_r be a path of bags in T, with B_0 containing a vertex y
+and B_r containing a vertex z.  Let P = B_j for some 0 <= j <= r.
+Suppose a labeled cut measure nu (NOT necessarily symmetric) satisfies
+
+     nu | B_i   <=   mu_{B_i}     for every j <= i <= r,        (2.3)
+
+where mu_{B_i} is the trace of mu_i on its bag (i.e. mu_i itself, but
+written suggestively).  Then the Markov-glued pseudometric D_mu obeys
+
+     D_mu(y,z)  >=  b_k * E_nu(z | P).                          (2.4)
+
+Proof.  Fix a realization.  Write rho = rho_mu, m = rho(Omega_V).
+
+If z in P then each assignment on P determines z's label; then
+E_nu(z | P) = 0 (both sides of the min are the mass of the same
+event minus itself), so (2.4) holds trivially.  Now z notin P.
+
+The transport chain.  Consider the following sequence of vertex sets,
+which will be layers of a Markov chain under rho/m:
+
+   L_0     = { y },
+   L_1     = B_0 cap B_1,
+   L_2     = B_1 cap B_2,
+   ...
+   L_r     = B_{r-1} cap B_r,
+   L_{r+1} = { z },
+
+PLUS one additional layer for the full assignment on P, inserted at the
+point where B_j is visited on the path.  More precisely:
+
+   Let L(P) be the layer with states Omega_P (assignments on P).
+   Put L(P) between L_j and L_{j+1} (or, if j = 0, immediately after
+   L_0; if j = r, immediately before L_{r+1}).
+
+The indexing vertex sets along consecutive layers are all subsets of
+SOME bag:
+
+   * L_0 = {y} subset B_0, L_1 = B_0 cap B_1 subset B_0 and B_1,
+   * L(P) = B_j,
+   * and so on.
+
+So by Lemma 1.1 (MG3), the joint law of labels on consecutive layers is
+a Markov chain under rho/m.  Every layer has at most 2^k states (since
+each is a subset of a bag, or is P = B_j itself).  All layer vertex
+sets are nonempty by Lemma 0.1(b).  The involutions are theta_L: an
+assignment omega on L -> 1 - omega.  Because every bag measure mu_i is
+symmetric, the joint law of the chain is invariant under the
+complement of all layers.  So this is a symmetric Markov flow graph,
+with w = 2^k.
+
+The capacities.  Between consecutive layers L_{i-1}, L_i (of the
+path-only chain, not counting L(P) yet), the capacity of an arc is
+the mass in rho/m of the joint assignment on those layers, which is
+the same as a projection of mu_{B_{i-1} cap B_i}: this is a
+finite-measure statement.  After symmetrization, the total mass on
+each pair of layers is exactly 2m * (probability).  We use the
+PROBABILITY normalization rho/m from here on; capacities scale by m
+in the end.
+
+The transport measure lambda on Omega of paths.  We want a measure on
+paths in the chain whose first layer is y and last is z and whose
+successive joint distributions are dominated by the reference chain
+capacities.  Take the SUFFIX (from L(P) onward) to be the projection
+of nu.  For each assignment b on P (that is, b in Omega_P), let
+n_b = nu(omega|P = b).  By (2.3), n_b <= m_b := rho(omega|P = b).
+If m_b > 0, append an independent prefix with the conditional law under
+rho/m given assignment b on P (this is well defined by the Markov
+property).  If m_b = 0 then n_b = 0 (by (2.3)), and no prefix is
+needed.
+
+Feasibility.  For each prefix edge F (an event on some consecutive
+layers before P), the mass is
+
+     lambda(F) = sum_{b: m_b > 0} n_b * Pr_rho[ F | omega|P = b ]
+             <= sum_{b: m_b > 0} m_b * Pr_rho[ F | omega|P = b ]
+              = rho(F).
+
+The inequality is term-by-term (n_b <= m_b), so every prefix edge
+respects the capacity.  For the suffix edges, the law is the
+projection of nu, and these edges correspond to subsets of a single
+bag B_i (for i >= j) by construction of the layers, so the suffix also
+respects capacities by (2.3).
+
+Consistency at L(P).  A vertex that occurs both on a prefix layer and a
+suffix layer must occur on P, because both sides keep only layers that
+are subsets of bags that meet at P, and a vertex occurring nontrivially
+outside P would give two assignments to a vertex in the graph
+disagreeing on the same vertex on non-terminator layers.  Formally: any
+coordinate of any layer is a vertex of V; vertices appearing both sides
+of L(P) are exactly those in P, so the labels agree.  []
+
+Now, the flow value.  Define, for i in {0,1} and b in Omega_P,
+
+     a_i(b)  =  nu(omega|P = b, omega(z) = i),
+     q_b     =  Pr_rho[ omega(y) = 0 | omega|P = b ]  (0 if m_b = 0).
+
+We compute lambda{omega(y) != omega(z)}.  By construction,
+
+     lambda{omega(y) != omega(z)}
+       = sum_b q_b * a_1(b) + (1 - q_b) * a_0(b).
+
+Two cases depending on sign (q_b >= 1/2 or <).  In both cases we have
+
+     q_b * a_1(b) + (1 - q_b) * a_0(b)  >=  min{ a_0(b), a_1(b) }.
+
+Summing over b:
+
+     lambda{omega(y) != omega(z)}
+       >=  sum_b min{ a_0(b), a_1(b) }  =  E_nu(z | P).
+
+So the total mass of paths where the labels differ at the endpoints is
+at least E_nu(z|P).
+
+Restrict lambda to paths with endpoint labels (y=0, z=1); this set of
+paths defines a feasible flow from s_0 = (y=0) in layer L_0 to
+t_1 = (z=1) in layer L_{r+1}.  Conservation holds at intermediate
+states of the flow; capacities dominate the arc masses, by the
+feasibility above.  By Theorem 2.1 this flow has value at most
+
+     C(2^k) * Pr[X_0 = (y=0), X_{r+1} = (z=1)]
+       = C(2^k) * (rho/m){omega(y)=0, omega(z)=1}.
+
+Similarly for the other orientation (y=1, z=0); apply Theorem 2.1 to
+the COMPLEMENT of that flow (recall the chain is complement-symmetric).
+Adding up the two orientations,
+
+     lambda{omega(y) != omega(z)}
+       <= C(2^k) * (rho/m){omega(y) != omega(z)}
+       =  C(2^k) * D_mu(y,z) / m.
+
+Combining the flow bound just derived with the lower bound
+E_nu(z|P) <= lambda{omega(y) != omega(z)} and recalling
+b_k = 1 / C(2^k), after multiplying by m and dividing by C(2^k):
+
+     D_mu(y, z)  >=  b_k * E_nu(z | P).  []
+
+This completes the proof of Proposition 2.2.  Note that nu may be
+UNSYMMETRIC; only mu needs to be symmetric.  This is important: our
+transport submeasures include paired perturbations that are not
+individually symmetric.
+
+Remark on the symmetry of nu.  The statement only needs mu to be
+symmetric (so that the flow graph is symmetric); nu just has to be a
+submeasure of mu on the relevant bags.  So we always apply the
+proposition with nu allowed to be unsymmetrized.
+
+--------------------------------------------------------------------------------
+2.3  TWO "ENGINE" TESTS ON SWEEP MEASURES
+--------------------------------------------------------------------------------
+
+The transport inequality is only useful if we can produce a
+submeasure nu along the path with a definite uncertainty at the far
+end.  The two following tests do exactly that.
+
+Setup.  Fix a cutoff M > 0.  For a function F : V -> [-M, M],
+recall sigma_F^M = push Lebesgue measure on [-M,M] through t -> 1_{F > t}.
+This measure on Omega_V has total mass 2M, and its cut pseudometric is
+D( sigma_F^M )(u,v) = |F(u)-F(v)|.  We define the SYMMETRIC sweep
+
+     sigma_F^M, sym = (1/2) ( sigma_F^M + (sigma_F^M)^c ),
+
+which has the same cut pseudometric.
+
+We say F has SWEEP MARGIN a >= 0 if |F(v)| <= M - a for all v in V.
+So F is at least distance a from the two endpoints -M, M of the sweep
+interval.
+
+LEMMA 2.3 (Height-gap test).  Let P subseteq V, z in V, and t > 0.
+Suppose F : V -> [-M,M] satisfies:
+
+   (HG1) F(z) is at distance at least t from both endpoints of [-M,M]
+         (that is, F(z) is in [-M+t, M-t]); equivalently, F has sweep
+         margin t at z;
+
+   (HG2) |F(z) - F(s)| >= t for every s in P.
+
+Then for nu := sigma_F^M, sym:
+
+     E_nu(z | P)   >=   t.
+
+Proof.  Let U = (F(z)-t, F(z)+t) = the open interval of radius t around
+F(z).  By (HG2), no value F(s) with s in P lies in the open interval
+(F(z)-t, F(z)+t); each F(s) is <= F(z)-t or >= F(z)+t.  As t varies
+through U, the labeling s -> 1_{F(s) > t} is CONSTANT on P.  Indeed
+(HG2) says that no F(s) lies inside U; so the label 1_{F(s) > t} is
+determined by which side of U the value F(s) is on, and that side does
+not change as t runs over U.  Hence the labeling on P is the same at
+every t in U.
+
+On the other hand, the label at z, 1_{F(z) > t}, flips exactly at
+t = F(z), the midpoint of U.  So during the first half of U (length t)
+the labels on P plus "z = 0" are seen; during the second half (also
+length t) the same labels on P plus "z = 1" are seen.  For the fixed
+assignment b on P equal to the labeling on U, the UNSYMMETRIZED sweep
+gives each of the two labels at z at least mass t.
+
+Since U is contained in [-M, M] by (HG1), these thresholds are all
+inside the swept interval.  So E_{sigma_F^M}(z | P) >= t.  Apply
+(UNC2): E_{sigma_F^M, sym}(z | P) >= E_{sigma_F^M}(z | P) >= t.  []
+
+LEMMA 2.4 (Launch-gap test).  Let A subseteq V and let
+f, g : V -> R satisfy g|A = 0 and f+g, f-g in [-M,M]^V.  Set
+
+     nu := ( sigma_{f+g}^M )^{sym} + ( sigma_{f-g}^M )^{sym}
+        (sum as a labeled cut measure on Omega_V).
+
+Then for every z in V,
+
+     E_nu(z | A)   >=   2|g(z)|,                                (2.5)
+
+and for every u,v in V,
+
+     D_nu(u,v)  =  |f(u)-f(v) + g(u)-g(v)| + |f(u)-f(v) - g(u)+g(v)|
+                 >= 2|g(u) - g(v)|.                             (2.6)
+
+Proof.  Since g|A = 0, we have (f+g)|A = (f-g)|A = f|A.  So the two
+height functions agree on A.
+
+Let h_+ = f+g and h_- = f-g.  On A, both equal f.  At z, h_+(z) and
+h_-(z) = f(z) + g(z), f(z)-g(z) differ by 2|g(z)|.  Suppose w.l.o.g.
+g(z) > 0 (the g(z) < 0 case is symmetric by swapping + and -).  Then
+h_-(z) = f(z)-g(z) < f(z)+g(z) = h_+(z), a gap of 2g(z).
+
+For thresholds t in the open interval (f(z)-g(z), f(z)+g(z)), we have
+1_{h_-(z) > t} = 0 and 1_{h_+(z) > t} = 1 (labels at z are opposite).
+Both h_+, h_- restricted to A equal f|A, so at each such t their
+labelings on A agree; call that labeling b(t) in Omega_A.  For any b
+in Omega_A, let I_b be the set of t in (f(z)-g(z), f(z)+g(z)) with
+b(t) = b.  Then in the sum
+
+     (sigma_{h_+}^M + sigma_{h_-}^M)( b, z = 0 ) =
+       int_{I_b} [1_{h_+(z) > t} = 0] dt + int_{I_b} [1_{h_-(z) > t} = 0] dt
+       >= int_{I_b} 1 dt = |I_b|  (since h_-(z) <= t on this interval),
+
+and similarly for z = 1 on I_b (from h_+).  Taking min of these two,
+then summing over b:
+
+     E_{sigma_{h_+}^M + sigma_{h_-}^M}( z | A )
+       = sum_b min{mass with z=0, mass with z=1} >= sum_b |I_b|
+       = |(f(z)-g(z), f(z)+g(z))| = 2|g(z)|.
+
+(All thresholds in (f(z)-g(z), f(z)+g(z)) lie in [-M,M] because both
+h_+, h_- values are in [-M,M].)  Applying (UNC2) with nu = sym of
+sigma_{h_+}^M + sigma_{h_-}^M proves (2.5).
+
+For (2.6): "sigma_F^M cut pseudometric is |F(u)-F(v)|" applied to
+F = h_+ and F = h_- gives the equality.  The inequality is the algebraic
+|a+b| + |a-b| >= 2|b| with a = f(u)-f(v), b = g(u)-g(v).  []
+
+--------------------------------------------------------------------------------
+2.4  PUTTING THE TWO TESTS INTO THE TRANSPORT INEQUALITY
+--------------------------------------------------------------------------------
+
+The following consequences are repeatedly used; they combine Prop 2.2
+with Lemma 2.3 or 2.4.
+
+CONSEQUENCE C1 (LAUNCH TRANSPORT).  Let A subseteq V with g|A = 0, and
+let the two functions h_+ = f+g and h_- = f-g be in [-M,M]^V.  Set
+
+     nu = (sigma_{h_+}^M)^{sym} + (sigma_{h_-}^M)^{sym}.
+
+Suppose nu | B_i <= mu_{B_i} for every bag B_i on a path segment from
+some bag containing a vertex y (at the "y end") to a bag containing
+z.  Suppose also the launch bag A is on the bag path from the y bag to
+the z bag.  Then, for the glued pseudometric D_mu and the constant
+b_k = 1/C(2^k):
+
+     D_mu(y, z)   >=   b_k * 2 |g(z)| = 2 b_k |g(z)|.            (2.7)
+
+In particular, if |g(z)| >= d(z,A) / 2, then D_mu(y,z) >= b_k d(z,A).
+
+Proof.  Apply Prop 2.2 with P := A.  By Lemma 2.4, E_nu(z | A) >= 2|g(z)|.
+So D_mu(y,z) >= b_k * 2|g(z)|.  []
+
+CONSEQUENCE C2 (AVERAGED HEIGHT TRANSPORT).  Let F : V -> [-M,M] with
+sweep margin t at z (so F(z) is in [-M+t,M-t]).  Let P be a testing bag
+on the bag path from a bag containing y to a bag containing z.
+Suppose that, on some event of probability at least p, the trace of
+sigma_F^M, sym is dominated by mu_{B_i} on every bag of the segment
+from P to the bag containing z.  Suppose on that same event the gap
+condition |F(z) - F(s)| >= t holds for every s in P.  Then:
+
+     E_X [ D_mu(y,z) ]  >=  b_k * p * t.                        (2.8)
+
+Proof.  On the dominant event, Lemma 2.3 + Prop 2.2 give a pointwise
+lower bound D_mu(y,z) >= b_k * t (for each realization of auxiliary
+randomness).  Off the dominant event we still have D_mu(y,z) >= 0.
+Averaging and using that the dominant event has probability >= p:
+
+     E D_mu(y,z) >= b_k * t * p.  []
+
+Typical use: the auxiliary randomness is the fresh noise at a launch
+of a particle; the trace domination is exactly what "reservation" in
+Part 3 provides; the gap event is an event on which a fresh independent
+uniform variable has amplitude at least some fixed fraction of a known
+scale.  We will build exactly this in Parts 3-6.
+
+================================================================================
+
+
+================================================================================
+PART 3.  PARTICLES AND RESERVATIONS
+================================================================================
+
+In Part 1 and Part 2, the bag laws mu_t were given.  In the rest of the
+proof, we have to CONSTRUCT them.  They have to be consistent on
+overlaps (so that Markov gluing applies) and must carry some specific
+submeasures (so that we can apply the transport inequality).
+
+The construction trick is to represent each bag law as a sum of sweeps
+of real functions "particles" on all of V.  Because every particle is
+a global function, its sweep gives a cut measure on the whole V; the
+trace on any bag is automatically consistent between neighboring bags,
+because it is a restriction of the same global measure.  Consistency
+is FREE.  The real work is keeping particles in line while they get
+modified.
+
+Throughout PART 3 fix:
+   * the same (V,d) and tree decomposition (T, {B_t}) as before,
+     with bags of size at most k >= 2 and B_t nonempty;
+   * a root of T (used to define parent/child);
+   * the diameter Delta = diam(V,d).  We assume |V| >= 2 initially;
+     for |V| = 1 the whole theorem is trivial and handled in the final
+     Part 7.
+
+--------------------------------------------------------------------------------
+3.1  SWEEPS AND THE COMMON CUTOFF M
+--------------------------------------------------------------------------------
+
+A PARTICLE is a real function on V.  We maintain a fixed-size LIST
+
+     F_1, F_2, ..., F_N
+
+of particles.  Start: all zero.
+
+Fix a common CUTOFF M > 0.  As long as every particle takes values in
+[-M, M], the sweep measure sigma_{F_i}^M is well defined (Part 0 (0.3)):
+
+     sigma_{F_i}^M  =  push of Lebesgue measure on [-M, M]
+                       through  t -> 1_{F_i > t}.
+
+Each sigma_{F_i}^M is a labeled cut measure of total mass 2M.
+
+The MEASURE CARRIED BY THE LIST (on a bag P, or any subset P of V) is
+
+     (mu_list)|_P :=  (sum_{i=1}^N (sigma_{F_i}^M)^{sym}) |_P.        (3.1)
+
+We will always use the SYMMETRIC versions sigma^{sym}.  If we want to
+save writing, we can drop the word "sym" below; but the bookkeeping is
+important: EVERY summand in every bag law we build below is a
+symmetric sweep, so the bag laws themselves are symmetric.  This is a
+hypothesis of the transport Proposition 2.2, so we must and will
+maintain it.
+
+So a bag law mu_t is always described by (3.1).  Consistency on tree
+edges becomes the statement: for adjacent bags t,t', the trace of
+sum_i (sigma_{F_i}^M)^{sym} on B_t cap B_{t'} depends only on the
+functions F_i (not on which list we take it from).  If both copies
+share the SAME F_i (as we will maintain while copying down a tree
+branch), the traces agree.  So the entire juggling of bag laws reduces
+to two rules:
+
+   (P-consistency) Every update we make to the particle list changes
+                   the LIST, but leaves the measure (3.1) on each
+                   "current bag" UNCHANGED.
+   (P-copy) Along a child of the current node, we may COPY the list and
+            make different updates into different children, as long as
+            each individual copy preserves (P-consistency) on the bag
+            where the branch was made.
+
+More precisely, we will update at a "current bag P" (or at the parent
+bag of the branch root).  Each update preserves the trace on P; this
+is what makes (P-consistency) work.
+
+The crucial lemma is the following, which expresses "the affine trace
+preservation".
+
+LEMMA 3.1 (Affine trace update).  Let P subseteq V be any subset, and
+suppose particles F_a, F_b admit a COMMON WEAK INCREASING ORDER on P:
+that is, there is a listing P = {p_1, p_2, ..., p_r} of the vertices
+of P such that
+
+     F_a(p_1) <= F_a(p_2) <= ... <= F_a(p_r),  and
+     F_b(p_1) <= F_b(p_2) <= ... <= F_b(p_r).
+
+Let f = (F_a + F_b)/2, and let g : V -> R satisfy g|P = 0.  Suppose
+the four functions F_a, F_b, f+g, f-g all take values in [-M,M].
+Define
+
+     F_a' := f + g,    F_b' := f - g.
+
+Then the traces of the sum of the two sweep measures on P are EQUAL:
+
+     (sigma_{F_a}^M + sigma_{F_b}^M) | P
+       = (sigma_{f+g}^M + sigma_{f-g}^M) | P.                (3.2)
+
+The equality remains true after symmetrization, and for nonempty P it
+includes the total masses (which on P are 2M each, but weighted
+identically).
+
+Proof.  Write P = {p_1, ..., p_r}.  Consider an arbitrary real function
+F with F(p_1) <= F(p_2) <= ... <= F(p_r).  Its sweep sigma_F^M
+concentrates on the "monotone" assignments (threshold down-crossings
+between successive p_i).  Precisely, the sweep assigns, on Omega_P,
+masses to the (r+1) monotone labelings
+
+     (p_1, ..., p_r) -> (1, ..., 1, 0, ..., 0),  cut between p_i and p_{i+1}
+
+with mass given by the successive differences:
+
+     F(p_1) + M
+     F(p_2) - F(p_1)
+     ...
+     F(p_r) - F(p_{r-1})
+     M - F(p_r).
+
+These are all >= 0 (by the ordering), and they sum to 2M.
+
+Every OTHER labeling in Omega_P receives zero sweep mass (because F is
+monotone on P, and sweeping a threshold through monotone heights only
+produces these monotone assignments).
+
+The point is: each of these masses is AFFINE in the height vector
+(F(p_1), ..., F(p_r)).  So if we replace (F_a, F_b) by (f+g, f-g) and
+g vanishes on P, then (f+g)|P = f|P = (f-g)|P, and the trace of
+sigma_{f+g}^M plus sigma_{f-g}^M is TWICE the trace of sigma_f^M (both
+have the same height vector f|P, and their sweeps give the same masses,
+so we add them).
+
+Meanwhile, the sum sigma_{F_a}^M + sigma_{F_b}^M has trace on P that is
+also equal to twice the sweep of ANY function whose height vector at P
+equals the componentwise AVERAGE of (F_a(p_i)+F_b(p_i))/2 = f(p_i), by
+linearity of the affine formulas applied component-wise (F_a(p_i) and
+F_b(p_i) both appear; the sum telescopes).  So both sides equal
+
+     2 * (sigma_f^M) | P.
+
+Symmetrization and restriction to P are linear, so they preserve the
+identity.  For P = empty, both sides are "one atom of mass 2M each",
+and there is nothing to check.  []
+
+The interpretation: replacing (F_a, F_b) by (f+g, f-g) at P does not
+change the BAG LAW at P, as long as we preserve a common weak
+increasing order.  So we can modify the pair, e.g. add useful
+perturbations g that are 0 on P, without changing the measure carried
+on the current bag.
+
+For us, the useful perturbation g in later applications is a
+nonnegative, nonzero function on V that vanishes on the current bag P.
+Its role is exactly to be BIG somewhere else (on future bags where the
+pair will be frozen, so the perturbation survives).
+
+But we have to keep the particles uniformly Lipschitz: extracting
+information via g each time could in principle inflate their slopes
+without bound.  A numerical invariant saves us.
+
+AN UPDATE AT P is an operation that replaces a pair (F_a, F_b) with a
+common weak increasing order on P by
+
+     (F_a, F_b) -> (f+g, f-g),     f = (F_a+F_b)/2,   g|P = 0.     (3.3)
+
+We fix positive constants L, B once and for all (later L = B = 3) and
+require every perturbation to satisfy
+
+     Lip(g) <= L,       sup_{v in V} |g(v)| <= B * Delta.          (3.4)
+
+We will see that only L and B appear in the bounds, so we can choose
+them small.
+
+--------------------------------------------------------------------------------
+3.2  UNIFORM BOUNDS ON PARTICLES: THE INVARIANT Q_r
+--------------------------------------------------------------------------------
+
+A naive approach: after each update, use Lipschitz-triangle-inequality
+to say Lip(f+g) <= Lip(f) + L, so after T updates Lip grows like T L.
+This is unbounded in T (there could be arbitrarily many updates).
+
+Surprisingly, there is a UNIFORM bound that does not depend on T.  The
+reason: linear changes of a vector of N real coordinates that "average
+and perturb" always leave the vector in a bounded region of R^N.
+
+LEMMA 3.2 (Uniform particle bounds).  After ANY finite sequence of
+updates starting from zero particles, every particle satisfies
+
+     Lip(F_i) <= L(N-1),                                             (3.5)
+     |F_i(v)| <= B(N-1) * Delta     for every v in V.                (3.6)
+
+The bounds hold for ARBITRARY choices of updated pairs and perturbations
+satisfying (3.4), REGARDLESS of the number of updates.
+
+Proof.
+
+   Step 1:  Numerical invariant.  Suppose a vector a = (a_1, ..., a_N) in R^N
+   starts at zero and is changed by operations of the form
+
+        a_a, a_b  ->  (a_a + a_b)/2 + e,   (a_a + a_b)/2 - e        (3.7)
+
+   on two coordinates a,b (with |e| <= 1).  At every stage:
+
+        (Sum)  a_1 + a_2 + ... + a_N = 0.                         (3.8)
+
+        (Parti) for every I subseteq {1,...,N},
+                sum_{i in I} a_i <= |I| (N-|I|).                   (3.9)
+
+   (Sum) is immediate: the update (3.7) sends a_a + a_b to
+   (a_a + a_b)/2 + e + (a_a + a_b)/2 - e = a_a + a_b, so the total is
+   preserved at zero.
+
+   (Parti) by induction.  Define Q_r = r(N-r) for r = 0, 1, ..., N.
+   Q_0 = 0, Q_N = 0.  Base case: all a_i = 0, so the LHS of (3.9) is
+   0 <= Q_r for every I.
+
+   Induction step.  Let a new update happen at coordinates a, b,
+   producing a'.  Fix I subseteq {1,...,N}.  Cases:
+      - Both a, b in I: sum_{i in I} a_i is unchanged.
+      - Neither: unchanged.
+      - Exactly one, say a, is in I: write S = I \ {a}, so |S| = r - 1
+        with r = |I|.  After the update, sum_{i in I} a'_i is
+
+             sum_{h in S} a'_h  +  a'_a
+           = sum_{h in S} a_h  +  (a_a + a_b)/2 + e   (S unaffected)
+
+             Use the identity
+
+                  sum_S a_h + (a_a + a_b)/2   =   (1/2) [ sum_S a_h + sum_{S+a+b} a_h ].
+
+             WHY:  sum_{S+a+b} a_h = sum_S a_h + a_a + a_b.
+
+             Apply the inductive hypothesis:  sum_S a_h <= Q_{r-1}  and
+             sum_{S+a+b} a_h <= Q_{r+1}.  Then
+
+                  new sum over S+a  <=  (1/2) [Q_{r-1} + Q_{r+1}] + |e|
+                                   <=  (1/2) [Q_{r-1} + Q_{r+1}] + 1   (|e| <= 1).
+
+             Algebra:  Q_{r-1} + Q_{r+1}
+                     = (r-1)(N-r+1) + (r+1)(N-r-1)
+                     = (r-1)(N-r) + (r-1) + (r+1)(N-r) - (r+1)
+                     = (N-r)(2r) + (r-1) - (r+1)
+                     = 2 r (N-r) - 2
+                     = 2 Q_r - 2.
+
+             Therefore
+
+                  new sum over S+a  <=  (1/2)(2 Q_r - 2) + 1
+                                   =  Q_r - 1 + 1
+                                   =  Q_r.
+
+             This is (3.9) for I = S+a in the new vector.
+
+   Step 2:  Apply the invariant to differences.  Fix distinct u,v in V.
+   Define the vector a_i := (F_i(u) - F_i(v)) / (L d(u,v)).  Each update
+   at a bag P = some set, with perturbation g, sends a_a, a_b to
+   (a_a + a_b)/2 + e and (a_a + a_b)/2 - e, where
+
+        e = (g(u) - g(v)) / (L d(u,v)),     |e| <= Lip(g)/L <= 1.
+
+   Apply the invariant (3.9) with I = {i} (single index) and also with
+   I = complement of {i}.  Yields, using (3.8) zero-sum:
+        a_i <= N - 1,        a_i >= -(N - 1).
+   So
+        |F_i(u) - F_i(v)|  <=  (N-1) L d(u,v),   for every pair u,v.
+   That is Lip(F_i) <= L(N-1).  This is (3.5).
+
+   Step 3:  Apply the invariant to values.  Fix v in V.  Define
+   a_i := F_i(v) / (B Delta).  Each update produces
+   e = g(v) / (B Delta), with |e| <= 1.  Same invariant gives
+        |F_i(v)|  <=  (N-1) B Delta.   This is (3.6).
+
+   The argument applies SEPARATELY to every distinct "copy" history (when
+   different branches share the same starting point and the same list,
+   then diverge, each branch's invariant is separate).  This is harmless.
+
+   Note that the bound does not depend on T, and therefore is a genuine
+   consequence of the update rule (uniform in the number of updates).  []
+
+Remark.  With L = B = 3 (as later), the bounds read:
+        Lip(F_i) <= 3(N-1),        |F_i(v)| <= 3 (N-1) Delta.
+
+We can now choose the common cutoff M to leave a safety margin.
+
+LEMMA 3.2 gives, immediately, the following.
+
+   (Cutoff choice) Take N and any L,B > 0.  Set
+
+        M  =  (B(N-1) + 2) * Delta.                                (3.10)
+
+   Then every particle ever built (via any finite sequence of updates
+   satisfying (3.4)) satisfies |F_i(v)| <= B(N-1) * Delta = M - 2 Delta.
+   So the SWEEP MARGIN of every particle is at least 2 Delta:
+   F_i(V) is at least 2 Delta away from each endpoint of [-M,M].
+
+   (Upper bound on D)   At any bag B_t, the sweep pseudometric of the
+   LIST carried by that bag satisfies, for any u,v in V
+
+        D_{mu_t}(u,v)  =  sum_i |F_i(u) - F_i(v)|
+                       <=  N * L(N-1) * d(u,v).                        (3.11)
+
+   (In particular, U := N L(N-1) is an upper bound on the glued
+   pseudometric in (1.2); see Consequence A in Part 1.)
+
+--------------------------------------------------------------------------------
+3.3  RESERVATIONS
+--------------------------------------------------------------------------------
+
+A RESERVATION is a constraint "freeze particles F_a and F_b": neither
+may be used in another update, while the reservation is active.
+Releasing a reservation makes them available again (but does NOT
+delete or change them; they remain in the list).
+
+Rationale.  Consider a pair (F_a, F_b) that we UPDATE at a bag A.  The
+two resulting functions are f+g and f-g, where g vanishes on A.  Then
+freeze them.  So long as the reservation is active, both particles are
+unchanged along the current branch, and so their sweep measures are
+unchanged on every bag along that branch.  The two-side submeasure
+they generate is
+
+     nu = (sigma_{f+g}^M)^{sym} + (sigma_{f-g}^M)^{sym}.
+
+At any later bag B_l (of the same branch), the total trace mu_{B_l}
+is a sum with all currently-carried sweeps, INCLUDING these two.  So
+nu | B_l <= mu_{B_l} by monotonicity.  This is exactly the hypothesis
+(2.3) of Proposition 2.2, and it says that the pair carries its
+"launch uncertainty" all the way from the launch bag A to any later
+bag in the branch, regardless of what other operations happen at the
+intervening bags.  C1 then gives the lower transport bound
+D_mu(y,z) >= b_k * 2|g(z)| for suitable y,z.
+
+Now we formalize the bookkeeping.
+
+At each tree node t, let
+   (active)   a set of active reservations, each a pair (a,b) in
+              {1,...,N}^2 with a != b;
+   c_t  :=  the number of active reservations at node t.
+        Each reservation occupies 2 particles, so it takes 2 c_t
+        particles out of the pool.
+
+The number of FREE particles at node t is N - 2 c_t.  To run an update
+at t we need two free particles with a COMMON WEAK INCREASING ORDER on
+the current bag.  There are at most r! <= k! such orders on a bag of
+size r <= k, so at least one such order has at least ceil((N-2c_t)/k!)
+free particles assigned to it; taking two of them suffices.
+
+Therefore, if N - 2 c_t >= 2 k!  the update can always proceed.  We
+choose N accordingly (see Prop 3.3).
+
+A reservation along a descending path is an interval [launch, release]
+of consecutive nodes, along an ancestor-descendant path in T.  During
+this interval, the pair (a,b) is "reserved": no update touches F_a or
+F_b.  So along the interval, the sweep measures (sigma_{F_a}^M)^{sym}
+and (sigma_{F_b}^M)^{sym} are IDENTICAL as functions on V; the trace
+of their sum on each bag of the interval is a submeasure of the bag
+law built at that bag.  This gives the trace-domination hypothesis of
+Proposition 2.2 for ANY sub-interval of the reservation.
+
+Branching.  At a branching node of T (a node with several children),
+copies of the whole state (list of particles + full reservation record)
+are maintained separately for each child.  So c_t is the number of
+active reservations in THAT COPY of the memory, not across all copies.
+The number of simultaneous reservations we must bound is per-copy.
+
+A REJECTED PROPOSAL: at a bag where we want to "consider" a new
+reservation, we might reserve it for the duration of just that bag and
+then release it if we decide not to keep it.  This "rejected" pair is
+one-bag-only and does not persist; but for bookkeeping we allow it, and
+still count it toward c_t (during its single node).
+
+--------------------------------------------------------------------------------
+3.4  REALIZATION: ALL-PURPOSE SCHEDULE
+--------------------------------------------------------------------------------
+
+The following proposition is our central construction tool.  It
+formalizes: "we have a finite schedule of launches and releases; run it".
+
+PROPOSITION 3.3 (Realization by particles).  Suppose a finite schedule
+requires at most q simultaneous reserved pairs IN EACH MEMORY COPY
+(including any temporary one-bag reservation made before another is
+released).  Updates may be made at the current bag, or on a
+child-specific copy at its parent bag before moving to the child.
+Before processing the root, updates at the empty interface are also
+allowed (empty interface imposes no ordering constraints, so any two
+free particles can be used).
+
+Every update uses a perturbation satisfying (3.4) and vanishing on its
+interface.
+
+Choose
+
+     N   =  2 q + k! + 2,
+     M   =  (B(N-1) + 2) * Delta.                             (3.12)
+
+Then all requested updates and reservations can be carried out.  They
+produce symmetric bag cut measures mu_t with the following properties.
+
+   (i)    Each mu_t has the same total mass m = 2 N M, and neighboring
+          bag measures have equal traces on their intersection.
+
+   (ii)   Every particle height is at distance at least 2 Delta from
+          each endpoint of the sweep interval [-M, M].
+
+   (iii)  The Markov-glued pseudometric D_mu satisfies
+
+              D_mu(u,v)  <=  U * d(u,v)  for all u,v in V,          (3.13)
+          with
+              U  =  N L (N-1).
+
+   (iv)   If a pair is reserved from a launch bag through a later bag
+          on a descending path, its fixed symmetric two-particle cut
+          measure has trace dominated by mu_t at every bag on that
+          segment.  The segment includes the launch and the release
+          bags, even if the particles are reused at the release bag.
+          A reservation launched at the empty interface has the same
+          property from the root onward.
+
+The statements hold for each realization of any auxiliary randomness.
+For measurable randomized choices, taking expectations also yields an
+L1 pseudometric with the same upper bound.
+
+Proof.
+
+   (Free-particles bound) At every stage at most 2q particles are
+   reserved, so at least N - 2q = k! + 2 particles are free.  For a
+   bag of size r <= k, each free particle has a weak increasing order
+   on the bag (with a fixed tie-breaking of the vertex labels for
+   determinism).  There are at most r! <= k! possible orders, so two
+   free particles get the SAME order.  So an update at the bag is
+   always possible with two free particles.
+
+   Choose the pair deterministically: order the pairs by some fixed
+   ordering, and pick the first eligible pair in the current memory
+   (BEFORE sampling any fresh perturbation randomness for that launch).
+   This guarantees that which pair we pick depends only on the
+   deterministic state, not on the launch noise.
+
+   (Bounds) Lemma 3.2 with the choice (3.12) of M gives the 2 Delta
+   sweeps margin at every stage; the cutoff is fixed at the very start
+   and does not depend on the schedule length.
+
+   (Bag law) At a bag t, record:
+
+        mu_t := ( sum_i (sigma_{F_i}^M)^{sym} ) | B_t.              (3.14)
+        (with F_i the CURRENT particle list at bag t).
+
+   Updates at B_t leave mu_t unchanged (Lemma 3.1), and releasing a
+   reservation leaves the functions unchanged.  Thus we may record mu_t
+   either before or after updates at B_t (or before/after a release);
+   the same trace is obtained.  Preliminary updates at the empty
+   interface are performed before the root bag law is recorded.
+
+   (Consistency) For a child t' of t, COPY the current list AND all
+   reservation records.  On that copy, perform any child-specific
+   updates still at B_t.  Its trace on B_t remains mu_t.  Then move
+   that copy to B_{t'} and record its law there.  The two laws at B_t
+   and B_{t'} agree on B_t cap B_{t'} because BOTH are restrictions of
+   the SAME total cut measure on V carried by this COPY before any
+   operations at B_{t'}.
+
+   Operations at B_{t'} afterwards preserve the child law (Lemma 3.1).
+   So consistency holds on every edge of T.
+
+   (Mass) Each summand (sigma_{F_i}^M)^{sym} has mass 2M (the sym
+   doubles nothing; both sides add up to 2M by (sigma)^{sym}(Omega) =
+   M + M = 2M).  There are N of them, so mu_t total mass 2NM = m, same
+   at every bag.
+
+   (Markov gluing) With consistency over T, Lemma 1.1 applies and
+   supplies the glued pseudometric D_mu.
+
+   (Upper bound)  For an edge uv, choose a bag B_t containing BOTH
+   endpoints u,v.  Its trace mu_t equals the glued one on the bag.  So
+   D_mu(u,v) = sum_i |F_i(u) - F_i(v)| (since the right side is the
+   sweep pseudometric on the bag).  By Lemma 3.2, this is at most
+   N L(N-1) d(u,v) = U d(u,v).  Already for the edge; for arbitrary
+   u,v use the triangle inequality along a shortest path (Consequence A
+   in Part 1).  Gives (3.13).
+
+   (Reservations dominate)  For a reservation launched at bag A with
+   the pair ending as (f+g, f-g) with g|A = 0, let
+
+        nu = (sigma_{f+g}^M)^{sym} + (sigma_{f-g}^M)^{sym}.
+
+   These two functions do not change while the reservation is active
+   (by definition).  So at any bag B_l on the reservation, they are
+   two summands of the current trace mu_{B_l}; hence nu | B_l <= mu_{B_l}.
+   At the launch bag this is read just after the launching update; at
+   the release bag it can be read just before release.  So the
+   domination also holds for the RECORDED law at either endpoint, even
+   if the pair is immediately reused.
+
+   (A reservation launched at the empty interface) The two sides are
+   identical from the root onwards.  So domination holds from the first
+   bag.
+
+   (Aux randomness) All bounds and trace identities hold POINTWISE
+   for each realization of the auxiliary randomness.  For measurable
+   choices, taking expectation of the finite cut measures gives an
+   L1 pseudometric (Part 1, Consequence B) with the same upper bound.
+
+   []
+
+Concrete constants.  With the common choice L = B = 3:
+
+     Lip(F_i) <= 3(N-1)                    (uniform, for every particle)
+     |F_i(v)| <= 3(N-1) Delta              (uniform)
+     M        =  (3(N-1) + 2) Delta  =  (3N - 1) Delta
+     U        =  N L (N-1)  =  3 N (N-1).
+
+All depend on N (and hence on q, the per-copy reservation cap) only.
+The NUMBER of updates over the whole tree, and the TOTAL number of
+reservations anywhere, do not appear in U.  This is key: only the
+MAXIMUM SIMULTANEOUS reservations in any memory copy matter.
+
+The proposition says: as long as the schedules we design have a
+BOUNDED PER-COPY simultaneous reservation count, we get consistent
+bag laws and a glued pseudometric of bounded upper Lipschitz constant.
+We do NOT yet say how to CHOOSE the schedules (that is the content of
+Parts 4 and 5).  But the bounded-per-copy reservation machinery is
+established: that will be the only bookkeeping stress in Parts 4-5.
+
+We emphasize one point about "reservation".  Even though our
+constructions repeatedly update particles and add noise, at ANY moment
+of the process, EVERY active reservation contributes a fixed submeasure
+nu to the current bag law; the trace of nu is the SAME for every bag
+of the reservation segment; so Proposition 2.2 applies to any sub-path
+of that segment.  This is what converts "particles" into "transport".
+
+================================================================================
+
+
+================================================================================
+PART 4.  THE COMMON-BAG METRIC D_bag
+================================================================================
+
+Goal of this part: construct one symmetric consistent family of bag
+measures whose glued cut pseudometric D_bag satisfies
+
+   UPPER:  D_bag(u,v)  <=  U_bag * d(u,v)              (all u,v),
+   LOWER:  D_bag(u,v)  >=  a_bag * d(u,v)              (u,v in a common bag),
+
+with U_bag < infinity and a_bag > 0 depending only on k.  The
+construction uses the same particle machinery as Part 3.  The
+per-copy reservation cap will be R = 2k(k-1).  So the particle count
+N, the cutoff M, and the upper bound U_bag will be exactly the "Part 3
+realization" formulas with q = R.
+
+Throughout this part, (V,d) is the shortest-path metric of a finite
+connected graph with positive edge lengths and a tree decomposition
+whose bags are nonempty, size at most k; d has diameter Delta; |V|>=2.
+
+--------------------------------------------------------------------------------
+4.1  ACTIVE SCALES AND THE PER-BAG COUNT
+--------------------------------------------------------------------------------
+
+For a bag B (as a vertex set), say a POWER OF TWO  s = 2^j  (j in Z)
+is ACTIVE at B if some two DISTINCT vertices u,v in B satisfy
+
+     s/2  <=  d(u,v)  <=  4 s.                                (4.1)
+
+The interval of scales [s/2, 4s] on which a fixed distance d(u,v) is
+"active" corresponds to s in [d/4, 2d] (endpoint ratio eight).  A
+positive distance therefore lies in at most FOUR such intervals.  A
+bag of size at most k contains at most binom(k,2) unordered pairs, so
+
+     (Bounded active scales)  |{s : s active at B}|  <=  4 binom(k,2)  =  2 k(k-1).
+
+Define
+
+     R   :=   2 k (k-1).                                      (4.2)
+
+So every bag has at most R active scales.  We will reserve one
+particle pair per active scale.
+
+Two comments on WHAT ACTIVE MEANS.
+
+   (A1)  The activity interval [s/2, 4s] is wider than the interval
+   [s, 2s] that we use below to pick a scale FOR A TESTED PAIR.  This
+   slack has a geometric purpose: if a pair at distance between s and
+   2s lives in a bag, at least one endpoint must lie away from an
+   INACTIVE upper bag A; that "one endpoint away" statement is what
+   gives the bumps enough LIPSCHITZ ROOM to be pushed at one endpoint
+   while vanishing at the other.
+
+   (A2)  When a scale is launched at a parent bag A (so the pair will
+   persist into A's child), we require s INACTIVE at A but active at
+   the child.  The parent launch is made BEFORE visiting the child, at
+   the interface A.  If we were to launch s AT the child (with
+   interface = the child bag), the perturbation g would vanish on the
+   child bag, giving no separation inside that bag; launching at A
+   with interface A gives g nonvanishing INSIDE the child.
+
+The bookkeeping about which partition sampler we call how many times
+is important; we spell it out fully below.
+
+--------------------------------------------------------------------------------
+4.2  PADDED PARTITIONS (EXTERNAL INPUT)
+--------------------------------------------------------------------------------
+
+The whole D_bag construction (and, later, Part 5's local-noise step)
+uses the following padded decomposition theorem for bounded-treewidth
+graphs, proved by Filtser, Friedrich, Issac, Kumar, Le, Mallek, and
+Zeif (TheoretiCS 2025, Theorem 1.2 and Definition 2.1).  The
+"diameter" in its statement is the ORIGINAL shortest-path distance
+(sometimes called WEAK diameter); the parts need not be geodesically
+convex.
+
+THEOREM 4.1 (Padded partitions for bounded treewidth).  There are
+constants  alpha in (0, 1/8]  and  pi in (0, 1]  with the following
+property, depending only on the bag-size bound k.  For every graph
+metric (V,d) as above and every radius r > 0, there is a random
+partition P of V (parts are subsets C subseteq V with pairwise-disjoint
+union V) such that:
+
+   (PP-diam)   diam(C) <= r       for every part C in support,
+   (PP-pad)    Pr[ B_d(x, alpha r)  is contained in the part
+                   containing x ]  >=  pi       for every x in V.
+
+Here B_d(x, t) = {y in V : d(x,y) <= t}.
+
+Choice of alpha and pi.  The cited scheme depends on t = treewidth, so
+we need to fix k-UNIFORM constants.  Let t_max = max{2, k-1}.  For
+each t in {2, ..., t_max} the source has constants beta_t > 0 and
+delta_t > 0 such that, at every scale r and every vertex x, the
+padding probability is at least exp(-beta_t * gamma) whenever
+0 <= gamma <= delta_t.  Set
+
+     alpha := min { 1/8,  min_{2 <= t <= t_max} delta_t },
+     pi    := min_{2 <= t <= t_max} exp( - beta_t * alpha ).
+
+These are positive and depend only on k.  So we take the constants
+alpha and pi fixed for the rest of the file.
+
+Special case: treewidth 1.  The cited padded decomposition is stated
+for treewidth t >= 2.  Treewidth 1 (forests) can be reduced to
+treewidth 2 by attaching a positive-length triangle at a single
+vertex.  This enlarges the graph by at most three vertices but keeps
+all original distances.  Every partition of the enlarged graph,
+restricted to original vertices, preserves both (PP-diam) and
+(PP-pad).  So the theorem extends to all t >= 1 with the SAME positive
+alpha, pi (taking a common minimum across t = 1 and t >= 2).
+
+Convention for subsets: for C subseteq V, we treat d(z, V \ C) as
+finite whenever C != V (in which case d(z, V\C) is a genuine
+minimum over a nonempty set); whenever we write
+"min{ ..., d(z, V\C), ... }", this is always bounded above by a finite
+constant that we control.
+
+We also use the following elementary Lipschitz-bump lemma (from the
+original Section 4).
+
+LEMMA 4.2 (Disjoint nonnegative bumps).  Let E_1, ..., E_m subseteq V
+be pairwise DISJOINT.  For each i, let psi_i : V -> [0, inf) be
+nonnegative and 1-Lipschitz, with psi_i vanish off E_i.  Let
+u_1, ..., u_m in [0,1].  Then  sum_i u_i psi_i  is 1-Lipschitz.
+
+Proof.  Within one set E_i, the summand u_i psi_i is 1-Lipschitz
+(scale of a 1-Lipschitz function).  For z,w in different sets, the
+sum at either z or w is nonnegative and bounded by d(z,w) (each bump
+vanishes off its own set, so the "other side" sees zero).  Their
+absolute difference is at most d(z,w).  Same estimate covers points
+outside all sets.  []
+
+--------------------------------------------------------------------------------
+4.3  THE CO-BAG EMBEDDING: STATEMENT
+--------------------------------------------------------------------------------
+
+PROPOSITION 4.3 (Co-bag embedding).  For every rooted tree
+decomposition of a finite connected graph as above, with bags of size
+at most k and all bags nonempty, there is an L1 pseudometric D_bag on
+V and constants U_bag < infinity and a_bag > 0, depending only on k,
+such that for every u,v in V
+
+     D_bag(u,v)  <=  U_bag * d(u,v),                         (4.3)
+and
+     D_bag(u,v)  >=  a_bag * d(u,v)        whenever u,v share a bag.  (4.4)
+
+One may take
+
+     R       =  4 binom(k,2),
+     N       =  2 R + k! + 2,
+     U_bag   =  3 N (N-1),
+     a_bag   =  (pi * alpha) / 64.
+
+The rest of PART 4 is the construction and the proof.
+
+--------------------------------------------------------------------------------
+4.4  THE RESERVATION SCHEDULE
+--------------------------------------------------------------------------------
+
+We root T at any node.  The schedule is defined node by node.
+
+Root bag.  At the root bag B_root, launch one reserved particle pair
+for every scale s ACTIVE at B_root, using the EMPTY INTERFACE (no
+vanishing constraint, so any two free particles may be used).  Then
+record the root trace.
+
+A node t with parent s.  Make a fresh copy of the parent's particle
+list and full reservation record.  This copy is dedicated to t.
+
+   Step 1 (drop): release all reservations whose scale is INACTIVE at
+   B_t.  Such pairs are just freed; the particles remain in the list.
+
+   Step 2 (carry): the pairs whose scale is ACTIVE at BOTH B_s and B_t
+   are unchanged; they continue from s to t.
+
+   Step 3 (launch): for every scale s' ACTIVE at B_t but NOT active
+   at B_s, launch a new reserved pair whose interface is B_s.  This
+   update is performed AT B_s in the child-specific memory, BEFORE
+   moving the memory to t.  The new pair therefore has trace on B_s
+   that is compatible with the child law, and is available to be
+   active at B_t and onward.
+
+   Step 4 (record): record mu_t in the child's memory; then move to t.
+
+   Step 5 (branch): if a node has multiple children, each child gets
+   its own copy from Step 1 onward.  The reservations held in one
+   copy are counted separately.
+
+A nonroot node t whose (Step 1) left some scales active at B_t has
+those scales' pairs carried passively; no fresh launch.  A pair whose
+scale is active at a maximal consecutive run of bags gets
+LAUNCHED at the top of that run and RELEASED after the bottom.
+
+Reservation-count invariant.  In any memory copy at any moment:
+
+     the number of reserved pairs is at most R (the per-bag count);
+
+(and there is a brief overlap while "one old pair is dropped AND one
+new pair is launched", but we can always reorder as drop-then-launch
+which uses at most R simultaneously).  So the reservation cap q = R
+is respected.  By Proposition 3.3 with q = R:
+
+        N = 2R + k! + 2,     M = (B(N-1)+2) Delta,     m = 2NM.
+
+All particles are uniformly Lipschitz by Lemma 3.2 with L = 3.
+
+--------------------------------------------------------------------------------
+4.5  THE PERTURBATION g FOR A NEW SCALE
+--------------------------------------------------------------------------------
+
+At a launch of scale s at interface bag A (possibly A = empty):
+
+     r := s/16.
+
+   Sample a random partition P from Theorem 4.1 at scale r (so parts
+   have diameter at most r, and every point has probability >= pi of
+   having a ball of radius alpha r around it inside its own part).
+
+   For each part C in P, give an independent uniform coefficient
+   U_C in [0, 1], and set the bump
+
+                             min{ d(z,A), d(z, V \ C), r }    if z in C,
+        psi_C(z)    =      {
+                             0                                 if z notin C.
+
+   (For a root launch with EMPTY interface A, omit the term d(z,A)
+   entirely; the other two terms remain.)
+
+   Define  g   :=  sum_{C in P}  U_C * psi_C.
+
+PROPERTIES OF g:
+
+   (G1)  Vanishes on A.  For z in A: if z is in some C, then
+   d(z,A) = 0, so psi_C(z) = 0.  So g(z) = 0 for z in A.
+
+   (G2)  Lipschitz.  The bumps psi_C are supported on disjoint sets C,
+   and each psi_C is 1-Lipschitz (it is the minimum of 1-Lipschitz
+   functions d(z,A), d(z,V\C), and the constant r).  So by Lemma 4.2
+   with all u_i bounded by 1, the sum g is 1-Lipschitz.
+
+   (G3)  Bounds.  Since the scale s is active at some bag, s <= 2 Delta
+   (else no bag would have a pair at distance in [s/2, 4s] with
+   s/2 <= Delta).  So r = s/16 <= Delta/8, and each bump is at most
+   r; so 0 <= g <= r <= Delta/8.  Hence |g| <= Delta/8.
+
+   (G4)  Amplitude at a padding point.  Fix w with d(w, A) >= s/8
+   (when A is nonempty) and let C be the part of the random partition
+   containing w.  On the padding event that B_d(w, alpha r) is inside
+   C (probability >= pi, independent of the coefficients), the bump
+   psi_C(w) satisfies
+
+        min{ d(w,A), d(w, V\C), r }  >=  min{ s/8, alpha r, r }
+                                       =  alpha r.
+
+   (Since d(w,A) >= s/8 = 2r, and d(w,V\C) >= alpha r on the padding
+   event, and alpha r <= r.)
+
+   (G5)  Truncation cap is well below d(w,w').  If w' is the "other"
+   endpoint at distance d(w,w') >= s > r = s/16, then w,w' lie in
+   different parts of any partition at scale r.  So psi_C(w') = 0.
+
+At each launch, replace two free particles with a common weak sorting
+order on the interface by (f+g, f-g) as in Lemma 3.1, and reserve
+them.  The empty-interface launch has no sorting constraint.  All
+launches use fresh randomness (partition, coefficients); the particle
+pair is chosen deterministically BEFORE the launch randomness is
+sampled, by the first-eligible-pair rule of Prop 3.3.
+
+The L = B = 3 choices.  Lip(g) <= 1 and |g| <= Delta/8, so any choice
+of L >= 1 and B >= 1/8 works.  We use L = 3 and B = 3 to match Part 3,
+giving U_bag = 3N(N-1) as in Prop 3.3 with L = 3.
+
+
+--------------------------------------------------------------------------------
+4.6  UPPER BOUND: D_bag <= U_bag * d
+--------------------------------------------------------------------------------
+
+Fix a bag B_t containing both endpoints of some graph edge uv.  Its
+trace mu_t on B_t equals the glued one, so by Lemma 3.1 and the
+definition of the reserved particle list (as in the proof of Prop 3.3),
+
+     D_bag(u,v)  =  E_X [ D_{mu_t(X)}(u,v) ]
+                =  E_X [ sum_i |F_i(u) - F_i(v)| ].
+
+The inner sum satisfies, by the uniform particle bound of Lemma 3.2,
+sum_i |F_i(u) - F_i(v)| <= N L(N-1) d(u,v).  Compute:
+
+     N L(N-1)  =  (2R + k! + 2) * 3 * (2R + k! + 1)
+              =  3 N (N-1)  =  U_bag.
+
+So D_bag(u,v) <= U_bag d(u,v) for every edge uv.  By the triangle
+inequality along a shortest path (Part 1, Consequence A, applied to
+D_bag as a path-summed metric from the edge bound), the same inequality
+holds for all u,v in V.  This proves (4.3).
+
+--------------------------------------------------------------------------------
+4.7  LOWER BOUND: D_bag >= a_bag * d(u,v) for pairs in a common bag
+--------------------------------------------------------------------------------
+
+Fix two distinct vertices u,v in a common bag B.  The goal is to
+exhibit a definite mass of separating cuts of D_bag.
+
+STEP 1: A dyadic scale for the pair.  Since d(u,v) > 0, there is a
+unique integer j with 2^j <= d(u,v) < 2^{j+1}.  Let s = 2^j.  Then
+
+     s   <=  d(u,v)  <  2s.                                    (4.5)
+
+In particular, s is active at B: s/2 <= s <= d(u,v) < 2s <= 4s.
+
+STEP 2: The reserved pair carrying s.  The pair reserved for scale s
+at bag B is the unique pair launched at the beginning of the maximal
+run of bags (along the current branch, from the root toward B) where s
+was active.  Trace back to the start of that run:
+
+   CASE 1 (root launch).  The pair was launched at the root bag with
+   EMPTY interface.  Pick w := u (either endpoint works; empty
+   interface imposes no constraint).  Let w' := v.
+
+   CASE 2 (launched at a bag A where s was inactive).  The bag A sits
+   STRICTLY ABOVE B on the tree path (A is a parent of some bag on
+   the run).  At least one of u,v, say w, has d(w, A) >= s/8.  For,
+   if both d(u,A) < s/8 and d(v,A) < s/8, then pick nearest points
+   a, b in A: by triangle inequality,
+
+        d(a,b)  >=  d(u,v) - d(u,a) - d(v,b)
+                >  s - s/8 - s/8  =  3s/4,
+        d(a,b)  <=  d(u,a) + d(u,v) + d(v,b)
+                <  s/8 + 2s + s/8  =  9s/4.
+
+   So 3s/4 < d(a,b) < 9s/4, hence s/2 <= d(a,b) <= 4s.  Then a != b
+   (they are at positive distance), and a,b in A, so s would be active
+   at A.  Contradiction.  Hence choose w as the endpoint with
+   d(w,A) >= s/8, and w' := the other endpoint.
+
+   In both cases, the interface A satisfies d(w, A) >= s/8 when A is
+   nonempty; when A is empty, the term d(z,A) is dropped from the bump
+   and the amplitude estimate below is even simpler.
+
+STEP 3: w and w' lie in different parts of the launch partition.  The
+launch partition was sampled at scale r = s/16.  By (4.5),
+d(w,w') = d(u,v) >= s > s/16 = r.  So any part of the partition
+contains at most one of w,w' (parts have diameter <= r).  Let C be
+the part containing w; then w' notin C.
+
+STEP 4: Amplitude at w on the padding event.  Let
+
+   EV   :=  the event that the random partition at the launch puts
+            B_d(w, alpha r)  inside  C,    where C is w's part.
+
+By Theorem 4.1 (PP-pad), Pr(EV) >= pi.  On EV, d(w, V\C) >= alpha r.
+Combined with d(w,A) >= s/8 = 2r (Case 2) or d(z,A) omitted entirely
+(Case 1), the bump psi_C at w satisfies
+
+     psi_C(w)  =  min{ d(w,A), d(w, V\C), r }
+              >=  min{ 2r, alpha r, r }  =  alpha r.
+
+(If Case 1, replace d(w,A) by "infinity" in the min; the bound
+min{alpha r, r} = alpha r still holds.)
+
+STEP 5: Conditional uniform coefficient.  Condition on the launch's
+random partition, on the choice of the reserved pair (which is
+deterministic from pre-launch state), and on all coefficients U_{C}
+except the one for w's part.  Then g(w) - g(w') equals
+
+     U_C * psi_C(w)  +  (a quantity F determined by the other
+                         coefficients and the partition).
+
+Let a := psi_C(w) >= alpha r (on EV) and let b := F.  Since U_C is
+uniform on [0,1] and independent of everything else,
+
+     E_{U_C} [ | a U_C + b | ]  >=  a / 4,                     (4.6)
+
+where (4.6) is the elementary estimate
+
+     int_0^1 | a s + b | ds  >=  a / 4       (a > 0, b real).
+
+Why a/4: the function s -> |as + b| is convex, has minimum at
+s_0 = -b/a, and equals a |s - s_0|.  Its integral over any unit
+interval is at least the integral over [s_0, s_0+1] or [s_0-1, s_0],
+whichever is inside [0,1]; either of those equals a/2, and on a
+sub-interval of length 1/2 the integral is at least a/4.  (Simpler:
+symmetric convex argument: |as + b| >= a|s - s_0|, and the integral
+of a|s - s_0| over [0,1] is at least a/4 because the interval has
+length 1 and s_0 is some real point.)
+
+So, conditioned on the padding event EV (so a >= alpha r),
+
+     E[ |g(w) - g(w')| | EV, partition, other coefficients ]  >=  alpha r / 4.
+
+Averaging over EV (probability >= pi):
+
+     E[ |g(w) - g(w')| ]  >=  pi * alpha r / 4  =  pi * alpha * s / 64.   (4.7)
+
+STEP 6: Apply the paired perturbation to get a lower cut bound.  At
+the launch we replaced two particles with (f+g, f-g).  Let
+nu = (sigma_{f+g}^M)^{sym} + (sigma_{f-g}^M)^{sym}.  By Lemma 2.4,
+equation (2.6):
+
+     D_nu(u,v)   =   D_nu(w, w')
+                >=  2 |g(w) - g(w')|.
+
+The two functions f+g and f-g are FROZEN from the launch bag A (or
+the empty interface, at root) down to B, so nu | B <= mu_B by the
+trace-domination property of Prop 3.3(iv).
+
+Taking expectation over launch randomness and using (4.7),
+
+     D_bag(u,v)   =   E_X [ D_{mu_B(X)}(u,v) ]
+                  >=  E_X [ D_nu(u,v)(X) ]                   (mu_B dominates nu)
+                  >=  2 * E_X [ |g(w)-g(w')|(X) ]            ((2.6))
+                  >=  2 * pi * alpha * s / 64
+                  =  pi * alpha * s / 32.                    (4.8)
+
+STEP 7: Relate s to d(u,v).  By (4.5), s > d(u,v)/2, so
+
+     D_bag(u,v)  >=  (pi * alpha / 32) * (d(u,v) / 2)
+                 =  (pi * alpha / 64) * d(u,v)  =  a_bag * d(u,v).    (4.9)
+
+For u = v, both sides are 0.  This proves (4.4).  []
+
+The proof of Proposition 4.3 is complete.
+
+Two remarks on what we have and what we do NOT yet have.
+
+   (i)  D_bag controls pairs that share a bag.  We have NO lower bound
+   for a pair u,v in bags that are far apart in T.  That is where
+   Part 5 enters.
+
+   (ii) The construction above used NO SPECIFIC STRUCTURE of the
+   metric besides (a) bounded active scales per bag and (b) the
+   padded-partitions theorem.  Both are consequences of treewidth at
+   most k-1; nothing else about the graph is used in this part.
+
+================================================================================
+
+
+================================================================================
+PART 5.  THE ANCHOR METRIC D_anc
+================================================================================
+
+D_bag gives a lower bound for pairs that share a bag (Part 4).  Pairs
+in distant bags get nothing from D_bag.  The role of D_anc is to give a
+"leash" between a chosen early bag and any descendant bag, so that
+distant pairs get separated too.
+
+The construction is again particle-based, but with a different
+schedule.  Along every descending path of T (from the root toward a
+leaf), we keep a BOUNDED-SIZE CACHE of "anchors".  Each anchor is a
+reserved particle pair launched at some bag occurrence A (its LAUNCH
+bag).  The pair is FROZEN until the anchor is evicted.  Each anchor is
+equivalently attached to a specific vertex set B_A (its launch bag's
+vertex set); distinct occurrences of the same set give DISTINCT
+possible anchors (Part 0, S2).
+
+At a bag B_t, we PROPOSE a new anchor launched at B_t.  If the cache
+is at capacity, we must EVICT one existing non-root anchor.  A
+DETERMINISTIC EVICTION RULE is what protects enough ancestors from
+eviction; it uses only the metric and the decomposition, NOT the
+randomness of the launch noise.  Section 5.2 spells out the rule.
+
+Throughout PART 5: (V,d) finite connected metric graph, tree
+decomposition of bag size at most k, |V| >= 2, bags nonempty.
+
+--------------------------------------------------------------------------------
+5.1  ORDINARY LAUNCH NOISE: A LEMMA WITH TWO INDEPENDENT PIECES
+--------------------------------------------------------------------------------
+
+At an anchor launch at a bag A, we put a perturbation g_A into two
+particles.  The perturbation is DETERMINED by fresh randomness
+independent of everything sampled so far, and given by
+
+     g_A   =   xi_A * h_A  +  v_A,                              (5.1)
+
+where:
+
+     h_A(z)  :=  d(z, A)          is the distance-to-A function;
+
+     xi_A    is uniform on [1, 2], independent of v_A;
+
+     v_A     is a "local noise" function constructed as follows.
+
+Fix a parameter  0 < eta < 1/4  (small; chosen later, in 5.6).
+The function v_A = v_A^{eta, A} is built as follows.  First divide the
+POSITIVE values of h_A into DYADIC BANDS by a uniformly chosen SHIFT
+lambda in [0, 1).  Then sample a padded partition per band, and give a
+uniform coefficient to each (part, band) bump.  The detailed
+construction and its key properties are the content of the following
+lemma.
+
+Every anchor launch at a bag occurrence A satisfies these properties.
+For the root the empty-interface launch is the special case A = empty.
+
+LEMMA 5.1 (Ordinary launch noise).  Let A subseteq V be NONEMPTY, put
+h(z) = d(z, A), and let 0 < eta < 1/4.  One can sample a random
+function
+
+     g = xi * h + v                                        (5.1')
+
+using randomness independent of all previously sampled data, such
+that:
+
+   (form of v)  v is constructed in two stages.  First sample a
+   finite indexed family of NONNEGATIVE functions (phi_i)_{i in I} on V
+   (the "bumps"), then set
+
+        v  =  sum_{i in I} U_i * phi_i,
+
+   where the coefficients U_i are independent, uniform on [0, 1],
+   conditional on the bump family.
+
+   (coefficient xi)  xi is uniform on [1, 2], independent of the
+   bumps and all coefficients.
+
+   (MEASURABLE)  All random objects are measurable, and I is finite.
+
+Properties:
+
+   (N1)  v is 1-Lipschitz, satisfies 0 <= v <= eta h / 2, and vanishes
+   on A.  Consequently (with h|A = 0) g|A = 0, and Lip(g) <= 3.  And
+         h(z) <= g(z) <= (5/2) h(z) <= (5/2) Delta   for every z in V.
+
+   (N2)  Amplitude of a distinguished bump.  Set c := alpha / 8 and
+   rho := pi / 2.  For each fixed x with D_0 := h(x) > 0, there is an
+   event E_x  (depending only on the bump family, not on coefficients)
+   of probability at least rho, and an index i(x) (a measurable
+   function of the bump family) such that the bump phi_{i(x)} satisfies
+
+        phi_{i(x)}(x)  >=  c * eta * D_0,                    (5.2)
+        phi_{i(x)}(z)  =  0        if  d(x, z) > 4 * eta * D_0.   (5.3)
+
+   Write U_x := U_{i(x)}.  Conditional on the bump family, U_x is
+   UNIFORM and INDEPENDENT of xi, of the other coefficients, and of all
+   previously sampled data.  In particular,
+
+        v  =  v^{\setminus x}  +  U_x * phi_{i(x)},           (5.4)
+
+   where the coefficients defining v^{\setminus x} are independent of
+   U_x.
+
+Different vertices may select the same bump and coefficient (we only
+pick one bump per tested vertex).  All constants (c, rho, etc.) are
+uniform in eta, A, |V| and the ratio of edge lengths.
+
+Proof.
+
+Step A (Setup: bands and partitions).  If h is identically 0 on V
+(that is, A = V), set v := 0 and return.  Otherwise let h_min > 0 be
+the smallest positive value of h on V and h_max the largest.  Sample
+lambda uniformly on [0, 1), then define
+
+     I  :=  { floor(log_2 h_min) - 1, ...,  floor(log_2 h_max) },
+     m  :=  floor(log_2 eta),
+
+and for each integer j in I:
+
+     Band:  W_j  :=  { z in V : 2^{j+lambda} <= h(z) < 2^{j+1+lambda} }.
+     Scale:  r_j  :=  2^{j+m}.
+
+The bands W_j (j in I) partition {z : h(z) > 0}.
+
+Independently of lambda, for each j in I sample a padded partition
+P_j at scale r_j from Theorem 4.1.  (So the partition scales are
+FIXED powers of two, not random functions of lambda.  Conditioning on
+lambda leaves each partition with its original padding guarantee.)
+
+Step B (Bumps).  For each nonempty intersection E = W_j cap C,
+C in P_j, define
+
+                                 min{ r_j/2, d(z, V\E) }   if z in E,
+     phi_{j,C}(z)   =      {
+                                 0                         if z notin E.
+
+   Each phi_{j,C} is nonnegative, supported on E, and 1-Lipschitz on
+   V.  [The minimum of two 1-Lipschitz functions and a constant.]
+
+   The sets E are pairwise DISJOINT (they are intersections of bands
+   that partition {h > 0}, one with each part C of the partition at
+   that band).  So by Lemma 4.2 with all u_i bounded by 1, the sum
+   v := sum_{j,C} U_{j,C} phi_{j,C}  is 1-Lipschitz.
+
+Step C (Bounds on v).  For z in V:
+
+   If h(z) = 0, then z lies in every bag at distance 0 from A (see
+   below); actually z need not be in A, but h(z) = 0 iff z in A (since
+   A subset of V and d(z,A) = 0 iff z in A).  If z in A, then h = 0;
+   each phi_{j,C}(z) = 0 (since z is not in W_j = {h > 0}), so v(z) = 0.
+
+   If h(z) > 0, then z lies in exactly one band W_j, j = j(z).  Its
+   part C = C(z) in P_j contains z.  We have phi_{j,C}(z) >= 0 (and
+   <= r_j/2), and all other bumps phi_{j',C'} vanish at z (disjoint
+   support).  So
+
+        0 <= v(z) <= r_j/2 <= eta 2^j / 2 <= eta h(z) / 2.
+
+   (Using r_j = 2^{j+m} <= 2^{j-1} eta, since m = floor(log_2 eta)
+   gives 2^m <= eta.)
+
+Step D (Combination with xi h).  Since g = xi h + v, with xi in [1,2]
+and 0 <= v <= eta h / 2 <= h / 2 (as eta < 1), we have h <= g <= (5/2) h.
+So g|A = 0 and Lip(g) <= Lip(xi h) + Lip(v) <= 2 * 1 + 1 = 3.  Also
+g <= (5/2) h <= (5/2) Delta.  This is (N1).
+
+Step E (Amplitude of a distinguished bump, per vertex).  Fix x with
+D_0 = h(x) > 0.  Let j be the band index of x under the realized
+lambda.
+
+Consider the auxiliary event
+
+     E*  :=  { log_2 D_0 - (j + lambda)  is in  [1/4, 3/4] }.    (5.5)
+
+Its probability is 1/2 (over lambda).  On E*, D_0 is at a distance
+greater than D_0 / 8 from BOTH numerical endpoints 2^{j+lambda} and
+2^{j+1+lambda} of the band.  Since h is 1-Lipschitz, the whole ball
+B_d(x, D_0 / 8) lies inside W_j.  And r_j <= eta D_0 (by 2^m <= eta
+and 2^{j+lambda} <= D_0), so alpha r_j < D_0 / 8.
+
+    Conditioned on lambda, the probability that B_d(x, alpha r_j) lies
+    inside the same part C of P_j as x is at least pi, by (PP-pad).
+
+Let PAD_x := the event that this padding holds for the part C = C(x)
+of the realized band W_j.
+
+On E* and PAD_x simultaneously:
+
+     phi_{j,C}(x)  >=  min{ r_j/2, d(x, V\C) }
+                   >=  min{ r_j/2, alpha r_j }     (PAD_x)
+                   =  alpha r_j      (using alpha <= 1/2 in fact <= 1/8)
+                   >=  alpha * (eta D_0 / 8)       (2^m >= eta/2)
+                   =  c * eta * D_0,                    (5.6)
+
+with c = alpha / 8.
+
+Support radius of phi_{j,C}: any z with phi_{j,C}(z) > 0 lies in E
+subseteq C, hence in the same part C as x.  Parts have diameter <= r_j
+<= eta D_0.  So d(x, z) <= r_j <= eta D_0 <= 4 eta D_0.  This gives
+(5.3).
+
+The joint event E* cap PAD_x has probability at least rho := (1/2) pi.
+It depends only on lambda and the partition family P_j (not on
+coefficients).  So define E_x := E* cap PAD_x and let phi_x be the
+associated bump phi_{j, C(x)}.  On E_x, (5.2) and (5.3) hold.  A
+deterministic tie-breaker (fixed ordering of (j, C)) selects a unique
+i(x) in case multiple bumps happen to satisfy both displayed bounds.
+
+Step F (Uniformity and independence of U_x).  The coefficients U_{j,C}
+are sampled independently of the bump locations, with uniform law on
+[0, 1] each.  Conditional on all bumps, U_x = U_{i(x)} is uniform on
+[0,1] and independent of xi and of all U_{i'} with i' != i(x).  This
+is exactly the statement (5.4).  []
+
+Two sanity checks.  First, all randomness is finite: at most t_max
+partitions sampled, each on a finite set.  Second, none of the
+constants depend on eta, A, n, or the ratio of edge lengths.  []
+
+REMARK ON "AT LEAST rho" AND ON "DETERMINISTIC SELECTION".  The event
+E_x has probability at least rho depending only on (lambda, partition
+family) for the FIXED vertex x selected by the metric.  In Part 5, x
+will be p in a bag B (nearest to the failing point), and B is chosen
+deterministically from the metric and cache.  So the choice of x does
+not condition on xi_A or on the "distinguished" coefficient U_x.
+This is what lets us argue afterwards that fresh uniform variables
+U_x, xi_A are independent of the past.
+
+--------------------------------------------------------------------------------
+5.2  THE CACHE OF ANCHORS: A DETERMINISTIC EVICTION RULE
+--------------------------------------------------------------------------------
+
+Set
+
+     n_0  :=  2 k^2 + 2.                                       (5.7)
+
+The CACHE at any node is a LIST of anchors ordered by LAUNCH TIME, from
+OLDEST (first launched) to YOUNGEST (last launched).  It is stored in
+the same memory as the particle list and reservations.
+
+At a node t:
+
+   If t is the root bag B_root:  launch one anchor (using the EMPTY
+   interface), record it as the (only) entry.  The root anchor is
+   PERMANENT: it is never evicted below.
+
+   If t is any other bag:  PROPOSE a new anchor launched at B_t.
+
+   If the resulting list (old + proposed) has <= n_0 entries, retain
+   it (no eviction).
+
+   If it has n_0 + 1 entries, EVICT exactly one non-root entry by the
+   RULE below.  The proposed anchor itself is an eligible eviction.
+
+Branching: if t has several children, each child gets a COPY of the
+current cache.
+
+THE EVICTION RULE (deterministic from metric and decomposition).
+
+Fix a parameter J > 0, chosen later.  At the current bag B = B_t:
+
+   For every ORDERED PAIR of distinct vertices (p, q) in B, and every
+   THRESHOLD tau in the pair of thresholds
+
+        tau in { d(p,q) / 100,   J * d(p,q) },                  (5.8)
+
+   consider the sequence  d(p, A_1), d(p, A_2), ..., d(p, A_m)  where
+   A_1, ..., A_m are the anchors in the inclusive list at B (including
+   the proposal), in launch order (oldest first).
+
+   By Lemma 0.1(c), this sequence is NONINCREASING (each later anchor
+   occurs between its predecessor's node and B, so distances drop
+   monotonically).
+
+   PROTECT the entry IMMEDIATELY FOLLOWING (that is, the entry with
+   index k + 1) any DROP from d(p, A_k) > tau to d(p, A_{k+1}) <= tau.
+   If there is no such drop for this (p,q,tau), it protects no entry.
+
+   EVICT the OLDEST non-root entry that is NOT PROTECTED.
+
+All tie-breaking (which pair (p,q), which threshold, which "oldest")
+is deterministic from the metric and decomposition and the cache
+state, all BEFORE any launch randomness is used.
+
+Per-copy reservation count is bounded by n_0 + 1 = 2k^2 + 3.
+
+--------------------------------------------------------------------------------
+5.3  THE CACHE IS WELL DEFINED
+--------------------------------------------------------------------------------
+
+LEMMA 5.2 (Cache consistency).  The displayed distance list is
+nonincreasing.  At a full insertion (n_0 + 1 entries) there is always
+an eligible (i.e. non-protected) non-root entry to evict.  The
+resulting cache has at most n_0 entries.  The number of simultaneous
+reservations, counting the proposal AND the evicted anchor, is at most
+n_0 + 1.
+
+Proof.
+
+(Nonincreasing distance list.)  Let A_1, A_2 be two anchors with A_1
+launched earlier than A_2, so A_2's launch node lies between A_1's
+launch node and B on the tree path to B.  By Lemma 0.1(c), the
+sequence d(p, A_1_node), d(p, A_2_node) is nonincreasing along the
+path, giving d(p, A_2) <= d(p, A_1).
+
+(Eligible eviction exists.)  Each fixed (p, q, tau) protects AT MOST
+one entry (the first entry of a drop; there is at most one such drop
+per threshold because the list is nonincreasing: it crosses tau at
+most once).  There are at most 2 k (k - 1) ordered pairs (p, q) and 2
+thresholds per pair, so at most 4 k (k - 1) entries in total can be
+protected (a single entry might be protected by several (p, q, tau),
+so this is an UPPER bound).  Since n_0 = 2 k^2 + 2 > 4 k (k - 1)
+(verified below), at least one non-root candidate is eligible.  For
+k >= 3, the inequality  2 k^2 + 2 > 4 k (k-1)  is equivalent to
+(k-1)^2 > 2; and the base case k = 2 gives  n_0 = 10 > 8 = 4 k (k - 1).
+So an eviction is always possible.
+
+(Bounded reservation count.)  At a full insertion we have n_0 + 1
+entries (old n_0 + proposal).  Each entry costs one reserved particle
+pair; so the reservation count is n_0 + 1.  After eviction the cache
+has size <= n_0 (or the root + n_0 - 1 more).  So the maximum
+simultaneous reservation count is n_0 + 1, attained transiently at a
+full insertion before eviction.  []
+
+
+--------------------------------------------------------------------------------
+5.4  REALIZATION OF THE ANCHOR CACHE
+--------------------------------------------------------------------------------
+
+Set
+
+     q_0  :=  n_0 + 1,                                            (5.9)
+     N    :=  2 q_0 + k! + 2  =  2(2k^2 + 3) + k! + 2.            (5.10)
+
+The reservation cap q = q_0 fits the maximum simultaneous reservations
+of Lemma 5.2.  So Proposition 3.3 applies with q = q_0, and we get
+consistent bag measures mu_t with mass m = 2 N M, upper bound
+
+     D_anc :=  the glued pseudometric associated with (mu_t)         (5.11)
+           <=  U * d(u,v)      for all u,v in V,
+     U :=  3 N (N-1).                                              (5.12)
+
+The particles satisfy uniform bound Lip(F_i) <= 3 (N-1), so the anchor
+construction gives a pseudometric D_anc of upper Lipschitz constant
+U = 3N(N-1) that depends only on N (hence on q_0 and k), NOT on J or
+eta.  [The parameters J, eta only enter the CACHE RULE and the NOISE,
+not the metric's upper bound.]
+
+Define the ANCHOR at a launch: it is the bag A at which the launch was
+performed together with the two particles (F_1, F_2) that were
+selected for the update.
+
+--------------------------------------------------------------------------------
+5.5  TWO TESTS ALONG A RESERVATION
+--------------------------------------------------------------------------------
+
+Fix a path of bags from a bag containing y (the "y-end") to a later bag
+containing z (the "z-end").  Along this path:
+
+   Anchors are reserved; their pairs of particles stay unchanged; the
+   submeasure nu_A := (sigma_{F_1}^{M})^{sym} + (sigma_{F_2}^{M})^{sym}
+   associated with the launch is a common submeasure of every bag law
+   on the reservation segment.
+
+Two tests use this.  Both allow the later bag to be the eviction bag
+of the anchor (as in Prop 3.3(iv)).
+
+LEMMA 5.3 (Two tests along a reservation).
+
+   (LAUNCH TEST)  If an anchor A lies on this bag path and its
+   reservation lasts from A through the later bag containing z, then
+
+        D_anc(y, z)  >=  b_k d(z, A).                             (5.13)
+
+   (HEIGHT TEST)  Suppose a testing bag P lies on the bag path, and
+   some reserved particle F for A is unchanged from P through the
+   later bag containing z.  If, with probability at least theta
+   (over the launch randomness only, NOT the past), F satisfies
+
+        |F(z) - F(s)|  >=  t   for every s in P,                 (5.14)
+
+   where 0 < t <= Delta, then
+
+        D_anc(y, z)  >=  b_k * theta * t.                        (5.15)
+
+   The tested reservation and the vertices P are CHOSEN WITHOUT
+   CONSULTING the launch randomness.
+
+Proof.
+
+(LAUNCH TEST)  At the anchor A, the launch perturbation is
+g_A = xi_A h_A + v_A, which by (N1) is at least d(.,A) in absolute
+value on V, vanishes on A, and is at most (5/2) d(., A).  The pair
+after launch is f_A + g_A and f_A - g_A where g_A | A = 0.  The
+reserved pair therefore yields a common submeasure nu_A that by
+Lemma 2.4 has E_{nu_A}(z | A) >= 2|g_A(z)|.  Since |g_A(z)| >= d(z,A) / 2
+(by 1 <= xi_A and 0 <= v_A <= h_A/2, so g_A >= h_A/2), we have
+E_{nu_A}(z|A) >= d(z,A).  Apply (2.2) with P = A, bag path from the
+y-bag to z.  Prop 2.2 gives D_anc(y, z) >= b_k * d(z, A) pointwise in
+launch randomness; average over all launch randomness to obtain the
+displayed bound.
+
+(HEIGHT TEST)  For each realization of the launch randomness, the
+symmetrized sweep sigma_F^{M, sym} is a common submeasure of the bag
+laws along the reservation from P through the later bag.  On the
+event (5.14), by Lemma 2.3 the uncertainty is at least t at z given
+P.  Prop 2.2 gives D_mu(y,z) >= b_k * t on that event.  Average over
+the launch randomness, using that the event has probability at least
+theta by hypothesis:
+
+        E[ D_mu(y, z) ]  >=  b_k * theta * t.   []
+
+The height test is used as follows.  We use a FIXED particle
+F = f_{A*} + xi_{A*} h_{A*} + v_{A*} of a chosen anchor A*.  The
+particle was frozen on the reservation, so F is identical along the
+reservation.  We pick the testing bag P and the two vertices freely
+from the metric and cache, then apply Lemma 5.3 with F.  The randomness
+in (5.14) is the launch randomness at A* (xi and coefficients U_i),
+which was chosen BEFORE P was viewed; so theta is "probability over
+launch randomness only", independent of P and of the past.
+
+Similarly, the LAUNCH test is used when the anchor A itself lies on
+the bag path from the y-bag to z.  Then D_anc(y,z) >= b_k d(z,A).
+
+Both tests are POINTWISE in the launch randomness and the earlier
+past.  Averages over the launch randomness preserve the bound.
+
+--------------------------------------------------------------------------------
+5.6  PARAMETER CHOICES
+--------------------------------------------------------------------------------
+
+The preceding construction and both tests hold for every J > 0 and
+0 < eta < 1/4.  We now FIX a specific member of the family:
+
+     K  >  2  +  (2 U + 1) / b_k,                                (5.16)
+     J  =  10 (K + 1),
+     H  >  10^5 * J,
+     0 < eta <  1 / (10 H).
+
+All parameters depend only on k, in particular not on the metric or the
+tree decomposition.  From this point onwards, D_anc denotes the
+pseudometric coming from this choice of eta and J.
+
+Two notes on why these are chosen this way:
+
+   (H BIG relative to J)  H > 10^5 J is needed later so that "distances
+   above H" are far beyond "distances around 300 J".  In the LOWER
+   comparison argument, a bare inequality like D_0 > H (D_0 is the
+   anchor distance at the failing point x) then dwarfs quantities of
+   order J or 300 J.
+
+   (J BIG relative to K)  J = 10(K+1) is needed so that the threshold
+   J * L (with L in the obstruction lemma, which is at most 300 or at
+   most D_0, see Part 6) straddles between "short" (at most K delta)
+   and "long" (at least D_0 - 1) anchor distances from p.
+
+   (K BIG relative to b_k)  K > 2 + (2U+1) / b_k guarantees, via the
+   launch test, that the immediate successor of A* has d(p, A') at most
+   K delta whenever delta d is "early"; see Part 6, Lemma 6.9.  The
+   "+2" accounts for the ratio D(y,x)/delta approaching 0 slowly.
+
+   (eta SMALL relative to H)  0 < eta < 1/(10H) then makes the local
+   noise concentration radius 4 eta D_0 < 1/(10 * 1) (with D_0 <= H)
+   much less than 1, so the noise hits only an infinitesimal tube
+   around the endpoint x, leaving every testing-bag vertex FAR away.
+
+================================================================================
+
+
+================================================================================
+PART 6.  THE UNIFORM LOWER COMPARISON
+================================================================================
+
+This part proves: D_bag + D_anc is comparable to d from below, uniformly
+in the size, edge lengths, and decomposition.  The comparison failure
+sequence, if there were one, would produce a "youngest reservation
+crossing from bounded distance to vanishing distance".  The launch
+noise on that reservation, plus the eviction rule, forbids such a
+reservation by selecting a younger one.  We work it out explicitly.
+
+Throughout PART 6, we fix (V,d) as usual, tree decomposition of bag
+size at most k, D_bag from Part 4, D_anc from Part 5 (with the fixed
+parameters of 5.6).
+
+--------------------------------------------------------------------------------
+6.1  FROM "FAILS UNIFORMLY" TO A NORMALIZED SEQUENCE
+--------------------------------------------------------------------------------
+
+Suppose, towards a contradiction, that the constructed sum
+D_bag + D_anc has NO uniform positive lower comparison with d, i.e.
+there is no constant c > 0 with D_bag(u,v) + D_anc(u,v) >= c d(u,v)
+for all inputs and all pairs.  Then there is a SEQUENCE of examples:
+for each n in N, a graph+lengths+decomposition with distinct vertices
+x_n, y_n, such that, writing r_n := d(x_n, y_n) for the metric of the
+n-th example,
+
+       ( D_bag(x_n, y_n) + D_anc(x_n, y_n) ) / r_n  ->  0.       (6.1)
+
+We call (6.1) the FAILING COMPARISON SEQUENCE.
+
+COMPACTNESS TOOL.  We fix a NONPRINCIPAL ULTRAFILTER calligraphic U on
+N (existence by Zorn's lemma).  For any ASSERTION about the index n,
+write
+
+     "eventually P_n"   iff   {n in N : P_n holds} in U.
+
+Sequences (s_n) and (s'_n) are IDENTIFIED when they agree eventually.
+Any REAL-valued sequence bounded by a fixed constant C converges
+along U to a "standard" real in [-C, C]; sequences NOT converging are
+treated as alternative branches (mutually exclusive eventual
+alternatives).  We use the following elementary toolkit.
+
+LEMMA 6.1 (Ultrafilter toolkit).  For all sequences below:
+
+   (a) Of finitely many alternatives whose union holds eventually, at
+   least one holds eventually.  Finitely many eventual assertions
+   hold simultaneously eventually.
+
+   (b) A sequence in [0, 1] that is not infinitesimal (does not tend
+   to 0 along U) is eventually bounded below by a POSITIVE standard
+   real.  A finite minimum of such sequences has the same property.
+
+   (c) Sequences of "times" ordered along finite linearly ordered bags
+   are linearly ordered modulo U.  If delta_n in [0,1] is nonincreasing
+   along each path, a time sequence with noninfinitesimal delta
+   precedes every time sequence with infinitesimal delta.
+
+   (d) A sequence that has a positive standard lower bound and a
+   sequence that is infinitesimal have their sum non-infinitesimal.
+
+Proofs are immediate from the finite-union and finite-intersection
+properties of ultrafilters.  []
+
+We will freely say "a = o(b)" for positive sequences b_n when
+|a_n|/b_n -> 0 along U (that is, a_n/b_n is infinitesimal).  We use
+"o(1)" for an infinitesimal sequence.
+
+From here on, all vertices, bags, and metrics denote SEQUENCES in the
+failing examples; equations and inequalities are "eventually" unless
+stated otherwise, and metric expressions like d(x,S) are the per-index
+values, ordered by U.  The reader may replace "eventually" with
+"for all large n" throughout on a first pass.
+
+--------------------------------------------------------------------------------
+6.2  THE LEAST COMMON ANCESTOR AND NORMALIZATION
+--------------------------------------------------------------------------------
+
+Choose a bag X_n containing x_n and a bag Y_n containing y_n.  Let
+S_n be the LEAST COMMON ANCESTOR of X_n and Y_n in the tree T_n (rooted
+at whatever node Part 3-5 selected).  Then S_n is at the bottommost
+place where the bag paths to X_n and to Y_n diverge; both X_n and Y_n
+have S_n as ancestor.
+
+Lemma 0.1(a) gives: every x_n-y_n path meets S_n, so
+
+     d(x_n, S_n)  <=  r_n,    d(y_n, S_n)  <=  r_n.                (6.2)
+
+The two ratios on the left divided by r_n CANNOT BOTH BE
+INFINITESIMAL.  For suppose both were o(r_n).  Choose nearest
+vertices s_x, s_y in S_n to x_n, y_n.  Then
+
+        D_bag(s_x, s_y)
+          <= D_bag(s_x, x_n) + D_bag(x_n, y_n) + D_bag(y_n, s_y)   (triangle in D_bag)
+          <= (U_bag d(x_n, S_n)) + o(r_n) + (U_bag d(y_n, S_n))    (upper bounds)
+          =  U_bag * o(r_n) + o(r_n) + U_bag * o(r_n)
+          =  o(r_n).
+
+   (We used (4.3) for the two end terms, valid because both x_n and
+   s_x are the two endpoints of the edge-like path x_n -> s_x, and
+   D_bag(x_n, s_x) <= U_bag d(x_n, s_x) = U_bag d(x_n, S_n).  Same for
+   y_n, s_y.  And D_bag(x_n, y_n) = o(r_n) by the FAILING COMPARISON
+   SEQUENCE: D_bag <= D_bag + D_anc = o(r_n).)
+
+   On the other hand, s_x and s_y are both in the bag S_n, so by the
+   co-bag lower bound (4.4):
+
+        D_bag(s_x, s_y)  >=  a_bag * d(s_x, s_y).
+
+   And by the triangle inequality in d:
+
+        d(s_x, s_y)  >=  d(x_n, y_n) - d(x_n, s_x) - d(y_n, s_y)
+                      =  r_n - d(x_n, S_n) - d(y_n, S_n)
+                      =  r_n (1 - o(1)).
+
+   So D_bag(s_x, s_y) >= a_bag r_n (1 - o(1)), contradicting
+   D_bag(s_x, s_y) = o(r_n), because a_bag > 0.
+Therefore the two ratios are NOT both infinitesimal; at least one is
+not infinitesimal.
+
+INTERCHANGE if necessary.  Swap the names of x_n and y_n so that
+
+     a_n  :=  d(x_n, S_n)      satisfies   a_n / r_n  >=  eps_0 > 0
+     eventually.                                                       (6.3)
+
+(Equivalently: after interchange, d(x_n, S_n) is not infinitesimal
+relative to r_n.  Use Lemma 6.1(b).)
+
+NORMALIZE.  Discard the irrelevant indices (which are "not in U", so
+do not affect any eventual statement).  Rescale the whole example by
+1/a_n: metric d -> d / a_n, particle heights F_i -> F_i / a_n, cut
+mass -> cut mass / a_n.  All our constructions, bounds, and noise
+properties survive the rescaling:
+
+  * d(u,v) = a_n * (rescaled)  - so d(x_n, S_n) becomes 1;
+  * the inequalities (D_bag <= U_bag d) and (D_anc <= U d) scale
+    identically on both sides;
+  * the noise variables xi_A, U_C are unchanged by rescaling (they are
+    dimensionless); only the FUNCTIONS h_A, v_A, and the cutoff M
+    scale;
+  * the bump amplitude and support bounds hold for the RESCALED
+    metric without regenerating the partition samples.
+
+Write D := D_anc in the rescaled units, and x, y, S for x_n, y_n, S_n
+(now scaled so that d(x,S) = 1).  We have:
+
+     d(x, S)          =  1            (normalized),                 (6.4)
+     D(x, y)          infinitesimal,                                 (6.5)
+     D(., .)          <=  U d         pointwise,                     (6.6)
+     d(x, y)          =  r_n / a_n   in [1, inf) eventually.
+
+The last expression r_n / a_n: since a_n <= r_n by (6.2), the
+rescaled r_n/a_n is at least 1.  We do not require an upper bound on
+r_n/a_n.
+
+D_bag is also rescaled.  The failing comparison reads
+
+     D_bag(x, y) + D(x, y)  =  o(r_n / a_n),
+
+and both terms on the left are nonnegative, so each is separately
+o(r_n / a_n).  In particular D(x, y), the anchor metric's value, is
+infinitesimal; (6.5) records this.  The same conclusion is NOT
+guaranteed for D_bag: "o(r_n/a_n)" expresses relative vanishing, but
+r_n/a_n can be unbounded as n varies, so "o(r_n/a_n)" could still be
+a large absolute number, or O(1).
+
+So we will NOT use D_bag(x, y) in the analysis below.  The lower-bound
+arguments in Parts 6.5-6.8 work entirely with D := D_anc, and only
+ever invoke D(x, y) = o(1) (plus the pointwise upper bound D <= U d).
+
+The "normalized failure" statement we will use is
+
+     D(x, y)   infinitesimal         (D_anc after normalization).   (6.7)
+
+--------------------------------------------------------------------------------
+6.3  EARLY AND LATE BAGS
+--------------------------------------------------------------------------------
+
+Fix the descending path from S to X (both bags of T; S contains some
+vertices, X contains x_n).  For each bag B_t on this path, put
+
+     delta_t  :=  d(x_n, B_t).                                     (6.8)
+
+Apply Lemma 0.1(c) with the role of "A" there played by the point
+set {x_n}: the path runs from S to X, and x_n is in X, so the
+distance-to-{x_n} function is monotone nonincreasing along the path.
+Thus delta_t is NONINCREASING in the index t.  Moreover delta at S = 1
+(by (6.4)), and delta at X = 0 (by x_n in X).
+
+Call a sequence (n -> selected bag B_n on the path) EARLY if
+delta_{B_n} is not infinitesimal, and LATE if delta_{B_n} is
+infinitesimal.  An EARLY sequence has a POSITIVE STANDARD lower bound
+for its delta (Lemma 6.1(b), applied to delta_{B_n}/1); we will write
+this as delta_{B_n} >= epsilon > 0 (with epsilon possibly depending on
+the sequence).
+
+Note: we do NOT assume a "first late bag" or "last early bag" exists.
+The classification is now on SEQUENCES of bags; early and late
+sequences may interleave in index n, and the whole classification is
+sequentially coherent only via U.
+
+--------------------------------------------------------------------------------
+6.4  CROSSING ANCHORS AND THE YOUNGEST ONE
+--------------------------------------------------------------------------------
+
+Along the descending path from S to X, consider ALL anchors A from the
+CACHE of PART 5 whose reservation MEETS this path.  Each anchor A has:
+
+   (launch bag)  the node of T at which A was proposed;
+   (effective start)  the first bag of the path at which A is
+                      present, i.e. max(S, launch bag) in ancestry
+                      order.  If A launched strictly above S, its
+                      effective start is S.
+   (terminal bag)  the first bag of the path at which A is evicted,
+                   or X if A survived to X.
+
+Restrict each anchor's reservation to the path, truncating at X if not
+evicted earlier.  All launch and terminal bags are deterministic from
+the metric and cache; in particular they do NOT depend on the launch
+noise (only on the deterministic eviction rule of 5.2).
+
+Define: an anchor sequence (n -> A_n) is CROSSING if
+
+     (effective start is early)   AND   (terminal bag is late).
+
+Equivalently: launched by some early time and still present at some
+late time.
+
+Recall an anchor sequence is an EQUIVALENCE CLASS modulo equality on a
+set in U.  Its launch time and terminal time are the sequences of
+launch/terminal bag times for that class.
+
+LEMMA 6.2 (A youngest crossing anchor).  There are at most n_0 + 1
+DISTINCT crossing anchor sequences.  The set of crossing anchor
+sequences is nonempty and has a YOUNGEST member, A*.
+
+Proof.
+
+(Nonempty)  The permanent root anchor is crossing (launched at S or
+above S, present from S onward, never evicted, so present at every
+late time too).
+
+(At most n_0 + 1 distinct sequences)  Given any finite collection of
+crossing anchor sequences, take their LATEST effective start (along
+each n).  By Lemma 6.1(a), the latest is early (since finitely many
+early alternatives).  Then every anchor in the collection has started
+by this time, and its LATE terminal time follows this early time (by
+Lemma 6.1(c)).  So all of them are simultaneously present at the same
+time.  The cache size at any moment is bounded by n_0 + 1 (Lemma 5.2).
+Thus if there were n_0 + 2 distinct crossing sequences, the n_0 + 2
+selected anchors would be simultaneously present, contradicting the
+cache bound.  So the class of crossing sequences has size at most
+n_0 + 1.
+
+(Youngest exists)  The finite set of crossing anchor sequences is
+partially ordered by launch time; any two are comparable (they are
+sequences of launch times along the same root path); by Lemma 6.1(a),
+one is (eventually) before or equal to the other; so the order is
+linear.  A finite set has a maximum.  []
+
+Fix this A* and define:
+
+     h_*  :=  d(., A*)          (distance-to-A*-function)
+     D_0  :=  h_*(x_n)           (distance from x_n to A*'s bag)
+
+     Z    :=  a LATE terminal bag of A*  (an anchor-crossing bag
+              existence guaranteed by A* being crossing)
+     z    :=  a vertex of Z nearest x_n.
+
+Then:
+
+     d(x_n, z)  is infinitesimal         (Z late)
+     (6.5) and the upper bound D(.,.) <= U d give
+
+             D(y_n, z)  <=  D(y_n, x_n) + U d(x_n, z)     (6.9)
+                        infinitesimal + infinitesimal  =  infinitesimal.
+
+We use the LAUNCH test (Lemma 5.3) with anchor A* and its birth
+reservation; the point x_n plays a role only via testing bags on the
+reservation.  Specifically, we will prove lemmas showing that, for
+every early testing bag B on A*'s reservation ending at Z, plus the
+LATE proxy z, we get a CONTRADICTION with (6.9) - forcing constraints
+on the geometry (D_0, d(p, A*), etc.).
+
+
+--------------------------------------------------------------------------------
+6.5  THE CROSSING ANCHOR IS OLD AND DISTANT
+
+Recall D_0 = h_*(x_n) = d(x_n, A*).
+
+LEMMA 6.3 (The crossing anchor is old and distant).  The launch bag
+of A* lies strictly ABOVE S on the tree, and D_0 > H eventually (in
+normalized units).  In particular, A* is present at every selected
+early bag on the path from S down to X.
+
+Proof.
+
+Part 1 (Launch must be strictly above S).  Suppose the launch bag L of
+A* sat on the S-to-X path (at or below S).  Two facts.
+
+   (a) L lies on the bag path from Y_n (the chosen y-bag) to the
+   terminal bag Z of A*.  Since A* is CROSSING, its effective start
+   max(S, L) is early.  If L is at or below S, then S precedes L on
+   the descending path, so effective start = L, hence L is an EARLY
+   bag.  On the other hand, A* is present at Z, so Z is at or below L
+   (a reservation running from L to Z visits Z only after L; if L
+   were below Z the reservation would not include Z).  So the segment
+   L-to-Z lies inside S-to-Z, which is inside the Y_n-to-Z bag path.
+   Hence (a).
+
+   (b) The LAUNCH test (5.13), with A = L, y = y_n, z = z, gives
+
+        D(y_n, z)  >=  b_k d(z, A*).                           (*)
+
+   By the triangle inequality in d,
+
+        d(z, A*)  >=  d(x_n, A*) - d(x_n, z)  =  D_0 - o(1).
+
+   Because L is an EARLY bag, d(x_n, L) has a positive standard lower
+   bound eps_0 > 0 (Lemma 6.1(b)).  Since A* = L as bags, this is
+   D_0 = d(x_n, A*) >= eps_0.  Therefore D(y_n, z) >= b_k (eps_0 -
+   o(1)) >= b_k eps_0 / 2 > 0.
+
+   But D(y_n, z) is infinitesimal by (6.9).  Contradiction.  So the
+   launch bag of A* is strictly ABOVE S.  [Part 1 ends]
+
+Part 2 (D_0 >= 1).  From Part 1, A*'s launch bag lies above S on T.
+Every path from x_n (in a bag below S) to any vertex of A*'s launch
+bag must meet the bag S (Lemma 0.1(a)).  Hence
+
+     D_0  =  d(x_n, A*)  >=  d(x_n, S)  =  1.                  (6.10)
+
+The reservation of A* runs from above S, through S (since we just
+showed D_0 > 0 and A* launched above S), and continues to a late
+terminal bag (by the CROSSING property).  So A* is present at every
+selected early bag on the path from S down to X.
+
+Part 3 (D_0 > H).  We prove the contrapositive: assume D_0 <= H and
+derive a contradiction with (6.9).  Fix the "+" member of A*'s
+reserved pair, which is the frozen particle
+
+     F   :=   f_{A*}  +  xi_{A*} h_{A*}  +  v_{A*}.            (6.11)
+
+We use it in a HEIGHT test with testing bag P = S and terminal bag Z.
+
+Step 3a (distinguished bump at x_n).  By Lemma 5.1(N2), there is an
+event EV (probability at least rho = pi/2, determined by A*'s bump
+family alone) on which a DISTINGUISHED bump phi_x of A*'s local noise
+satisfies
+
+     phi_x(x_n)  >=  c eta D_0   >=  c eta,                    (6.12)
+     phi_x(y)    =   0           if d(x_n, y) > 4 eta D_0.     (6.13)
+
+(c = alpha/8; the constant rho = pi/2.)  Because 4 eta D_0 <= 4 eta
+H < 1 (our choice eta < 1/(10 H)), and d(x_n, s) >= 1 > 0 for every
+s in S (x_n notin S by d(x_n, S) = 1), phi_x(s) = 0 for every s in S.
+
+Step 3b (uniform exclusion of the distinguished coefficient).  On EV,
+the frozen particle F = F_0 + U_x phi_x, where U_x in [0,1] is the
+uniform coefficient of phi_x and F_0 collects f_{A*}, xi_{A*} h_{A*},
+and all other bumps of A*'s noise (everything except U_x).  Conditional
+on EV and on everything except U_x, fix s in S.  Since phi_x(s) = 0,
+the value F(s) does not depend on U_x, and the inequality
+|F(x_n) - F(s)| < t excludes at most
+
+     2 t / phi_x(x_n)   <=   2 t / (c eta)
+
+of the unit interval of U_x.  A union bound over the at most k
+vertices of S gives
+
+     Pr[ exists s in S : |F(x_n) - F(s)| < t | EV, rest ]
+       <=   k * 2 t / (c eta).                                  (6.14)
+
+Choose the positive standard t in (0, 1/4] so that 2 k t / (c eta) <
+1/2.  Then the right side of (6.14) is < 1/2.
+
+Step 3c (transfer to Z and height test).  On the joint event (EV and
+the good U_x, probability >= rho/2), we have
+
+     |F(x_n) - F(s)|  >=  t    for every s in S.
+
+Applying the Lipschitz bound on F (Lip(F) <= L_p = 3(N-1)) and the
+fact that d(x_n, z) is infinitesimal (Z is late, z nearest x_n in Z),
+
+     |F(z) - F(x_n)|  <=  L_p d(x_n, z)  =  o(1).
+
+Combining, for every s in S,
+
+     |F(z) - F(s)|  >=  |F(x_n) - F(s)| - |F(z) - F(x_n)|
+                    >=  t - o(1)  >=  t/2   (eventually).
+
+The HEIGHT test (Lemma 5.3, (5.15)) applied with testing bag P = S,
+terminal bag Z (where F is still frozen because A* persists through
+Z), and probability at least rho/2, gives
+
+     D(y_n, Z)  >=  b_k * (rho/2) * (t/2)  =  positive standard.  (6.15)
+
+But by the definition D(y_n, Z) := min_{w in Z} D(y_n, w) and z in Z,
+
+     D(y_n, Z)  <=  D(y_n, z)  =  o(1),
+
+where we used the late-proxy identity (6.9).  Contradiction.  Hence
+D_0 > H eventually.  This proves Lemma 6.3.  []
+
+--------------------------------------------------------------------------------
+6.6  THE GEOMETRIC OBSTRUCTION AT EVERY EARLY SEQUENCE
+
+Fix a SELECTED early sequence B = (B_n).  Let p be a vertex of B
+nearest x_n, and put delta := d(x_n, B), which is EARLY, so has a
+positive standard lower bound eps > 0 (Lemma 6.1(b)).
+
+LEMMA 6.4 (Geometric obstruction at every early sequence).  If D_0 > H,
+then there is a vertex q of B satisfying
+
+     delta / 4  <=  d(p, q)  <=  10 D_0                        (6.11)
+
+eventually.
+
+Proof.  Suppose (6.11) fails eventually.  Then there is an ultrafilter
+alternative (a finite disjunction, so we may assume one branch)
+
+     (FAIL-OBSTR)  every s in B is either NEAR (d(p, s) < delta/4)
+                   or FAR (d(p, s) > 10 D_0).
+
+(The two alternatives do not overlap: delta/4 <= 1/4 while 10 D_0 > 10.)
+
+Step 1 (a vertex v_0 of B on a shortest A*-to-x_n path, and v_0 is
+NEAR).  The launch of A* is strictly above S by Lemma 6.3, and
+B lies on the S-to-X bag path.  By Lemma 0.1(a), every path from a
+vertex of A*'s launch bag to x_n (in a bag below B on this path) meets
+B.  By Lemma 0.1(c) with bags A*, ..., B, ..., X, there is a vertex
+v_0 in B lying on a shortest A*-to-x_n path, with
+
+     D_0 - h_*(v_0)  =  d(x_n, v_0).                          (6.12)
+
+(Separator (0.4).)  By the triangle inequality and (6.12):
+
+     d(p, v_0)  <=  d(p, x_n) + d(x_n, v_0)
+                =   delta + (D_0 - h_*(v_0))
+                <=  delta + D_0
+                <=  1 + D_0
+                <   10 D_0                                (6.13)
+
+(the last because 1 < 9 D_0, true since D_0 >= 1).  In particular
+v_0 is NOT FAR, so by (FAIL-OBSTR) v_0 is NEAR; hence d(p, v_0) <
+delta / 4.
+
+Step 2 (a height gap for NEAR s).  Let s in B be NEAR.  By Step 1
+d(p, v_0) < delta/4, and by NEAR d(p, s) < delta/4.  Combining:
+
+     d(s, v_0)  <=  d(s, p) + d(p, v_0)  <  delta/2.
+
+By (6.12) and the triangle inequality in d,
+
+     h_*(x_n) - h_*(s)
+       =  (D_0 - h_*(v_0)) + (h_*(v_0) - h_*(s))
+       =  d(x_n, v_0) + (h_*(v_0) - h_*(s))
+      >=  d(x_n, v_0) - d(s, v_0).                            (6.14)
+
+The first term satisfies d(x_n, v_0) >= d(x_n, p) - d(p, v_0)
+>= delta - delta/4 = 3 delta/4.  The second is < delta/2.  Hence
+
+     h_*(x_n) - h_*(s)  >   3 delta/4 - delta/2  =  delta/4.  (6.15)
+
+Step 3 (FAR s is unaffected by the distinguished bump).  Let s in B
+be FAR, i.e. d(p, s) > 10 D_0.  Then
+
+     d(x_n, s)  >=  d(p, s) - d(p, x_n)  >  10 D_0 - delta  >=  9 D_0.
+
+Since 4 eta D_0 < 4 eta H < 1 < 9 D_0 (our eta < 1/(10 H)), the
+distinguished bump phi_x of A*'s ordinary noise, whose support lies in
+the ball of radius 4 eta D_0 around x_n (Lemma 5.1(N2)), vanishes at s.
+
+Step 4 (Frozen particle and simultaneous gap at x_n).  Consider the
+frozen "+" particle F := f_{A*} + xi_{A*} h_{A*} + v_{A*} (the reservation
+of A* keeps it unchanged from B through Z).  On the favorable bump
+event EV (probability rho = pi/2, Lemma 5.1(N2)), for each s in B:
+
+   (Near)  Vary xi_{A*} in [1,2] with everything else fixed.
+   F(x_n) - F(s) = [past-dependent coefficient] + xi_{A*}(h_*(x_n) -
+   h_*(s)).  By (6.15) the coefficient of xi_{A*} is > delta/4, so
+   the set of xi_{A*} giving |F(x_n) - F(s)| < t has measure <=
+   8 t / delta on [1,2].
+
+   (Far)  Vary U_x in [0,1] with everything else fixed.
+   F(x_n) - F(s) = [past-dependent coefficient] + U_x(phi_x(x_n) -
+   phi_x(s)).  By Step 3 phi_x(s) = 0 and by Step 3a of Lemma 6.3
+   phi_x(x_n) >= c eta D_0.  So the set of U_x giving
+   |F(x_n) - F(s)| < t has measure <= 2 t / (c eta D_0) <= 2 t / (c eta H).
+
+Union bound over the at most k vertices of B (only one of the two
+"Xi" variables is used per s; at most k terms):
+
+     Pr[ exists s in B : |F(x_n) - F(s)| < t | EV, rest ]
+       <=  k (8 t / delta  +  2 t / (c eta D_0))
+       <=  k (8 t / eps   +  2 t / (c eta H)).            (6.16)
+
+Choose a positive standard t in (0, 1/4] so that the right side of
+(6.16) is < 1/2.  Such t exists because k, eps, c, eta, H are positive
+standard and fixed.  Thus, conditional on EV, the simultaneous gap
+|F(x_n) - F(s)| >= t for every s in B has probability at least 1/2,
+and the joint event (EV and the gap) has probability at least
+theta_B := rho / 2 > 0.
+
+Step 5 (transfer to the late proxy and apply the height test).  Let Z
+be the terminal (late) bag of A* and z in Z nearest x_n.  Because Z is
+late, d(x_n, z) = d(x_n, Z) is infinitesimal.  The frozen particle F
+is Lipschitz with Lip(F) <= 3(N-1) = L_p, so on the joint event
+
+     |F(z) - F(x_n)|  <=  L_p d(x_n, z) = o(1),
+
+and hence, for every s in B,
+
+     |F(z) - F(s)|  >=  |F(x_n) - F(s)|  -  |F(z) - F(x_n)|
+                    >=  t - o(1)  >=  t/2   (eventually).
+
+By the HEIGHT test (Lemma 5.3, (5.15)) with testing bag P := B, terminal
+bag Z, and probability at least theta_B:
+
+     D(y_n, Z)  >=  b_k * theta_B * (t/2)   =  positive standard.  (6.17)
+
+On the other hand, z in Z so D(y_n, Z) <= D(y_n, z), and by (6.9)
+D(y_n, z) is infinitesimal.  So D(y_n, Z) is infinitesimal, contradicting
+(6.17).  Therefore (6.11) holds for some q in B.  []
+
+
+--------------------------------------------------------------------------------
+6.7  PROTECTION OF THE IMMEDIATE SUCCESSOR
+--------------------------------------------------------------------------------
+
+Lemma 6.5 (Protection of the immediate successor).  Let B be any
+selected early sequence of bags on the path from S to X, and let p be
+a vertex of B nearest x_n.  Put delta := d(x_n, B).  Let A' be the
+IMMEDIATE SUCCESSOR of A* in the inclusive cache list at B (the anchor
+one position younger than A* in launch order).  Suppose A' was
+launched at or after S (that is, its launch bag sits on the segment
+from S to X, not strictly above S).  Then at the eviction test at B,
+A' is PROTECTED by the eviction rule of section 5.2, and cannot be
+evicted there.
+
+Proof.
+
+Step 1 (bound d(p, A')).  Two alternatives.
+
+   Alternative 1 (A' is the current PROPOSAL at B).  Then its launch
+   bag is B itself; p lies in B; so d(p, A') = 0 <= K delta trivially.
+
+   Alternative 2 (A' launched earlier, in cache at B).  Its launch
+   bag lies on the segment S -> ... -> B, which is contained in the
+   bag path from Y_n to B (the path Y_n -> S -> ... -> B).  So the
+   LAUNCH test (5.13) applies, and gives
+
+        D(y_n, p)   >=   b_k  d(p, A').                     (6.23)
+
+   From the failing-comparison upper bound D(x_n,y_n) infinitesimal
+   (6.5) and D(.,.) <= U d:
+
+        D(y_n, p)   <=   D(y_n, x_n) + U d(x_n, p)
+                    <=   D(y_n, x_n) + U delta.              (6.24)
+
+   (The first inequality is the triangle inequality for D, the second
+   substitutes d(x_n, p) = delta since p is nearest x_n in B.)
+
+   Matching (6.23) and (6.24):
+
+        d(p, A')  <=  [ D(y_n, x_n) + U delta ] / b_k
+                  =  (D(y_n,x_n)/b_k)  +  (U/b_k) delta.     (6.25)
+
+   Because D(y_n, x_n) is infinitesimal (6.5) and delta is at least the
+   positive standard epsilon (Lemma 6.1(b) applied to the early
+   sequence B), the ratio
+
+        D(y_n, x_n) / delta  ->  0 along U.
+
+   Also, from (5.16) K > 2 + (2 U + 1) / b_k, we compute:
+
+        b_k * K   >   b_k * (2 + (2 U + 1) / b_k)  =  2 b_k + 2 U + 1  >  U,
+
+   so b_k K - U  =:  C_0  >  0  (a positive standard constant,
+   depending on b_k and U = 3N(N-1), hence on k only).
+
+   Together:
+
+        d(p, A') / delta  <=  (D(y_n,x_n)/delta)/b_k  +  U / b_k
+                          <=  (small) / b_k  +  U/b_k
+                          <   K  =  C_0/b_k + U/b_k + (slack)   eventually.
+
+   In other words, d(p, A') <= K delta  eventually, for BOTH
+   alternatives (0 <= K delta in Alternative 1).  This is the
+   bound we will use below.
+
+Step 2 (bound d(p, A*)).  By triangle:
+
+        d(p, A*)   >=   d(x_n, A*) - d(x_n, p)   =   D_0 - delta.   (6.26)
+
+Step 3 (choosing q from the obstruction lemma).  By Lemma 6.4 there
+is a q in B with delta/4 <= L := d(p,q) <= 10 D_0.  Two cases.
+
+   Case I (L <= 300).  Then
+
+        J * L   >=   J * (delta / 4)
+                =   (10(K+1)/4) * delta
+                >   K delta
+               >=  d(p, A')     (by Step 1).
+
+   Also,
+
+        J * L   <=   300 J       (since L <= 300)
+                =   300 * 10(K+1)
+               <   H - 1       (since H > 10^5 J, in particular > 300 J + 1)
+               <   D_0 - 1     (since D_0 > H)
+               <=   d(p, A*)    (by Step 2 and delta <= 1).
+
+   So in Case I, the threshold  tau := J L  satisfies
+        d(p, A*)  >  tau  >  d(p, A').
+
+   Case II (L > 300).  Then
+
+        L / 100   >   3   >   2   >=   d(p, A')
+   (the last inequality uses d(p, A') <= 1 + delta <= 2, by
+   Alternative 2 with bound d(x_n, A') <= 1  -- A' is on the path
+   from S down, so d(x_n, A') <= d(x_n, S) = 1; or Alternative 1 with
+   d(p,A') = 0).
+
+   Also,
+
+        L / 100   <=   (10 D_0) / 100  =  D_0 / 10  <  D_0 - 1  <=  d(p, A*)
+   (using D_0 > H >> 10).
+
+   So in Case II, the threshold  tau := L / 100  satisfies
+        d(p, A*)  >  tau  >  d(p, A').
+
+Step 4 (applying the eviction rule).  In either case, we found a
+threshold tau  (one of the two thresholds of the rule (5.8), with
+values  d(p,q)/100  and  J d(p,q))  satisfying
+
+        d(p, A*)   >   tau   >   d(p, A').                    (6.27)
+
+Now, the distance sequence  d(p, A_1) >= d(p, A_2) >= ...  is
+nonincreasing in launch order (Lemma 5.2).  And A' is the IMMEDIATE
+SUCCESSOR of A*: i.e., A* = A_j and A' = A_{j+1} for some index j.
+
+But (6.27) says:  d(p, A_j)  >  tau  >  d(p, A_{j+1}).  That is
+precisely a "drop from >tau to <tau" happening AT THE JUMP FROM
+INDEX j TO INDEX j+1.  By the rule of section 5.2, the entry
+immediately following the drop (that is, entry j+1 = A') is PROTECTED
+by threshold tau.
+
+Thus A' is not eligible for eviction at B.  []
+
+Notice that the choice of q was in B, so L = d(p,q) is a metric
+quantity about B, not a launch-noise quantity.  This is essential:
+the eviction rule is deterministic from the metric and the cache state,
+so it cannot be influenced by the noise.  So "A' is protected at B"
+is a deterministic statement (for a given realization of the whole
+schedule up to B), and it holds in EVERY realization.
+
+--------------------------------------------------------------------------------
+6.8  A YOUNGER CROSSING ANCHOR EXISTS
+--------------------------------------------------------------------------------
+
+We now show that, under the normalized failing-comparison assumptions
+of section 6.1-6.4, the existence of A* (as the YOUNGEST crossing
+anchor) is self-contradictory.
+
+Lemma 6.6 (A younger crossing anchor exists).  Under the normalized
+failing-comparison hypotheses (6.4)-(6.7), there is a CROSSING anchor
+strictly YOUNGER than A*.
+
+Proof.
+
+Focus on the INSERTION TEST AT S (that is, the insertion performed
+when we arrive at bag S).  By Lemma 6.3, A* was launched strictly
+above S.  So at the insertion at S, the cache has some number of
+entries; A* is present (present at S); the newly proposed anchor at S
+is retained if there is space, and evicts some non-root anchor
+otherwise (the rule of 5.2).  Either way, A* is unchanged at S (it is
+frozen permanently from some point above S onward; it persists at S).
+
+Consider the finite set
+
+     LIST  :=   { anchors in the cache at S :
+                    launched strictly above S,  and  launched strictly
+                    AFTER  A* }.
+
+By Lemma 6.2, LIST has size at most n_0 + 1 (bounded by cache size).
+And it is a finite set of "anchor sequences" (equivalence classes
+modulo U).  Take them one at a time, in launch order.
+
+For each anchor C in LIST:
+
+   (Effect start)  Launch was strictly above S, so at S, C has been
+   present since S began; effective start of C's reservation (as
+   restricted to the path S -> X) is S.  S is early (delta at S = 1).
+
+   (If C survives past X, contradiction)  Suppose some C in LIST had
+   terminal bag strictly below or at some LATE time.  Then C would be
+   crossing (effective start early, terminal late), and C is younger
+   than A* (launched strictly after A*).  This contradicts "A* is the
+   youngest crossing anchor".  So every C in LIST has terminal bag
+   that is EARLY.
+
+   (Terminal is an actual eviction time)  The terminal bag of C
+   cannot be X itself.  If it were, then C would still be present at
+   the LATE bag X, so C would be a crossing anchor younger than A*,
+   contradicting the choice of A*.  Therefore the terminal bag of C
+   is an ACTUAL eviction bag; and by the previous paragraph it is an
+   EARLY bag.
+
+Let  B_0  :=  the LATEST of these early eviction times in LIST.  If
+LIST is nonempty, B_0 is early (Lemma 6.1(b): a finite max of early
+times is early).  If LIST is empty, set B_0 := S (which is early).
+
+Case (A): LIST nonempty.  At B_0, some C in LIST is evicted (at
+least one; at most one per insertion).  Therefore the insertion at
+B_0 corresponds to replacing C by a proposed anchor at B_0.  After
+this insertion, A* is still present (A* has terminal time late).  And
+no entry whose launch is strictly above S and strictly after A*
+remains in the cache: all other entries of LIST were evicted earlier
+(contradicting "latest"); and no new such entry launches after B_0
+(launches after B_0 are at B_0 itself or below, which is at or below
+S; such launches count as "at or BELOW S", not "strictly above S").
+
+Therefore, immediately AFTER the insertion at B_0, the entry
+immediately following A* is a newly retained proposal from B_0.  Let
+A' denote this proposal.
+
+Case (B): LIST empty.  At the insertion at S, no entry is present in
+the cache whose launch is strictly above S and strictly after A*.
+Since A* itself IS present (it persists from above S down to a late
+terminal bag), no entry lies between A* and the proposal at S in
+launch order.  Hence the proposal at S is the IMMEDIATE SUCCESSOR of
+A* in the inclusive cache list at S.
+
+  Let this proposal be called A'.  A' is RETAINED at S.  Indeed, if
+  the cache had space, retention is automatic.  If the insertion at
+  S filled the cache to capacity, then by Lemma 6.5 applied with
+  B := S (an early bag, delta at S = 1) and with the immediate
+  successor A' launched at S (so "at or after S"), the eviction rule
+  protects A' and A' cannot be evicted.
+
+In BOTH cases: A' is the immediate successor of A* at some early time
+B_0 (which is S in Case B, or a strictly positive-time fresh launch
+in Case A).  A' launched at or AFTER S (since B_0 is at or below S).
+
+Now: A' has a terminal bag.  If the terminal bag is LATE, then A' is
+a younger crossing anchor, and we are done.
+
+Otherwise, A' is evicted at some EARLY time B_1.  We claim this is
+impossible.
+
+  Claim: At B_1, A' is still the immediate successor of A*.  Reason:
+  Between B_0 (when A' became the immediate successor of A*) and
+  B_1, the only cache operations are insertions/evictions at bags in
+  between.  Any new insertion is a younger proposal (later launch
+  than A'), which inserts to the right of A' in the launch order.
+  Any eviction removes some entry; if it removes A*, then A* would
+  have been evicted, contradicting A*'s LATE terminal time (A* is
+  still in cache at B_1).  If it removes some entry between A* and
+  A', that entry would have to exist between A* and A' at some
+  intermediate time, contradicting A' being the IMMEDIATE successor
+  immediately after B_0.  So A' remains the immediate successor
+  throughout the interval [B_0, B_1].  In particular, at B_1, A' is
+  the immediate successor of A*.
+
+  Since B_1 is early and A' launched at or after S and is the
+  immediate successor of A* at B_1, Lemma 6.5 applies: at the
+  eviction test at B_1, A' is protected and cannot be evicted.  This
+  contradicts "A' is evicted at B_1".
+
+Therefore, A' terminal bag must be LATE, and we get a younger
+crossing anchor.  []
+
+Remark.  The proof selects only a BOUNDED list (size <= n_0 + 1), its
+latest eviction time, and one successor's terminal time.  It does not
+use induction over an unbounded or limiting order of early times.
+Everything is finite and "eventual" (in the sense of the nonprincipal
+ultrafilter).
+
+--------------------------------------------------------------------------------
+6.9  THE UNIFORM LOWER COMPARISON
+--------------------------------------------------------------------------------
+
+Proposition 6.9 (Uniform lower comparison).  For each fixed k >= 2
+there is a constant lambda_k > 0 such that, for every admissible
+weighted graph with a tree decomposition of bag size at most k, and
+every pair of vertices u, v,
+
+     D_bag(u,v) + D_anc(u,v)  >=  lambda_k * d(u,v).            (6.28)
+
+Proof.
+
+Suppose, towards a contradiction, that no such constant exists.
+Choose pairs (x_i, y_i) and examples for i = 1, 2, 3, ... with
+
+     ( D_bag(x_i,y_i) + D_anc(x_i,y_i) ) / d(x_i, y_i)   <   1/i
+     and  x_i != y_i in the i-th example.
+
+This is a FAILING COMPARISON SEQUENCE (6.1) with r_n := d(x_n,y_n)
+and ratio -> 0.  Normalize along the nonprincipal ultrafilter as in
+sections 6.1-6.4.  Obtain x, y, S and a bag path S -> X, x_n -> normal
+units with d(x,S) = 1.  Let delta_the_path := d(x_n, B_t) along this
+path, so delta at S is 1 and delta is nonincreasing along the path.
+
+By Lemma 6.2 there is a YOUNGEST crossing anchor A*; by Lemma 6.3
+A* is "old and distant" (launched strictly above S, and D_0 > H).
+By Lemma 6.6 there is a YOUNGER crossing anchor.  This contradicts
+"youngest".
+
+Hence no failing sequence exists.  That is, the ratios
+( D_bag(x,y) + D_anc(x,y) ) / d(x,y)  are uniformly bounded below by
+some positive constant over all admissible examples and all distinct
+pairs x != y.
+
+Define
+
+     lambda_k  :=  the infimum of those ratios
+                  over all admissible examples and all distinct pairs.
+
+By the above, lambda_k > 0.  It depends only on k (everything in the
+construction is k-only).  For pairs u = v, both sides of (6.28) are 0;
+the inequality holds with equality.  For one-vertex graphs, both
+metrics are zero.  []
+
+
+================================================================================
+PART 7.  ASSEMBLING THE EMBEDDING AND PROVING THE MAIN THEOREM
+================================================================================
+
+We have now built:
+
+   * D_bag  from Part 4: upper bound (4.3) with constant U_bag,
+                          lower bound (4.4) with constant a_bag on
+                          co-bag pairs;
+
+   * D_anc  from Part 5 (with the fixed parameters of 5.6):
+                          upper bound (5.12) with constant U.
+
+   * Proposition 6.9: lambda_k > 0 with D_bag + D_anc >= lambda_k d
+                     for all pairs u,v.
+
+Both U_bag = 3 N_bag (N_bag - 1) and U = 3 N_anc (N_anc - 1) are
+FINITE, and both depend on k only.  Both D_bag and D_anc are cut
+pseudometrics (each is a positive linear combination of symmetric
+sweeps, Markov-glued and averaged).  So their sum is a cut
+pseudometric too.
+
+Let
+
+     D(u,v)  :=  D_bag(u,v) + D_anc(u,v).                    (7.1)
+
+Then, for all u,v in V:
+
+     UPPER:   D(u,v)  <=  (U_bag + U) * d(u,v);               (7.2)
+     LOWER:   D(u,v)  >=  lambda_k * d(u,v).                  (7.3)
+
+Both constants U_bag + U and lambda_k are finite and positive and
+depend on k only.  Set
+
+     C_k  :=  (U_bag + U) / lambda_k.                          (7.4)
+
+Then C_k >= 1, depends on k only, and for every u,v:
+
+     d(u,v)  <=  D(u,v) / lambda_k  <=  C_k d(u,v).            (7.5)
+
+Proof of Theorem (the main theorem of Part 0 / Section 0.1).
+
+   Cut representation.  Both D_bag and D_anc are averages over
+   finite consistent bag families, and each finite bag family gives a
+   finite labeled cut measure rho_mu on Omega_V (Lemma 1.1).  So
+
+        D_bag(u,v)  =  sum_{A subseteq V} w^bag_A * delta_A(u,v),
+        D_anc(u,v)  =  sum_{A subseteq V} w^anc_A * delta_A(u,v),
+
+   with weights w^bag_A >= 0 and w^anc_A >= 0 summing to finite totals
+   m_bag and m_anc.  Adding,
+
+        D(u,v)  =  sum_{A subseteq V} w_A * delta_A(u,v),
+        with  w_A := w^bag_A + w^anc_A >= 0.                   (7.6)
+
+   L1 realization.  Define the map F : V -> R^{2^{|V|}} by
+
+        F(v)  :=  ( sqrt(w_A / lambda_k) * 1_A(v) )_{A subseteq V}.   (7.7)
+
+   Then, for every u,v in V,
+
+        ||F(u) - F(v)||_1
+          =  sum_A  (w_A / lambda_k) * |1_A(u) - 1_A(v)|
+          =  D(u,v) / lambda_k.
+
+   And D(u,v)/lambda_k is between d(u,v) and C_k d(u,v) (7.5).
+   So F is a map into a real L1 space (dimension 2^{|V|}, finite)
+   that realizes the embedding of Theorem 0.1 with distortion at most
+   C_k.
+
+   Constants.  Every constant in F, D, and C_k is a function of k
+   alone:
+
+     - the bag-measure mass m_bag and m_anc: functions of N, M,
+       Delta, i.e. of k and the metric; the RESULT after normalization
+       by lambda_k is a metric whose bounds depend on k only;
+
+     - U_bag, U: functions of k only;
+
+     - lambda_k: a positive function of k only (Prop 6.9);
+
+     - C_k = (U_bag + U)/lambda_k.
+
+   Therefore C_k depends on k only.  It does not depend on |V|, T, or
+   the edge lengths.  This proves Theorem 0.1.
+
+   Edge cases:
+
+     * |V| = 1: the trivial map to a point, C_k = 1, works.
+     * u = v: both sides of (0.1) are 0.
+     * disconnected graph: not permitted (this is a graph metric of a
+       connected graph).
+     * nonempty bags in the tree decomposition: WLOG by Part 0 (S1).
+
+   []
+
+That completes the proof of the main theorem.
+
+================================================================================
+CONCLUDING REMARKS
+================================================================================
+
+We can summarize what the proof actually used.  For each fixed
+treewidth bound k-1:
+
+   * BAG MEASURES + MARKOV GLUING turn compatible local data into one
+     global measure of cuts (Part 1).  The gluing is a canonical
+     construction (Lemma 1.1).
+
+   * The TRANSPORT INEQUALITY (Prop 2.2) is the bridge from a local
+     submeasure appearing everywhere to a global separation between the
+     two ENDPOINTS of the bag path.  It uses the external CKR
+     symmetric Markov-flow bound once (Theorem 2.1).
+
+   * PARTICLES + RESERVATIONS (Part 3) let us carry cut measures along
+     bag paths without inflating the particles' Lipschitz constants:
+     the invariant Q_r = r(N-r) makes the bound uniform in the number
+     of updates.  This is where "you can preserve infinitely many local
+     laws" comes from.
+
+   * Two cut pseudometrics (Parts 4, 5) are constructed: D_bag, using
+     active scales and padded partitions; D_anc, using an anchor cache.
+     The anchor cache is a bounded-memory schedule with a
+     deterministic eviction rule.
+
+   * A COMPACTNESS + ULTRAPILTER argument (Part 6) reduces "no uniform
+     lower bound" to a descending sequence that looks locally like
+     "youngest crossing anchor A*".  The launch noise at A* forces,
+     on every early testing bag B, a vertex q at distance
+     delta/4 <= d(p,q) <= 10 D_0 from the nearest point p to x, which
+     PROTECTS the immediate successor of A* through the eviction rule.
+     A separate "younger crossing anchor exists" step then contradicts
+     A* being the youngest.  So D_bag + D_anc separates every pair
+     (Prop 6.9).
+
+   * The L1 embedding then follows purely algebraically, because every
+     cut pseudometric is the L1 distance of an embedding into R^{2^{|V|}}
+     (Part 0).
+
+The bound C_k is existence-only: we do not try to estimate it as an
+explicit function of k.  Obtaining explicit estimates would require
+sharp constants in the CKR symmetric flow bound and in the padded
+partitions, which we have not attempted.
+
+The result is also a positive resolution of the bounded-treewidth
+case of the Gupta-Newman-Rabinovich-Sinclair conjecture, which
+predicted uniform L1 embeddings for every proper minor-closed graph
+family.  Bounded treewidth = excluding a fixed planar graph (by the
+excluded-planar-minor theorem), so the present result gives a uniform
+bound for one (large) family of proper minor-closed families, namely
+those defined by excluding a single planar graph.
+
+================================================================================
+END OF PROOF
+================================================================================
+
