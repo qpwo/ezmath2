@@ -11,7 +11,7 @@
 \usepackage{xurl}
 \usepackage{xcolor}
 \usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
-\newtheorem{theorem}{Theorem}[section]
+\newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
@@ -37,66 +37,11 @@
 \newcommand{\abs}[1]{\lvert#1\rvert}
 \setlist[enumerate]{itemsep=3pt,topsep=5pt}
 \setlength{\emergencystretch}{2em}
-\numberwithin{equation}{section}
-
-\title{Subpolynomial query complexity for\\well-conditioned log-concave sampling}
-\author{OpenAI}
-\date{September 26, 2026}
-
 \begin{document}
-\maketitle
 
-\begin{abstract}
-For every fixed $\varepsilon>0$, we give a sampling algorithm that uses
-at most $C_\varepsilon d^\varepsilon$ exact first-order queries on
-\emph{every} execution, for every $C^2$ potential $V$ on $\R^d$ whose
-Hessian lies between $I_d$ and $2I_d$ and whose minimizer is known.
-The output is within total-variation distance $1/10$ of the Gibbs
-law $\pi_V\propto e^{-V}$. Computation between queries is unrestricted.
-We prove a matching $\Omega(\log d)$ lower bound valid for arbitrary
-randomized adaptive algorithms. Hence the optimal dimension exponent
-is zero: subpolynomial query complexity is achievable and logarithmic
-complexity is unavoidable.
-\end{abstract}
-
-\section{Introduction}\label{sec:introduction}
-
-\subsection*{How to read this paper}
-
-This is a research paper: a complete proof that a certain algorithmic
-problem can be solved with surprisingly few queries, together with a
-proof that it cannot be solved with too few.  Every claim is proved
-from scratch, but the ideas are layered.  A reader may want to follow
-a few threads:
-
-\begin{itemize}
-\item \emph{Big picture, sections~\ref{sec:intro-model}--\ref{sec:intro-strategy}.}
-  What is the problem, what is the answer, and why does the strategy work.
-\item \emph{The two analytic engines, sections~\ref{sec:jets} and~\ref{sec:divergence}.}
-  Gaussian smoothing creates smooth derivatives of the conditional
-  mean, and a tensor bookkeeping keeps those derivatives from blowing
-  up with the dimension.
-\item \emph{Two flows, sections~\ref{sec:centering} and~\ref{sec:numerics}.}
-  A probability transport moves a Gaussian to the target; a stationary
-  flow turns path integrals into Gaussian noisy means.  Both become
-  finite formulas in conditional means.
-\item \emph{Implementation, section~\ref{sec:compiler}.}
-  Conditional means are replaced by finitely many gradient queries,
-  with an exact Gaussian-absorption identity making nested evaluation
-  legitimate.
-\item \emph{Return to the target, section~\ref{sec:sampling}.}
-  A proximal chain turns noisy conditional samples into a sample of
-  $\pi_V$.
-\item \emph{Lower bound, section~\ref{sec:lower}.}
-  A random rotation argument shows that $\log d$ queries are necessary.
-\end{itemize}
-
-Every proof is self-contained.  The technical estimates are stated as
-lemmas before they are used, so a reader can skip a proof on a first
-pass and still follow the argument through the statements.
-
-\subsection{Model and result}\label{sec:intro-model}
-
+The problem is to sample from a probability density proportional to
+$e^{-V}$ on $\R^d$, under a uniform second-order bound and a known
+minimizer, when the only access to $V$ is exact first-order queries.
 For $d\ge2$ let $\mathcal V_d$ be the set of $C^2$ potentials
 $V:\R^d\to\R$ with
 \begin{equation}\label{eq:original-class}
@@ -146,20 +91,22 @@ polylogarithmic query count.  The constants and the algorithmic
 approximation orders may depend on $\varepsilon$.  No arithmetic or
 bit-complexity bound is imposed or deduced.
 
-\subsection{Why the question is sharp}\label{sec:intro-sharp}
 
 Familiar samplers -- Langevin, Hamiltonian Monte Carlo, and their
 discretizations -- are governed by a step-size analysis whose error,
 at fixed conditioning and accuracy, typically grows like a positive
 power of $d$.  Two recent lines of work break this pattern at fixed
-accuracy: shifted composition \citep{altschuler2026shifted} and exact
-diffusion simulation \citep{chen2026exact} achieve
-$\widetilde O(d^{1/3})$ queries; smoothed Picard methods
-\citep{chen2026picard} achieve $\widetilde O(d^{1/6})$ expected
-gradient queries and a Gaussian-cloud variant \citep{chen2026cloud}
-achieves $\widetilde O(d^{1/5})$ at high accuracy.  All of these are
-positive powers.  The question here is whether \emph{any} positive
-power is necessary.
+accuracy: shifted composition (Altschuler, Chewi, and Zhang) and exact
+diffusion simulation (Chen, Chewi, Rakhlin, and Zhang) achieve
+$\widetilde O(d^{1/3})$ queries; smoothed Picard methods (Chen, Chewi,
+Lu, and Zhang) achieve $\widetilde O(d^{1/6})$ expected gradient
+queries and a Gaussian-cloud variant achieves $\widetilde O(d^{1/5})$
+at high accuracy.  All of these are positive powers.  The question is whether \emph{any} positive power is necessary.
+
+\url{https://arxiv.org/pdf/2506.23062}
+\url{https://arxiv.org/pdf/2608.05022}
+\url{https://arxiv.org/pdf/2609.06906}
+\url{https://arxiv.org/pdf/2609.38710}
 
 The answer is no: the exponent can be driven to zero.  The cost of
 this improvement is that the approximation order must grow with the
@@ -168,15 +115,20 @@ complexity, not practical running time.  The lower bound says that,
 nevertheless, some logarithmic dependence on $d$ is unavoidable.
 
 Historical context for the individual tools is given where they are
-used.  The Gaussian conditional-sampling framework is due to
-\citet{lee2021proximal} and \citet{chen2022proximal}; the smoothed
-Picard precedent to \citet{chen2026picard}; the all-split tensor
-techniques build on Appell polynomials and Poincar\'e concentration
-\citep{anshelevich2004appell,adamczak2015concentration,kothari2017agnostic}.
-The lower-bound strategy adapts the block-Krylov method of
-\citet{chewi2023lower}.
+used.  The Gaussian conditional-sampling framework is due to Lee, Shen,
+and Tian and to Chen, Chewi, Salim, and Wibisono; the smoothed Picard
+precedent to Chen, Chewi, Lu, and Zhang; the all-split tensor techniques
+build on the classical Appell polynomials of Anshelevich, the Poincar\'e
+concentration bounds of Adamczak and Wolff, and the relaxed tensor norms
+of Kothari and Steinhardt.  The lower-bound strategy adapts the
+block-Krylov method of Chewi, de Dios Pont, Li, Lu, and Narayanan.
 
-\subsection{Proof strategy}\label{sec:intro-strategy}
+\url{https://arxiv.org/pdf/2010.03106}
+\url{https://proceedings.mlr.press/v178/chen22c/chen22c.pdf}
+\url{https://arxiv.org/pdf/2609.06906}
+\url{https://arxiv.org/pdf/1711.07465}
+\url{https://arxiv.org/pdf/2304.02599}
+
 
 The proof has five movements.  Each is a construction plus an
 estimate, and each estimates only one kind of error.
@@ -201,7 +153,7 @@ Gaussian, whose noise is later removed by conditioning.
 \paragraph{Movement 2: Gaussian smoothing and dimension control.}
 A Gaussian convolution makes the conditional mean smooth although
 $F$ is only $C^2$.  Its derivatives are cumulant tensors of the
-conditional law.  Two facts let us keep them in hand: a Poincar\'e
+conditional law.  Two facts keep them in hand: a Poincar\'e
 inequality controls every tensor split, and keeping at least two free
 tensor slots until the very end ensures each additional derivative
 costs at most a polylogarithmic factor in $d$, never a fresh power.
@@ -220,8 +172,8 @@ High-order quadrature of both flows uses the tensor bounds of Movement
 \paragraph{Movement 4: finite evaluation with Gaussian noise.}
 Both flows become finite expressions in exact conditional means.
 The difficulty: a mean is needed at a center that is itself built from
-means.  We add a prescribed Gaussian to every computed center and
-absorb it, via an exact covariance identity on the random seeds, into
+means.  A prescribed Gaussian is added to every computed center and
+absorbed, via an exact covariance identity on the random seeds, into
 the lower-level routine.  This restores the law of a call at the
 intended center without changing any physical query.  Every routine
 carries an error label and a size label; the labels make the recursion
@@ -237,28 +189,15 @@ $t$ is chosen so $e(1+t)<\varepsilon$.  The lower bound is independent:
 a random rotation hides the input, and a block-Krylov statistic forces
 $\log d$ queries for quadratic potentials.
 
-\subsection{Organization}\label{sec:intro-org}
 
-Section~\ref{sec:preliminaries} sets notation, states the auxiliary
-sampling theorem, and proves the comparison facts used throughout.
-Sections~\ref{sec:jets} and~\ref{sec:divergence} prove the derivative
-estimates.  Sections~\ref{sec:centering} and~\ref{sec:numerics}
-construct and discretize the two flows.  Section~\ref{sec:compiler}
-implements the resulting expressions with actual gradient calls.
-Section~\ref{sec:sampling} proves the sampling upper bound
-(Theorem~\ref{thm:upper}), and Section~\ref{sec:lower} proves the
-lower bound (Theorem~\ref{thm:lower}).
 
-\section{The near-quadratic sampling problem}\label{sec:preliminaries}
-
-The conditional density from the introduction is a Gaussian times a
-factor with small Hessian.  This section states the uniform guarantee we
-need for that larger class, then proves the comparison and smoothing
+The conditional density is a Gaussian times a factor with small
+Hessian.  A uniform guarantee is needed for that larger class; it is
+stated below, together with the comparison and smoothing
 facts used everywhere after.  The center is arbitrary: later routines
 are called at centers produced by earlier random computations, so no
 gradient bound at the center may be assumed.
 
-\subsection{Notation and the auxiliary theorem}
 
 Vectors use Euclidean norm; matrices the induced operator norm unless
 stated otherwise.  For a random vector or tensor $X$,
@@ -277,7 +216,7 @@ of $F$ need not be available.  For $x\in\R^d$ and $0<r\le1$ define
  {\int_{\R^d}\exp(-|v|^2/2-F(x+rv))\,dv},\quad
  f(z)=g(x+rz),\quad u=\E_{\nu_{x,r}}f .
 \end{equation}
-Often $\nu=\nu_{x,r}$, and we set
+Often $\nu=\nu_{x,r}$, and write
 \begin{equation}\label{eq:primitive-scales}
  L=\lambda r,\qquad l=\lambda r^2=rL,\qquad
  D(x)=\sqrt d+|g(x)| .
@@ -286,7 +225,7 @@ The center $x$ need not be a minimizer.  Since $\lambda$ is only a
 declared bound, affine and constant $F$ are included.  The full
 potential in \eqref{eq:primitive-law} has Hessian between $(1-l)I$ and
 $(1+l)I$; as $l\le\delta<1$ for $d\ge2$ the normalizing integral is
-finite even when $F$ is not convex.  For all quantitative work we take
+finite even when $F$ is not convex.  For all quantitative work it suffices to take
 $d$ large enough that $l\le1/2$.
 
 Throughout, $\polylog(d)$ is a factor bounded by $C(1+\log d)^C$ whose
@@ -329,19 +268,20 @@ of the procedure do not depend on $x$ or on $F$, and it uses no
 evaluations of $F$ itself.
 \end{theorem}
 
-The proof occupies Sections~\ref{sec:jets}--\ref{sec:compiler}.  An
+The proof is carried out in the derivations below.  An
 independent Gaussian is reserved until all queries are made: adding the
 same reserve to a coupling keeps its transportation error, and smoothing
 by the reserve gives the total-variation conclusion through
-Lemma~\ref{lem:coupling-smoothing}.  The target here carries a full
-Gaussian convolution; Section~\ref{sec:sampling} removes it.
+Lemma~\ref{lem:coupling-smoothing}.  The target carries a full
+Gaussian convolution; that convolution is removed later.
 
-\subsection{Convexity, moments, and comparisons}
 
-We collect the elementary diffusion facts used throughout, in the form
-actually needed, with regularity requirements explicit.  These are familiar
-forms of the curvature method for functional inequalities
-\citep{bakry2014analysis}; we give the argument used here.
+The elementary diffusion facts used throughout are collected next, in the
+form actually needed, with regularity requirements explicit.  These are
+familiar forms of the curvature method for functional inequalities
+(Bakry, Gentil, and Ledoux); the argument is included for completeness.
+
+\url{https://doi.org/10.1007/978-3-319-00227-9}
 
 \begin{lemma}[Uniformly convex laws]\label{lem:convex-preliminaries}
 Let $H\in C^2(\R^n)$ satisfy $mI\preceq\nabla^2H\preceq MI$ with
@@ -414,7 +354,6 @@ $\norm{Z-z_0}_2\le\sqrt{d/(1-l)}$, and $|u|\le|g(x)|+L\norm{Z}_2$
 gives the third.  Thus $D(x)$ controls all moments uniformly in the
 center, even where the gradient is huge.
 
-\subsection{Coupling and smoothing}
 
 Errors of a deterministic map on a fixed input law are measured in root
 mean square; errors of randomized outputs in $\Wtwo$.  The next rules
@@ -458,23 +397,24 @@ $|x-y|/(2s)$; integrate over a coupling and apply Cauchy--Schwarz for
 testing functions valued in $[0,1]$.
 \end{proof}
 
-We also repeatedly combine deterministic root-mean-square errors using
+Deterministic root-mean-square errors are also combined using
 absolute coefficient sums; this uses only the ordinary $L^2$ triangle
 inequality and needs no independence.
 
-\section{Gaussian transport and tensor derivatives}\label{sec:jets}
 
-To reach Theorem~\ref{thm:primitive} we transport a standard Gaussian
-to the auxiliary law $\xi$ by Gaussian interpolation, whose velocity is
-a conditional gradient mean.  The point of the Gaussian is that it
-smooths: although $F$ is only $C^2$, the conditional mean is smooth in
-the conditioning variable, and we can bound every derivative tensor.
+A standard Gaussian is transported to the auxiliary law $\xi$ by
+Gaussian interpolation, whose velocity is a conditional gradient mean.
+The point of the Gaussian is that it smooths: although $F$ is only
+$C^2$, the conditional mean is smooth in the conditioning variable, and
+every derivative tensor can be bounded.
 The bounds are stated as matrix norms under every split of the tensor
 slots, so later contractions never pay a dimension factor.  The
 interpolation itself is the stochastic interpolant of
-\citet[Sec.~5.1, eqs.~(5.5)--(5.6)]{albergo2025interpolants}.
+Albergo, Boffi, and Vanden-Eijnden (Section 5.1, equations (5.5)--(5.6)).
 
-Retain the notation of Section~\ref{sec:preliminaries} and assume
+\url{https://jmlr.org/papers/volume26/23-1605/23-1605.pdf}
+
+Retain the notation fixed earlier for the near-quadratic law and assume
 $l\le1/2$.  For independent $Z\sim\nu$ and $N\sim N(0,I_d)$ set
 \[
  a=1-\rho^2,\qquad Y=\rho Z+\sqrt a\,N,\qquad
@@ -491,10 +431,8 @@ Under $z=\rho y+\sqrt a\,w$, $M_\rho(y)$ is exactly the primitive mean
 at center $x+r\rho y$ and scale $r\sqrt a$, so $M_0=u$.  Thus each
 conditional mean is again an instance of \eqref{eq:primitive-law}, at a
 prescribed center and smaller positive scale.  This is a density
-identity; evaluating it with finitely many queries is the subject of
-Section~\ref{sec:compiler}.
+identity; evaluating it with finitely many queries is taken up later.
 
-\subsection{Every split of every cumulant}
 
 A tensor $T\in(\R^D)^{\otimes n}$ becomes a matrix by partitioning its
 $n$ slots into two nonempty sets $A,B$ and contracting the $A$ slots:
@@ -506,11 +444,16 @@ norms, and $|T|_F$ is the plain Frobenius norm.  The relevance: if
 every factor in a contraction is bounded in split norm, the product is
 bounded by matrix submultiplicativity with no dimension factor.
 
-We use multivariate Appell polynomials
-\citep[Sec.~2.3]{anshelevich2004appell}; their vanishing expected lower
-derivatives link Poincar\'e to tensor covariance
-\citep[Prop.~3.2, Thm.~3.3]{adamczak2015concentration},
-\citep[Sec.~4.2]{kothari2017agnostic}.
+Multivariate Appell polynomials, introduced by Appell (1880), are used
+(Anshelevich, Section 2.3); their vanishing expected lower derivatives
+link Poincar\'e to tensor
+covariance (Adamczak and Wolff, Proposition 3.2 and Theorem 3.3;
+Kothari and Steinhardt, Section 4.2).
+
+\url{https://arxiv.org/pdf/math/0311043v3}
+\url{https://arxiv.org/pdf/1304.1826v1}
+\url{https://arxiv.org/pdf/1711.07465v1}
+\url{https://www.numdam.org/item/10.24033/asens.186.pdf}
 
 \begin{lemma}[All-split cumulant bound]\label{lem:appell-cumulants}
 Let $S$ be a random vector in $\R^D$ with moment-generating function
@@ -528,8 +471,8 @@ for every nontrivial split, independently of $D$ and of the mean.
 \end{lemma}
 
 \begin{proof}
-We first bound covariances of centered polynomial tensors without a
-dimension factor, then recover cumulants.  If $\beta=0$, testing
+Covariances of centered polynomial tensors are first bounded without a
+dimension factor, and cumulants are then recovered.  If $\beta=0$, testing
 coordinate functions shows $S$ is almost surely constant and every
 cumulant vanishes; assume $\beta>0$.
 
@@ -643,11 +586,11 @@ All conditional integrals are smooth in $(\rho,y)$ for $\rho<1$:
 differentiating densities inserts polynomials with integrable Gaussian
 majorants on compact parameter sets, and \eqref{eq:jet-cumulant} gives
 the extension at zero without dividing by $\rho$.  For the integrations
-by parts below we also record polynomial growth: the conditional mode
+by parts below, polynomial growth is also recorded: the conditional mode
 satisfies $z_0=\rho y-ar g(x+rz_0)$, so $|z_0|\le C(|y|+r|g(x)|)$, and
 comparing the density and its normalizing integral to Gaussian integrals
 around the mode bounds moments.  The same holds for time derivatives;
-dimension-dependent constants are harmless here.
+dimension-dependent constants are harmless.
 
 Conditional integration by parts gives
 $\E[Z\mid Y=y]=\rho y-arM_\rho(y)$; differentiating the marginal density
@@ -658,7 +601,6 @@ Hessian and \eqref{eq:score-derivatives}.  All of this uses only the
 $C^2$ regularity of $F$.
 \end{proof}
 
-\subsection{The transport equation}
 
 \begin{proposition}[Probability transport]\label{prop:transport}
 The ODE
@@ -689,14 +631,13 @@ $\xi_\rho$-expectation is constant.
 
 The remaining difficulty is not spatial smoothness (supplied by the
 Gaussian) but control of derivatives \emph{along} the transport while
-paying only one $\sqrt d$ for a vector output.  That is the next section.
+paying only one $\sqrt d$ for a vector output.  That control is the next task.
 
-\section{Dimension bounds for material derivatives}\label{sec:divergence}
 
 Gaussian interpolation gave spatial derivatives of all orders from a
-$C^2$ potential.  We now differentiate \emph{along} the transporting
-trajectories, since that controls the error when a path integral is
-replaced by quadrature.  A naive Euclidean norm after each
+$C^2$ potential.  Differentiation now proceeds \emph{along} the
+transporting trajectories, since that controls the error when a path
+integral is replaced by quadrature.  A naive Euclidean norm after each
 differentiation loses a power of $d$ each time.  The fix: keep at least
 two tensor slots free throughout, convert to a vector norm only at the
 last step, and bound every matrix split.
@@ -722,7 +663,6 @@ for smooth compactly supported $\phi$.  The identities below express
 material derivatives through this operation and contractions of the
 normalized jets $U_q=\rho^{-q}\nabla^qM_\rho$.
 
-\subsection{Material derivatives of the conditional jets}
 
 \begin{lemma}\label{lem:material-identities}
 The mean and its jets satisfy
@@ -778,10 +718,9 @@ nonsingular at zero, so extensions follow from
 Proposition~\ref{prop:gaussian-jets}.
 \end{proof}
 
-\subsection{Contractions and the expressions they generate}
 
-Before iterating, we isolate the estimate making product terms
-harmless.  Contracting one slot of each of two tensors means summing
+Before iterating, the estimate making product terms
+harmless is isolated.  Contracting one slot of each of two tensors means summing
 over one common coordinate, keeping all other slots free; restricting
 to one slot is what makes it matrix composition.
 
@@ -804,7 +743,7 @@ plus identities on unused coordinates and coordinate permutations, all
 of operator norm one; submultiplicativity proves it.
 \end{proof}
 
-The following records exactly which tensor formulas we estimate and
+The following records exactly which tensor formulas are estimated and
 which contractions are allowed (contracting two slots of one tensor is
 not).
 
@@ -949,7 +888,6 @@ in $s$ comes from the explicit bounds after the identities, not from an
 unproved regularity claim.
 \end{proof}
 
-\subsection{One final vector dimension factor}
 
 The theorem controls every tensor expression while at least two slots
 remain; only the last divergence to a vector costs a $\sqrt d$.
@@ -979,7 +917,7 @@ collection of remaining indices and sum; a square root gives
 equal to one on the ball of radius $R$ with $|\nabla\chi_R|\le C/R$;
 then $\chi_RV\to V$, $\nabla(\chi_RV)\to\nabla V$ in $L^2(\mu)$, and
 adjoint divergences converge pointwise, so Fatou proves the estimate.
-Fields we use have polynomially growing derivatives, hence the required
+Every field used has polynomially growing derivatives, hence the required
 integrability.
 \end{proof}
 
@@ -1044,23 +982,21 @@ $C_m\polylog(d)L\sqrt d\,\theta^m$: a supremum of deterministic RMS
 bounds, no expected supremum over a random path.  This cancels cell
 length against endpoint singularity in the quadrature below.
 
-\section{A stationary flow for noisy means}\label{sec:centering}
 
-The probability transport turns conditional means into samples.  We
-need the complementary operation: a path integral whose law is
+The probability transport turns conditional means into samples.  The
+complementary operation is a path integral whose law is
 $N(u,s^2I_d)$ for prescribed $s>0$.  Represent the centered observable
 $M_*-u$ as a matrix adjoint divergence; that matrix couples a position
 with law $\xi_*$ to a Gaussian momentum while preserving their product
 law, and integrating the momentum equation yields the noisy mean.  This
 is still exact mathematics -- both its velocity and its ideal initial
-law are implemented later.  Keep the interpolation notation of previous
-sections: $L=\lambda r$, $l=\lambda r^2\le1/2$, $M_0=u$,
+law are implemented later.  Keep the earlier interpolation notation:
+$L=\lambda r$, $l=\lambda r^2\le1/2$, $M_0=u$,
 $DM_\rho=\rho U_1$.  Fix $0<R<1/2$, $b_*=(1-R^2)^{1/2}$, and use a star
 for evaluation at $\rho=b_*$.  The positive radius $R$ keeps all
-coefficients smooth although $F$ is only $C^2$.  Here $\rho$ is the
+coefficients smooth although $F$ is only $C^2$.  The symbol $\rho$ is the
 interpolation parameter; the flow uses a separate time $t$.
 
-\subsection{Transport Jacobians and the zero endpoint}
 
 Let $T_\rho=T_{\rho\to b_*}$ be the probability transport
 \eqref{eq:transport} from $\rho$ to $b_*$.  Given terminal $y$ define
@@ -1119,7 +1055,6 @@ $(1-\rho^2)^{-(m-k)}\le(1-\rho^2)^{-m}$ finish; moments below one follow
 from $L^1$.
 \end{proof}
 
-\subsection{A kernel for the centered observable}
 
 For a matrix field $K$ define its row-wise adjoint divergence by
 \[
@@ -1127,12 +1062,16 @@ For a matrix field $K$ define its row-wise adjoint divergence by
 \]
 i.e. $\nabla_{\xi_*}^*K=h$ means
 $\E_{\xi_*}[h_i\phi]=\E_{\xi_*}\sum_jK_{ij}\partial_j\phi$ for smooth
-compactly supported scalar $\phi$.  We want this with $h=M_*-u$.
+compactly supported scalar $\phi$.  The goal is this identity with $h=M_*-u$.
 
 This is a Stein-type integration-by-parts identity; classical coordinate
-Stein kernels represent $y-\E_\xi y$ instead, and Courtade--Fathi--Pananjady
-build such kernels from a spectral gap
-\citep[arXiv v2, Def.~2.1, Thm.~2.4]{courtade2019stein}.  Our observable
+Stein kernels represent $y-\E_\xi y$ instead, and Courtade, Fathi, and
+Pananjady build such kernels from a spectral gap (arXiv v2, Definition 2.1
+and Theorem 2.4).
+
+\url{https://arxiv.org/pdf/1703.07707v2}
+
+The observable
 $M_*-u$ has mean zero by conditional expectation; the transport formula
 below supplies its adjoint-divergence representation \emph{with pointwise
 derivative bounds} needed for quadrature.  Define
@@ -1182,12 +1121,15 @@ one finishes; all orders are smooth by Gaussian conditional integration
 on $\rho\le b_*<1$, with no higher derivative of the unsmoothed gradient.
 \end{proof}
 
-\subsection{Stationarity and the path integral}
 
 The next dynamics specialize the skew-matrix construction of
-\citet[Sec.~2.1, eq.~(3), Thm.~1]{ma2015recipe}; the transport-derived
-$K$ makes the momentum displacement encode $M_*-u$.  We prove
-completeness and invariance directly, since a formal stationary-density
+Ma, Chen, and Fox (Section 2.1, equation (3), and Theorem 1).
+
+\url{https://proceedings.neurips.cc/paper/2015/file/9a4400501febb2a95e79248486a5f6d3-Paper.pdf}
+
+The transport-derived
+$K$ makes the momentum displacement encode $M_*-u$.  Completeness and
+invariance are proved directly, since a formal stationary-density
 calculation alone would not ensure the solution exists on the whole
 interval.
 
@@ -1240,14 +1182,12 @@ standard Gaussian.
 Stationarity also makes $G_1$ independent of $Y_1$, but not of the
 initial anchors; the exact mean $u=M_0$ stays in the velocity and the
 proposition assumes an ideal sample of $\xi_*$.  So it is a comparison
-construction, not yet a routine.  Section~\ref{sec:numerics} approximates
-it by finitely many exact means, Section~\ref{sec:compiler} replaces every
-such mean including $M_0$.
+construction, not yet a routine.  Finitely many exact means approximate
+it, and every such mean, including $M_0$, is subsequently replaced.
 
-\subsection{Derivatives on a stationary trajectory}
 
 High-order quadrature needs time-derivative bounds at each fixed time;
-stationarity lets us prove them in the fixed product measure, without a
+stationarity allows them to be proved in the fixed product measure, without a
 bound on the supremum of a random path.
 
 \begin{lemma}[Stationary time derivatives]\label{lem:stationary-derivatives}
@@ -1268,8 +1208,8 @@ derivative of $\phi_0$ on the flow has RMS norm at most
 \end{lemma}
 
 \begin{proof}
-Put $\phi_k=\mathcal L^k\phi_0$.  We prove for $j\ge0$, $k\ge1$ the
-stronger estimate
+Put $\phi_k=\mathcal L^k\phi_0$.  For $j\ge0$, $k\ge1$ the
+following stronger estimate is proved
 \begin{equation}\label{eq:stationary-spatial-induction}
  \|\nabla^j\phi_k\|_{F,2}\le C_{j,k}a_0\sqrt d\,\alpha^kR^{-(j+2k)}.
 \end{equation}
@@ -1315,7 +1255,7 @@ Frobenius costs at most $\sqrt d$).  Hence at every stationary time
 \]
 the strict radius $0<R<1/2$ satisfying the lemma's $0<R\le1$.
 
-We also need an initial displacement estimate.  Conditional expectation
+An initial displacement estimate is also needed.  Conditional expectation
 and the primitive Poincar\'e inequality give
 $\E_{\xi_*}|M_*-u|^2\le\E_\nu|f-u|^2\le CL^2d$; at every stationary time
 $G_t$ is independent of $Y_t$, so
@@ -1327,14 +1267,13 @@ and using Minkowski,
 \end{equation}
 These fixed-time RMS estimates feed the discretization below.
 
-\section{Finite formulas for the two flows}\label{sec:numerics}
 
-We now turn the probability transport and the stationary centering flow
+The probability transport and the stationary centering flow are now turned
 into finite formulas in conditional means, meeting two requirements at
 once: small error on the prescribed input law, and each new mean
 evaluated at a center that is an affine expression in earlier means with
 scalar coefficients and controlled size.  The latter is what permits the
-recursive implementation of Section~\ref{sec:compiler}.
+recursive implementation described later.
 
 The main conclusion is Theorem~\ref{thm:numerical-interface}.  Three
 numerical steps: global Picard iteration discretizes probability
@@ -1344,12 +1283,17 @@ iteration discretizes the stationary flow.  Two cancellations matter: a
 zero derivative removes the singularity at the lower endpoint of the
 kernel integral, and keeping only a forward transport \emph{correction}
 cancels an apparent inverse power of $r$.  Polynomial collocation of
-Picard iteration is due to \citet[Alg.~2, Thm.~2.3]{lee2018odes}; Gaussian
-smoothing and high-order Picard to
-\citet[App.~E, Alg.~E.1, Thm.~E.2]{chen2026picard}.  Here we need scalar
-affine formulas whose dependency depth can be fixed before their
+Picard iteration is due to Lee, Song, and Vempala (Algorithm 2 and
+Theorem 2.3); Gaussian smoothing and high-order Picard to Chen, Chewi,
+Lu, and Zhang (Appendix E, Algorithm E.1, and Theorem E.2).
+
+\url{https://arxiv.org/pdf/1812.06243v1}
+\url{https://arxiv.org/pdf/2609.06906v1}
+
+Scalar
+affine formulas are needed whose dependency depth can be fixed before their
 interpolation order.  Exact conditional means are analytical nodes
-throughout; the next section replaces them by finite queries.
+throughout; finite queries replace them later.
 
 Fix an integer $K_0\ge2$ and $t>0$ with
 \begin{equation}\label{eq:numerical-parameters}
@@ -1370,7 +1314,6 @@ orders but not on center, dimension, scale, noise, or oracle.  A symbol
 $B_d$ denotes $C(1+\log d)^C$ with this uniformity.  All assertions hold
 for sufficiently large $d$.
 
-\subsection{Probability transport by global Picard iteration}
 
 Partition a probability-time interval into steps of size at most $h_0$ in
 $-\log(1-\rho)$; for a nonzero interval take the ceiling of the
@@ -1438,18 +1381,17 @@ $y_i^{[k+1]}-y_{\mathrm{in}}$ the factor $r$ and $CL$-Lipschitz mean give
 $C_ml$.
 \end{proof}
 
-\subsection{The kernel action through harmonic trajectories}
 
 The position velocity in \eqref{eq:centering-flow} contains $K(y)^TG$.
 Approximating $K$ then multiplying the error by an arbitrary momentum
-would not give the global Lipschitz property Picard needs.  Instead we
-approximate the vector action directly, using short harmonic trajectories
+would not give the global Lipschitz property Picard needs.  Instead the action is
+approximated directly, using short harmonic trajectories
 and forward transport corrections.
 
 For the kernel integral use the mesh on $[0,b_*]$ above, whose cell
 lengths also satisfy $\ell_c\ge c'h_0(1-\rho)$ for large $d$ (from the
 ceiling construction and the transformed length tending to infinity).
-Set $C_\rho(y)=B_\rho(y)-I$.  We describe a circuit for $C_\rho(y)G$ at
+Set $C_\rho(y)=B_\rho(y)-I$.  A circuit is described for $C_\rho(y)G$ at
 one probability node $\rho$.
 
 \paragraph{Backward position.} Apply Proposition~\ref{prop:probability-circuit}
@@ -1531,10 +1473,9 @@ error through the harmonic computation.  Combining gives
 \eqref{eq:kernel-value-error} and the Lipschitz bound.
 \end{proof}
 
-\subsection{The zero endpoint of the kernel integral}
 
 It remains to integrate the derivative of $C_\rho G$ against $1/\rho$.
-The exact identity $B'_0=0$ removes the singularity, and we impose it on
+The exact identity $B'_0=0$ removes the singularity, and it is imposed on
 the interpolant too.  On all but the first probability cell use ordinary
 degree-$(m-1)$ interpolation; on the first cell use $m-1$ equally spaced
 value nodes including both endpoints plus the Hermite condition that the
@@ -1585,7 +1526,6 @@ its absolute value is bounded; scaling back gives $C_m/\ell_c\le
 C_mh_0^{-1}$.
 \end{proof}
 
-\subsection{A globally Lipschitz approximate centering velocity}
 
 Let $\mathrm{corr}_{ij}(y,G)$ be the forward correction at probability
 node $i$ and angle node $j$.  The approximate position velocity is
@@ -1642,7 +1582,6 @@ layers make the second line of that order too (the common choice below
 verifies independence from $w$ and orders).
 \end{proof}
 
-\subsection{The mean formula and the order of parameter choices}
 
 Discretize the centering flow on the single cell $[0,1]$ with ordinary
 degree-$(m-1)$ interpolation and partial-integral rows $w_{ij}$.  From
@@ -1740,11 +1679,10 @@ depth, then the mesh exponent $w$, finally the interpolation order.  The
 count of evaluations may depend on that order; the number of nested
 dependencies does not.
 
-\subsection{The exact circuit interface}
 
 To display a primitive's parameters write, for $x'\in\R^d$, $0<r'\le1$,
-$u_{x',r'}=\int g(x'+r'z)\,\nu_{x',r'}(dz)$, so $u_{x,r}=u$.  In this
-subsection $\mathcal C_M,\mathcal C_S$ are deterministic maps of their
+$u_{x',r'}=\int g(x'+r'z)\,\nu_{x',r'}(dz)$, so $u_{x,r}=u$.  Next,
+$\mathcal C_M,\mathcal C_S$ are deterministic maps of their
 anchors with exact primitive means as analytical nodes; the parameter
 $\sigma$ of $\mathcal C_M$ is the parent noise, so it sets $s=\sigma/2$
 once.  Define
@@ -1758,8 +1696,7 @@ once.  Define
 where in the first line $y_j$ are the last centering Picard iterates with
 anchors $(y,G)$ using \eqref{eq:kernel-approximate-velocity}, and the
 second uses \eqref{eq:probability-update}.  Neither includes an extra
-Gaussian; Section~\ref{sec:compiler} allocates the noise and the position
-anchor.
+Gaussian; the noise and the position anchor are allocated later.
 
 A \emph{mean-dependency path} follows a mean node to a mean value used in
 its center expression, repeating.  Direct expression size counts
@@ -1889,23 +1826,21 @@ and finally $m$ by \eqref{eq:interpolation-order-choice}.  No random
 failure event is introduced: errors are RMS estimates under ideal laws,
 and the algebraic structure holds for every input.
 
-\section{Finite evaluation of nested conditional means}\label{sec:compiler}
 
 A deterministic formula that calls for a conditional mean at a center
 built from other conditional means is awkward: its error changes the next
-center, and the next call is analyzed at a random center.  We instead add
-a prescribed Gaussian to every computed center.  A translation identity of
-the lower-level routine absorbs that Gaussian into its random seeds,
-restoring the law of a call at the intended center, which is fixed after
-conditioning on the parent's random anchors.
+center, and the next call is analyzed at a random center.  A prescribed
+Gaussian is instead added to every computed center.  A translation
+identity of the lower-level routine absorbs that Gaussian into its random
+seeds, restoring the law of a call at the intended center, which is fixed
+after conditioning on the parent's random anchors.
 
-We first prove the identity, then give the full recursive construction
+The identity is proved first, then the full recursive construction
 (termination, per-execution query cap, distributional error).  The
 analytical input is the family of affine formulas in exact means supplied
-by Theorem~\ref{thm:numerical-interface}.  This section implements them
-and proves Theorem~\ref{thm:primitive}.
+by Theorem~\ref{thm:numerical-interface}.  These are implemented below,
+proving Theorem~\ref{thm:primitive}.
 
-\subsection{Why Gaussian center noise helps}
 
 A seeded mean routine at scale $r>0$ is a measurable deterministic map
 $\mathsf Q(x;z_1,\ldots,z_m)\in\R^d$ of a center $x\in\R^d$ and $m$ seed
@@ -1943,9 +1878,8 @@ center noise restores exactly the variance removed from the seeds.  The
 construction maintains the deterministic translation identity at every
 level, so this applies recursively.
 
-\subsection{The numerical input and the implementation task}
 
-Retain Section~\ref{sec:preliminaries}: $g=\nabla F$,
+Retain the earlier notation: $g=\nabla F$,
 $\Lip(g)\le\lambda=\delta=d^{-e}$, $0<r\le1$, $\nu_{x,r}$ as in
 \eqref{eq:primitive-law}, $u_{x,r}=\E_{\nu_{x,r}}g(x+rZ)$, $L=\lambda r$,
 $l=\lambda r^2$, $D(x)=\sqrt d+|g(x)|$, with the moment bounds
@@ -1977,7 +1911,6 @@ construction first establishes a query cap on every execution, then uses
 pathwise stability at inaccurate centers, then absorption at ideal noisy
 centers, then a standalone law for a child call.
 
-\subsection{Two routines and two depths}
 
 Construct a mean routine $\mathsf M(x,r,\sigma;b,p)$ targeting
 $u_{x,r}+\sigma G$ and a sampling routine $\mathsf S(x,r,\eta;b,p)$
@@ -2066,7 +1999,6 @@ Within each call write $u=u_{x,r}$, $\nu=\nu_{x,r}$.  At a terminal call
 separate seed slots, the last term of $\mathsf S$ its reserved noise.
 Taking $v=-1$ on the $Z$ slot proves the shift property with $\|v\|_2=1$.
 
-\subsection{Evaluating an expression at a noisy center}
 
 Fix a parent circuit and its anchors, write $M_i=u_{x_i,r_i}$ for its
 exact mean nodes.  For each expression $E=b_0+\sum_ia_iM_i$ the operation
@@ -2104,9 +2036,8 @@ At an ideal supplied center $x_i+n_iZ$, Lemma~\ref{lem:compiler-absorption}
 identifies this child with its standalone law at $x_i$; the shift vectors
 and the accuracy of the noisy centers are built next.
 
-\subsection{Query-preserving shifts and the deterministic cap}
 
-We show the shift vectors of Lemma~\ref{lem:compiler-absorption} exist
+The shift vectors of Lemma~\ref{lem:compiler-absorption} are shown to exist
 with the universal bound \eqref{eq:shift-budget}, which also makes the
 definition noncircular and yields a deterministic query cap.
 
@@ -2183,10 +2114,9 @@ this construction or the count; only terminal routines query $g$, once
 each, so it is a cap on every execution.
 \end{proof}
 
-\subsection{Terminal errors and propagation of scales}
 
-The finite construction and its cap are now independent of accuracy; we
-verify terminal errors and the size conditions.
+The finite construction and its cap are now independent of accuracy; it remains
+to verify terminal errors and the size conditions.
 
 \begin{lemma}[Terminal accuracy]\label{lem:compiler-terminal}
 In standalone use a terminal call satisfying \eqref{eq:routine-sizes}
@@ -2205,8 +2135,8 @@ $r\lambda$ for $\mathsf S$.
 \begin{proof}
 For standard Gaussian $Z$, the moment bounds give
 $\|g(x+rZ)-u\|_{L^2}\le CL(\sqrt d+r|g(x)|)\le CLD(x)$; since
-$L/\sigma\le\polylog(d)\delta^b$ and $p\le b$ this is within budget, and we
-couple the added Gaussian identically.
+$L/\sigma\le\polylog(d)\delta^b$ and $p\le b$ this is within budget, and the
+added Gaussian is coupled identically.
 
 Let $z_0$ be the mode, $z_0=-rg(x+rz_0)$; then
 $\|Z-rg(x+rZ)-(Z+z_0)\|_{L^2}\le l\|Z-z_0\|_{L^2}\le ClD(x)$ and
@@ -2257,7 +2187,6 @@ $\sigma_i\le r/(4D_sA)\le C\sigma$; for $\mathsf S$, $A=C_1r^2$ gives
 $r\sigma_i\le1/(4C_1D_s)\le C$.
 \end{proof}
 
-\subsection{Stability for arbitrary fixed seeds}
 
 \begin{lemma}[Fixed-seed stability]\label{lem:compiler-lipschitz}
 For every seed array, including correlated or transformed arrays, the
@@ -2289,9 +2218,8 @@ the same center, contributes at most $\polylog(d)Lr\lambda=\polylog(d)L^2
 not $x$; no seed independence is needed.
 \end{proof}
 
-\subsection{Standalone accuracy and the primitive theorem}
 
-We prove the law guarantees by induction on height, the only stage
+The law guarantees are proved by induction on height, the only stage
 assuming independent standard Gaussian seeds, used for a child only after
 absorption restores its standalone seed law.
 
@@ -2321,7 +2249,7 @@ Child labels are $(b-10t,p-1/4)$; by induction and
 Lemma~\ref{lem:compiler-lipschitz} this costs at most
 $\polylog(d)L\delta^{p-1/4}D(x)$, i.e. after dividing by the mean unit
 $\sigma\delta^pD(x)$, at most $\polylog(d)\delta^{b-1/4}$, bounded for
-large $d$.  So we may assume the position anchor has law $b_*Z+RN$
+large $d$.  So the position anchor may be assumed to have law $b_*Z+RN$
 ($Z\sim\nu_{x,r}$) and the momentum anchor is independent standard
 Gaussian, the inputs in Theorem~\ref{thm:numerical-interface}.
 
@@ -2402,10 +2330,9 @@ only to analyze this finite algorithm, whose only oracle operations are the
 terminal evaluations.
 \end{proof}
 
-\section{From noisy conditional samples to the target law}\label{sec:sampling}
 
 The auxiliary algorithm returns a conditional sample with an added
-Gaussian.  We use it to sample the original unnoised law $\pi_V$.  A
+Gaussian.  It is used to sample the original unnoised law $\pi_V$.  A
 contracting proximal chain first approaches
 $\widetilde\pi=\pi_V*N(0,hI_d)$; conditional on its output, variance-halving
 steps reduce to a law close to a mode-centered Gaussian, which completes
@@ -2419,12 +2346,16 @@ an integer $K_0>2+1/e$.  Choose $t>0$ as in \eqref{eq:t-choice} and fix the
 orders required by Theorem~\ref{thm:primitive}.  All thresholds are uniform
 in $V$.
 
-\subsection{A contracting noised chain}
 
 The Gaussian proximal sampler alternates a Gaussian step with a
 restricted Gaussian conditional draw
-\citep[Def.~1, Lemmas~2,4]{lee2021proximal}; see also
-\citet[Sec.~3, Thm.~1]{chen2022proximal}.  For $y\in\R^d$ let $\kappa_y$ be
+(Lee, Shen, and Tian, Definition 1 and Lemmas 2 and 4); see also Chen,
+Chewi, Salim, and Wibisono (Section 3 and Theorem 1).
+
+\url{https://arxiv.org/pdf/2010.03106v4}
+\url{https://proceedings.mlr.press/v178/chen22c/chen22c.pdf}
+
+For $y\in\R^d$ let $\kappa_y$ be
 proportional to
 \begin{equation}\label{eq:proximal-conditional}
  \exp\!\left(-V(x')-\frac{|x'-y|^2}{2h}\right).
@@ -2469,7 +2400,7 @@ give
    (\sqrt d+2\sqrt h\,|y|),\quad
  \norm{\widehat P_h-P_h}_{\TV}\le B_d\delta^{K_0}(\sqrt d+2\sqrt h|y|).
 \end{equation}
-Here $B_d=C(1+\log d)^C$ may be increased by a fixed factor or power, its
+The constant $B_d=C(1+\log d)^C$ may be increased by a fixed factor or power, its
 constants depending only on the fixed parameters.
 
 \begin{proposition}[Mixing of the approximate noised chain]\label{prop:noised-mixing}
@@ -2509,14 +2440,17 @@ $\norm{\mu_kP_h-\widetilde\pi P_h}_{\TV}\le a_k/((1+h)\sqrt h)=o(1)$.
 Invariance of $\widetilde\pi$ completes it.
 \end{proof}
 
-\subsection{Conditional descent and its ideal histories}
 
 An exact draw from $\kappa_y$, $y\sim\widetilde\pi$, has marginal
-$\pi_V$.  We implement this conditional draw; for analysis first replace
+$\pi_V$.  This conditional draw is implemented; for analysis first replace
 the incoming approximate $y$ by $y\sim\widetilde\pi$, costing at most the
 TV error of Proposition~\ref{prop:noised-mixing} by data processing.  For a
-related restricted-Gaussian-oracle recursion see
-\citet[Alg.~3.3, Sec.~6.3]{chen2026picard}; ours uses fixed variance
+related restricted-Gaussian-oracle recursion see Chen, Chewi, Lu, and
+Zhang (Algorithm 3.3 and Section 6.3);
+
+\url{https://arxiv.org/pdf/2609.06906v1}
+
+the scheme uses fixed variance
 halving, mode-centered Gaussian termination, and an every-execution cap.
 
 Fix $y$; keep $F_y,g_y$ throughout, changing only center and scale.  At
@@ -2539,7 +2473,7 @@ $x_j+r_jZ_j=x_{j+1}+r_{j+1}Z_{j+1}$, so since $x_0=0,r_0=1$ the output is
 $y+\sqrt h\,Z_0$; by \eqref{eq:conditional-descent}, ideal observations and
 an exact base make it an exact draw from $\kappa_y$.
 
-We control errors at random centers using the ideal-history moments.
+Errors at random centers are controlled using the ideal-history moments.
 
 \begin{lemma}[Moments along the ideal descent]\label{lem:descent-moments}
 If $y\sim\widetilde\pi$ and every conditioning observation preceding level
@@ -2572,7 +2506,6 @@ Lemma~\ref{lem:descent-moments} then yields
 summing errors using only ideal-history moments.  It remains to compare the
 actual and exact base laws under that history.
 
-\subsection{The Gaussian base rule}
 
 At depth $J$ write $l=\delta r_J^2$ and start $z^{(0)}=0$; make
 $m_0=\lceil C_2\log d\rceil$ gradient iterations
@@ -2623,7 +2556,6 @@ replacement proves
 uniformly over admissible $V$, the law being the original target without an
 extra convolution.
 
-\subsection{Query counts and all dimensions}
 
 \begin{theorem}[Subpolynomial upper bound]\label{thm:upper}
 For every fixed $\varepsilon>0$ there is $C_\varepsilon<\infty$ such that,
@@ -2670,17 +2602,18 @@ caps, proving the assertion for all $d\ge2$.
 
 This proves part (a) of Theorem~\ref{thm:main}.  The orders depend on the
 fixed $\varepsilon$, and the result bounds oracle calls, not computation.
-The next section proves the independent logarithmic lower bound.
+The independent logarithmic lower bound is proved subsequently.
 
-\section{A logarithmic oracle lower bound}\label{sec:lower}
 
 The lower bound already holds for centered Gaussian targets with known
-minimizer, so the obstruction is present in the same oracle model.  We
-adapt the block-Krylov strategy of
-\citet[Sec.~5.3.3, Lemma~39, Thm.~45]{chewi2023lower}, giving a complete
+minimizer, so the obstruction is present in the same oracle model.  The
+block-Krylov strategy of
+Chewi, de Dios Pont, Li, Lu, and Narayanan (Section 5.3.3 and Theorem 45) is adapted, giving a complete
 argument for the spectral interval $[1,2]$ and total-variation accuracy
 $1/10$, covering arbitrary measurable adaptive algorithms and unrestricted
 real computation.
+
+\url{https://arxiv.org/pdf/2304.02599v2}
 
 \begin{theorem}\label{thm:lower}
 There are absolute constants $c>0$, $d_0$ with $Q(d)\ge c\log d$ for every
@@ -2701,9 +2634,8 @@ this enlarged random span; the same statistic has a large bias under the
 target Gaussian, separating the joint experiments in total variation.  None
 uses the upper bound.
 
-\subsection{Adaptive queries and unrevealed rotations}
 
-We represent an arbitrary algorithm's output; the auxiliary Gaussians are
+An arbitrary algorithm's output is represented; the auxiliary Gaussians are
 independent of one another but need not be independent of the input matrix.
 
 \begin{lemma}[Deferred rotation]\label{lem:deferred-haar}
@@ -2777,7 +2709,6 @@ independent draws, so the construction is jointly measurable for fixed-seed
 algorithms, and integrating the independent seed handles randomized ones.
 \end{proof}
 
-\subsection{A statistic invisible on the block span}
 
 Henceforth set
 \begin{equation}\label{eq:lower-spectrum}
@@ -2841,7 +2772,6 @@ $|(Ba)^TD_p(Ba)|\le\tau_d|a|^2$, giving
 The uniformity matters: the output's coefficients in the block span may
 depend arbitrarily on the whole transcript.
 
-\subsection{Separation from the target Gaussian}
 
 An ideal target has a detectable bias at the same frequency.  Write
 $\varrho=3-\sqrt8\in(0,1)$; the geometric-series formula gives the
@@ -2909,7 +2839,7 @@ $2\tau_d(2d)=160(q+1)^2\sqrt d$, so
 
 For $\P_{\mathrm{target}}$, sample $O$ from the same prior then $X$ from
 $N(0,O\Lambda^{-1}O^T)$; conditional on $O$, $U=O^TX\sim N(0,\Lambda^{-1})$.
-Our choice of $c_0$ gives $\varrho^{2q+1}\ge\varrho d^{-1/8}$ and
+The choice of $c_0$ gives $\varrho^{2q+1}\ge\varrho d^{-1/8}$ and
 \[
  \frac{d\varrho^{2q+1}}{(q+1)^2\sqrt d}
  \ge\frac{\varrho d^{3/8}}{(1+c_0\log d)^2}\longrightarrow\infty .
@@ -2917,7 +2847,7 @@ Our choice of $c_0$ gives $\varrho^{2q+1}\ge\varrho d^{-1/8}$ and
 The remainder satisfies
 $|R_{d,q}|/(d\varrho^n/\sqrt2)\le2\varrho^{2d-2n}/(1-\varrho)\to0$
 uniformly since $n\le1+2c_0\log d$, hence is negligible; with
-$T_{d,q}=160(q+1)^2\sqrt d$ we have $|\mu_{d,q}|>T_{d,q}$ for large $d$,
+$T_{d,q}=160(q+1)^2\sqrt d$, $|\mu_{d,q}|>T_{d,q}$ holds for large $d$,
 and by Chebyshev
 \[
  \P_{\mathrm{target}}(\mathcal E_{d,q}^c)
@@ -2942,97 +2872,6 @@ $q\le c_0\log d$ meets the accuracy for all inputs; decreasing the constant
 proves the theorem.
 \end{proof}
 
-\begin{thebibliography}{99}
 
-\bibitem[Adamczak and Wolff(2015)]{adamczak2015concentration}
-R.~Adamczak and P.~Wolff.
-\newblock Concentration inequalities for non-Lipschitz functions with bounded
-derivatives of higher order.
-\newblock {\em Probability Theory and Related Fields}, 162:531--586, 2015.
-
-\bibitem[Albergo et~al.(2025)]{albergo2025interpolants}
-M.~S. Albergo, N.~M. Boffi, and E.~Vanden-Eijnden.
-\newblock Stochastic interpolants: a unifying framework for flows and
-diffusions.
-\newblock {\em Journal of Machine Learning Research}, 26(209):1--80, 2025.
-
-\bibitem[Altschuler et~al.(2026)]{altschuler2026shifted}
-J.~M. Altschuler, S.~Chewi, and M.~S. Zhang.
-\newblock Shifted composition {IV}: toward ballistic acceleration for
-log-concave sampling.
-\newblock In {\em Proc.\ 58th ACM Symposium on Theory of Computing},
-pages 1739--1750, 2026.
-
-\bibitem[Anshelevich(2004)]{anshelevich2004appell}
-M.~Anshelevich.
-\newblock Appell polynomials and their relatives.
-\newblock {\em International Mathematics Research Notices}, 2004(65):3469--3531,
-2004.
-
-\bibitem[Bakry et~al.(2014)]{bakry2014analysis}
-D.~Bakry, I.~Gentil, and M.~Ledoux.
-\newblock {\em Analysis and Geometry of Markov Diffusion Operators},
-volume~348 of {\em Grundlehren der mathematischen Wissenschaften}.
-\newblock Springer, Cham, 2014.
-
-\bibitem[Chen et~al.(2022)]{chen2022proximal}
-Y.~Chen, S.~Chewi, A.~Salim, and A.~Wibisono.
-\newblock Improved analysis for a proximal algorithm for sampling.
-\newblock In {\em Proc.\ 35th Conference on Learning Theory},
-volume~178 of {\em PMLR}, pages 2984--3014, 2022.
-
-\bibitem[Chen et~al.(2026a)]{chen2026exact}
-F.~Chen, S.~Chewi, A.~Rakhlin, and M.~S. Zhang.
-\newblock Exact simulation of diffusions and improved algorithms for
-log-concave sampling.
-\newblock arXiv:2608.05022, 2026.
-
-\bibitem[Chen et~al.(2026b)]{chen2026picard}
-F.~Chen, S.~Chewi, J.~Lu, and M.~S. Zhang.
-\newblock Smoothed Picard Hamiltonian Monte Carlo.
-\newblock arXiv:2609.06906, 2026.
-
-\bibitem[Chen et~al.(2026c)]{chen2026cloud}
-F.~Chen, S.~Chewi, J.~Lu, and M.~S. Zhang.
-\newblock High-accuracy simulation of Picard HMC, part I: Gaussian cloud
-correction.
-\newblock arXiv:2609.38710, 2026.
-
-\bibitem[Chewi et~al.(2024)]{chewi2023lower}
-S.~Chewi, J.~de Dios Pont, J.~Li, C.~Lu, and S.~Narayanan.
-\newblock Query lower bounds for log-concave sampling.
-\newblock {\em Journal of the ACM}, 71(4):29:1--29:42, 2024.
-
-\bibitem[Courtade et~al.(2019)]{courtade2019stein}
-T.~A. Courtade, M.~Fathi, and A.~Pananjady.
-\newblock Existence of Stein kernels under a spectral gap, and discrepancy
-bounds.
-\newblock {\em Annales de l'Institut Henri Poincar\'e, Probabilit\'es et
-Statistiques}, 55(2):777--790, 2019.
-
-\bibitem[Kothari and Steinhardt(2017)]{kothari2017agnostic}
-P.~K. Kothari and J.~Steinhardt.
-\newblock Better agnostic clustering via relaxed tensor norms.
-\newblock arXiv:1711.07465, 2017.
-
-\bibitem[Lee et~al.(2018)]{lee2018odes}
-Y.~T. Lee, Z.~Song, and S.~S. Vempala.
-\newblock Algorithmic theory of ODEs and sampling from well-conditioned
-logconcave densities.
-\newblock arXiv:1812.06243, 2018.
-
-\bibitem[Lee et~al.(2021)]{lee2021proximal}
-Y.~T. Lee, R.~Shen, and K.~Tian.
-\newblock Structured logconcave sampling with a restricted Gaussian oracle.
-\newblock In {\em Proc.\ 34th Conference on Learning Theory},
-volume~134 of {\em PMLR}, pages 2993--3050, 2021.
-
-\bibitem[Ma et~al.(2015)]{ma2015recipe}
-Y.-A. Ma, T.~Chen, and E.~B. Fox.
-\newblock A complete recipe for stochastic gradient MCMC.
-\newblock In {\em Advances in Neural Information Processing Systems},
-volume~28, 2015.
-
-\end{thebibliography}
 
 \end{document}
