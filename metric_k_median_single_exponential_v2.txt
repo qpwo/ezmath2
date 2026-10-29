@@ -358,8 +358,10 @@
 
   A "state" H is a reference set of points. Initially H
   is S together with one "permanent dummy" delta_inf at
-  distance +infinity from every original point. The
-  dummy's only job is to keep H nonempty forever, so
+  distance Dmax from every original point, where Dmax
+  is the input diameter. Any path through it has length
+  at least 2 Dmax, so it never shortens a real
+  distance. Its only job is to keep H nonempty, so
   that d(p, H) is always finite and W(H) is defined.
 
   The algorithm performs up to 2m steps. At each step:
@@ -383,9 +385,10 @@
 
   REMOVAL mode:
 
-    Look up the facility in S that serves p.
-    If it is still in S, remove it from H.
-    If not, stop the run.
+    Look up the reference point that currently
+    serves p. If it is a surviving S-facility,
+    remove it from H. Otherwise (already removed,
+    or the server is a dummy), stop the run.
 
   Every intermediate state H is recorded as a
   candidate "prefix".
@@ -436,9 +439,9 @@
         with (1 + kappa)^e >= 10, and set
         R = D_Lambda / (1 + kappa)^e.
 
-    (3) GEOMETRIC TAIL. Pick j in 1..J_kappa with
-        probability proportional to 2^(-j), and set
-        R = j * kappa * r0(p).
+    (3) GEOMETRIC TAIL. Let J = 1 + ceil(2m / kappa).
+        Pick j in 1..J with probability proportional
+        to 2^(-j), and set R = j * kappa * r0(p).
 
   Here r0(p) is a "computable reference scale"
   depending only on the guessed P, the guessed m, and
@@ -786,53 +789,68 @@
 
   5.4 WHY IT IS TRUE: TWO COMPLEMENTARY SLACK BOUNDS
 
-  Suppose, for contradiction, that the conclusion of
-  strictness fails: the total deficit
+  Put q = |C| and d_p = d(i, p). Normalise by P_C so
+  that sum_{p in C} d_p = 1. For client p, let z_p be
+  the phase value just before p becomes inactive, and
+  put a_p = z_p / K. Define the deficit
 
-    Delta = lambda - sum over p in C of
-            (alpha_p - 2 * d_p)
+    Delta = lambda + 2 - sum_{p in C} a_p.
 
-  is smaller than c(T), where d_p = d(i, p) and the
-  sum is over p in C.
+  We want Delta >= c(T). Assume Delta < c(T).
 
-  The paper derives two lower bounds on Delta:
+  For p in 1..q, define the "slack"
 
-  (A) Envelope bound. Using the "no-overbidding"
-      invariant of the surplus replay (Lemma
-      imp:surplus-history), Delta can be bounded
-      below by a term proportional to
-      max(p-1) * (A_p - a_p + d_p), where p runs
-      over the clients and A_p is the suffix maximum
-      of (a_s - d_s) for s >= p. If the deficit is
-      small, this forces A_p - a_p + d_p to be very
-      small, which forces the tail a_s to be
-      large.
+    E_p = lambda + 1 + D_{p-1} + (p-1) d_p - q a_p,
 
-  (B) Truncated sum bound (Jensen). Alternatively,
-      Delta is bounded below by the sum over clients
-      of max(0, d_p - a_p), where a_p = z_p / K is
-      the phase value divided by K, restricted to
-      some early clients. If the deficit is small,
-      this sum must be small, so most early clients
-      have d_p <= a_p, which forces early a_p to be
-      large.
+  where D_{p-1} = sum_{j < p} d_j. With [x]_+ = max(x,0),
+  unwinding the suffix inequality gives two lower
+  bounds on E_p:
 
-  Now pick any client s in the last rho fraction of
-  the removal order. Bounds (A) and (B) together
-  force:
+    (Envelope)   E_p >= (p-1) (A_p - a_p + d_p),
+    (Truncated)  E_p >= sum_j [d_j - a_p]_+,
 
-    - d_s is small compared to 1/q, and
-    - the suffix maximum A_s is at least lambda + 1.8.
+  where A_p = max_{s >= p} (a_s - d_s). Averaging is
+  exact:
 
-  Then look at any client p in the "early" interval
-  of size about rho * q, which precedes s. Applying
-  bound (A) to p gives a large lower bound on the
-  deficit contribution at p. Summing over all early
-  p gives an average deficit of at least 0.175 * rho^2.
-  That is larger than c(T) = rho^2 / 100. Contradiction.
+    (1/q) sum_{p=1}^q E_p = Delta - 1/q < c(T).
 
-  So the deficit cannot be smaller than c(T). Strictness
-  holds.
+  Each E_p is nonnegative (the envelope has p-1 >= 0
+  and A_p >= a_p - d_p), so the average Delta - 1/q is
+  also nonnegative. Combined with Delta < c(T), this
+  forces q > 1/c.
+
+  A tail witness. Set rho = 1/(200 B) with B = T + 2,
+  and r = floor(rho q). Convexity of F(x) = sum_j
+  [d_j - x]_+ plus the small average of E_p shows that
+  fewer than rho q indices p satisfy either d_p > 2B/q
+  or E_p > 1/10. So there is s in the last rho q
+  positions of the removal order with both
+  d_s <= 2B/q and E_s <= 1/10.
+
+  Forcing a large suffix. The suffix from s carries at
+  most rho q of the total client cost, so
+  D_{s-1} > 49/50. Rearranging the definition of E_s:
+
+    q(a_s - d_s) > lambda + 1.8,
+
+  hence the suffix maximum A_s > (lambda + 1.8)/q.
+
+  An early interval blows up. Let I = [ceil(rho q),
+  floor(2 rho q)]. Every p in I has A_p >= A_s and
+  D_{p-1} <= 2 rho q; the same rearrangement gives
+  q(a_p - d_p) < lambda + 1.02, so
+  A_p - a_p + d_p > 0.78/q. The envelope then forces
+
+    E_p >= (p-1) * 0.78/q >= 0.39 rho.
+
+  Contradiction. Averaging over all q indices,
+
+    (1/q) sum_{p=1}^q E_p
+      >= (|I|/q) * 0.39 rho  >  0.19 rho^2  >  c(T).
+
+  So Delta >= c(T). Undoing the normalisation gives
+  sum_C alpha_p <= lambda + (2 - c) P_C up to the K^2
+  slack factor; the lemma follows.
 
   5.5 WHAT MAKES IT USEFUL
 
@@ -1005,13 +1023,13 @@
 
     cost(S) <= 1.432 * P_h  <  (2 - c/100) P_h.
 
-  Sub-case B: bad cost is large. Otherwise, at least
-  9/10 of P_h is on bad clusters. Within that, define
-  the "high-price" portion Q = sum of P_i where lambda
-  <= T P_i. The bad-price bound from anchoring gives
-  m * lambda <= 8 C_0 P_h, so the low-price portion is
-  at most m lambda / T <= P_h / 25. Therefore Q >= 3 P_h
-  / 50.
+  Sub-case B: bad cost is large. Otherwise, P_b > P_h/10,
+  so more than 1/10 of P_h is on bad clusters. Within
+  that, define the "high-price" portion Q = sum of P_i
+  where lambda <= T P_i. The bad-price bound from
+  anchoring gives m * lambda <= 8 C_0 P_h, so the
+  low-price portion is at most m lambda / T <= P_h/25.
+  Therefore Q >= P_h/10 - P_h/25 = 3 P_h/50.
 
   Apply strictness on the high-price portion. Summing
   the per-cluster gains:
@@ -1100,8 +1118,8 @@
   (1 + gamma/16), we get
 
     cost <= (2 - gamma)(1 + gamma/16)^2 opt_k
-         <= 2 - 3 gamma/4 opt_k
-         <  2 - gamma/2 opt_k.
+         <= (2 - 3 gamma/4) opt_k
+         <  (2 - gamma/2) opt_k.
 
   Below 2, good.
 
@@ -1255,8 +1273,9 @@
                   (1/100 in the concrete theorem)
     m             number of bad clusters
     M_0           upper bound on m (e.g., O(log N))
-    delta_inf     permanent dummy at +infinity; keeps
-                  the reference set H nonempty
+    delta_inf     permanent dummy at distance Dmax from
+                  every input point; keeps the reference
+                  set H nonempty
     H             reference set during sampling:
                   surviving S facilities plus leaf
                   dummies plus delta_inf
@@ -1304,163 +1323,87 @@
   PART 8. WHERE THIS FITS IN THE LITERATURE
   ============================================================
 
-  8.1 HISTORY OF METRIC K-MEDIAN APPROXIMATION
+  8.1 THE APPROACH TO FACTOR 2
 
-  The best-known approximation factor has crept down
-  steadily over 25 years:
+  Metric k-median has a 25-year history of tightening
+  bounds:
 
-    2002  Charikar, Guha, Tardos, Shmoys (LP rounding):
-          roughly 6.67
-    2001  Jain, Vazirani (primal-dual with Lagrangian
-          relaxation): 6.286
-    2002  Jain, Mahdian, Saberi (dual-fitting):
-          facility location analogs
-    2003  Jain, Mahdian, Markakis, Saberi, Vazirani
-          (greedy + JMS factor-revealing LP)
-    2004  Arya, Garg, Khandekar, Meyerson, Munagala,
-          Pandit (local search): 3 + eps
-    2016  Li, Svensson (pseudo-approximation reduction):
-          improves to below 3, various refinements
-    2017  Byrka, Pensyl, Rybicki, Srinivasan, Trinh
-          (bi-point rounding): 2.675
-    2023  Gowda, Pensyl, Srinivasan, Trinh
-          ("Golden Barrier"): 2.633
-    2026  Byrka, Guo, Hu, Li, Wan, Wang (iterative
-          randomized rounding): slight further
-          improvement
-    2026  Cohen-Addad, Grandoni, Lee, Schwiegelshohn,
-          Svensson (CGLSS): 2 + eps
-    2026  THIS paper: 2 - sigma, strictly below 2
+    1999-2004   LP rounding, primal-dual, local search: 6 -> 3
+    2017        Byrka et al.: 2.675
+    2023        Gowda et al.: 2.633
+    2026        CGLSS: 2 + eps
+    2026        THIS paper: 2 - sigma
 
-  The exact digits vary by paper and by epsilon going
-  to zero. The progression matters.
+  The exact digits vary with eps going to zero. The
+  trend matters more than the digits.
 
-  The CGLSS 2026 result was the breakthrough that
-  broke 2.61. This paper follows up: strict below 2,
-  with a tiny but positive margin.
+  8.2 WHAT THIS PAPER BORROWS
 
-  There is a companion paper (OpenAIThreshold2026 in
-  the references) proving the general threshold:
-  (1 + 2/e + eps) is achievable on the general facility
-  model. That result is independent of the recovery
-  and strictness construction here, but it explains
-  why 1 + 2/e is a natural limit for recovery.
+  External tools, used as black boxes:
 
-  8.2 WHAT THIS PAPER BORROWS FROM
+    - CGLSS 2026: log-surplus construction and
+      valid-sequence replay (engine for Part 5).
 
-  The paper relies heavily on prior work. The main
-  external tools are:
+    - CGLS 2026: factor-revealing LP analysis
+      (model for the paper's own strictness proof).
 
-    - The CGLSS 2026 log-surplus construction,
-      including its valid-sequence machinery. This
-      is the "imports" of the paper (Section 7 of the
-      original). Used as a black box in Part 5.
+    - Calinescu-Chekuri-Pal-Vondrak (2011) and
+      Vondrak (2008): continuous greedy for monotone
+      submodular maximization. Yields the (1 - 1/e)
+      gain that produces 1 + 2/e in recovery.
 
-    - The CGLS 2026 paper (arXiv:2207.05150v2),
-      which has the JMS factor-revealing LP analysis
-      and provides the model for the paper's
-      strictness proof.
+    - Alon-Yuster-Zwick (1995): color coding.
+      Provides distinct-removal machinery in
+      completion.
 
-    - Calinescu, Chekuri, Pal, Vondrak (2011):
-      continuous greedy and partition rounding for
-      monotone submodular maximization. Provides the
-      (1 - 1/e) guarantee that yields 1 + 2/e in
-      recovery.
+    - Cohen-Addad-Gupta-Kumar-Lee-Li (2019): FPT
+      antecedent for 1 + 2/e.
 
-    - Vondrak (2008): original continuous greedy.
+    - Cohen-Addad-Schwiegelshohn (2017): anchoring
+      analysis from stable clustering.
 
-    - Alon, Yuster, Zwick (1995): color coding.
-      Provides the distinct-removals machinery for
-      completion's blue-removal step.
+    - Gupta-Tangwongsan (2008) and Arya et al.
+      (2004): local search and its weighted swap
+      bound.
 
-    - Cohen-Addad, Gupta, Kumar, Lee, Li (2019):
-      tight-FPT approximations for k-median and
-      k-means. The FPT antecedent for the 1 + 2/e
-      factor.
-
-    - Cohen-Addad, Schwiegelshohn (2017): local
-      structure of stable clustering instances.
-      Provides the anchoring technique.
-
-    - Gupta, Tangwongsan (2008): simpler local
-      search analysis; provides the weighted swap
-      bound in Part 4.
-
-    - Li, Svensson (2016): pseudo-approximation
-      reduction.
-
-    - Jain, Mahdian, Saberi (2002, 2003):
-      dual-fitting framework.
-
-    - Arya, Garg, Khandekar, Meyerson, Munagala,
-      Pandit (2004): width-5 local search and its
-      basic 3+eps bound.
-
-    - Charikar, Guha, Tardos, Shmoys (2002): LP
-      rounding.
-
-  8.3 WHAT IS ACTUALLY NEW IN THIS PAPER
+  8.3 WHAT IS NEW
 
   (1) Refined recovery with single-exponential
-      bad-cluster dependence.
+      dependence on the number of bad clusters.
+      Prior FPT algorithms (CGLSS 2019, Dai-Li-Peng
+      2026) require k^{O(k)} time, which at
+      k = O(log N) is not polynomial. The improved
+      dependence is exp(O(m)), so m = O(log N)
+      becomes polynomial.
 
-      FPT algorithms (CGLSS 2019, Dai-Li-Peng 2026)
-      give k^{O(k)}-time (2+eps) approximations for
-      k-median. When k = O(log N), that is not
-      polynomial. This paper makes the dependence on
-      the number of bad clusters single-exponential
-      (exp(O(m)) rather than exp(O(m log m))), so
-      m = O(log N) becomes polynomial time.
+  (2) Bounded-price strictness, proved by an
+      elementary suffix-maximum argument rather than
+      by a factor-revealing LP. Both proofs work;
+      the new one transfers cleanly to the fixed
+      valid-sequence replay, including free openings.
 
-  (2) Bounded-price strictness with an elementary
-      proof.
-
-      The CGLS 2026 paper already proves strictness
-      via factor-revealing LP. This paper gives a
-      different proof, using only a suffix maximum
-      and a truncated-sum / Jensen argument. The new
-      proof transfers directly to the fixed
-      valid-sequence replay, including free openings
-      and simultaneous phase updates. Both proofs
-      are valid.
-
-  (3) The assembly.
-
-      Combining recovery and strictness into a
-      2 - sigma approximation, with all the constants
-      tracked carefully enough that the final answer
-      is strictly below 2. That is the deliverable.
-
-  What is NOT new:
-
-    - The log-surplus construction (CGLSS 2026).
-    - The (1 - 1/e) submodular maximization
-      (Vondrak, Calinescu-Chekuri-Pal-Vondrak).
-    - The width-5 local search and its 5P bound.
-    - The Alon-Yuster-Zwick color coding.
-    - The Li-Svensson pseudo-approximation.
-    - The JMS factor-revealing LP.
+  (3) The assembly, with constants small enough
+      that the final factor is strictly below 2.
 
   8.4 WHY THIS IS INTERESTING
 
-  Factor 2 has been the target for 25 years. (2+eps)
-  was barely achieved in 2026. Strictly below 2 is
-  the next step. This paper does that.
+  Two reasons.
 
-  The proof is instructive: two independent tools
-  (recovery and strictness) attack the problem from
-  different angles. Whichever case the instance
-  falls into, one of them fires. That kind of case
-  analysis (analysis, not code) is a common and
-  elegant pattern in approximation algorithms.
+  First, factor 2 has been a barrier for 25 years.
+  Strictly below 2 is progress, however tiny.
 
-  It is also a good example of the "polynomial time
-  but astronomically slow" phenomenon in theory. The
-  constants here are unusable in practice: sigma is
-  something like 2^(-8000). A practical implementation
-  of k-median at 2 - sigma is not the point. The
-  point is the theoretical boundary being strictly
-  below 2.
+  Second, the constants are genuinely astronomical.
+  sigma is roughly 2^(-8000), and the algorithm's
+  running time is N^{C_0} with C_0 > 2^3999. This
+  is not a recipe for implementation. It is a proof
+  that the boundary sits strictly below 2.
+
+  The proof structure is also elegant: two
+  independent tools attack from different angles,
+  and whichever case the instance falls into, one
+  of them fires. That kind of case analysis - in
+  the analysis, not in the code - is a classic
+  pattern.
 
   ============================================================
   END OF DOCUMENT
