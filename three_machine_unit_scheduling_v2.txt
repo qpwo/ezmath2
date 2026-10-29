@@ -1,0 +1,565 @@
+A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling
+A patient high-school study guide
+
+How to read this file. This is a study guide to one research paper: the proof that scheduling unit-length precedence-constrained jobs on three identical machines has a polynomial-time exact algorithm. The technical name of the problem is P3 | prec, p_j = 1 | Cmax. The paper is "A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling", by OpenAI, dated 24 September 2026. Everything below is written for a patient high-school reader. Each block starts with "Exercise:", then a short question, then a self-contained answer. A "Proof:" sketch inside an answer can be skipped on a first pass and returned to later. Named results carry a short nickname in parentheses, e.g. "Lemma (Suffix Carry)"; search for the nickname to find the full statement. Symbols you will meet first: n (number of jobs); x <~ y (x must finish before y, "x precedes y"); DAG (directed acyclic graph); T (candidate deadline); Cmax (makespan, the finish time of the last job); Fam (family of describable sets); K (leaf bound on a description); F (a member of Fam, a Boolean formula); Q(K) (the qualifier set of a list K); lambda(x) (rank of x in a fixed linear extension); D_a, P_a (predecessor and successor cones of slot a); ^D_a, ^P_a (their weak closures).
+
+Exercise: The scheduling problem. What is P3 | prec, p_j = 1 | Cmax?
+The problem is: given n nonpreemptive jobs, each taking exactly 1 unit of time, and a DAG G = (V, E) of "u must finish before v starts" constraints, schedule them on 3 identical parallel machines minimizing the makespan (the finish time of the last job). Equivalently, decide for a given integer T whether all jobs can be scheduled in T slots, each slot running at most 3 jobs, respecting every precedence constraint. The standard shorthand is P3 | prec, p_j = 1 | Cmax, from the Graham-Lawler-Lenstra-Rinnooy-Kan notation. Nothing else is constrained: no release dates, no machine-specific jobs, no extra resources. All units are integer and identical.
+
+Exercise: A tiny example. What does scheduling look like on paper?
+Six jobs, two constraints a <~ d and b <~ e, plus c <~ f. No other edges. Since only these 3 independent chains exist, slot 1 = {a, b, c} and slot 2 = {d, e, f} is a valid 2-slot schedule. If instead we had a chain a <~ d <~ e <~ f plus isolated b, c, the longest chain has 4 jobs, so no schedule can finish in fewer than 4 slots; slot 1 = {a, b, c}, slot 2 = {d, ?, ?}, slot 3 = {e, ?, ?}, slot 4 = {f, ?, ?} gives makespan 4 with the isolated jobs filling holes. This is why chains dominate the makespan: any chain of length L forces L slots no matter how many machines are idle. Real instances are harder because the DAG need not decompose into chains: a "V" shape u <~ v, u <~ w means u must be alone before v and w can start in parallel.
+
+Exercise: What does "feasible schedule" mean, formally?
+A feasible T-schedule is a function s: V -> {1, ..., T} such that every job gets a slot, each slot has at most 3 jobs, and every edge u <~ v satisfies s(u) < s(v). The number of slots used is max s(v), the makespan. Standard trick: pad by adding 3T - n isolated jobs (no edges) to get |J| = 3T. Padding does not change feasibility (drop the isolated jobs from any solution). After padding, "feasible T-schedule" has a cleaner form: a full schedule is an ordered list of antichain triples Z_1, ..., Z_T with:
+  - Z_i is an antichain (no two jobs inside are ordered),
+  - no edge points backward across the sequence,
+  - each job appears exactly once.
+An antichain triple is exactly a legal slot.
+Note on notation. In the paper the family of describable sets is written with calligraphic F, and a specific member of that family is written with ordinary F. Those look identical in plain text, so this guide writes Fam for the family of describable sets and F for a member of Fam. The symbol K still means the maximum number of leaves in a Boolean formula that defines a member of Fam: K = 10000.
+
+Exercise: What does "polynomial time" mean?
+A problem has a polynomial-time algorithm if there is a fixed constant c, independent of the input, and an algorithm that runs in at most (L + 2)^c steps, where L is the total input length in bits. P is the class of problems with a poly-time algorithm. NP is the class of problems whose proposed solutions can be checked in poly-time. A problem is NP-hard if every NP problem reduces to it in poly time; a poly-time algorithm for an NP-hard problem would prove P = NP. A problem in P can still have an enormous exponent (for example (L + 2)^150020) and be entirely impractical; "polynomial" guarantees only that the exponent is fixed, not that it is small.
+
+Exercise: What is known for 2 machines?
+Scheduling unit jobs on 2 identical machines with precedence was solved in 1969 by Fujii, Kasami, and Ninomiya (SIAM J. Applied Math 17(4):784-789, doi:10.1137/0117070; erratum: 20(1):141, 1971) and independently in 1972 by Coffman and Graham (Acta Informatica 1(3):200-213, doi:10.1007/BF00288685). Both are exact polynomial algorithms. The two-machine problem is not "easy" in a naive sense: any of the standard greedy lists can be arbitrarily bad, and the correct algorithm operates on topological labels chosen by a recursive rule. The two-machine answer is exactly why the three-machine case looked close.
+
+Exercise: What happens when the number of machines is part of the input?
+Scheduling unit jobs on m machines with m in the input and precedence is NP-hard. Ullman 1975 (JCSS 10(3):384-393, doi:10.1016/S0022-0000(75)80008-0) proved NP-completeness. So the "3" in P3 is not aesthetic: with m variable, no poly-time exact algorithm is possible unless P = NP.
+
+Exercise: What was known for exactly 3 machines before 2026?
+Garey and Johnson listed the 3-machine case as OPEN8 in their 1979 book (Computers and Intractability, Appendix A13). Partial results:
+- Garey, Johnson, Tarjan, Yannakakis 1983 (SIAM J. Alg. Disc. Meth. 4(1):72-93, doi:10.1137/0604011) solved "opposing forests" (unions of one in-tree and one out-tree) on 3 machines in poly time.
+- Dolev and Warmuth 1984 (J. Algorithms 5(1):48-59, doi:10.1016/0196-6774(84)90039-7) solved height-bounded DAGs: height h with m machines gives O(n^{h(m-1)+1}). For fixed m this is poly. For m = 3, every fixed-height case was poly, but arbitrarily tall DAGs stayed open.
+- Approximation (Levey-Rothvoss 2016 STOC, doi:10.1145/2897518.2897532; Garg 2018 ICALP, doi:10.4230/LIPIcs.ICALP.2018.59; Li 2021 SODA, doi:10.1137/1.9781611976465.178; Das-Wiese 2022 ESA, doi:10.4230/LIPIcs.ESA.2022.40) gave (1 + epsilon)-approximations in quasi-poly or poly time depending on the paper, but never exactness.
+
+Exercise: How close did the subexponential 2025 result get?
+Nederlof, Swennenhuis, and Wegrzycki (SODA 2025, doi:10.1137/1.9781611978322.16) gave an exact algorithm in 2^{O(sqrt(n) * log^2 n)} time for 3 machines, and more generally in (1 + n/m)^{O(sqrt(nm))} time for m machines. This was a major advance (subexponential) but still not polynomial: sqrt(n) growth vs logarithmic. Their decomposition assumed at most m sources, forcing a nontrivial extension for arbitrary DAGs. The present paper reuses the interval/decomposition viewpoint but with a new bounded-description proof that eliminates the subexponential overhead.
+
+Exercise: What does THIS paper prove?
+The paper proves that P3 | prec, p_j = 1 | Cmax has an exact deterministic polynomial-time algorithm. Concretely, for input length L (bits), the algorithm decides feasibility in deadline T (and returns a feasible schedule if the answer is yes) in at most (L + 2)^150020 steps on a deterministic multitape Turing machine. The proof uses:
+  (1) A Boolean-formula description language where each describable set has at most K = 10000 leaves.
+  (2) A dynamic program that enumerates all such descriptions and combines them into schedules.
+  (3) A structural theorem proving that every feasible instance has a bounded-description witness.
+The 150020 is astronomically far from practical: for n = 10^6 jobs, the bound is (10^6)^150020, a number with hundreds of thousands of digits. The paper says explicitly: "The polynomial supplied by the proof has a very large constant exponent; no practical running-time claim is made."
+Part A: Key ideas before the formal details
+
+Exercise: What is the key idea of the paper, in one paragraph?
+If you had to name one idea, it is this: within any feasible schedule, we can identify a small number of "anchor" slots such that the jobs between consecutive anchors are forced to fit into a set describable by a fixed small Boolean formula, and the same formula family contains all possible intervals across all schedules. So instead of searching over exponentially many possible schedules, we search over polynomially many possible sets. The structural theorem (Part C) proves that every feasible instance has such a bounded-description decomposition; the dynamic program (Part B) enumerates all descriptions and rebuilds schedules from them.
+
+Exercise: What is an open interval, and why can we freely reorder inside one?
+Fix a feasible schedule. Choose two slots a and b with a strictly before b. The open interval (a, b) consists of every job in slots strictly between a and b. Every job outside (a, b) is either entirely at or before a, or entirely at or after b, so its temporal relation to every job inside (a, b) is fixed by the anchors. If we replace the schedule of the jobs inside (a, b) by any other feasible schedule of the same set, the whole schedule is still feasible. So the inside can be solved independently as a smaller problem. Reordering inside an interval is described by "Lemma (Interval Reordering)".
+
+Exercise: What are the two frames?
+The paper works with two views of the same schedule.
+  (1) Original frame: time runs forward, precedence runs u <~ v, and the linear extension (rank) lambda is chosen by repeatedly removing minimal jobs.
+  (2) Reversed frame: time runs backward, precedence runs the other way, and the rank is the reversed one.
+Both are valid. A job's two ranks sum to N + 1 where N = |J| = 3T. The reason for two frames: when the algorithm decomposes a node into two sides around a center, one side naturally goes "with time" (same), the other "against time" (switch). Working in the frame that makes each side a forward prefix makes all the notation uniform; inheriting from a switch flips the frame.
+
+Exercise: What is a linear extension and what is a rank?
+A linear extension of the precedence relation <~ is a total order < on the same set J such that u <~ v implies u < v. It is a complete answer to "which jobs come before which" that never contradicts precedence. The rank lambda(x) is the position of x in that order, an integer 1 to N = |J|. To compute one: repeatedly remove a minimal job (a job with no predecessor in the remaining graph, ties broken by job id), assign it the next rank. The paper only uses the "minimal-job" preference once, so lambda is a deterministic function of (J, <~), and the reverse order is a valid linear extension in the reversed frame.
+
+Exercise: What is the description language, intuitively?
+Fam is a family of subsets of J. Each set in Fam is defined by a Boolean combination (AND, OR, NOT) of atomic tests. There are only six kinds of atomic tests:
+  (1) constant true or false;
+  (2) rank threshold: lambda(x) <= k or lambda(x) >= k, in either frame, with 0 <= k <= N + 1;
+  (3) membership in a specific triple of jobs;
+  (4) membership in the successor cone D_a of a triple a: x has a strict predecessor in a;
+  (5) membership in the predecessor cone P_a of a triple a: x has a strict successor in a;
+  (6) membership in the weak closures ^D_a = D_a union a and ^P_a = P_a union a.
+A formula is built by combining these with AND and OR. De Morgan's laws push NOT down to the leaves (which is why leaf = atomic test or its negation). The size of a formula is its number of leaves. Fam contains every set described by a formula with at most K = 10000 leaves. Why such a small family matters: the number of distinct atomic tests is O(N^3); the number of tree shapes with at most K leaves is a constant (huge, but independent of N); the number of distinct sets in Fam is at most O(N^{3K}), which is polynomial in N because K is fixed.
+
+Exercise: Why are cones the fundamental primitive?
+Because precedence is transitive closure. If a set S is picked out as "downward closed under precedence" (a downset), then its boundary is described by cones. Conversely, if S is described by cone formulas, S is automatically an upset or downset, so any set we describe is guaranteed to be something a schedule can hit exactly. Every separator in a normalized schedule has the form W intersect P_a for some slot a. Those P_a are exactly the sets we can name with the atomic tests.
+Part B: The structural proof
+
+Exercise: What is a cutoff, and what is a separator?
+Fix a normalized schedule and a subset S of jobs within a node W that is "downward closed" in W (an ideal). A cutoff for S in W is the set of jobs of W that are in S, so S cuts W into "low" (in S) and "high" (W minus S). A slot a in W is a separator for the cutoff S if:
+  - every low job before a's slot is a strict predecessor of some job in a;
+  - every high job after a's slot is a strict successor of some job in a;
+and the slot itself belongs to neither side (the slot's jobs may be any mix of low/high as long as the two conditions hold). Intuition: a is a "clean breakpoint" where the low/high split becomes visible in the schedule. Lemma (Separator Description) shows that if a is a separator for S in W, the set of jobs of W that occur at or before a is exactly W intersect ^P_a, and the set of jobs that occur strictly after is W minus that. So the separator's earlier set is exactly a cone formula.
+
+Exercise: What is a normalized side?
+Fix a node W with a chosen center v (a separator). The two halves of W around v are called sides. Each side has an external left boundary (either the node's left boundary a, or the center v itself) and an external right boundary (also a, or v, in the opposite case). "Normalize" a side means: choose a priority order on its jobs that extends precedence, then reorder its jobs by repeatedly moving the smallest-priority remaining job as early as possible without violating precedence. The result is a canonical schedule of that side in which the earliest feasible job is placed first, then the next, and so on. The "same" side uses the frame of W; the "switch" side uses the reversed frame. After normalization, every prefix of the side is a cutoff set, and each successive prefix is obtained from the previous one by promoting one job from high to low.
+
+Exercise: What is the center slot and why does it exist?
+A center v of a node W is an actual slot of W that separates the specific cutoff W intersect P_b (the predecessor set of the ending boundary b). Corollary (Any Ideal) says every ideal of W is separated by some slot in a normalized schedule of W. Since W intersect P_b is an ideal (it is the set of jobs in W before b), there is always some slot available for use as the center. At the very root, W = J and b is the right sentinel, so W intersect P_b is empty; the center is any slot of the schedule, and the paper picks the last slot.
+
+Exercise: What is the priority order?
+The priority order is the sequence in which jobs are considered for "moving up" (from high to low) during normalization. It has to satisfy one constraint: it must extend precedence, meaning u <~ v implies u's priority is at most v's. So when a job moves up, no job that should come after it has already been placed. Two priority orders are used:
+  - Same direction: partition into three groups by their status. First group: S_0 = (W minus O) intersect P_b, ordered by increasing rank. Second group: O (the qualifiers), ordered by increasing key. Third group: Y = W minus P_b, ordered by rank. The three groups are concatenated (first group first) into one sequence. Promote all of O.
+  - Switch direction: order X first by rank, then W intersect D_a by rank, concatenated. Promote all of X.
+The choice of groups is designed so that the "promoted" jobs (O and X respectively) are the ones that will form the carries in the next step.
+
+Exercise: What does the shared-cutoff walk look like?
+Fix a normalized side E = (a, v). Let its successive cutoffs be S_0, S_1, ..., S_q = S_* where each S_{i+1} = S_i union {one promoted job} (or union {several, if ties occur; the paper processes promotions in a strict sequence). At each step, we move a "position" marker forward through the schedule to just after the last promoted job. Lemma (Shared Cutoffs) says: after promoting S_i to S_{i+1}, there is a slot in E whose earlier jobs (in E) are exactly S_{i+1}, so this slot acts as a separator for S_{i+1}, and its own job set is an antichain triple. The paper records the marked position s_i = the "final position" of the promotion.
+
+The result is a chain of positions a = s_0 <= s_1 <= ... <= s_q < v. Removing repeats, each strict pair (s_i, s_{i+1}) with nonempty gap is exactly a child interval of W. The cutoff S_i is the same for both endpoints of that child, so it is the "shared cutoff" that the child inherits. There are at most q + 1 such gaps, but the key lemma (Lem (Edge Labels)) is that each gap's S_i is bounded in a specific way -- see the next exercise.
+Exercise: What are the edge labels on a child interval?
+Lemma (Edge Labels) says the following. Consider a node W with a shared-cutoff walk and a child interval W' = (a', b'). Then:
+  - b' is an actual triple in W (part of the normalized schedule);
+  - a' is either the parent's left boundary a, or an actual triple in W that was produced as a step of the walk (specifically, a step of the open side E);
+  - On the child W', we have: (W' intersect S) is contained in (D_{a'} intersect P_b), and (W' minus S) is contained in P_{b'}.
+What this means: every job of the child that is below the cutoff S is a strict predecessor boundary at a' AND is before b. Every job above S is at or after b'. So the cutoff is respected exactly at the boundary, with the correct one-sided containment. Additionally, every child excludes the center v, so child size is strictly smaller than parent size. Finally, the root has no "switched" child: the root's last slot serves as center, and everything lies on the "same" side.
+
+Exercise: What are the three global invariants (inv:cones, inv:past, inv:swap)?
+Each node W carries a list K = (K_1, ..., K_l) of global upsets. Define the qualifier set Q(K) = union of K_1 ... K_l, and the local old-high set O = W intersect Q(K). For every qualifying job x (any x in Q(K)), define its key as key_K(x) = (largest index i with x in K_i, rank lambda(x)), lexicographically.
+
+The three invariants (in the node's tag frame):
+  (I1) O is contained in P_b, and W minus O is contained in D_a. (Boundary cones contain the correct side.)
+  (I2) Every global qualifier scheduled at or before a belongs to ^P_a. (Distantly-behind qualfiiers are properly accounted for.)
+  (I3) After any feasible reordering of W in its existing slots, there is no feasible direct exchange between some x in W minus D_a and a qualifying job y at a with key_K(x) < key_K(y). (Boundary "anchor" survives reorderings.)
+
+Exercise: Why three invariants? What does each one buy us?
+Each invariant forbids one way a qualifier could be "lost" or "misprioritized" as we descend the recursion:
+  (I1) is local: it says the qualifiers are all "before b" and the non-qualifiers are all "after a". This is what makes "W intersect Q(K)" the correct high set and "W minus Q(K)" the correct low set.
+  (I2) is a "past" invariant: any qualifier that lies at or before the current left boundary is a strict predecessor of a's own jobs. So if a job looks like it should be a qualifier but it is already in the past, we can recover it from the boundary. This is what lets us prove separators for cutoffs even at deep nodes.
+  (I3) is a "future" invariant: no feasible exchange of a qualifying boundary job with an unqualifying interior job can push the qualifier out. This is what keeps the qualifier set stable after later reorderings of the child's interior.
+
+Exercise: What is an "update" from a parent to a child?
+Given a parent W with list K, center v, and two normalized sides, an update constructs the child's list K' by concatenating pieces:
+  - For same-direction edges: a suffix of K (called the "carry") plus an "injection" of jobs at the left boundary.
+  - For switched edges: a new pair of entries obtained from an "old-low extension" of the incoming edge, then pruned.
+Each update is proven to be correct by inducting on depth, provided the parent already satisfies the three invariants. The "carry" lemma and "prune" lemma are the workhorses.
+
+Exercise: What is the suffix carry operation?
+Lemma (Suffix Carry): given a list K = (K_1, ..., K_l), an index d with 1 <= d <= l, and a rank threshold r with 0 <= r <= N + 1, define
+  carry_{d,r}(K) = (K_d intersect {lambda >= r}, K_{d+1}, ..., K_l).
+Then:
+  - The qualifier set of carry_{d,r}(K) equals the set of old qualifiers whose old key is at least (d, r).
+  - Among those jobs, the new list preserves the old key order.
+  - Every entry of carry_{d,r}(K) is still a global upset.
+Proof sketch: a job j's largest old membership index is either > d (kept unconditionally), or = d (kept iff its rank is >= r), or < d (dropped). Reindexing shifts remaining indices up by a constant, which preserves order.
+
+Exercise: What is pruning?
+Pruning: after building a "fresh" list K^{fresh} for a child, drop any entry K_i with K_i intersect W' = empty, keeping the relative order of the remaining entries. Pruning never changes membership on W', because the dropped entry is empty there. The resulting (pruned) list is the child's K'.
+
+Exercise: What is the same-direction update?
+Lemma (Same Update): let W be a node in "same" direction relative to its parent. If O minus S = empty, the carry is empty. Otherwise, let (d, r) be the smallest old key among jobs in O minus S, and form the carry = carry_{d,r}(K). Let I = D_a intersect (J minus P_b) (the "injection" at the left boundary). Then:
+  K^{fresh} = carry(K) concatenated with (I).
+After pruning on W', the qualifier set is exactly W' minus S, and its key order matches the priority order of the side. Also (I1) holds for the child.
+
+Exercise: What is the switch-direction update?
+Lemma (Switch Update): for a switched edge, discard the old list entirely. Instead, build two entries:
+  - "G intersect {lambda >= h}", where G is a global upset whose construction we describe next, and h is chosen so the "still-high" part of X = W minus D_a is exactly the part with lambda >= h. If no job remains, h = N + 1.
+  - D_a (the left boundary).
+Then concatenate these two and prune on W'. The resulting list again terminates with (I1) for the child. The construction of G is the delicate part, and is deferred to the "switch upset" lemma.
+
+Exercise: Why does the list stay short? (the 5-entry bound)
+Lemma (List Length) says: every pruned list has at most five entries, and at most three of them are "injections from the current run" (the D_a-type entries added at left boundaries within the same frame run).
+
+Proof idea (capacity-three). Imagine tracking one run of same-direction edges from a starting node to the current node. Injections surviving into the current child are pairwise disjoint on the parent (they were introduced at different times and were disjoint on their introducing parents). Pick any pair of surviving injections K_i, K_j. By definition there is some job x_i in K_i intersect W' and some x_j in K_j intersect W'. Since these are high jobs, x_i is a predecessor of some z in the ending triple b'. Same for x_j: x_j <~ z'. Because the injections are upsets, they contain those z's. But b' has only three jobs, and x_i's z and x_j's z' must be different (otherwise K_i and K_j intersect at that z, contradicting disjointness). So distinct surviving injections must each contain a distinct element of b', and b' has at most three elements. Hence at most three surviving injections. Add the at most two inherited "base" entries of the run (the root's single entry, or the two entries in the switch pair) and get five.
+
+Exercise: What is local flattening?
+The 5-entry bound needs every carry entry to be "simple" (a rank restriction of a base or an injection). But the first entry of a switch pair ("G intersect {lambda >= h}") can carry a complicated G predicate built from earlier data. Lemma (Local Flattening) gives a way to replace it with a simple union on the current node. Suppose a run began with a switch out of a parent Q_0, using left boundary a_0 in the resulting run frame, and starting with entries G_0 intersect {lambda >= h_0} and D_{a_0} where Q_0 minus D_{a_0} is contained in G_0. Let U be a later parent in the same run. If the entry derived from the first entry survives into an unpruned carry out of U, then the carried portion of the pair on U agrees with the simpler global upset D_{a_0} union {lambda >= k}, where k is the current effective threshold. Two facts make it work: the second entry D_{a_0} is never trimmed while the first survives (a trim at that later index would discard the first), so on U it still lies in D_{a_0}; and every job of U that is not in D_{a_0} lies in G_0 by hypothesis, so the first entry selects exactly the rank suffix beyond k.
+
+Exercise: What is the old-low extension?
+Lemma (Old-Low Extension): consider an already-constructed edge from a parent U to a child W, in its old working frame. Its low cutoff H_- is a subset of U (specifically, the "low" side of the edge's cutoff). Then H_- can be extended to a global downset H_-* that agrees with H_- on U, using at most 21 leaves.
+Proof sketch: two cases.
+  - If the edge was switched, its low cutoff is a rank prefix of U minus D_a. So (J minus D_a) intersect {lambda <= r} is the required extension: 2 leaves.
+  - If the edge was in the same direction, its low cutoff on U is P_b minus the carry union, plus (or minus) the new injection. The old list on U has at most five entries by (List Length). The carry entries are either simple (root base, injections, possibly rank-trimmed) or come from an earlier switch. If the earlier-switch entry is present, use (Local Flattening) to replace the switch pair by a simple union. Either way, the carry union is a union of at most five simple terms, each with at most 4 leaves, giving at most 20 leaves plus the boundary for 21 total.
+
+Exercise: What is the switch upset G construction?
+Given a switched edge out of W (which was produced by a preceding edge from U), the switch needs a global upset G with two properties:
+  (i) W minus D_a is contained in G, and
+  (ii) G intersect {jobs at or before a} = empty.
+Construct it as
+  G = D_{a_-} intersect (J minus ^P_a) intersect (J minus ^P_{v_-}) intersect H_-*
+where a_-, b_- are the boundaries of the preceding edge in the reversed frame, v_- is its center, and H_-* is the short extension of the preceding edge's low set. Lemma (Switch Upset) proves that G has properties (i) and (ii): any x in W minus D_a was NOT high at the preceding edge (otherwise reversal would put it in D_a), so it lies in H_-; every job of H_- lies before the old right boundary b_-, i.e. in D_{a_-} in the new frame; and since a job at or before a cannot also be strictly after both a and v_-, the two ^P-exclusions together with the D_{a_-} localisation force the "at or before a" set to be empty.
+Exercise: Why does the "past" invariant (I2) survive an update?
+Lemma (Invariant Past): for a child W' built from a parent W, the invariant I2 holds at W'.
+Proof sketch. Consider a qualifier z of the child scheduled at or before a'.
+  - If a < time(z) <= a', then z is in the parent's open side E. By (Update Labels), z is high at the edge cutoff S. The local separator at a' puts it into P_{a'} if strictly earlier, or into ^P_{a'} if its time equals a'.
+  - If time(z) <= a, use the parent's I2 to find a boundary job y in a with z = y or z <~ y. Carrying through the walk and using parent I3 for boundary continuations, and local readiness + exchange for interior continuations, we eventually trace a descendant through the walk that forces z into ^P_{a'}.
+The tricky case is the very first advance off a, because the parent I3 must be applied at a "witness" x that may not be at a. The argument uses the fact that any job that would witness a failed exchange must have a strict successor by the target time, otherwise the exchange would be feasible, contradicting I3. Iterating successors along increasing times produces a carry descendant at a', reaching the conclusion.
+
+Exercise: Why does the "swap" invariant (I3) survive an update?
+Lemma (Invariant Swap): for a child W' built from a parent W, the invariant I3 holds at W'.
+Proof sketch. Suppose for contradiction that x in W' minus D_{a'}, y is a qualifier at a', key(x) < key(y), and there is a feasible exchange of x and y in the complete schedule. Before pruning, key order is preserved (Prune Lemma), so the comparison also holds pre-pruning.
+  - If a' > a, both x and y lie in the parent's normalized side E and both are high at cutoff S (Update Labels). The pre-pruning key order agrees with the priority order used to normalize E. But child reordering only affects slots strictly after a', so the exchange would give a feasible full schedule of the same E with a better prefix at a'. Contradicts the lexicographic minimality of E (Lemma Lex-Prefix).
+  - If a' = a: on a "switch" edge there are no new qualifiers at a, so the case is vacuous. On a "same" edge, both x and y must be carry entries (not new injections). Their pre-pruning comparison uses only carry, so by (Carry Lemma) it implies the same old-key order in the parent's list. Parent I3 rules out the same exchange. Contradiction.
+
+Exercise: What is the entry leaf-size bound?
+Lemma (Entry Size): every entry constructed by the updates has fewer than 40 leaves. This bound survives any number of same-direction updates.
+Proof sketch. Base cases: root bases, injections, and second switch base D_a are simple (each at most 3 leaves: D_a with maybe a rank suffix, plus the sentinel). The complicated entry is the G in a new switch upset. By (Old-Low Extension), the H_-* factor in G has at most 21 leaves. The three other factors of G are simple (each 1-2 leaves), and the outer rank suffix on G adds 1 leaf. So a new first switch entry has at most 25 leaves. Further same-direction trimming only tightens that outer rank suffix; it does not append a new independent condition. Simple entries stay simple.
+
+Exercise: What is the global child description?
+Lemma (Global Child): in a valid construction, let W' = (a', b') be a child of W = (a, b), with parent center v, edge cutoff S, new pruned list K', and cutoff predicate S-tilde that agrees with S on W. Then, in the edge's working frame:
+  W' minus S = Q(K') intersect P_{b'} intersect (J minus ^P_{a'})    (the "high" set)
+  W' intersect S = D_{a'} intersect P_b intersect (J minus ^D_{b'}) intersect (J minus ^D_v) intersect S-tilde    (the "low" set)
+Proof. Every high child job qualifies (by I1 for the child), precedes b' (also I1), and, since it is later than a', is outside ^P_{a'}. Conversely, a job selected by the right side of the high formula is strictly before b' by precedence, and if it were at or before a', child I2 would place it in ^P_{a'}, contradiction. So it is strictly inside W', and K' selects exactly the high jobs. For the low formula: a selected job is in D_{a'} intersect P_b, which (together with a' >= a) puts it strictly inside W. We can therefore apply S-tilde agreement to conclude it is in S. This cutoff is contained in the center-low set; if the job is at or after v, it would lie in ^D_v, contradiction. So it is in the open side E = (a, v). Within E, if the job is at or after b', it lies in ^D_{b'}, contradiction. So it is in the gap. Conversely, a low job of the gap lies in D_{a'} intersect P_b (Edge Labels) and in S-tilde (agreement), and is before both b' and v, so it is in neither weak D-cone.
+
+Exercise: What is the global cut-off predicate S-tilde?
+For each edge's cutoff S, we choose a global set S-tilde with S-tilde intersect W = S. Two cases:
+  - In the same-direction case: S-tilde = P_b minus Q(K_carry), where K_carry is the carry determined by O minus S before the injection. On W, the carry selects exactly O minus S, so S-tilde intersects W exactly as S does.
+  - In the switch-direction case: S-tilde = (J minus D_a) intersect {lambda <= r}, where r is the rank of the last promoted member of X (r = 0 before any promotion).
+These formulas are defined at every walk cutoff, whether or not the open gap is nonempty.
+
+Exercise: What is the relative split description for a marked slot?
+Lemma (Relative Splits): every marked slot z in a node W has a bounded relative description of its earlier jobs, in either the working direction that produced it or in the original direction. Specifically, put H_* = P_b (if same) or J minus D_a (if switch). Then:
+  - For the center v: the set B_v(H_*) of jobs strictly before v and H_*-closed is its earlier-set (Separator Description).
+  - For an internal mark z: the set F_z = B_v(H_*) intersect B_z(S-tilde) gives its earlier-set upon restriction to W.
+  - If the working frame is opposite to original time, F_z intersect W describes the original LATER jobs; replace F_z by (J minus F_z) minus z to get the earlier ones.
+The formulas are in the stated atomic language, and have fewer than 500 leaves.
+
+Exercise: What is the final leaf count?
+Lemma (Final Count): the predicates in (Global Child) and (Relative Splits) have fewer than 500 leaves.
+Proof sketch. A pruned list or carry has at most 5 entries with <40 leaves each, so its union has at most 195 leaves. Empty union = false constant (0 leaves).
+  - Same-direction cutoff S-tilde needs 195 + 1 (for P_b) = 196 leaves. Switch-direction needs 2 leaves.
+  - Common loose allowance: 205 leaves.
+  - High predicate: 195 + 2 = 197 leaves. Low predicate: 205 + 4 = 209.
+  - Union (global child): 197 + 209 = 406 leaves.
+  - Center predicate: 3 leaves. Internal split: 3 + 205 + 2 = 210 leaves. Conversion (J minus F_z) minus z adds 1 leaf: 211.
+  - Every cone uses an actual triple or sentinel constant; all ranks and thresholds are from the two allowed frames.
+So every needed description has fewer than 500 leaves.
+
+Exercise: How do we assemble the bounded-description hierarchy?
+Theorem (Structure) restated: every feasible full 3-machine schedule has a bounded-description hierarchy with global node predicates and relative split predicates each having fewer than 500 leaves.
+Proof. Construct marks and lists from the feasible schedule as above. The root set J is represented by the constant true. Every nonempty child has a global description by (Global Child). Every mark has a relative split description by (Relative Splits). (Final Count) places both in Fam, independently of depth. All branches terminate because node size strictly decreases (child excludes center). These are exactly the conditions of the hierarchy definition. QED.
+Parts B and C are the two halves of the algorithm. Part B proves the structural theorem: every feasible instance has a bounded-description decomposition. Part C runs the dynamic program that searches over those descriptions. Together they decide feasibility exactly in polynomial time.
+
+Part C: The algorithm
+
+Exercise: What does the DP store?
+For each set W in Fam, the DP computes a single Boolean A(W): "W is feasibly schedulable." The DP iterates by increasing |W|, so all proper subsets of W that appear in the recurrence have already been evaluated. Sets with |W| not divisible by 3 are rejected outright (feasible schedules partition jobs into triples). The empty set is accepted: A(empty) = true. For a nonempty W in Fam, the DP constructs "states" (L, Z, R) with:
+  - W = L disjoint-union Z disjoint-union R;
+  - Z is an antichain triple ("the next slot");
+  - L is W intersect F for some F in Fam (a describable "left part").
+The state (L, Z, R) is "compatible" if no job in a later part precedes a job in an earlier part. Compatibility is checked on the transitive reachability relation.
+
+Exercise: What is a compatible state, and why does compatibility matter?
+A state (L, Z, R) is compatible when the sequence L, Z, R respects precedence globally: no job in Z precedes a job in L, no job in R precedes a job in L, and no job in R precedes a job in Z. Compatibility says "we can put these three pieces in this order" without contradiction. It matters because when we concatenate a left part's schedule, then Z, then a right part's schedule, compatibility is exactly what makes the result a valid schedule: no precedence constraint points backward across the concatenation.
+
+Exercise: What transitions does the DP allow?
+An edge (L, Z, R) -> (L', Z', R') exists exactly when:
+  L union Z is a subset of L', and A(L' minus (L union Z)) is true.
+The interpretation: from state (L, Z, R), we "commit" L and Z; the new left-set L' contains the committed prefix; the "gap" L' minus (L union Z) is feasible by the recursion. The new state's Z' becomes the next selected slot.
+
+Exercise: How does the DP decide yes/no?
+Declare (L, Z, R) "initial" if A(L) is true. Declare it "final" if A(R) is true. Then A(W) = true iff some initial state can reach some final state in the state graph (allowing the trivial path of length 0). Intuitively, A(W) is true when W can be assembled by stacking slots from an accepted left part to an accepted right part through accepted gaps.
+
+Exercise: Why is the DP sound?
+Lemma (DP Soundness): if A(W) is true, then W has a feasible full schedule.
+Proof. Consider a path from an initial state (L_1, Z_1, R_1) to a final state (L_k, Z_k, R_k). Define pieces:
+  A_0 = L_1
+  A_i = L_{i+1} minus (L_i union Z_i)   for 1 <= i < k
+  A_k = R_k.
+The inclusions L_i union Z_i subset L_{i+1} give an ordered disjoint partition:
+  W = A_0 disjoint-union Z_1 disjoint-union A_1 disjoint-union Z_2 disjoint-union ... disjoint-union Z_k disjoint-union A_k.
+Each A_i is strictly smaller than W (it excludes the committed prefix) and was accepted (by the transition rule). By induction on |W|, each A_i has a feasible full schedule. Each selected Z_i is an antichain triple. Between any two adjacent pieces, some state's compatibility condition forbids a backward precedence relation. Concatenating the smaller schedules with the Z_i in order yields a feasible full schedule of W. QED.
+Exercise: What is a bounded-description hierarchy?
+Definition (Hierarchy). A bounded-description hierarchy for a feasible J is a recursive tree whose root is the whole schedule, and whose nodes are open intervals W (identified with their job set). At each node W:
+  - Any full schedule of W's job set may replace the node's witness (interval reordering);
+  - One or more actual slots of the witness are marked as "cut points";
+  - The nonempty open gaps between successive marks, and the gaps between the boundaries and the first/last mark, become the node's children;
+  - The following descriptions are required:
+    (i) every node's job set belongs to Fam;
+    (ii) for every marked triple z, the set of jobs of W that precede z in original time is described relative to W: W intersect F for some F in Fam.
+Crucially, the hierarchy is unbounded in depth: you may recurse as deep as needed. The only bound is the leaf count of the descriptions (measured in the family Fam), not the depth. That is what makes this definition work.
+
+Exercise: Why does a bounded-description hierarchy imply the DP accepts?
+Lemma (Hierarchy DP): if a feasible J has a bounded-description hierarchy, then A(J) is true.
+Proof. Induct on |W|. At a node W, let its marks in chronological order be z_1, ..., z_m. Property (ii) gives each z_i a relative description W intersect F_i for its earlier jobs within W. Define states (L_i, Z_i, R_i) with Z_i = z_i, L_i = W intersect F_i, R_i = W minus (L_i union Z_i). These are compatible (the z_i came from an actual schedule of W, so nothing later precedes anything earlier). Moreover:
+  - A(L_1) is true by induction: L_1 is a child of W (the initial gap), which is strictly smaller than W and belongs to Fam (property (i)).
+  - For 1 <= i < m, the transition L_i -> L_{i+1} is exactly L_i union Z_i = L_{i+1} minus (child gap). The gap between z_i and z_{i+1} is A_{i+1} = L_{i+1} minus (L_i union Z_i), a smaller accepted child, so the transition holds.
+  - A(R_m) is true: R_m is a child (the final gap).
+The sequence (L_1, Z_1, R_1) -> ... -> (L_m, Z_m, R_m) is a path from an initial state to a final state, so A(W) is true. QED.
+
+Exercise: How do the two halves combine?
+Theorem (Main): there is a uniform deterministic algorithm that constructs a feasible schedule of minimum makespan for any input DAG on n unit jobs, and decides feasibility in any given deadline T. Both tasks run in (L + 2)^150020 steps on a deterministic multitape Turing machine, where L is the total input length.
+Proof. Apply the four lemmas in order:
+  (Padding): the input instance with n jobs and deadline T reduces to a padded instance with N = 3T jobs (or rejection if n > 3T), preserving feasibility.
+  (DP Soundness): if A(J) is true on the padded instance, a feasible full schedule of J is returned (the algorithm reconstructs it by tracing predecessor states and concatenating accepted pieces).
+  (Hierarchy DP): if the padded instance is feasible, its schedules satisfy the hypothesis of (Structure), and (Hierarchy DP) makes A(J) true.
+  (Structure): every feasible padded instance has a bounded-description hierarchy.
+So the algorithm is sound and complete for the padded instance; flipping back to the input via padding, it decides the deadline exactly. For minimizing Cmax, run the deadline decision at each T = 1, 2, ..., n, and take the smallest feasible T. A topological ordering of the DAG gives a feasible schedule in <= n slots, so this loop always succeeds. Return the stored full schedule, drop the padding jobs, and assign the at most three remaining jobs in each slot to distinct machines. QED.
+
+Exercise: What does the "completeness" argument rely on that might look circular?
+Nothing. The proof assembles four independent claims:
+  - (Padding) is arithmetic: feasibility is preserved by adding/removing isolated jobs.
+  - (Structure) is a pure combinatorics theorem: given any feasible full schedule, one can construct a bounded-description hierarchy by normalization. It does not assume the algorithm exists. It only assumes the schedule exists (certificate-style existence, not algorithm-style construction).
+  - (Hierarchy DP) shows that ANY set with a bounded-description hierarchy is accepted by the DP. It is a proof-theoretic statement about the DP: it says the DP explores enough of Fam.
+  - (DP Soundness) shows acceptance implies existence of a schedule.
+Putting them together: (Structure) gives hierarchy; (Hierarchy DP) turns hierarchy into acceptance; (DP Soundness) turns acceptance into schedule. No step assumes what it tries to prove.
+Part D: How many steps does this take?
+
+Exercise: How large is the family Fam, as a function of N?
+Lemma (Family): the family Fam can be generated deterministically in polynomial time and represented as N-bit vectors.
+Proof sketch. There are O(N^3) atomic tests (each triple, in either frame, plus rank thresholds lambda <= k and lambda >= k, k = 0..N+1). The number of binary tree shapes with at most K leaves is a constant that depends only on K (in fact enormous but fixed). Assigning one of O(N^3) labeled atoms to each leaf gives at most O(N^{3K}) distinct formulas. Since K = 10000 is fixed, N^{3K} = N^{30000} is polynomial in N. Compute each formula's truth set from the precomputed reachability matrix, store as an N-bit vector, and deduplicate by comparing vectors pairwise. Deduplication is a quadratic scan over O(N^{3K}) formulas, still polynomial. QED.
+
+Exercise: How many states does the DP have for a fixed set W?
+For a single W in Fam, a state is (L, Z, R) with:
+  - L in Fam and L subset of W. At most |Fam| choices.
+  - Z an antichain triple contained in W. At most O(N^3) choices.
+  - R determined as W minus (L union Z). One choice.
+So O(|Fam| * N^3) states per W. Summing over all W in Fam gives O(|Fam|^2 * N^3) total states.
+
+Exercise: How many transition tests?
+Each transition test between states (L, Z, R) and (L', Z', R') checks two conditions: L union Z is a subset of L', and A(L' minus (L union Z)) is true. Each check is O(N) on bit vectors. The number of candidate pairs is at most the square of the state count: O(|Fam|^4 * N^6). Add the reconstruction overhead (copying stored schedules, concatenating pieces): another factor of O(N) per accepted pair. All told, the poly-time bound is enormous but bounded.
+
+Exercise: Where does the exponent 150020 come from?
+The paper's stated bound is (L + 2)^150020 with L = input length in bits. The number comes from this chain, with K = 10000:
+  - |Fam| <= N^{3K} = N^{30000}. (3 * 10000 = 30000.)
+  - States per W: |Fam| * N^3 = N^{3K+3} = N^{30003}.
+  - Total states: |Fam|^2 * N^3 = N^{6K+3} = N^{60003}.
+  - State pairs: (|Fam|^2 * N^3)^2 = |Fam|^4 * N^6 = N^{12K+6} = N^{120006}.
+  - Reconstruction: +1 in the exponent (one N per stored schedule).
+  - Multitape-TM simulation: a fixed constant multiplier.
+A back-of-the-envelope bound gives about N^{120007}. For a dense input (L ~ N^2) that is (L+2)^60004; for a sparse input (L ~ N) it is (L+2)^120007. The paper's Section 6 uses more conservative multitape-TM accounting and ends with (L+2)^150020. Both are fixed constants independent of N. The point is polynomiality, not the specific constant.
+
+Rule of thumb for exponent arithmetic: 3K = 30000 when K = 10000; squaring gives 60000; cubing gives 90000; raising to the fourth gives 120000. If a derivation produces an exponent much smaller than expected, it is almost certainly missing a multiplicative layer of |Fam|.
+
+Exercise: Is the constant exponent 150020 the "best" the paper could do?
+No. The paper says only "the polynomial supplied by the proof has a very large constant exponent; no practical running-time claim is made." Tightening the constants (smaller K, tighter per-stage bounds, fewer nested quantifications) would bring the exponent down, but no such optimization is attempted. The theorem's contribution is structural (P vs NP-hard vs open), not quantitative (practical algorithms).
+Part E: What the paper does and does not assume
+
+Exercise: What was NOT assumed about the input?
+The main theorem applies to any explicitly listed finite DAG, with no structural restrictions:
+  - No bound on height h.
+  - No bound on the number of sources (previous subexponential approaches assumed at most m sources; this paper does not).
+  - No requirement that the DAG be a chain, tree, forest, opposing forest, height-bounded.
+  - No probabilities: fully deterministic algorithm, no randomness.
+  - No approximation: exactly optimal schedule and exact deadline decision.
+  - No subexponential-only trick: genuine polynomial-time, not quasi-poly.
+  - No projectivity analog: no requirement that the instance have a "nice model" of any kind. It is a pure DAG + deadline.
+
+Exercise: What WAS assumed about the model of computation?
+The paper uses the standard model: a deterministic multitape Turing machine. Input is the explicit adjacency matrix or edge list of the DAG, plus the integer deadline T, with total binary length L. Arithmetic on small integers, bit-vector operations, and comparisons are all counted in TM steps. No oracle, no unit-cost RAM, no quantum, no nonuniform circuits. Everything is uniform.
+
+Exercise: What is the relationship to the subexponential 2025 result?
+Nederlof, Swennenhuis, Wegrzycki (SODA 2025) gave a 2^{O(sqrt(n) log^2 n)} algorithm. The present paper is a strict improvement in the exponent: from sub-exponential sqrt(n) growth to polynomial (L + 2)^150020 growth. The improvement is structural: NJW's key assumption "at most m sources" forced a nontrivial extension to arbitrary DAGs, and their overall decomposition added a sqrt(n) overhead per iteration of the source-reduction. The present paper sidesteps both by using bounded-description sets and a completely different structural lemma (Structure). NJW's structural decomposition remains useful conceptually: the "many small intervals around a center" picture is the same one this paper uses.
+
+Exercise: What is the relationship to the fixed-m Dolev-Warmuth result?
+Dolev-Warmuth 1984 gave O(n^{h(m-1)+1}) for fixed m and bounded height h. For m = 3, that is O(n^{2h+1}). For h = 1 (one slot), that is O(n^3); for h = 2, O(n^5); for h = 3, O(n^7); and so on. This "solves" any instance of bounded height in poly time, with the poly depending on h. But the whole point of the general case is that h can be as large as n, and then the DW exponent goes to O(n^{2n+1}), exponential. The present paper removes the h dependence entirely. In one sentence: Dolev-Warmuth was polynomial-for-fixed-height; this paper is polynomial-for-all-height.
+
+Exercise: What is the relationship to the "opposing forests" result?
+Garey, Johnson, Tarjan, Yannakakis 1983 handled the case where the DAG is a union of one in-tree and one out-tree ("opposing forests"). Their proof uses forbidden-substructure arguments and a constant number of case analyses. The present paper handles the complete DAG case; the opposing-forest case becomes a trivial corollary (special DAG structure implies special Fam structure, but the general algorithm already covers it). So "opposing forests" is no longer a distinguished case.
+
+Exercise: What is the relationship to the approximation line?
+Levey-Rothvoss 2016, Garg 2018, Li 2021, Das-Wiese 2022 all give (1 + epsilon)-approximations in quasi-poly or poly time depending on the paper. These results are still relevant because:
+  - They run in time poly(n) * 2^{poly(1/epsilon)}, which for moderate epsilon is more practical than (L+2)^150020;
+  - They extend to more general scheduling problems (machines of unequal speed, release dates, weights);
+  - They may extend to weighted or resource-constrained versions where the exact polynomial algorithm below does not apply.
+So the exactness result does not "kill" the approximation line; it complements it. Exactness answers the complexity-theoretic question; approximation answers the practical question.
+Part F: What remains open
+
+Exercise: Is this a "practical" algorithm I can implement?
+No. The exponent 150020 makes it completely impractical for any real N. A C implementation would time out on any N >= 3, because |Fam| ~ N^{30000} is astoundingly large. The paper is explicit: "no practical running-time claim is made." For real-world scheduling problems at n in the tens or hundreds, use:
+  - MILP (branch-and-bound with CP-SAT or SCIP);
+  - Approximation algorithms from Levey-Rothvoss, Garg, Li, Das-Wiese for epsilon-approximations;
+  - Heuristics (coffman-graham-list-scheduling, LPT).
+The present paper answers the polynomial-time question, not the practical-scheduling question.
+
+Exercise: What related problems are still open?
+  - Exact complexity when job lengths are nonuniform (p_j != 1)? Lookahead scheduling, restricted job sizes. Some progress exists (2-machine nonuniform is poly; m-machine with p_j in {1, 2} is close).
+  - Exact complexity for other precedence structures combined with machine limits: e.g., P4 | prec, p_j = 1 | Cmax. The present paper is 3-specific: the "three" is used in the capacity-three argument (ending triple b' has 3 slots), and it is not obviously extendable to 4. There is no P4 polynomial algorithm known.
+  - Malleable jobs, or jobs with arbitrary machine sets.
+  - Approximation constant. The best approximation for m in input is O(log n / log log n). For 2 machines, there is a PTAS. Between 2 machines and general m, exact approximation and exact optimum are both open.
+  - Improving the exponent 150020 of this algorithm, or finding a genuinely practical exact algorithm for moderate N (say N up to 100). Even N=30 would be a huge practical result.
+
+Exercise: What is the significance beyond scheduling?
+The paper's bounded-description technique is a general pattern:
+  "Enumerate a polynomial-size family of simple descriptions. Prove a structural theorem that every feasible instance has a witness built from these descriptions. Feed to a DP."
+The pattern applies to:
+  - Other scheduling problems with precedence (e.g., project scheduling, resource-constrained scheduling);
+  - Combinatorial optimization where the "search space" is exponential but the "frontier" is small;
+  - Parameterized complexity when one bound (here: at most 5 entries per list) controls the search space;
+  - Checkability of exponentially large certificates by small descriptions (like a PCP applied to scheduling).
+The point is that the specific polynomial (N^{30000}) is unimportant: the pattern itself is.
+
+Part G: How to read the paper yourself
+
+Exercise: What is the paper's structure, in one paragraph?
+The paper (paper.tex, boundary.tex, construction.tex, descriptions.tex, plus separators.tex which is referenced but not shipped in the excerpt) is organized as:
+  - Section 1: Introduction, main theorem.
+  - Section 2: Preliminaries (padding, interval reordering, two frames, cones, ranking, linear extension, families).
+  - Section 3: The algorithm statement (states, transitions, acceptance).
+  - Section 4: Structural theorem (roots, marks, shared cutoffs, update lemmas, list-length, flattening, final count).
+  - Section 5: Boundary invariants (I1, I2, I3, carry lemma, prune lemma).
+  - Section 6: Complexity bound.
+  - Section 7: Conclusion.
+
+Exercise: What are the key definitional symbols I should memorize before reading the paper?
+  - V = set of jobs, |V| = n.
+  - J = padded job set, |J| = N = 3T.
+  - <~ = transitive reachability in the DAG.
+  - lambda = rank function (a linear extension, so lambda is monotone: x<~y implies lambda(x) < lambda(y)).
+  - D_a = { x : exists y in a, x<~y } (strict predecessor cone of a).
+  - P_b = { x : exists y in b, y<~x } (strict successor cone of b).
+  - ^D_a = D_a union a (weak predecessor cone).
+  - ^P_b = P_b union b (weak successor cone).
+  - W = the job set of an open interval (identified with the interval).
+  - Fam = the family of sets described by formulas with <= K = 10000 leaves.
+  - K = (K_1, ..., K_l) = a list of upsets (a "pruned list of the node").
+  - K = union K_i (qualifier set).
+  - O = W intersect K (local old-high set).
+  - Q(K) = union of K_i (which we just called K; note the abuse of notation).
+  - v = center of W (a slot separating W).
+  - s_0, ..., s_q = shared-cutoff walk boundaries, v = s_{q+1}.
+  - A(W) = Boolean accepted by the DP.
+
+Exercise: What are the key lemma numbers or names to look up?
+From paper.tex:
+  - thm:main (main theorem)
+  - lem:padding, lem:reorder (preliminaries)
+  - lem:family (Fam enumerable)
+  - prop:algorithm (DP correctness)
+  - lem:hierarchy-dp (hierarchy implies accept)
+  - thm:structure (structural theorem)
+From construction.tex:
+  - lem:shared (shared cutoff walk)
+  - lem:edge-labels (child interval inheritance)
+  - lem:carry, lem:prune (list update)
+  - lem:update-labels (both updates give right qualifier sets)
+  - lem:list-length (at most 5 entries, 3 injections)
+  - lem:flatten (local flattening)
+  - lem:old-low (short extension of low set)
+  - lem:G (switch upset G properties)
+  - lem:entry-size (each entry < 40 leaves)
+  - lem:past (Invariant 2 preservation)
+  - lem:swap (Invariant 3 preservation)
+  - lem:global-child (child global description)
+  - lem:relative-splits (relative descriptions of marks)
+  - lem:final-count (<500 leaves total)
+From boundary.tex:
+  - lem:separator-description (separator formula)
+  - lem:lex-prefix (lex normal form prefix comparison)
+  - cor:any-ideal (center exists for any ideal)
+From descriptions.tex:
+  - lem:G (the switch upset G construction)
+Path of the argument (roughly):
+  lem:padding
+    -> lem:reorder
+    -> lem:family
+    -> thm:structure (built from lem:shared, lem:edge-labels, lem:update-labels, lem:list-length, lem:past, lem:swap, lem:global-child, lem:relative-splits, lem:final-count)
+    -> lem:hierarchy-dp
+    -> prop:algorithm
+    -> thm:main.
+
+Part H: A minimal Python prototype
+
+Exercise: What are the paper's constexprs, and the arithmetic that follows?
+The paper's algorithm depends on exactly six integer constants. In C++:
+    constexpr int K_LEAVES          = 10000;
+    constexpr int FRAMES            = 2;
+    constexpr int MAX_CARRY         = 5;
+    constexpr int MAX_INJECTIONS    = 3;
+    constexpr int MAX_ENTRY_LEAVES  = 40;
+    constexpr int MAX_FINAL_LEAVES  = 500;
+Derived counts, every multiplication spelled out:
+    MAX_ATOMS    = O(N^3)                     (about 10 * N^3 positive atoms if both frames used)
+    MAX_FORMULAS = MAX_ATOMS ^ K_LEAVES       = O(N^30000)     (3 * 10000 = 30000)
+    STATES_PER_W = MAX_FORMULAS * N^3         = O(N^30003)     (30000 + 3)
+    TOTAL_STATES = MAX_FORMULAS * STATES_PER_W = O(N^60003)    (30000 * 2 + 3)
+    STATE_PAIRS  = TOTAL_STATES ^ 2           = O(N^120006)    (60003 * 2)
+    RECON_FACTOR = N (one factor for stored schedules) -> O(N^120007)
+    TOTAL_STEPS  = O(N^120007)                (structural back-of-envelope)
+    PAPER_BOUND  = O((L+2)^150020)            (paper's official, looser, bit-level TM counting)
+The only "surprise" number is 3 * K_LEAVES = 30000. Square it: 60000. Fourth power: 120000. Exponent arithmetic is multiplication; the paper's 150020 is the same kind of number at a looser level of TM accounting.
+
+Exercise: What is a working prototype that matches the algorithm?
+The prototype has the same constants as the paper, except K_LEAVES: we use 2 (instead of 10000). Every other constant matches. Constants and code:
+
+    import itertools
+
+    K_LEAVES = 2   # paper: 10000. prototype: 2.
+
+    def prototype(edges, n, deadline):
+        N = 3 * deadline
+        if n > N:
+            return None
+        # Transitive closure of the DAG on 0..N-1.
+        R = [[False]*N for _ in range(N)]
+        for (u, v) in edges:
+            R[u][v] = True
+        for k in range(N):
+            for i in range(N):
+                if R[i][k]:
+                    for j in range(N):
+                        if R[k][j]:
+                            R[i][j] = True
+        # Unordered antichain triples of size 3.
+        triples = [t for t in itertools.combinations(range(N), 3)
+                   if not any(R[a][b] or R[b][a] for a in t for b in t)]
+        # Atomic tests as bitmasks (true, false, rank thresholds, cones).
+        ALL = (1 << N) - 1
+        atoms = {ALL, 0}
+        for k in range(N + 1):
+            atoms.add((1 << k) - 1)
+        for t in triples:
+            Tmask = sum(1 << x for x in t)
+            D = sum(1 << x for x in range(N) if any(R[x][y] for y in t))
+            P = sum(1 << x for x in range(N) if any(R[y][x] for y in t))
+            atoms.update({Tmask, D, P, D | Tmask, P | Tmask})
+        # Fam: close under AND and OR for K_LEAVES - 1 rounds.
+        fam = set(atoms)
+        for _ in range(K_LEAVES - 1):
+            snap = list(fam)
+            for a in snap:
+                for b in snap:
+                    fam.add(a & b); fam.add(a | b)
+        # DP over Fam, in increasing |W|.
+        A = {0: True}
+        for W in sorted(fam, key=lambda w: bin(w).count("1")):
+            if W in A: continue
+            sz = bin(W).count("1")
+            if sz % 3: A[W] = False; continue
+            ok = False
+            for t in triples:
+                Tmask = sum(1 << x for x in t)
+                if Tmask & W != Tmask: continue
+                L = W & ~Tmask
+                if L not in A or not A[L]: continue
+                if not any((Tmask >> z) & 1 and (L >> l) & 1 and R[z][l]
+                           for z in range(N) for l in range(N)):
+                    ok = True; break
+            A[W] = ok
+        return A.get(ALL, False)
+
+Exercise: Does it work? Try four small instances.
+    print(prototype([], 3, 1))                                      # True
+    print(prototype([], 6, 2))                                      # True
+    print(prototype([(0, 1)], 6, 2))                                # True
+    print(prototype([(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], 6, 2))  # False
+Expected output: True / True / True / False. Explanation:
+- 3 jobs, 1 slot: fits trivially.
+- 6 isolated jobs, 2 slots: fits as two triples.
+- 6 jobs plus edge 0 -> 1: put 0 in first slot, 1 in second.
+- chain of 6 (0 -> 1 -> ... -> 5): needs 6 slots, not 2.
+
+Exercise: Can I run the paper's version with K_LEAVES = 10000?
+MAX_FORMULAS = (O(N^3))^10000 = N^30000. For N=6, 6^30000 is about 10^23343 formulas. Storing one byte per formula needs 10^23343 bytes, exceeding the number of atoms in the observable universe (about 10^80) by many orders of magnitude. So no. The paper's claim is polynomiality; the paper says explicitly "no practical running-time claim is made." Pick K_LEAVES small enough to run (2 or 3), and note that the structural theorems hold for any K_LEAVES because they never use the specific value.
+
+Exercise: Two-frame caveat.
+The prototype uses only the original frame. A full implementation must build atoms from both the original and the reversed frame, which doubles MAX_ATOMS but does not change any exponent. For the four tiny examples above, the original frame alone suffices.
+
+Part I: References
+
+Exercise: What are the papers I should read after this one?
+Original references cited by the paper (all in references.bib):
+  - [Ullman 1975] J. D. Ullman, "NP-complete scheduling problems", J. Comput. Syst. Sci. 10(3):384-393. doi:10.1016/S0022-0000(75)80008-0. Establishes NP-hardness for m-variable.
+  - [Fujii-Kasami-Ninomiya 1969] M. Fujii, T. Kasami, K. Ninomiya, "Optimal sequencing of two equivalent processors", SIAM J. Appl. Math. 17(4):784-789. doi:10.1137/0117070. Erratum 20(1):141, 1971. The 2-machine result.
+  - [Coffman-Graham 1972] E. G. Coffman, R. L. Graham, "Optimal scheduling for two-processor systems", Acta Informatica 1(3):200-213. doi:10.1007/BF00288685. The other 2-machine result, independently proven.
+  - [Garey-Johnson 1979] M. R. Garey, D. S. Johnson, "Computers and Intractability: A Guide to the Theory of NP-Completeness", W. H. Freeman, MR0519066. OPEN8 proposes the 3-machine case.
+  - [Garey-Johnson-Tarjan-Yannakakis 1983] "Scheduling opposing forests", SIAM J. Alg. Disc. Meth. 4(1):72-93. doi:10.1137/0604011. The opposing-forest case.
+  - [Dolev-Warmuth 1984] D. Dolev, M. Warmuth, "Scheduling flat graphs", J. Algorithms 5(1):48-59. doi:10.1016/0196-6774(84)90039-7. Fixed-height bound.
+  - [Levey-Rothvoss 2016] E. Levey, T. Rothvoss, "A (1 + epsilon)-approximation for makespan scheduling with precedence constraints using LP hierarchies", STOC 2016. doi:10.1145/2897518.2897532. Approximation.
+  - [Garg 2018] S. Garg, "Quasi-polynomial time approximation algorithm for low-depth short-length precedence constrained scheduling", ICALP 2018. doi:10.4230/LIPIcs.ICALP.2018.59. Approximation.
+  - [Li 2021] S. Li, "Scheduling to minimize makespan with precedence constraints and the smallest number of machines", SODA 2021. doi:10.1137/1.9781611976465.178. Approximation.
+  - [Das-Wiese 2022] S. Das, A. Wiese, "A simpler QPTAS for scheduling jobs with precedence constraints", ESA 2022. doi:10.4230/LIPIcs.ESA.2022.40. QPTAS.
+  - [NSW2025] J. Nederlof, C. M. F. Swennenhuis, K. Wegrzycki, "A subexponential time algorithm for makespan scheduling of unit jobs with precedence constraints", SODA 2025, pp. 535-552. doi:10.1137/1.9781611978322.16. Predecessor to the present paper.
+
+The present paper:
+  - "A Polynomial-Time Algorithm for Three-Machine Unit-Job Scheduling", OpenAI, September 24, 2026 (paper.tex in the A-polynomial-time-algorithm-for-three-machine-unit-job-scheduling/ directory).
+
+Other items worth knowing:
+  - [Lenstra-Rinnooy Kan 1978] J. K. Lenstra, A. H. G. Rinnooy Kan, "Complexity of scheduling under precedence constraints", Operations Research 26(1):22-35. doi:10.1287/opre.26.1.22. Historical; also settles most of the NP-hard frontier.
+  - [Graham 1969] R. L. Graham, "Bounds on multiprocessing timing anomalies", SIAM J. Appl. Math. 17(2):416-429. doi:10.1137/0117039. The (4/3 - 1/(3m))-approximation for list scheduling with no precedence.
+
+Exercise: What other problems has the same "P vs open" character?
+The following have a similar character (fixed-m with precedence has open cases between poly and NP-hard):
+  - P4 | prec, p_j = 1 | Cmax (4 machines) - open, m-variable is NP-hard, m=3 now known.
+  - Precedence scheduling with rejection penalties.
+  - Scheduling with deadlines and release dates.
+For all of these, some bounded cases are solved, some are NP-hard, and the "middle" is unknown.
+
+END OF STUDY GUIDE.
