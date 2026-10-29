@@ -1,0 +1,2126 @@
+================================================================================
+  UNBOUNDED VIOLATIONS OF THE SQUARE-ROOT DEGREE BOUND
+  Or: how one Boolean function can beat the conjectured limit by any factor
+  A friendly, complete tour for a smart high-school reader
+================================================================================
+
+by way of explanation of the paper
+  "Unbounded Violations of the Square-Root Degree Bound"
+
+This document is written so that a curious high-school student can read
+it from start to finish and understand what the paper proves and how it
+proves it. Every technical term is defined the first time it appears.
+Nothing important is hand-waved. The main theorem has a full proof here:
+the argument is split into pieces, each piece is proved, and at the end
+the pieces are snapped together. A short glossary near the back repeats
+all the jargon.
+
+A note on what "proof" means here. In math a claim is not true because it
+sounds reasonable; it is true because it follows, step by step, from
+definitions and from things already proved. So you will see the word
+"Proof" a lot, followed by a short argument. If you read only the proofs
+of the four or five starred results, you will have the whole skeleton.
+
+--------------------------------------------------------------------------------
+WHO IS THIS FOR?
+--------------------------------------------------------------------------------
+
+You should know:
+  - what a function is;
+  - what "average" (expected value) means, and that average is linear;
+  - that a probability is a number between 0 and 1.
+That is essentially all. We build the rest from scratch. The scariest
+symbols are just shorthand; each is introduced in plain words.
+
+--------------------------------------------------------------------------------
+THE QUESTION, IN ONE SENTENCE
+--------------------------------------------------------------------------------
+
+A "Boolean function" turns n yes/no answers into one yes/no answer. We can
+write it as an ordinary polynomial in the n inputs. Two natural numbers
+describe it: its "degree" (roughly, the size of the largest product of
+inputs the polynomial really uses) and its "linear weight" (how strongly
+it agrees with simply adding the inputs). Intuition from elementary
+examples said: linear weight can be at most about the square root of the
+degree. This paper proves that intuition is completely wrong: for ANY
+constant you like, there is a Boolean function whose linear weight is
+more than that constant times the square root of its degree. No constant
+works. The "square root" idea dies.
+
+--------------------------------------------------------------------------------
+THE MAIN THEOREM
+--------------------------------------------------------------------------------
+
+Let us state it now, precisely, so you know what we are aiming at. The
+symbols are all explained in Part 1; skip back when you need to.
+
+================================================================================
+THEOREM 1 (Unbounded violations of the square-root degree bound).
+There is no constant K such that every nonconstant Boolean function f
+satisfies  sum_i fhat(i)  <=  K * sqrt(deg f).
+
+Equivalently: for every real number C > 0 there exist a number of bits n
+and a nonconstant function f from {+1,-1}^n to {+1,-1} such that
+
+        sum over i of fhat({i})   >   C * sqrt( deg f ).
+
+Here fhat({i}) is the "linear Fourier coefficient" attached to bit i
+(Part 1), and deg f is the degree of the polynomial for f (Part 1).
+The signed sum and the sum of absolute values are interchangeable, so
+the absolute-value version also blows up:
+
+        sup over all Boolean f with deg f > 0 of
+             ( sum_i | fhat({i}) | ) / sqrt(deg f)  =  infinity.
+================================================================================
+
+Read the second displayed line slowly. C is yours to choose: a million,
+a googol, whatever. Somewhere out there is a (very large, very strange)
+Boolean function whose linear weight dwarfs C times the square root of
+its degree. That is what "unbounded violation" means.
+
+--------------------------------------------------------------------------------
+ROADMAP
+--------------------------------------------------------------------------------
+
+PART 1. Bits, the plus/minus cube, polynomial degree, and Fourier
+        coefficients. Worked examples: AND, OR, parity, majority,
+        dictator. (The vocabulary.)
+
+PART 2. The linear weight S(f) = sum_i fhat({i}) and where it comes from.
+        Two honest bounds: the easy sqrt(n) bound, and the sharp linear
+        bound from Nisan and Szegedy. The conjecture in between. (Why
+        anybody believed a square root bound.)
+
+PART 3. The majority benchmark and a short history: Jha, Wang, Kudin
+        and Pasalic. (Context; nothing used later.)
+
+PART 4. The plan of the proof: observations, their "score", "retained
+        variance", "cell degree bound", and the sign readout. Lemma that
+        turns a big variance-to-degree ratio into Theorem 1. (The engine.)
+
+PART 5. The heart: a reporting rule on m+1 inputs that keeps more than m
+        units of variance while costing only m in degree, thanks to an
+        exact cancellation identity. (The trick.)
+
+PART 6. Choosing the intervals with Gaussian inputs so the trick pays off
+        by a strict margin. (The calibration.)
+
+PART 7. From Gaussians back to finite bit strings (transfer), and the
+        amplification loop that reaches any ratio. Full proof of Theorem 1
+        assembled here.
+
+PART 8. Two variant reporting rules: merge the all-pass reports, or switch
+        in a fresh independent input. (Shows which ingredient matters.)
+
+PART 9. Different outputs may cost different degrees; a "mean cost"
+        version still amplifies. (Generalization.)
+
+PART 10. A second Gaussian schedule for the merged rule (small width).
+
+PART 11. What is and is not proved. Honest limits.
+
+PART 12. Glossary.
+
+PART 13. Verbatim statements of the main results, for cross-checking.
+
+Now down to work.
+
+================================================================================
+PART 1. BITS, THE PLUS/MINUS CUBE, DEGREE, AND FOURIER COEFFICIENTS
+================================================================================
+
+1.1. Bits as plus/minus one
+--------------------------------------------------------------------------------
+
+A bit is a yes/no, on/off, true/false answer. It is convenient to write
+yes as +1 and no as -1. (Written {+1,-1}: by far the cleanest bookkeeping.)
+An input is a string of n bits, and there are 2^n possible strings. The
+set of all of them is often drawn as the n-dimensional cube, because
+each bit only moves you between two opposite faces. We call it the cube.
+
+A Boolean function is a rule f that eats an input and returns one bit.
+So f: {+1,-1}^n -> {+1,-1}. It is the same as a truth table with 2^n
+rows, one output per row. For example the two-bit AND function returns
++1 only for input (+1,+1), and -1 on the other three rows.
+
+1.2. Every Boolean function is a polynomial, and that gives it a degree
+--------------------------------------------------------------------------------
+
+Here is a fact that surprises almost everyone the first time. Take any
+Boolean function f. It can be written, uniquely, as a polynomial in the n
+inputs where every variable appears at most to the first power:
+
+  f(x_1,...,x_n) = sum over subsets S of {1,...,n} of  c_S * (product of x_i for i in S).
+
+The empty product (S empty) is the constant 1. Each number c_S is the
+coefficient attached to the product of the bits in S. Uniqueness is the
+reason this is powerful: there is exactly one such expansion.
+
+Why does such a polynomial exist? Because on the cube each x_i squared
+equals 1 (since x_i is +1 or -1), so any power x_i^2 can be replaced by
+1, shaving exponents down to at most 1; repeating leaves a sum of
+products in which each variable appears at most once. Little else is
+needed; that reduction and linear algebra pin the c_S down.
+
+The DEGREE of f, written deg f, is the size of the largest S whose
+coefficient c_S is nonzero. Constants (all outputs equal) have degree 0.
+A function like "just return x_1" (a dictator, ignoring every other bit)
+has degree 1: only the product {1} survives.
+
+1.3. Fourier coefficients
+--------------------------------------------------------------------------------
+
+The coefficient c_S above has a clean formula. Average f times the
+product of the bits in S, over all inputs chosen uniformly at random.
+Then the constant parts average to 1 and every wobbling part averages
+away; the survivor is exactly c_S. We write
+
+  fhat(S) = average over all inputs x of  ( f(x) * product of x_i for i in S ).
+
+This number is called the Fourier coefficient of f at S. The Fourier
+expansion is just the polynomial in Section 1.2 rewritten with fhat in
+place of c_S. In particular:
+
+  deg f = the largest |S| with fhat(S) not equal to 0.
+
+The coefficients with |S| = 1 are the LINEAR coefficients fhat({i}); they
+are the players in our story. If Si means "the set whose only member is
+i", we write fhat(i) for fhat({i}).
+
+The set of all the numbers fhat(S) is the Fourier spectrum of f. Two
+bookkeeping facts we will use repeatedly:
+
+  (Parseval)      sum over all S of fhat(S)^2 = 1.
+  (Total influence) sum over S of |S| * fhat(S)^2 = I(f), the total
+                  influence of f: the expected number of coordinates i
+                  such that flipping just x_i would change f's value,
+                  for a uniformly random input x. (Recalled in Part 2.)
+
+Parseval is just the polynomial identity "average of f^2 = sum of squares
+of coefficients", and f^2 = 1 everywhere. The influence fact is standard
+and we only ever quote the inequality it gives in Part 2.
+
+1.4. Worked examples
+--------------------------------------------------------------------------------
+
+To get a feel, here are five Boolean functions and their spectra. All
+examples are symmetric in the indices where they can be, so a coefficient
+depends only on |S|.
+
+DICTATOR. f(x) = x_1. Only fhat({1}) = 1 survives; deg 1. Linear sum:
+fhat(1) = 1, and 1 <= sqrt(1). Square-root bound holds with room.
+
+PARITY. f(x) = product of all n bits. One coefficient, fhat({1,...,n}) =
+1, deg n. Every fhat(i) = 0, so the linear sum is 0. Degree is as big as
+possible and the linear weight is as small: parity is the opposite extreme
+from a dictator.
+
+AND (equivalently OR after a relabelling). Returns +1 only on the all
++1 input, so its degree is n, the maximum. But its linear coefficients
+are tiny: a short computation gives fhat(i) = 1/2^(n-1) for every i, so
+the whole linear sum n/2^(n-1) shrinks to zero. AND sits at the LOW
+weight end, like parity, despite maximal degree. Lesson: degree alone
+never predicts linear weight.
+
+MAJORITY. f(x) = sign of (x_1 + ... + x_n), with +1 at ties. Degree is n
+too. Its linear coefficients are all equal; its linear sum equals the
+average absolute value of the sum of n signs, which is close to
+sqrt(2n/pi). That is bigger than sqrt(n)/2 but smaller than sqrt(n).
+
+THRESHOLDS. The "m of the n bits" functions return +1 when at least m of
+the bits are +1. They run from AND (m=n) through majority (m near n/2)
+to OR (m=1). Their linear weight is largest at the balanced majority
+point, about sqrt(2n/pi), and shrinks toward either end. So none of these
+familiar functions beats the sqrt(n) ceiling; a counterexample must be
+stranger than any plain threshold.
+
+Two morals, both used later.
+  - Degree and linear weight are genuinely different quantities. Parity
+    maxes degree and kills linear weight; a dictator maxes linear weight
+    and minimizes degree.
+  - The interesting zone is when both are moderate, e.g. "almost
+    majority" functions on cleverly chosen inputs. Our counterexample is
+    built to live in exactly that zone.
+
+That is all the raw material we need. In Part 2 we define the linear
+weight S(f) = sum_i fhat(i) and prove the two bounds that frame the
+whole problem.
+
+================================================================================
+PART 2. LINEAR WEIGHT, THE EASY BOUND, AND THE SHARP LINEAR BOUND
+================================================================================
+
+2.1. The linear weight S(f)
+--------------------------------------------------------------------------------
+
+Everything is about one number. For a Boolean function f define
+
+  S(f) = fhat(1) + fhat(2) + ... + fhat(n) = sum over i of fhat({i}).
+
+This is the "linear weight" promised earlier. By the formula in Part 1,
+each fhat(i) is the average of f times x_i. Adding averages (average is
+linear!) and writing H = x_1 + ... + x_n for the sum of the input bits:
+
+  S(f) = average over inputs x of  f(x) * ( x_1 + ... + x_n )
+       = average of  f(x) * H(x).
+
+Read this literally. H is the number you get by adding n pesky +1/-1
+values; it wobbles around 0, with typical size about sqrt(n). And f(x)
+is +1 or -1. S(f) is the average of (a +1/-1 number) times H. It is large
+exactly when f tends to AGREE, on average, with the sign of H. So S(f)
+measures how well f imitates "just add the bits and take the sign".
+
+The whole question is: how big can S(f) be, given how simple f is (how
+small its degree)?
+
+2.2. The easy ceiling: at most sqrt(n) (Cauchy-Schwarz)
+--------------------------------------------------------------------------------
+
+No matter what f is, S(f) cannot exceed sqrt(n). This is the most famous
+inequality in the world, used once.
+
+  CAUCHY-SCHWARZ. For any real random variables X and Y (with finite
+  squares), the square of the average of X*Y is at most the product of
+  the averages of X^2 and Y^2:
+        (average of X Y)^2  <=  (average of X^2)(average of Y^2).
+
+  Proof. Consider the average of (X - tY)^2, a "bowl" in t. It is never
+  negative, so its minimum over t is never negative. Expand it:
+        average of X^2 - 2t (average of X Y) + t^2 (average of Y^2).
+  The t that minimizes this is t = (average of X Y)/(average of Y^2),
+  and plugging that in makes the minimum equal to the negative of the
+  Cauchy-Schwarz gap. A nonnegative minimum forces the gap to be <= 0.
+  That is the inequality.
+
+Now apply it with X = f(x) and Y = H(x). Since f^2 = 1, the average of
+f^2 is 1. Since H is the sum of n independent fair +1/-1 bits, its
+average square is n (the cross terms average to zero, each own term
+averages to 1). Therefore
+
+  S(f)^2 = (average of f H)^2 <= 1 * n  =  n,   so   S(f) <= sqrt(n).
+
+That is the bound a first grader could guess: linear weight at most
+square root of the number of bits. It is true, and it is tight in order:
+majority achieves a constant fraction of it (Part 1).
+
+2.3. The sharp linear ceiling: at most deg f (Nisan-Szegedy)
+--------------------------------------------------------------------------------
+
+Can we replace the ambient sqrt(n) by something that uses f's actual
+complexity? Yes, but the correct replacement is the DEGREE itself, not
+its square root. The clean proof is short.
+
+First, a notion. The influence of bit i on f is
+
+  Inf(i) = the probability that flipping bit i alone changes f's value,
+
+with the input drawn uniformly at random. Flip bit i, keep the rest
+fixed, look at f before and after: did the bit matter? Influence is how
+often, in probability, the answer to that question is "yes".
+
+It helps to package "did it matter" as a number. Define the discrete
+derivative in bit i by
+
+  D_i f(x) = ( f(x with x_i set to +1) - f(x with x_i set to -1) ) / 2.
+
+Each of the two f-values is +1 or -1, so the bracket is in {-2,0,2} and
+D_i f is in {-1,0,+1}. It is nonzero exactly when the bit matters. Hence
+
+  average of |D_i f| = probability that D_i f is nonzero = Inf(i).
+
+Good. Now two steps.
+
+  STEP A. The average of the discrete derivative is the linear
+  coefficient: average of D_i f = fhat(i).
+
+  Why? Average of f(x) times x_i is fhat(i) by definition. And multiplying
+  f(x) by x_i and averaging is the same as comparing f at the two values
+  of x_i and averaging the difference over the other bits -- exactly what
+  the discrete derivative does. (This is the "summation by parts" that
+  defines the Fourier coefficient against the coordinate character x_i.)
+
+  STEP B. A number is never bigger than its own absolute value's average:
+  | average of D_i f | <= average of |D_i f|.
+
+Chain them: |fhat(i)| <= Inf(i). Sum over i:
+
+  sum over i of |fhat(i)|  <=  sum over i of Inf(i)  =  I(f),
+
+where I(f) is the total influence.
+
+Finally relate I(f) to degree using the Fourier formula quoted in Part 1
+(I(f) = sum over S of |S| fhat(S)^2). Every set S with fhat(S) not zero
+has |S| <= deg f, so
+
+  I(f) = sum over S of |S| fhat(S)^2
+       <= deg f * sum over S of fhat(S)^2
+       = deg f * 1            (Parseval)
+       = deg f.
+
+Putting the two displays together:
+
+================================================================================
+NISAN-SZEGEDY LINEAR BOUND.  For every Boolean f,
+        sum over i of |fhat(i)|  <=  deg f.
+Consequently the signed sum S(f) also satisfies |S(f)| <= deg f.
+================================================================================
+
+Two remarks.
+  - The linear bound is classical (the "linearity versus degree" circle
+    of ideas is undergraduate level), not new. What is new in our paper
+    is that sqrt(deg f) is the WRONG scale: no constant multiple of it
+    holds. The linear ceiling deg f survives; exactly where between the
+    square root and the linear size the truth lies is left open.
+  - For degree 0 the bound reads 0 <= 0; constants are excluded from the
+    interesting question.
+
+2.4. Where the square root came from, and the conjecture
+--------------------------------------------------------------------------------
+
+Look at the two ceilings we now have. Trivially S(f) <= sqrt(n) (bits
+used). Sharply S(f) <= deg f (polynomial degree). Since deg f <= n,
+the degree bound can be much smaller than sqrt(n) when f is simple in
+degree but lives among many coordinates -- for instance a degree-1
+dictator among n bits has deg f = 1, and indeed S(f) = 1 exactly, tight.
+
+So the natural question: can the bound be the SQUARE ROOT of the degree,
+rather than the degree's own size? The folklore guess, famously recorded
+by Ryan O'Donnell around 2009 and also appearing as Conjecture 3.17 in
+Filmus-Hatami-Keller-Lifshitz, was:
+
+================================================================================
+GOPALAN-SERVEDIO CONJECTURE (informal). For every Boolean f,
+        sum over i of fhat(i)  <=  C * sqrt( deg f )
+for some absolute constant C (they hoped C = 1). The sum of just the
+first-degree coefficients grows at most like the SQUARE ROOT of the
+degree -- not like the degree itself.
+================================================================================
+
+If true, this would have been a beautiful sharpening: it would say the
+linear Fourier weight of a Boolean function is controlled by the square
+root of its polynomial degree, uniformly over all n. Many small examples
+fit, including the tight dictator case. O'Donnell listed it as a key
+open problem precisely because it would be so strong.
+
+THEOREM 1 says the conjecture is false in the most dramatic way: not just
+for one universal constant, but for EVERY constant, a function exists
+beating it. The square root of the degree is simply not a valid ceiling.
+The linear ceiling deg f survives (Section 2.3); where exactly between
+the square root and the linear size the truth lies stays open. What this
+document proves is the failure of the square root, up to every constant.
+
+Before the proof we make one reduction, so we never have to worry about
+signs.
+
+2.5. Signed sums and absolute sums are the same problem
+--------------------------------------------------------------------------------
+
+Claim: the signed conjecture "sum_i fhat(i) <= F(deg f)" and the absolute
+conjecture "sum_i |fhat(i)| <= F(deg f)" are equivalent, for any right side
+F depending only on degree.
+
+Why? Given f, let s_i = +1 if fhat(i) >= 0 and -1 if fhat(i) < 0 (take
+s_i = +1 when fhat(i) = 0). Define a new function
+
+  g(x) = f( s_1 x_1, s_2 x_2, ..., s_n x_n ),
+
+i.e. re-label each input bit in place before applying f. Flipping one bit
+of the input is a relabelling of the cube, so g is still Boolean on the
+same cube, and this operation is invertible.
+
+Two facts:
+  - It does not change fhat(S) except possibly its sign: the coefficient
+    at S gets multiplied by the product of the s_i for i in S. In
+    particular |fhat(S)| is preserved, so the degree is preserved, and
+    the absolute sum is preserved.
+  - For one-element sets, it makes the coefficient nonnegative:
+    ghat(i) = s_i * fhat(i) = |fhat(i)|.
+
+For this g all linear coefficients are nonnegative, so g's signed sum
+equals its absolute sum: sum_i ghat(i) = sum_i |fhat(i)|. Thus for this g
+the two versions exactly coincide, with the same right side F(deg g) =
+F(deg f). So bounding one for all f bounds the other for all f, and
+vice versa.
+
+That is the promised reduction. From now on we may build f whose signed
+sum is large, and we may quote the absolute-value form of Theorem 1 at
+the end without a fuss.
+
+================================================================================
+END OF PART 2
+================================================================================
+
+================================================================================
+PART 3. THE MAJORITY BENCHMARK AND A SHORT HISTORY
+================================================================================
+
+This part is context. Nothing here is used in the proof of Theorem 1, but it
+explains why the square-root conjecture looked plausible and what the
+community had already guessed around it.
+
+3.1. Why majority looks like the worst case
+--------------------------------------------------------------------------------
+
+The single most important example is majority. On d fresh fair bits,
+majority takes the sign of their sum. Its linear weight is the average of
+the sign times the sum, which is the average of the ABSOLUTE VALUE of the
+sum:
+
+  S(majority on d bits) = average of | X_1 + ... + X_d | =: B_d.
+
+So B_d is exactly the linear weight of the d-bit majority function, whose
+degree is d. This number is well understood. It is at most sqrt(d) always
+(it is one case of the Cauchy-Schwarz bound of Part 2), and in fact
+
+  B_d  is close to  sqrt(2 d / pi) = 0.7978... * sqrt(d).
+
+So majority already uses about 80 percent of the trivial sqrt(d) budget of
+a degree-d function. It is the natural candidate for "the function that
+maximizes linear weight for its degree." If some Boolean function of
+degree d could beat B_d, it would have to be subtler than plain majority.
+
+3.2. The sharper proposal, and its logical status
+--------------------------------------------------------------------------------
+
+Because of that, the real folklore guess was actually stronger than the
+square-root bound. It proposed replacing the square root of the degree by
+the majority benchmark B_d at that degree:
+
+  SHARPER CONJECTURE. For every Boolean f,  S(f)  <=  B_{deg f}.
+
+Check the logical direction carefully, because it is easy to get backwards:
+
+  Since B_d <= sqrt(d) for every d, the sharper conjecture IMPLIES the
+  square-root conjecture: if S(f) <= B_{deg f}, then automatically
+  S(f) <= sqrt(deg f).
+
+The reverse is not true. The sharper statement is harder to satisfy. So:
+  - a proof of the sharper one gives the square-root one for free;
+  - but a COUNTEREXAMPLE to the sharper one costs nothing against the
+    square root -- it may still obey the square-root bound comfortably.
+
+Keep this in mind; it is exactly the trap the next paragraph explains.
+
+3.3. What was proved, and what was only broken
+--------------------------------------------------------------------------------
+
+Several authors explored the sharper, majority-based statement.
+
+  JHA (arXiv 2016). Reformulated the sharper conjecture in terms of discrete
+  derivatives of f: the linear coefficients are averages of the derivatives
+  (as in Part 2), and the conjecture becomes a statement about how these
+  averages can grow. (Theorem 2.1 of that paper.)
+
+  WANG (ePrint 2020). Gave another equivalent formulation, together with
+  proofs of the boundary cases: the degree-1 case (d = 1) and the
+  "all but one" case (d = n - 1). (Theorems 2.2, 3.2, 3.6 of that paper.)
+
+  KUDIN and PASALIC (2021). Proved the sharper conjecture for degrees d = 2
+  and d = 3, and REFUTED it at d = 4 by exhibiting a 4-bit example that
+  beats B_4.
+
+Here is the punchline of this part. Kudin and Pasalic's d = 4 counter-
+example defeats the SHARPER, majority-based conjecture. By Section 3.2,
+that says nothing against the weaker SQUARE-ROOT conjecture; the 4-bit
+example still obeys S(f) <= sqrt(deg f). So after 2021 the sharper guess
+was dead at d = 4, while the square-root guess survived untouched.
+
+Theorem 1 is different in kind. It does not chase one more majority
+benchmark. It proves that NO constant multiple of sqrt(deg f) can hold,
+for any function, at any scale. That closes the square-root conjecture
+itself, which is the surviving target this paper was written to kill.
+
+With that context behind us, Part 4 starts the actual engine of the proof.
+
+================================================================================
+END OF PART 3
+================================================================================
+
+================================================================================
+PART 4. THE ENGINE: OBSERVATIONS, SCORE, RETAINED VARIANCE, READOUT
+================================================================================
+
+We now set up the machine. The idea is to stop trying to write down a clever
+Boolean function directly. Instead we build something softer -- an
+"observation" -- that remembers only part of the input. We tune the
+observation so that the part of the input-sum it remembers is big, while
+the part of the input it physically depends on stays low-degree. Then the
+sign of the remembered sum is our Boolean function, and it inherits the
+big linear weight at low degree.
+
+Fix a large block of N independent fair bits X_1,...,X_N and let
+
+  H_N = X_1 + ... + X_N
+
+be their sum. Think of H_N as "the signal": a number that wanders around
+zero with typical size about sqrt(N). The Cauchy-Schwarz bound of Part 2
+says no Boolean function can correlate with H_N by more than sqrt(N).
+We will correlate with it by a lot while keeping degree small.
+
+4.1. Observations
+--------------------------------------------------------------------------------
+
+An observation is a function F of the input X = (X_1,...,X_N) that takes
+only FINITELY many values (labels). It is a lossy summary: many inputs
+share the same label. For example F could report "which of fifty buckets
+the value H_N falls into", or "the first three bits", or "the sign of the
+sum" -- anything with finitely many answers.
+
+We never need to know exactly what F is for the general machinery; we
+only need two numbers about it, a variance and a degree cost.
+
+4.2. The score and the retained variance
+--------------------------------------------------------------------------------
+
+Given an observation F, the best guess of the signal H_N after you are
+told the label of F is the conditional average
+
+  T_F = average of H_N given F.
+
+We call T_F the SCORE of F. It is itself a number that depends only on
+the label of F, so it is a function of F. Two immediate facts:
+
+  - The score has mean zero: average of T_F = average of H_N = 0.
+  - Therefore its second moment is its variance, and we name it
+
+        v(F) = average of T_F^2     ("the retained variance of F").
+
+Why "retained"? Because T_F is the piece of the signal H_N that the
+observation captured. To see the split cleanly, write the identity
+
+  average of H_N^2  =  average of T_F^2  +  average of (H_N - T_F)^2,
+
+which holds exactly because T_F is a conditional average (the cross term
+vanishes; this is the "law of total variance"). The left side is N. So
+
+  N  =  v(F)  +  (variance of the part of H_N that F forgot).
+
+Thus v(F) is literally how much of the signal's size the observation
+kept, and N - v(F) is how much it threw away. We want v(F) big.
+
+A first example you can hold in your head: let F = "the value of X_1"
+(i.e. observe just one bit). Given X_1, the other bits still average to
+zero, so T_F = X_1. Hence v(F) = average of X_1^2 = 1. The observation
+"one bit" retains exactly 1 unit of variance out of N.
+
+4.3. The cell degree bound
+--------------------------------------------------------------------------------
+
+Here is the knob we actually control. For each possible label a of F,
+form its indicator, the Boolean-ish function
+
+  one at input x  =  1 if F(x) = a,   and 0 otherwise.
+
+(It is 0/1-valued; write it that way, it does not need to be +1/-1.)
+A number D is a CELL DEGREE BOUND for F if every such indicator, over
+every label a, has polynomial degree at most D.
+
+Why caring about indicators is enough: any function of F is a weighted
+sum of its label indicators. Because "degree of a sum is at most the max
+of the degrees", every function of F -- in particular the score T_F, and
+in particular its sign -- has degree at most D as well. So D bounds the
+degree of our eventual Boolean function.
+
+For the one-bit observation above: 1{X_1 = +1} = (1 + X_1)/2 has degree
+1, and 1{X_1 = -1} = (1 - X_1)/2 has degree 1, so D = 1. Thus a one-bit
+observation is perfectly matched: v(F)/D = 1/1 = 1.
+
+We now have the two dials:
+  - v(F): how much signal the observation keeps (we want it large);
+  - D: how many coordinates each label-indicator really touches (we want
+       it small).
+The whole game is to make v(F)/D as large as we like.
+
+4.4. Independent blocks: degrees add, scores add
+--------------------------------------------------------------------------------
+
+Two bookkeeping facts we use constantly.
+
+FACT (independence adds scores). Suppose F_1,...,F_M are observations built
+on DISJOINT blocks of independent bits, with scores T_1,...,T_M. Let the
+total block be the concatenation and let H be the sum of ALL the bits, and
+let Q be any observation of the tuple (F_1,...,F_M). Then
+
+  average of H given Q  =  average of (T_1 + ... + T_M) given Q.
+
+Why: given the tuple of observations, H breaks into the M block sums, and
+the conditional average of block sum i is exactly T_i. Averaging is
+linear, so the conditional averages add. (This is the "tower property" of
+conditional averages.)
+
+FACT (independence adds degree). If each block-i observation has cell
+degree bound D_i, then the tuple (F_1,...,F_M) has cell degree bound at
+most D_1 + ... + D_M. And any function of the tuple has degree at most
+that sum. Why: a label of the tuple is a combination of labels of the
+blocks; a product of functions from different blocks has degree at most
+the sum of their degrees, because multiplying polynomials adds the sizes
+of their index sets.
+
+Consequence we will quote as COMBINED BOUND:
+  M independent copies of an observation with retained variance v and
+  cell degree bound D give a tuple with retained variance >= M v and
+  cell degree bound <= M D.
+
+(The ">= M v" is because the M independent scores add to a score of
+variance M v exactly when nothing is forgotten between them; we lose
+nothing here, and the precise version is proved in the readout lemma.)
+
+4.5. The readout: from a big ratio v/D to a Boolean function
+--------------------------------------------------------------------------------
+
+Here is the payoff, stated and proved. It is the only bridge between the
+observation world (variance, cell degree) and the original question (linear
+weight, degree of a Boolean function).
+
+================================================================================
+LEMMA (READOUT). If there is SOME observation F with a positive cell degree
+bound D and retained variance v, then there is a nonconstant Boolean
+function f with
+
+        degree of f  <=  M D
+        linear weight S(f)  =  average of |T_1 + ... + T_M|
+
+for M independent copies, and therefore
+
+        S(f)  >=  (1/2) * sqrt(M v)  >=  (1/2) * sqrt(v/D) * sqrt(deg f).
+
+In particular, if v/D can be made arbitrarily large, Theorem 1 follows.
+================================================================================
+
+PROOF. Fix F and M. Let T_1,...,T_M be the scores of M independent copies
+on disjoint blocks, and let H be the sum of all the bits. Define
+
+  f  =  the sign of  T_1 + ... + T_M,   with the value +1 at a tie.
+
+This is a nonconstant Boolean function (it takes both signs; we will see
+its linear weight is positive). By the COMBINED BOUND its degree is at
+most M D.
+
+Now compute its linear weight using Part 2's identity S(f) = average of
+f * H:
+
+  S(f) = average of  sign(T_1+...+T_M) * H
+       = average of  sign(T_1+...+T_M) * (average of H given the tuple)
+       = average of  sign(T_1+...+T_M) * (T_1+...+T_M)
+       = average of  | T_1 + ... + T_M |.
+
+The second line is the independence/tower fact of 4.4; the last line uses
+that sign(s) * s = |s| for the signed sum s = T_1+...+T_M. Positive, so f
+is not constant. Good.
+
+It remains to bound this average from below. Rescale to a variance-one
+quantity:
+
+  Z_M = (T_1 + ... + T_M) / sqrt(M v).
+
+Each T_i has mean 0 and variance v, and they are independent, so Z_M has
+mean 0 and variance 1. By the central limit theorem (Part 4.6 below), as M
+grows, Z_M approaches a standard normal. Then
+
+  S(f) = sqrt(M v) * ( average of |Z_M| ).
+
+For a standard normal G, the average of |G| is sqrt(2/pi) = 0.7978...,
+which is bigger than 1/2. Because Z_M has variance exactly 1, its
+averaged absolute value converges to that constant, so for all large
+enough M,
+
+  S(f)  >=  (1/2) * sqrt(M v).
+
+Finally compare to the degree. We have deg f <= M D, so sqrt(deg f) <=
+sqrt(M D), hence
+
+  (1/2) sqrt(M v)  =  (1/2) sqrt(v/D) * sqrt(M D)
+                   >= (1/2) sqrt(v/D) * sqrt(deg f).
+
+That is the displayed inequality. If v/D exceeds 4 C^2, then S(f) > C *
+sqrt(deg f), which is exactly Theorem 1 for that C. So it all reduces to
+manufacturing observations with a huge v/D.
+
+4.6. Two convergence facts the readout uses
+--------------------------------------------------------------------------------
+
+We used the central limit theorem and the convergence of average |Z_M|.
+Both are honest facts; here is the statement and why they hold, in the
+shape we need.
+
+CONVERGENCE OF THE AVERAGE |Z_M|. Let T_1,...,T_M be independent, mean 0,
+variance v with finite fourth moment, and Z_M their standardized sum. Then
+Z_M converges in distribution to a standard normal G, and
+
+  average of |Z_M|  ->  average of |G| = sqrt(2/pi).
+
+Distribution convergence (the central limit theorem) is standard. To pass
+the average through, note Z_M always has second moment exactly 1; a random
+variable whose square has bounded average cannot put much mass far out,
+so the tails of |Z_M| are uniform in M (this is "uniform integrability"),
+and convergence of distributions plus this tail control upgrades to
+convergence of the averaged absolute value. We record the fourth moment
+
+  average of Z_M^4  =  (average of T^4)/(M v^2)  +  3 (M-1)/M,
+
+which is bounded uniformly in M once the single-observation fourth moment
+is finite. Finiteness holds because F has finitely many labels, so T_F is
+a bounded random variable. That is all the readout needs.
+
+4.7. The amplification criterion
+--------------------------------------------------------------------------------
+
+The readout converts ONE good observation into ONE Boolean function. To
+reach any C we need to produce better and better observations. The engine
+that does this is an "amplification step": a fixed local rule that maps
+predictable inputs to a slightly better observation.
+
+================================================================================
+PROPOSITION (AMPLIFICATION). Suppose we have a fixed rule that takes r
+independent real inputs and outputs a finite observation, such that:
+
+  (LOCALITY) On any finite alphabet, each output indicator is a finite
+    linear combination of functions each depending on at most d of the r
+    inputs (d < r).
+
+  (GAIN) Whenever centered, variance-one inputs Z_1,...,Z_r have a
+    standard-normal limit (with bounded fourth moments), independent
+    copies satisfy, for large enough inputs,
+
+        variance of ( average of (Z_1+...+Z_r) given the output )
+              >=   d + eta       for some fixed eta > 0.
+
+Then observations with arbitrarily large retained variance-to-cell-degree
+ratio exist, so Theorem 1 holds by the readout lemma.
+================================================================================
+
+PROOF. Start from any observation F with retained variance v > 0 and cell
+degree bound D > 0 (e.g. the one-bit observation: v = D = 1). Take r
+independent blocks, each holding M copies of F (so MN bits, M per block).
+Let Y_i be the standardized score of block i: Y_i = (block score)/sqrt(M v).
+Each Y_i has mean 0, variance 1, and by the central limit theorem the Y_i
+approach independent standard normals as M grows.
+
+Apply the rule to Y_1,...,Y_r, producing a new observation F'. Two things
+about F':
+
+  Degree. By LOCALITY, each label of F' is a combination of functions of
+  at most d of the Y_i. Each Y_i, being a function of one block of M
+  copies, has degree at most M D; so a function of d of them has degree at
+  most d * M D. Hence F' has cell degree bound D' = d M D.
+
+  Variance. The score of F' from the total sum of all bits is, by the
+  independence/tower fact, the conditional average of the r block sums
+  given F'. Rescaling by sqrt(M v), its variance is
+
+        v(F')  =  M v * ( average of (Y_1+...+Y_r) given F' )'s variance
+               >=  M v * (d + eta),          by GAIN.
+
+Now form the ratio for F':
+
+  v(F')/D'  >=  M v (d + eta) / (d M D)
+            =  (v/D) * (d + eta)/d
+            =  (v/D) * (1 + eta/d).
+
+Since eta > 0, the factor (1 + eta/d) is strictly bigger than 1. Every
+stage multiplies v/D by at least this fixed factor, using a sufficiently
+large M chosen for the stage. After k stages,
+
+  v/D  >=  (1 + eta/d)^k.
+
+Pick k with (1 + eta/d)^k > 4 C^2. A finite number of stages suffices;
+each stage is finite. The readout lemma then yields a Boolean function
+with S(f) > C sqrt(deg f). Since C was arbitrary, Theorem 1 follows. QED.
+
+4.8. What is left to build
+--------------------------------------------------------------------------------
+
+Everything now rests on producing the local rule of the Amplification
+Proposition: a rule on r inputs, cell cost d < r, retaining at least
+d + eta units of variance. That is the entire content of Parts 5 and 6.
+Part 5 gives the rule and proves the hard degree-saving identity; Part 6
+chooses its parameters so the GAIN hypothesis holds with a strict margin.
+
+The base case is already in hand: the one-bit observation has v = D = 1,
+so ratio 1, the seed the loop starts from.
+
+================================================================================
+END OF PART 4
+================================================================================
+
+================================================================================
+PART 5. THE HEART: A REPORTING RULE THAT SAVES A DEGREE
+================================================================================
+
+Here we finally build the local rule required by the Amplification
+Proposition. It has r = m + 1 inputs and cell cost d = m, and it retains
+strictly more than m units of variance. The gap above m is the gain; Part 6
+makes it a strict, quantified margin.
+
+The whole difficulty is this: a cell of the rule's output may genuinely
+depend on all m + 1 inputs, yet its polynomial DEGREE must be at most m.
+That sounds impossible. The resolution is cancellation: the offending term
+is written as a difference of two pieces, and one piece cancels against
+another cell. Degree is about the polynomial, not about "how many
+coordinates the truth table mentions." Keep that distinction in mind;
+it is the single most important idea in the paper.
+
+5.1. The inputs, the intervals, the selector
+--------------------------------------------------------------------------------
+
+Take m + 1 independent real inputs, which we name
+
+  u,  z_1, z_2, ..., z_m,
+
+each centered with variance one (we do not yet insist they are Gaussian;
+the variance lemma below works for ANY such independent inputs). Write
+
+  L = u + z_1 + ... + z_m
+
+for the total. The plan is to reveal m of the m + 1 inputs and hide the
+last one, then do slightly better than that on one special event.
+
+Fix, once and for all:
+  - m intervals I_1,...,I_m on the real line (one "acceptable window" per
+    leaf z_j; their exact placement is chosen in Part 6);
+  - a SELECTOR, a rule that reads u and names one index
+
+        iota(u) in {1,2,...,m},
+
+    changing its answer only at finitely many cut points.
+
+Conventions at the finitely many interval endpoints and selector cut
+points are fixed once, arbitrarily, so that every real input falls on
+exactly one side of every test. This removes all measure-zero fuss.
+
+Define three events, in order of strictness:
+
+  B = { z_j in I_j for EVERY j }.
+      "All leaves pass their window tests." (Nothing is said about u.)
+
+  P = { z_j in I_j for every j EXCEPT the selected index iota(u) }.
+      "All leaves except the selected one pass." (Again u is irrelevant
+      beyond naming the selected index.)
+
+  A = P minus B = { the SELECTED leaf alone fails its window; every other
+      leaf passes }.
+
+Notice B is contained in P, so A, B, and the outside P^c split the whole
+space into three disjoint pieces. That partition is the entire structure
+of the rule.
+
+5.2. The report
+--------------------------------------------------------------------------------
+
+The observation W reads the m + 1 inputs and announces one of three kinds
+of answer. Here is the complete rule.
+
+  ======================================================================
+   which event        what W reports
+  ======================================================================
+   A                  just the TAG "A" (no numbers at all)
+   B                  the m leaf values (z_1,...,z_m); u is hidden
+   not in P (P^c)     u, the selected index iota(u), and every leaf
+                      value EXCEPT the selected one; that leaf is hidden
+  ======================================================================
+
+In words: normally we hide one number and report the rest. On the all-pass
+event B we hide the central input u and report all leaves. On the ordinary
+event P^c we hide the selected leaf and report u and the other leaves. On
+the exceptional event A we report nothing but a single tag.
+
+Two sanity checks on the cell cost.
+  - A B-report fixes m coordinates (the leaves) and leaves u free. So its
+    indicator depends on only m inputs.
+  - A P^c-report fixes u, the index iota(u), and m - 1 leaves, and leaves
+    the selected leaf free. Crucially, the reported leaves already include
+    one that FAILS its interval (that is why we are in P^c), so the report
+    forces P^c no matter what the hidden selected leaf is. Its indicator
+    therefore depends on only those m inputs: u plus the m - 1 reported
+    leaves.
+  - The A-report is the subtle one. Its cell can depend on all m + 1
+    inputs. We treat it next.
+
+5.3. The cancellation identity: the A-cell costs only m
+--------------------------------------------------------------------------------
+
+Here is the trick that makes the whole paper work. Pointwise, as an
+identity of 0/1 functions, we claim
+
+================================================================================
+  CANCELLATION IDENTITY.
+      1_A  =  [ sum over i of 1{iota(u) = i} * product over j not equal i
+                of 1_{I_j}(z_j) ]   -   [ product over all j of 1_{I_j}(z_j) ].
+================================================================================
+
+Every indicator is the "is this number in that interval" test, and
+1{iota(u) = i} is the test that u selects index i.
+
+Let us check it by brute force. Fix any input. Let i* = iota(u) be the
+selected index (a single value). In the first bracket, every term with
+i not equal i* carries the factor 1{iota(u) = i} = 0, so all those terms
+vanish. The only surviving term is i = i*, and it equals
+
+  product over j not equal i* of 1_{I_j}(z_j),
+
+i.e. "all leaves except the selected one pass." That is exactly the
+indicator of P. The second bracket is "all leaves pass," i.e. B. So the
+right side is 1_P - 1_B = 1_{P minus B} = 1_A, because B sits inside P.
+The identity is exact for every input, including endpoint cases.
+
+Now read off the degree. Each term of the first bracket is a product of
+  - the single test 1{iota(u) = i} (which depends only on u), and
+  - the m - 1 tests 1_{I_j}(z_j) for j not equal i.
+So each such product touches exactly m of the m + 1 inputs and nothing
+more. The second bracket touches all m leaves, which is m inputs. Hence
+the whole right-hand side is a linear combination of functions each using
+at most m coordinates. Its DEGREE is therefore at most m, even though the
+A-cell, described as truth-table behaviour, can depend on all m + 1 inputs.
+
+That is the degree saving: it comes from a cancellation between two pieces,
+NOT from ignoring one fixed coordinate everywhere.
+
+Therefore the rule W has cell degree bound d = m on m + 1 inputs. That is
+the LOCALITY hypothesis of the Amplification Proposition, with r = m + 1
+and d = m.
+
+5.4. The variance the rule retains
+--------------------------------------------------------------------------------
+
+We promised the rule keeps strictly more than m units of variance. Here is
+the precise statement. It is true for ANY independent centered variance-one
+inputs (not only Gaussian), which is why the rule is robust.
+
+================================================================================
+LEMMA (REPORT). Let u, z_1, ..., z_m be independent, centered, variance one.
+Let L = u + z_1 + ... + z_m, and let W be the reporting rule of 5.2. For
+every fixed real b, define
+
+   Delta_b  =  average of [ 1_A * ( 1 - (L - b)^2 ) ].
+
+Then
+
+   variance of ( average of L given W )   >=   m + Delta_b.
+
+In particular, if Delta_b > 0, the rule retains more than m units of
+variance while costing only m in degree.
+================================================================================
+
+PROOF. We exhibit a predictor of L that uses only the reported information,
+compute its average squared error, and note that the true conditional
+average can do no worse. On each of the three events use this predictor:
+
+  on A:      predict  b   (a single fixed number);
+  on B:      predict  z_1 + ... + z_m   (sum of reported leaves);
+  on P^c:    predict  u + sum of reported leaves
+                      = u + z_1 + ... + z_m - z_{iota(u)}.
+
+Each line is a function of the reported data, so this is a legal predictor.
+
+Compute its squared error on each event. On B we predicted the leaf sum but
+L - (leaf sum) = u, so the error is u; independence from B (which involves
+only leaves) gives
+
+  average of 1_B * u^2 = probability of B  (times the variance of u = 1).
+
+On P^c, split by the selected index i and let E_i = (P^c and iota(u) = i).
+On E_i we predicted everything except z_i, so the error is z_i. The event
+E_i and the reported data depend only on u and the leaves other than z_i,
+hence are independent of z_i; and z_i is centered with variance one. So
+
+  average of 1_{E_i} * z_i = 0
+  average of 1_{E_i} * z_i^2 = probability of E_i.
+
+Summing over i (the E_i are disjoint and fill P^c) gives P^c in total.
+
+On A, the error is L - b, so the average squared error there contributes
+the average of 1_A (L - b)^2.
+
+Adding the three events, the predictor's total average squared error is
+
+  probability of B  +  probability of P^c  +  average of 1_A (L - b)^2
+    = probability of (not A)  +  average of 1_A (L - b)^2
+    = [1 - probability of A]  +  average of 1_A (L - b)^2
+    = 1 - Delta_b,
+
+using Delta_b = average of 1_A (1 - (L - b)^2) = probability of A minus
+the average of 1_A (L - b)^2.
+
+The true conditional average is the BEST predictor in average squared error
+(the standard projection property of conditional expectation), so
+
+  average of ( L - (average of L given W) )^2  <=  1 - Delta_b.
+
+Finally relate squared error to retained variance through the variance
+split for L. Since L is centered with variance m + 1,
+
+  variance of ( average of L given W )
+    = variance of L  -  average of ( L - (average of L given W) )^2
+    = (m + 1) - [that squared error]
+    >= (m + 1) - (1 - Delta_b)
+    = m + Delta_b.
+
+That is the lemma. QED.
+
+5.5. Why this beats "just reveal m of them"
+--------------------------------------------------------------------------------
+
+If you simply revealed any fixed m of the m + 1 inputs, the hidden input
+would retain exactly its variance, one unit, and the score's variance would
+be exactly m. So "reveal m coordinates" is the baseline, worth m.
+
+Our rule matches that baseline almost everywhere. On B and on P^c it also
+reveals m coordinates, so it captures about m units. The one place it can
+do better is the special A-event: there it reveals no numbers, only a tag,
+but it lets us predict the whole total L by the single number b. If, on
+the A-event, L tends to sit within squared distance less than 1 of b, then
+guessing b beats losing a full unit of variance, and we pocket the exact
+surplus
+
+  Delta_b  =  average over A of  ( 1 - (L - b)^2 ).
+
+So the entire gain hinges on arranging the intervals and the selector (and
+the single number b) so that on the exceptional event A the sum L is
+predicted by b with average squared error below 1 -- i.e. Delta_b > 0.
+Part 6 does exactly that, with Gaussian inputs and a margin eta = Delta_b.
+Then the Amplification Proposition of Part 4 takes over with r = m + 1,
+d = m, and gain eta per stage.
+
+================================================================================
+END OF PART 5
+================================================================================
+
+================================================================================
+PART 6. CHOOSING THE WINDOWS: THE GAUSSIAN CALCULATION
+================================================================================
+
+Part 5 reduced everything to one number: Delta_b, the average over the
+exceptional event A of (1 - (L - b)^2). If we can make Delta_b positive for
+Gaussian inputs, the Amplification Proposition fires with gain eta = Delta_b.
+Here we pick the intervals and the selector to guarantee Delta_b >= (3/4)
+times the probability of A, a strict positive margin. Part 7 carries this
+margin over to the finite bit-string world and assembles the theorem.
+
+From now on the inputs u, z_1,...,z_m are independent STANDARD NORMAL
+(mean 0, variance 1). Write phi(t) = (1/sqrt(2 pi)) exp(-t^2/2) for the
+bell-shaped density. We will let the odd integer m be large and then freeze
+one value.
+
+6.1. The schedule
+--------------------------------------------------------------------------------
+
+Choose the following, for an odd integer m >= 3 to be taken large later:
+
+  R   =  sqrt( 8 log m )                (the "range" of the selector),
+  h   =  m^(-3/2)                        (half-width of every window),
+
+  centers   a_i = 1 - R + 2R (i-1)/(m-1)   for i = 1, 2, ..., m,
+  windows   I_i = [ a_i - h,  a_i + h ].
+
+Two features to notice.
+  - The centers are equally spaced from a_1 = 1 - R up to a_m = 1 + R,
+    with gap 2R/(m-1) between neighbors. The middle center (i = (m+1)/2)
+    is exactly 1.
+  - The whole ladder of centers sits in [1-R, 1+R]. The extra shift by 1,
+    "centers live near 1", is the secret ingredient; it is what makes the
+    prediction b land in the right place.
+
+The selector iota reads u and names a center:
+
+  - If |u| <= R:  choose the center a_i NEAREST to the point 1 + u
+    (ties broken by the smaller index).
+  - If |u| >  R:  choose the middle index, whose center is 1.
+
+So for |u| <= R, the selected window is the one whose center is closest to
+1 + u; for the rare far tails |u| > R we fall back to the fixed center 1.
+This is a rule with finitely many cut points, as required.
+
+For each window write its Gaussian statistics:
+  beta_j = probability that z_j lands in I_j,
+  mu_j   = average of z_j given it lands in I_j,
+  s_j^2  = variance of z_j given it lands in I_j,
+  p_*    = product of all beta_j  (probability that all m leaves pass),
+  S      = sum of all s_j^2,
+  M_mu   = sum of all mu_j,
+  b      = M_mu - 1.
+
+Elementary window estimates (used below). Because I_j has half-width h
+around a_j and phi is smooth:
+  | mu_j - a_j | <= h        (the conditional mean lies inside the window),
+  s_j^2 <= h^2               (a distribution on a length-2h interval),
+  beta_j >= 2h * phi( |a_j| + h )     (the density is at least this small
+                                       across the whole window).
+Also, summing the variances, S <= m h^2 = m^(-2), which will be tiny.
+
+6.2. The exact deficit identity
+--------------------------------------------------------------------------------
+
+Recall Delta_b = average of [ 1_A ( 1 - (L - b)^2 ) ], and A = P minus B.
+We compute the two contributions separately, conditional on the value t of
+u (so the selected index is i = iota(t)).
+
+CONTRIBUTION OF P. Given u = t and given P, the leaves other than z_i are
+restricted to their windows (so their means are mu_j, j != i), while z_i is
+completely free (mean 0, variance 1). Thus L - b = t + z_i + sum_{j!=i} z_j
+- (M_mu - 1) has, under this conditioning,
+
+  mean  =  1 + t - mu_i,
+  variance  =  1 + S - s_i^2  =  1 + (sum of s_j^2 over j != i).
+
+Averaging 1 - (L-b)^2 = 1 - mean^2 - variance, then averaging over t with
+the P-probability (which is p_* / beta_i when u = t), gives
+
+  average of 1_P ( 1 - (L-b)^2 )  =  - p_* J,
+
+where the error integral J is
+
+  J = integral over all t of
+        [ (1 + t - mu_{iota(t)})^2 + ( S - s_{iota(t)}^2 ) ]
+        *  phi(t) / beta_{iota(t)}   dt.
+
+CONTRIBUTION OF B. Given B (all leaves in their windows, u free), L - b has
+mean 0 + M_mu - b = 1 and variance 1 + S. So
+
+  average of 1_B ( 1 - (L-b)^2 )  =  p_* ( 1 - 1 - (1 + S) ) = - p_* (1 + S).
+
+SUBTRACT. Since A = P minus B,
+
+  Delta_b = E[1_P(...)] - E[1_B(...)] = -p_* J + p_* (1 + S) = p_* (1 + S - J).
+
+================================================================================
+  EXACT DEFICIT IDENTITY.   Delta_b  =  p_* ( 1 + S - J ).
+  The positive term 1 comes from the mean of L - b being exactly 1 on B;
+  it is what we get for free and what we must not waste.
+================================================================================
+
+So everything reduces to proving the error integral J is smaller than 1,
+indeed smaller than 1/4, while S is also small. We split J into the
+"central" part |t| <= R and the "tail" part |t| > R.
+
+6.3. The central part |t| <= R
+--------------------------------------------------------------------------------
+
+Here the selected center a_i is the one nearest 1 + t, so
+
+  | (1 + t) - a_i | <= (gap)/2 = R / (m-1),
+  | 1 + t - mu_i | <= R/(m-1) + h        (using |mu_i - a_i| <= h).
+
+Also, because a_i is within (R/(m-1)) + h of 1 + t and |t| <= R, we have
+|a_i| + h <= |t| + 2 for large m. Hence the inverse window probability is
+
+  phi(t) / beta_i  <=  (1/(2h)) * phi(t) / phi(|a_i| + h)
+                   <=  (e^2 / (2h)) * e^{2R},
+
+where in the last step we used phi(a)/phi(c) = exp((c^2-a^2)/2) with
+|a_i| + h <= |t| + 2, giving (c^2 - t^2)/2 <= 2(|t|+1) <= 2R + 2.
+
+Therefore, bounding the bracket and integrating over the full line (total
+mass 1),
+
+  J_central  <=  (e^2 / (2h)) e^{2R} * [ (R/(m-1) + h)^2 + m h^2 ]
+             =  O( R (R^2 + 1) e^{2R} m^(-1/2) )  ->  0.
+
+The vanishing is a race between factors. Since R^2 = 8 log m, we have
+2R = 2 sqrt(8 log m) = O(sqrt(log m)), so e^{2R} = e^{O(sqrt(log m))},
+which grows more slowly than ANY power of m (this is the meaning of
+"m^(o(1))"). The polynomial factors R(R^2+1) are beaten by m^(-1/2); the
+slowly-growing e^{2R} cannot save them. So J_central -> 0.
+
+6.4. The tail part |t| > R
+--------------------------------------------------------------------------------
+
+Here the selector falls back to the middle center, which is 1, so
+mu_i is within h of 1. Then 1 + t - mu_i = t + O(h), whose square is at
+most O(1 + t^2). The window probability is at least 2h phi(2) for small h.
+Hence, integrating only over |t| > R,
+
+  J_tail  <=  (1 / (2h phi(2))) * integral over |t|>R of (1 + t^2) phi(t) dt.
+
+Integration by parts gives integral over |t|>R of (1 + t^2) phi(t) dt =
+O( (R + 1) exp(-R^2/2) ). And exp(-R^2/2) = exp(-4 log m) = m^(-4), since
+R^2 = 8 log m. Therefore
+
+  J_tail  =  O( (1/h) (R+1) m^(-4) )  =  O( (R + 1) m^(-5/2) )  ->  0,
+
+using 1/h = m^(3/2). The fast Gaussian decay m^(-4) crushes the m^(3/2)
+from the small window: this is why tails are harmless even though the
+window there is tiny.
+
+6.5. Conclusion of the Gaussian step
+--------------------------------------------------------------------------------
+
+Both pieces vanish, so J -> 0; and S <= m^(-2) -> 0. Hence, for all
+sufficiently large finite odd m, we can freeze a value with
+
+  J < 1/4  and  S < 1/4.
+
+Plug into the exact deficit identity:
+
+  Delta_b = p_* (1 + S - J)  >  p_* (1 - 1/4)  =  (3/4) p_*  >  0.
+
+Also p_* > 0 because every beta_j > 0. This is the strict positive margin we
+wanted. As a bonus, writing p_A = probability of A, the positivity of
+Delta_b = p_A ( 1 - Var(L | A) - (E[L | A] - b)^2 ) forces the conditional
+variance Var(L | A) < 1: on the exceptional event, the total L is genuinely
+less spread out than a single free unit of variance.
+
+================================================================================
+  GAUSSIAN GAIN. With the frozen schedule of 6.1, for standard normal
+  inputs the reporting rule of Part 5 satisfies
+        variance of ( E[L | W] )  >=  m + (3/4) p_*,
+  so its retained variance exceeds its degree cost m by a strict margin.
+  We will take eta = p_*/2 to leave room for the finite-input transfer.
+================================================================================
+
+Part 7 finishes the job: it shows the same strict margin survives when the
+Gaussian inputs are replaced by the actual (finite, discrete) scores that
+occur inside the amplification loop, and then assembles Theorem 1.
+
+================================================================================
+END OF PART 6
+================================================================================
+
+================================================================================
+PART 7. FROM GAUSSIANS TO BITS, AND THE FULL ASSEMBLY OF THEOREM 1
+================================================================================
+
+Part 6 proved the gain for standard normal inputs. But inside the amplifier
+the inputs to the reporting rule are NOT normal: they are standardized
+scores of finite observations, which are discrete (finitely many values).
+What saves us is that a standardized sum of many independent copies is
+CLOSE to normal, by the central limit theorem, and the gain is a smooth
+enough average that "close" means "eventually strictly positive". This part
+makes that precise and then snaps all the pieces together.
+
+7.1. Why each stage sees almost-normal inputs
+--------------------------------------------------------------------------------
+
+Recall the amplification step (Part 4.7). We hold one observation F fixed,
+form r = m + 1 independent blocks, each made of M independent copies of F,
+and feed the standardized block scores
+
+  Y_i  =  (block-i score) / sqrt(M v),      i = 1, ..., r,
+
+into the reporting rule. Each Y_i is centered with variance one. By the
+central limit theorem (as the per-block copy count M grows), Y_i converges
+in distribution to a standard normal. Moreover the fourth moment stays
+bounded as M grows: from Part 4.6,
+
+  average of Y_i^4  =  (average of T_F^4)/(M v^2)  +  3 (M - 1)/M
+                    <=  3 + (average of T_F^4)/v^2,
+
+a constant that depends only on the current F, not on M. So each stage
+supplies a sequence of centered, variance-one, bounded-fourth-moment input
+laws whose limit is a standard normal. That is exactly the situation the
+next lemma governs.
+
+7.2. The transfer lemma
+--------------------------------------------------------------------------------
+
+================================================================================
+LEMMA (TRANSFER). Let Z, Z_1, Z_2, ... be centered, variance-one random
+variables converging in distribution to a standard normal, with
+sup over j of (average of Z_j^4) < infinity. Fix r, and let Z_j (bold)
+be r independent copies of Z_j, and G (bold) be r independent standard
+normals. Let g be a real function of r variables such that
+
+  (boundary)      the points where g is discontinuous have Gaussian
+                  measure zero, and
+  (growth)        |g(z)| <= K ( 1 + z_1^2 + ... + z_r^2 )  for a constant K.
+
+Then  average of g(Z_j) -> average of g(G).
+================================================================================
+
+PROOF. Independent copies preserve weak convergence, so the r-tuples
+converge in distribution to the tuple of independent normals. Next, chop g
+off at height +-N (call the result g chopped to [-N,N]): a bounded function.
+A bounded function whose discontinuities have Gaussian measure zero has
+expectations converging under weak convergence (the standard "continuous
+almost everywhere" criterion). The error made by chopping is at most
+K(1 + sum of squares) on the region where |g| > N, whose probability can be
+made uniformly small in j because the fourth moments are bounded; the same
+region has small Gaussian probability by the same bound. So the chopping
+error tends to zero uniformly, then let N grow. The two limits combine to
+give the claim. QED.
+
+7.3. Verifying the GAIN for the frozen schedule
+--------------------------------------------------------------------------------
+
+Freeze m and the whole schedule of Part 6, so p_* > 0 and d_A = Delta_b >
+(3/4) p_*. Define the single fixed function of r = m + 1 variables
+
+  g(u, z_1, ..., z_m)  =  1_A ( 1 - (L - b)^2 ),
+
+where A, L, b are all determined by the frozen windows and selector. Then g
+has exactly the two required properties:
+  (boundary) it jumps only when some leaf crosses a window endpoint, or u
+    crosses a selector cut point -- a finite union of coordinate
+    hyperplanes, each of Gaussian measure zero.
+  (growth) |g| <= 1 + (L - b)^2 <= K ( 1 + u^2 + z_1^2 + ... + z_m^2 ).
+
+The average of g over independent standard normals is, by construction,
+exactly d_A > (3/4) p_*. So the Transfer Lemma gives: along the
+standardized scores Y_1,...,Y_r of any stage, for all large enough M,
+
+  average of g(Y_1,...,Y_r)  >=  eta,     where  eta := p_* / 2  > 0.
+
+But that average is precisely the deficit Delta_b evaluated on the actual
+inputs, i.e. the average of 1_A (1 - (L - b)^2 ) on the real scores. By the
+REPORT lemma of Part 5 applied to those (independent, centered, variance-one)
+inputs,
+
+  variance of ( average of (Y_1 + ... + Y_r) given the report )
+     >=  m + eta.
+
+That is the GAIN hypothesis. The LOCALITY hypothesis (each report cell is a
+short combination of at most d = m of the inputs) was proved in Part 5,
+uniformly on every finite alphabet. Both hypotheses of the Amplification
+Proposition hold.
+
+7.4. Assembling Theorem 1
+--------------------------------------------------------------------------------
+
+We now run the whole machine end to end.
+
+STEP 0 (seed). The one-bit observation F has retained variance v = 1 and
+cell degree bound D = 1, so its ratio v/D = 1.
+
+STEP 1 (the stage). Given the current observation with ratio v/D, form
+M copies per block and feed the standardized scores into the frozen
+reporting rule. By Part 7.3 the new observation F' has
+
+  v(F')  >=  M v * (m + eta)          and        D(F')  <=  m * M D,
+
+because each report cell costs at most m of the block scores and each block
+score costs M D. Therefore
+
+  v(F') / D(F')  >=  (v/D) * (m + eta)/m  =  (v/D) * (1 + eta/m).
+
+The factor (1 + eta/m) exceeds 1 and is fixed (m and eta are frozen). Choose
+M large enough (one finite choice per stage) for Part 7.3 to apply.
+
+STEP 2 (repeat). After k stages, v/D >= (1 + eta/m)^k. Choose k so large
+that (1 + eta/m)^k > 4 C^2 for the target constant C. A finite number of
+finite stages suffices.
+
+STEP 3 (readout). Apply the Readout Lemma of Part 4 to the final
+observation. It yields a nonconstant Boolean function f with
+
+  S(f)  >=  (1/2) * sqrt(v/D) * sqrt(deg f)  >  (1/2)(2C) sqrt(deg f)
+        =  C * sqrt(deg f).
+
+So f violates the desired bound by the chosen factor C. Since C was
+arbitrary, no constant K works, and the absolute-value form follows from
+Part 2.5.
+
+================================================================================
+  THEOREM 1 IS PROVED.  For every C > 0 there is a nonconstant Boolean f
+  with signed linear weight S(f) > C * sqrt(deg f). Equivalently, the
+  supremum of (sum_i |fhat(i)|)/sqrt(deg f) over all Boolean f is infinite.
+================================================================================
+
+7.5. What the construction actually does, in one breath
+--------------------------------------------------------------------------------
+
+You have a signal H = sum of N bits. You keep a low-degree peek at it.
+Each amplification stage runs the reporting rule on m + 1 almost-normal
+summaries, sacrifices one unit of variance, and buys back slightly more than
+one via the exceptional-tag prediction; the degree cost tracks the variance
+cost, so the RATIO of retained variance to degree creeps up by a fixed
+factor. Multiply that creep over finitely many stages and the ratio is as
+huge as you want. The sign of the retained signal is then a low-degree
+Boolean function whose linear weight is huge compared with the square root
+of its degree. That is the entire idea; Parts 8-10 are byproducts and
+variants, not new steps in the proof.
+
+================================================================================
+END OF PART 7 -- MAIN THEOREM COMPLETE
+================================================================================
+
+================================================================================
+PART 8. TWO VARIANT RULES (WHICH INGREDIENT REALLY MATTERS)
+================================================================================
+
+The reporting rule of Part 5 has three kinds of report. Here we perturb it in
+two ways to see which features are essential. Neither variant is needed for
+Theorem 1; each is a self-contained alternative amplifier, and together they
+show the proof is not a fluke of one rule.
+
+8.1. The coarse report: throw away the leaf values on the all-pass event
+--------------------------------------------------------------------------------
+
+In the refined rule, on the all-pass event B we reported all m leaf values
+(precisely). What if we instead just announce a single mark "B happened" and
+report no numbers? Call that the COARSE report O. Keep the A-report (tag X)
+and the ordinary P^c report exactly as before.
+
+  ======================================================================
+   event     coarse report O
+  ======================================================================
+   A         mark X
+   B         mark Y   (no leaf values)
+   P^c       (O, u, iota(u), unselected leaves), as before
+  ======================================================================
+
+Cell cost. The X-indicator still has the cancellation identity of Part 5, so
+it costs m coordinates. The Y-indicator depends only on the m leaves (it asks
+"are all z_j in I_j"), so it costs m coordinates. The ordinary report costs
+m coordinates as before. So O has cell degree bound m on m+1 inputs, exactly
+like the refined rule. The only change is that on B we lost the leaf values.
+
+================================================================================
+LEMMA (COARSE REPORT). Let u,z_1,...,z_m be independent, centered, variance
+one (any laws). Let L = u + z_1 + ... + z_m and let O be the coarse report.
+For any fixed constants b0 (used on A) and b1 (used on B), define
+
+  g_{b0,b1} = 1_A ( 1 - (L - b0)^2 )  +  1_B ( 1 - (L - b1)^2 ).
+
+Then the least possible residual squared error R = average of
+(L - (average of L given O))^2 satisfies
+
+  1 - R  >=  average of g_{b0,b1},     hence
+  variance of ( average of L given O )  >=  m + (average of g_{b0,b1}).
+================================================================================
+
+PROOF. Same pattern as Part 5. Predict L by b0 on A (mark X), by b1 on B
+(mark Y), and by the sum of reported coordinates on an ordinary report. On an
+ordinary report the omitted selected leaf contributes its own variance one,
+and summing over the disjoint events gives exactly P(P^c) to the squared
+error, as in Part 5. On A the error is (L - b0)^2; on B it is (L - b1)^2.
+Adding, the predictor's average squared error is
+
+  P(P^c) + average of 1_A(L - b0)^2 + average of 1_B(L - b1)^2
+    = 1 - average of g_{b0,b1}.
+
+Conditional expectation does no worse, giving 1 - R >= average of g. The
+variance statement follows from the variance split with Var(L) = m+1, as in
+Part 5. QED.
+
+Now the Gaussian payoff, with the frozen schedule of Part 6. Recall
+M_mu = sum of mu_j and S = sum of s_j^2, and d_A = average of
+1_A(1-(L-b)^2) = p_*(1 + S - J) with J < 1/4. Take b0 = b = M_mu - 1 and
+b1 = M_mu, and evaluate the two pieces on standard normal inputs:
+
+  On B, with b1 = M_mu, the claim is mean of (L - M_mu) = 0 and variance
+  1 + S (the leaves are pinned to their windows, u is free). So
+        average of 1_B ( 1 - (L - b1)^2 ) = p_* ( 1 - 0 - (1 + S) ) = - p_* S.
+
+  On A, the piece is exactly d_A = p_*(1 + S - J).
+
+Add them:
+
+  average of g_{b, M_mu}  =  d_A - p_* S  =  p_*(1 + S - J) - p_* S
+                          =  p_*(1 - J)  >  (3/4) p_*  >  0.
+
+This is the analogue of the Gaussian gain of Part 6: merging the all-pass
+reports costs us exactly the unobserved leaf variance p_* S, but the surviving
+term p_*(1 - J) is still strictly positive. The all-pass LEAF VALUES are
+therefore dispensable; the gain comes entirely from the tag. Transferring to
+finite scores (identical to Part 7, with g now this two-piece function) and
+feeding it into the Amplification Proposition gives Theorem 1 with
+(r, d, eta) = (m+1, m, p_*/2).
+
+8.2. The extra-block rule: switch in a fresh independent input on A
+--------------------------------------------------------------------------------
+
+The coarse rule showed the leaf values do not matter. The next variant
+isolates the OTHER half of the trick: the fact that on A the sum L has
+conditional variance below one.
+
+Keep the refined rule's A-event. Now add one fresh independent centered
+variance-one input w, a new "spare tank" of exactly one unit of variance. On
+inputs (u, z_1,...,z_m) with the ORIGINAL tuple z, define
+
+  ======================================================================
+   event              rule O_+
+  ======================================================================
+   NOT in A           report (off, the whole original tuple z)
+   in A               report (on, w)   (reveal the spare, hide z)
+  ======================================================================
+
+There are q = m + 1 original inputs plus w, so q + 1 inputs in all. Cell cost:
+  - an off-A report fixes all q original inputs and says nothing about w, so
+    it costs q coordinates;
+  - an on-A report, (on, w0), has indicator 1_A(z) * 1{w = w0}. By the
+    cancellation identity, 1_A(z) is a short combination of functions of m
+    coordinates, and multiplying by the test 1{w = w0} adds one more, so it
+    costs m + 1 = q coordinates.
+Thus O_+ has cell degree bound q on q + 1 inputs, with d = q < r = q + 1.
+
+================================================================================
+LEMMA (SWITCHING VARIANCE). Let the original inputs be independent, centered,
+variance one (any laws), with positive probability p = P(A) and conditional
+mean c = average of L given A. Let w be independent, centered, variance one.
+Then the score of O_+ has variance
+
+  variance of ( average of (L + w) given O_+ )
+     =  q  +  p ( 1 - variance of ( L given A ) )
+     =  q  +  Delta_b  +  p ( c - b )^2,
+
+where Delta_b = average of 1_A(1 - (L - b)^2) uses the frozen predictor b.
+================================================================================
+
+PROOF. Off A the original tuple is fully revealed and w averages to zero, so
+the conditional average of L + w is exactly L. On A only w is revealed, so
+the conditional average is c + w. Compute the variance via second moments
+(the mean is zero):
+
+  average of (L + w)^2 = q + 1  (Variance of L is q, of w is 1, independent)
+    = average of 1_{A^c} L^2  +  p ( c^2 + 1 )    (splitting on A and A^c),
+
+and average of 1_{A^c} L^2 = q - p ( variance(L given A) + c^2 ). Subtract
+the square of the conditional average over each branch (which is what the
+formula for variance of an average does) and simplify: the c^2 terms cancel,
+leaving q + p ( 1 - variance(L given A) ). The second equality uses
+Delta_b = p ( 1 - variance(L given A) - (c - b)^2 ), rearranged. QED.
+
+Now the punch. On standard normal inputs, Part 6 already gave Delta_b >
+(3/4) p_* > 0 and variance(L given A) < 1. So
+
+  variance of ( average of (L + w) given O_+ )  =  q + Delta_b + p(c-b)^2
+                                                 >  q + (3/4) p_*.
+
+Because the correction p(c-b)^2 >= 0 only helps, this is robust: even the
+crude frozen predictor b already secures a strict gain over the base q. After
+transferring the single quantity Delta_b to finite scores (as in Part 7) we
+get a gain eta = p_*/2 over q. The Amplification Proposition applies with
+(r, d, eta) = (m + 2, m + 1, p_*/2), and Theorem 1 follows again.
+
+8.3. What the two variants tell us
+--------------------------------------------------------------------------------
+
+  - The coarse rule (8.1) shows the all-pass LEAF VALUES are not needed; a
+    single tag suffices. So the gain is not about revealing clever numbers;
+    it is about one predictive tag.
+  - The extra-block rule (8.2) shows the saving is exactly the conditional
+    variance gap on A: a fresh unit of variance is strictly better than the
+    (less than one) variance still sitting in L on A.
+
+Both confirm that the heart of the construction is the single observation
+"the selected leaf alone fails its window", whose indicator secretly costs
+one degree less than the number of coordinates it sees. Everything else is
+scaffolding.
+
+================================================================================
+END OF PART 8
+================================================================================
+
+================================================================================
+PART 9. AMPLIFYING AN AVERAGE DEGREE SAVING (MEAN COST)
+================================================================================
+
+So far every report cell of our rules had the SAME degree cost m. In general
+an observation can have some cheap outputs and some expensive ones. The next
+theorem says that this is fine: we only need the retained variance to beat
+the AVERAGE cost. Expensive outputs are allowed, as long as they are rare on
+average. This section is a genuine generalization; it is not needed for
+Theorem 1 but it is the cleanest way to see why "degree saved on one special
+event" is such a powerful currency.
+
+9.1. Labels with individual costs
+--------------------------------------------------------------------------------
+
+Let P be a rule from q real inputs to finitely many labels. Give label l an
+integer COST ell(l) in {1,...,q}, with this algebraic meaning: on every
+finite input alphabet, the indicator of the cell marked l is a finite linear
+combination of functions each depending on at most ell(l) of the q inputs.
+(The indicator itself may "see" all q inputs; the cost bounds its DEGREE, via
+cancellation, exactly as in Part 5.)
+
+If the inputs are scores of observations with cell degree bound D, then the
+degree of the l-cell is at most D * ell(l). So a cheap label buys a cheap
+cell. Suppose you can show that the retained variance V of the rule exceeds
+the AVERAGE cost c = average of ell(l); then, averaged over the run, each
+unit of retained variance costs less than one unit of degree. We want to turn
+that average fact into a bound that holds EVERYWHERE.
+
+9.2. First step: it suffices to save on one event
+--------------------------------------------------------------------------------
+
+The bridge from "one cheap event" to "average cost below variance" is a
+refinement.
+
+================================================================================
+LEMMA (REFINING A COMPLEMENT). Let q >= 2 and let G = (G_1,...,G_q) be
+independent standard normals with sum S_G. Suppose a set A has Gaussian-null
+boundary, p_A = P(G in A) > 0, conditional variance r_A = Var(S_G | G in A) < 1,
+and 1_A is a combination of functions of at most q - 1 coordinates. Then there
+is a finite partition P with Gaussian-null cell boundaries, with A as one cell
+of cost q - 1 and every other cell of cost q, such that
+
+  V = variance of ( average of S_G given P(G) )  >  c = average cost
+                                                    = (q - 1) p_A + q (1 - p_A)
+                                                    = q - p_A.
+================================================================================
+
+PROOF SKETCH. Leave A alone. Chop the complement into tiny axis-aligned grid
+boxes (approximate each coordinate to a grid of mesh h, inside a large box
+[-M,M], with tails mapped to 0). Every complement cell has cost q (any
+function of q inputs qualifies). The approximation error is the sum of
+per-coordinate rounding errors, at most h^2 + (tail variance), and for a
+standard normal the tail part is small for large M. Choose M large then h
+small so the total squared approximation error is below p_A (1 - r_A) > 0.
+
+On each extra cell, the best predictor of S_G is the cell's conditional mean;
+its average squared error is at most the error of the constant grid
+approximation. Summing the conditional variances and using the approximation
+bound gives
+
+  average of Var(S_G | cell)  <  p_A * r_A + p_A (1 - r_A)  =  p_A.
+
+Because Var(S_G) = q, the law of total variance turns this into
+V = q - (average of the conditional variances) > q - p_A = c. QED.
+
+The partition is fixed BEFORE any normal approximation or iteration, and the
+inequality V > c is concrete and strict.
+
+9.3. The mean-cost amplification theorem
+--------------------------------------------------------------------------------
+
+================================================================================
+THEOREM (MEAN COST). Let P be a rule from q inputs to finitely many labels
+with costs ell(l) in {1,...,q}, Gaussian-null cell boundaries, and the
+algebraic cost property of 9.1. For independent standard normals G put
+
+  S_G = sum of G_i,   V = variance of ( average of S_G | P(G) ),
+  c = average of ell(P(G)).
+
+If V > c, then finite observations on sign cubes have arbitrarily large
+retained-variance-to-degree ratios, and Theorem 1 follows from the sign of
+the final score (no extra readout averaging needed).
+================================================================================
+
+PROOF SKETCH (the essential mechanism). Fix a small delta with
+0 < delta < (V - c)/2 and a multiplier lambda with 1 < lambda <
+(V - delta)/(c + delta). For any centered variance-one law Z define V_Z and
+c_Z exactly as V and c but with Z in place of the normal. A transfer lemma for
+fixed finite partitions (weak convergence with no fourth-moment hypothesis;
+the Gaussian-null boundaries give convergence of every cell probability and of
+every restricted first moment) shows that V_Z > V - delta and c_Z < c +
+delta/2 hold eventually along any centered variance-one sequence tending to
+a standard normal.
+
+Now maintain, for the current observation F (normalized score Z), the three
+invariants
+
+  V_Z > V - delta,   c_Z < c + delta/2,   average of |Z| > 1/2.        (*)
+
+Start from F = the bit sum itself (ratio v/D = 1); a large finite N makes (*)
+hold by the central limit theorem.
+
+One stage. Feed q independent copies of F's standardized score into P; let L
+be the result, a "group label", with cost ell(L) and group score of variance
+tau^2 = v * V_Z > 0. A single copy's cell degree is at most D ell(L), but L's
+cost VARIES. To make it uniform, batch K independent copies of L into a WORD
+(l_1,...,l_K). RETAIN a word when its total cost is at most K (c + delta);
+merge every other word into one FAILURE label. Because the average cost c_Z
+is below c + delta/2, the law of large numbers says a word exceeds the
+threshold only with small probability that tends to zero as K grows.
+
+  Degree. A retained word's indicator is a product of its K cell indicators,
+  so its degree is at most D * K (c + delta). The failure label is one minus
+  the finitely many retained indicators, so it obeys the same bound. Every
+  output of the batched rule therefore has degree at most D' = D K (c +
+  delta).
+
+  Variance. Let U_K be the sum of the K group scores. On a retained word U_K
+  is known exactly; on failure the conditional mean can only help. The
+  failure mass is tiny, and with E U_K^4 = O(K^2 tau^4) (independence) the
+  variance lost to merging is at most O((E U_K^4)^{1/2} * sqrt(failure
+  probability)) = o(K tau^2). Hence the new retained variance is
+  v(F') = K tau^2 - o(K tau^2) ~ K v V_Z.
+
+  Ratio. Dividing,
+        v(F')/D' ~ K v V_Z / (D K (c + delta)) = (v/D) * V_Z/(c + delta).
+  Since V_Z > V - delta and lambda < (V - delta)/(c + delta), this exceeds
+  lambda * (v/D).
+
+A central limit theorem (the retained scores are almost a sum of independent
+bounded terms) restores the invariants (*) after the batch, and the next
+stage resumes. Repeat k times with lambda^k > 4 C^2. The final score's sign is
+a Boolean function with S(f) = average of |final score| > (1/2) sqrt(v) and
+degree at most D, so S(f) > C sqrt(deg f). QED.
+
+9.4. Plugging in the reporting event
+--------------------------------------------------------------------------------
+
+Take the reporting event A of Part 6 with q = m + 1. We already know it has
+Gaussian-null boundary, p_A > 0, conditional variance of the sum below one,
+and 1_A costs only m = q - 1 coordinates (the cancellation identity). So the
+Refinement Lemma applies and produces a finite partition with A of cost m,
+every other cell of cost m + 1, and
+
+  V > c = (m + 1) - p_A.
+
+By the Mean-Cost Theorem, the signed conclusion of Theorem 1 follows. So we
+get the whole result from the SINGLE observation "the selected leaf alone
+fails", now cashed in as an average-cost rather than a uniform-cost saving.
+
+9.5. A second event, independently built
+--------------------------------------------------------------------------------
+
+Appendix-level Part 10's sibling (in the original paper, the "weighted mixture")
+builds another Gaussian event A with the same four properties -- positive
+probability, conditional variance below one, Gaussian-null boundary, and an
+indicator that saves one coordinate per summand -- by dividing the central
+coordinate into bins and choosing each leaf window from its bin's conditional
+mean. It feeds the same Refinement Lemma and Mean-Cost Theorem. We record that
+this route exists; the main proof already stands on Parts 5-7.
+
+================================================================================
+END OF PART 9
+================================================================================
+
+================================================================================
+PART 10. TWO MORE GAUSSIAN CONSTRUCTIONS (SMALL WIDTH; WEIGHTED MIXTURE)
+================================================================================
+
+Parts 5-7 already prove Theorem 1. This part records, compactly, two further
+Gaussian constructions from the original paper that reach the same conclusion
+by the same amplification machinery. They are here for completeness: they show
+the "one cheap tag" phenomenon is not tied to one parameter choice.
+
+10.1. A second schedule for the coarse report (small width)
+--------------------------------------------------------------------------------
+
+The coarse report of Part 8.1 keeps the A-tag and B-tag but discards the
+all-pass leaf values. We can drive it with a different window schedule, tuned
+to the COARSE rule rather than the refined one. For a small width parameter
+0 < w < 1 put
+
+  h = w^(2/3),                       (window half-width)
+  T = sqrt( 4 log(1/w) ),            (selector range)
+  grid points t_1 < ... < t_m = h Z intersected with [-T,T],  m odd-ish,
+  windows     A_j = [ t_j + 1 - w/2,  t_j + 1 + w/2 ]  (center t_j + 1),
+  selector    I(t) = nearest grid point to t for |t| <= T, and the grid point
+                     at 0 for |t| > T.
+
+This differs from Part 6 in the balance: the window half-width is h = w^(2/3)
+and the grid spacing is h, so that grid-rounding error (order h^2, weighted by
+1/w from inverse window probabilities) and total leaf variance (order w/h per
+leaf, times m leaves) are made comparable. The two competing scales h^2/w and
+w/h balance at h = w^(2/3). The cutoff T is chosen so that the Gaussian tail
+has weight e^{-T^2/2} = w^2, a square smaller than w.
+
+Apply the COARSE report (Part 8.1) with central input U and leaves U_1,...,U_m,
+selector I, and windows A_j. Write q_j = P(U in A_j), Q = product of q_j, and
+let mu_j, a_j be the conditional mean and variance on A_j, M_mu = sum mu_j,
+S_a = sum a_j. Use the LAW-DEPENDENT predictors M_mu - 1 on the X-tag and
+M_mu on the Y-tag. A direct computation, parallel to Parts 5 and 8, gives
+
+  1 - R(U)  >=  Q * H_w(U),
+
+where the deficit is
+
+  H_w(U) = 1 - average over t of
+           [ (t + 1 - mu_{I(t)})^2 + (S_a - a_{I(t)}) ] / q_{I(t)}.
+
+For standard normal inputs one shows H_w(G) -> 1 as w -> 0. The two subtracted
+errors are: the squared grid-rounding |t + 1 - mu_{I(t)}|^2 <= (h + w/2)^2,
+weighted by 1/q which is at most about (1/w) times a slowly growing factor
+(w^{-1-eps} for any eps > 0, from comparing the window density with the
+density at the selecting point); and the total leaf variance m w^2, weighted
+the same way. The first tends to zero like w^{1/6}, the second likewise, and
+the far tail contributes O((1+T) w) because e^{-T^2/2} = w^2. Hence H_w -> 1.
+
+Transfer. Fix one small w with H_w(G) > 1/2, and freeze the schedule. The
+window probabilities, conditional means, and conditional variances are
+RESTRICTED moments, and restricted moments pass to the limit across a
+Gaussian-null boundary under weak convergence; a bound on the fourth moment
+keeps the far tails controlled. So for any centered variance-one sequence
+U_n -> G with sup over n of (average of U_n^4) finite,
+
+  Q_n H_w(U_n)  ->  Q_G H_w(G)  >  Q_G / 2,
+
+despite the predictors M_mu, S_a moving with the law. Therefore, for large n,
+1 - R(U_n) > eta with eta = Q_G / 4 > 0, i.e.
+
+  variance of ( average of (sum of the m+1 inputs) given the report )
+     = (m + 1) - R(U_n)  >  m + eta.
+
+Together with the pointwise cost bound m from the coarse report, this verifies
+the Amplification Proposition with (r, d, eta) = (m + 1, m, Q_G/4), proving
+Theorem 1 a third time.
+
+10.2. The weighted-mixture event (for the mean-cost route)
+--------------------------------------------------------------------------------
+
+The mean-cost theorem (Part 9) needs an event A with four properties:
+positive probability, conditional variance of the sum below one, Gaussian-null
+boundary, and an indicator that saves one coordinate. Part 9.4 got such an A
+from the intervals of Part 6. Here is an independent source of such an A, for
+the mean-cost route, built by BINNING the central coordinate.
+
+Let R be large, put m = 1 + ceiling(exp(R^2/4)), spacing Delta = 2R/(m-1), and
+half-width h = exp(-3 R^2 / 8). Take independent standard normals
+G_0, G_1, ..., G_m and S = sum of all of them. Divide [-R,R) into m-1 equal
+bins B_i of length Delta, with B_m the two tails. For each bin let
+pi_i = P(G_0 in B_i), v_i = conditional mean of G_0 on B_i, u_i = its
+conditional variance. For each leaf j set its window to
+
+  I_j = [ v_j + 1 - h/2,  v_j + 1 + h/2 ),
+
+i.e. each leaf window is centered one unit above the conditional mean of the
+bin that selects it. The event A is, as always, "the selected leaf alone
+misses its window"; its indicator has the same cancellation identity, each
+term using m = q - 1 coordinates.
+
+A finite-mixture calculation shows that for all large finite R this A has
+positive probability and conditional variance of S on A below one. The heart
+of it is a WEIGHTED variance identity: conditioning on A reweights the bins,
+changing weights pi_i to pi_i (1 - alpha_i)/alpha_i (alpha_i the window
+probability), and one checks that the first, positive contribution plus the
+three error terms (bin rounding, total leaf variance, and the spread of the
+per-bin mean error) leaves a strict surplus, because the schedule makes the
+scales Delta^2/h, m h, and e^{-R^2/2}/h all vanish even after multiplying by
+e^{3R}. The shifted windows (the "+1") again produce the magic term whose
+average tends to one.
+
+Feed this A into the Refinement Lemma and Mean-Cost Theorem of Part 9: you get
+a finite partition with V > c = (m + 1) - p_A, hence arbitrarily large v/D, and
+the signed Boolean conclusion of Theorem 1. This is a fourth, independent
+route to the same theorem.
+
+10.3. Why so many routes
+--------------------------------------------------------------------------------
+
+Each construction isolates a different source of the one-unit saving: refined
+tag (Parts 5-7), merged all-pass tag (Part 8.1), a spare independent block
+(Part 8.2), average-cost accounting (Part 9), a fresh parameter balance (10.1),
+or a binned central coordinate (10.2). They all rest on the same core fact: an
+event whose TRUTH TABLE can involve all your coordinates but whose INDICATOR
+has low polynomial degree. That is the whole theorem, seen from several angles.
+
+================================================================================
+END OF PART 10
+================================================================================
+
+================================================================================
+PART 11. WHAT IS AND IS NOT PROVED (HONEST LIMITS)
+================================================================================
+
+A proof is only as good as the precision of its claims. Here is the exact
+ledger of what Theorem 1 does and does not say.
+
+11.1. What IS proved
+--------------------------------------------------------------------------------
+
+  - For every real constant C > 0 there exists a finite n and a nonconstant
+    Boolean function f on n bits with signed linear weight
+        S(f) = sum_i fhat(i)  >  C * sqrt(deg f).
+  - Equivalently, the supremum over all Boolean f of
+        (sum_i |fhat(i)|) / sqrt(deg f)
+    equals +infinity. No constant multiple of the square root of the degree
+    bounds the linear weight.
+  - The signed and absolute-value versions are interchangeable (Part 2.5).
+  - Everything is proved from scratch here: the two classical bounds, the
+    observation calculus, the reporting rule and its cancellation identity,
+    the Gaussian calibration, the transfer, and the amplification loop.
+
+11.2. What is NOT proved (and must not be claimed)
+--------------------------------------------------------------------------------
+
+  - NO useful bound on the size of the example. The functions produced are
+    built by a finite but astronomically long iteration (many stages, each
+    with a huge number of copies). The paper is explicit: it does not obtain
+    useful bounds on how large n or deg f must grow. There is no small,
+    printable counterexample; there is only the guarantee that one exists.
+  - The LINEAR bound is NOT beaten. Nisan-Szegedy (Part 2.3) proves
+        S(f) <= deg f
+    for every Boolean f, and Theorem 1 does not contradict it. So the truth
+    about the best possible universal bound lives somewhere between the
+    square root of the degree and the degree itself. All this paper kills is
+    the square root: it shows no constant multiple of deg(f)^(1/2) works.
+    A bound like deg(f)^(0.99) -- or any fixed exponent above 1/2 -- is NOT
+    ruled out here and remains open.
+  - The trivial sqrt(n) bound is NOT beaten either. Since deg f <= n, we have
+    sqrt(deg f) <= sqrt(n), and S(f) <= sqrt(n) always (Cauchy-Schwarz,
+    Part 2.2). The examples here have a HUGE ambient n and a degree that is
+    large but far smaller than n, which is exactly how a small multiple of
+    sqrt(deg f) can be dwarfed while staying under sqrt(n).
+  - The sharper MAJORITY benchmark B_{deg f} (Part 3) is not the target and is
+    not resolved here. Kudin and Pasalic had already refuted B_d at d = 4;
+    that killed a stronger statement, not the square-root statement. Whether
+    some OTHER sharp constant-exponent law holds is open.
+  - This is an EXISTENCE result, not an efficient algorithm. The construction
+    is finite in principle, but the constants make it useless for actually
+    listing a minimizing function; you cannot run it to get a concrete f on a
+    laptop.
+
+11.3. Why the result still matters
+--------------------------------------------------------------------------------
+
+The square-root conjecture was a natural, widely believed sharpening of two
+classical bounds. Killing it says something genuinely surprising and clean:
+low-degree Boolean functions can have linear Fourier weight that is wild --
+not merely a constant factor above the square root of their degree, but
+arbitrarily many times above it. The surviving truth is the linear bound, and
+the exact exponent between 1/2 and 1 is now the interesting open question.
+
+================================================================================
+PART 12. GLOSSARY
+================================================================================
+
+ASCII-friendly plain-language definitions, in roughly logical order.
+
+BIT / SIGN. A yes/no written as +1 (yes) or -1 (no).
+
+CUBE. The set {+1,-1}^n of all n-bit strings. Has 2^n points.
+
+BOOLEAN FUNCTION. A rule f: {+1,-1}^n -> {+1,-1}. The same as a truth table.
+
+POLYNOMIAL FORM / DEGREE. The unique multilinear expansion
+f(x) = sum over subsets S of c_S * (product of x_i, i in S). deg f is the
+largest |S| with c_S not zero. Constants have degree 0.
+
+FOURIER COEFFICIENT. fhat(S) = average of f(x) times (product of x_i, i in S),
+over all inputs. It equals c_S above. fhat(i) means fhat({i}).
+
+LINEAR WEIGHT. S(f) = sum_i fhat(i) = average of f(x) * (x_1+...+x_n). Signed,
+unlike the sum of absolute values sum_i |fhat(i)|.
+
+PARSEVAL. sum over all S of fhat(S)^2 = 1 (because f^2 = 1 everywhere).
+
+INFLUENCE. Inf(i) = probability that flipping bit i alone changes f's value,
+input uniform. TOTAL INFLUENCE I(f) = sum_i Inf(i). Also
+I(f) = sum over S of |S| fhat(S)^2.
+
+NISAN-SZEGEDY LINEAR BOUND. sum_i |fhat(i)| <= I(f) <= deg f.
+
+GOPALAN-SERVEDIO CONJECTURE. The (false) guess sum_i fhat(i) <= C sqrt(deg f).
+
+MAJORITY BENCHMARK. B_d = average of |X_1+...+X_d| = S(majority on d bits).
+At most sqrt(d); about sqrt(2d/pi).
+
+OBSERVATION. A function F of the input with finitely many labels (a lossy
+summary). We tune how much of the signal it keeps versus how many coordinates
+its cells touch.
+
+SCORE. T_F = average of (x_1+...+x_N) given the label of F. The best guess of
+the signal from the observation.
+
+RETAINED VARIANCE. v(F) = average of T_F^2 (the score has mean 0). How much of
+the signal's size the observation kept; N = v(F) + (forgotten variance).
+
+CELL DEGREE BOUND. A number D such that every label-indicator 1{F=a} has
+degree at most D. Then every function of F, including sign(T_F), has degree at
+most D.
+
+RATIO v/D. Retained variance over cell degree. The engine: a huge v/D gives a
+Boolean function with linear weight far above sqrt(deg). Making v/D grow is
+the whole game.
+
+REPORTING RULE / SELECTOR / WINDOWS. The local rule of Part 5 on m+1 inputs
+u, z_1,...,z_m. The selector iota(u) names one leaf; the windows I_j are the
+pass tests for the leaves.
+
+EVENTS B, P, A. B = all leaves pass. P = all leaves except the selected one
+pass. A = P minus B = only the selected leaf fails ("the exceptional event").
+
+CANCELLATION IDENTITY. 1_A = sum_i 1{iota(u)=i} * product_{j!=i} 1_{I_j}(z_j)
+- product_j 1_{I_j}(z_j). It shows the A-cell has degree at most m although
+its truth table can depend on all m+1 inputs.
+
+DEFICIT Delta_b. average of 1_A (1 - (L-b)^2). Positive Delta_b means the tag
+lets you predict the total L on A better than losing a full unit of variance.
+
+GAIN eta. A strict positive margin in retained variance above the degree cost
+per amplification stage.
+
+AMPLIFICATION. The loop that runs the reporting rule on independent blocks and
+multiplies v/D by a fixed factor (1 + eta/d) each stage until it exceeds 4 C^2.
+
+READOUT. Turning a big v/D into a Boolean function: take the sign of the
+retained signal. Its linear weight is about sqrt(v) while its degree is at most
+D, giving S(f) of order sqrt(v/D) * sqrt(deg f).
+
+TRANSFER. Passing a Gaussian average (the deficit Delta_b) to the actual
+discrete scores, using weak convergence plus a fourth-moment bound (uniform
+integrability). Standard normal = Gaussian with mean 0, variance 1.
+
+STANDARD NORMAL. The bell curve with mean 0 and variance 1; average of |G| is
+sqrt(2/pi) = 0.7978... (bigger than 1/2, which is what the readout uses).
+
+MEAN COST / REFINEMENT. A generalization where different labels have different
+degree costs; you only need retained variance to beat the AVERAGE cost. A
+one-event saving is turned into an average-cost saving by gridding the
+complement of the event.
+
+================================================================================
+END OF PART 12
+================================================================================
+
+================================================================================
+PART 13. VERBATIM STATEMENTS OF THE MAIN RESULTS
+================================================================================
+
+Clean, self-contained statements of every result proved above, for
+cross-checking. Notation is that of Parts 1 and 4: f is Boolean on n bits,
+fhat(S) are its Fourier coefficients, deg f its degree; F is a finite
+observation with score T_F, retained variance v(F), and cell degree bound D;
+notation for the reporting rule is that of Part 5.
+
+--------------------------------------------------------------------------------
+(BOUND 1: trivial, Cauchy-Schwarz.)
+  S(f) = sum_i fhat(i) = average of f(x)(x_1+...+x_n) <= sqrt(n).
+--------------------------------------------------------------------------------
+(BOUND 2: sharp, Nisan-Szegedy.)
+  sum over i of |fhat(i)|  <=  I(f)  <=  deg f.
+  (I(f) is the total influence.) Consequently |S(f)| <= deg f.
+--------------------------------------------------------------------------------
+(CONJECTURE: Gopalan-Servedio, FALSE by Theorem 1.)
+  For all Boolean f,  sum_i fhat(i)  <=  C * sqrt(deg f)  for some constant C.
+--------------------------------------------------------------------------------
+(THEOREM 1: main result.)
+  For every real C > 0 there exist a finite n and a nonconstant Boolean
+  f: {+1,-1}^n -> {+1,-1} with  sum_i fhat(i) > C sqrt(deg f). Hence
+  sup over Boolean f with deg f > 0 of (sum_i |fhat(i)|)/sqrt(deg f) = +inf.
+--------------------------------------------------------------------------------
+(LEMMA: readout.)  If an observation F has retained variance v > 0 and cell
+  degree bound D, then f = sign(T_1+...+T_M) of M independent copies is a
+  nonconstant Boolean function with deg f <= M D and
+        S(f) = average of |T_1+...+T_M| >= (1/2) sqrt(M v)
+             >= (1/2) sqrt(v/D) sqrt(deg f)   for all large M.
+  So arbitrarily large v/D forces Theorem 1.
+--------------------------------------------------------------------------------
+(LEMMA: report.)  Let u, z_1,...,z_m be independent, centered, variance one;
+  L = u + z_1 + ... + z_m; W the reporting rule of Part 5. For every real b,
+  with Delta_b = average of 1_A (1 - (L-b)^2),
+        variance of ( average of L given W )  >=  m + Delta_b.
+  The rule has cell degree bound m on m+1 inputs (cancellation identity).
+--------------------------------------------------------------------------------
+(LEMMA: Gaussian gain.)  With the frozen schedule R = sqrt(8 log m),
+  h = m^{-3/2}, centers a_i = 1 - R + 2R(i-1)/(m-1), windows [a_i - h, a_i + h],
+  selector = nearest center to 1 + u for |u| <= R else the middle center, for
+  standard normal inputs:
+        Delta_b = p_* (1 + S - J) > (3/4) p_* > 0
+  for all large finite odd m, where p_* = product of the window probabilities
+  and J is the error integral (made < 1/4). Also Var(L | A) < 1.
+--------------------------------------------------------------------------------
+(LEMMA: transfer.)  Let Z_j be centered, variance one, converging in
+  distribution to standard normal G with sup_j E Z_j^4 < infinity. For fixed r,
+  if g: R^r -> R has Gaussian-null discontinuities and |g(z)| <= K(1 + sum z_i^2),
+  then E g(Z_j independent copies) -> E g(G).
+  Applied to g = 1_A(1-(L-b)^2): its Gaussian average is Delta_b > (3/4)p_*,
+  so on the actual finite scores the average is eventually >= eta = p_*/2.
+--------------------------------------------------------------------------------
+(PROPOSITION: amplification.)  Suppose a fixed rule on r inputs with
+  d < r satisfies (locality) each output indicator is a short combination of
+  functions of at most d inputs, and (gain) for centered variance-one inputs
+  with a normal limit and bounded fourth moments,
+        Var( average of (sum of r inputs) given the output ) >= d + eta
+  for some fixed eta > 0. Then observations with arbitrarily large v/D exist,
+  and Theorem 1 follows. Each stage multiplies v/D by at least (1 + eta/d).
+--------------------------------------------------------------------------------
+(LEMMA: refine a complement.)  If A has Gaussian-null boundary, p_A > 0,
+  Var(S_G | A) < 1, and 1_A costs at most q-1 coordinates, then a finite
+  partition with Gaussian-null cells has A of cost q-1, all others cost q, and
+        V = Var( average of S_G given the partition )
+          > c = (q-1) p_A + q(1 - p_A) = q - p_A.
+--------------------------------------------------------------------------------
+(THEOREM: mean cost.)  If a finite-label rule with individual costs
+  ell(l) in {1,...,q}, the algebraic cost property, and Gaussian-null cell
+  boundaries has V = Var(average of S_G given the label) > c = average of ell,
+  then finite observations have arbitrarily large v/D and Theorem 1 follows.
+  (Proof by word-batching: retain words of total cost at most K(c+delta),
+  merge the rest; failure probability tends to zero; ratio multiplies by
+  V_Z/(c + delta) > 1 each stage.)
+
+================================================================================
+END OF THE UNBOUNDED VIOLATIONS OF THE SQUARE-ROOT DEGREE BOUND (v2)
+================================================================================
