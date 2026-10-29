@@ -1,1173 +1,302 @@
-====== 0. WHAT THIS DOCUMENT IS ======
-
-This is a reader's version of the research paper
-"An FPRAS for Cell-Bounded Contingency Tables"
-(OpenAI, September 24, 2026).
-
-The original paper is long: 4182 lines of formal mathematics.
-This version keeps the same results but explains them so that
-a high school student can follow. We will not copy every
-inequality, but we will describe every idea and every
-guarantee the paper proves.
-
-By the end you will know:
-
-  - what a contingency table is;
-  - what an FPRAS is;
-  - why both are hard to handle at full generality;
-  - what "small" and "large" cells mean and why they play
-    different roles;
-  - how the algorithm samples and counts;
-  - why the whole thing runs in polynomial time, uniformly.
-
-
-====== 1. THE PROBLEM ======
-
-Imagine a grid with m rows and n columns. Fill each cell
-with a whole number. Now impose three kinds of rules:
-
-  ROW RULE.
-  The numbers in row i must sum to a prescribed integer r_i.
-
-  COLUMN RULE.
-  The numbers in column j must sum to a prescribed integer c_j.
-
-  CELL RULE.
-  The number in cell (i,j) must be at most b_ij.
-
-Every grid that satisfies all three rules is called a
-CELL-BOUNDED CONTINGENCY TABLE for the data (r,c,b). The
-number of such grids is written
-
-  Z = Z(r,c,b).
-
-The problem is: compute Z, or at least approximate it well.
-
-A tiny worked example:
-
-  Suppose m = 2, n = 2, r = (2,1), c = (1,2), and every
-  b_ij = 2.
-
-  Write the table as
-
-      [ a b ]
-      [ c d ]
-
-  Here a+b=2, c+d=1, a+c=1, b+d=2, all entries between
-  0 and 2. Solving, a=d and c=1-a and b=2-a. So a can be
-  0 or 1, giving exactly two tables:
-
-      [ 0 2 ]         [ 1 1 ]
-      [ 1 0 ]   and   [ 0 1 ]
-
-  So Z = 2. That is the whole idea. Real inputs have many
-  rows, many columns, and cell bounds that can be
-  astronomically large.
-
-The three most common uses of Z:
-
-  - statistics: testing whether two variables are
-    independent given margins;
-  - ecology: number of possible species-abundance tables
-    consistent with observations;
-  - combinatorics and algebra: many of the classical
-    counting problems are exactly this table problem in
-    disguise.
-
-
-====== 2. WHY THE PROBLEM IS HARD ======
-
-DECIDING whether any table exists is easy. Build a network
-with a source, the rows, the columns, and a sink. Set arc
-capacities from r, c, and b. Check whether an integral flow
-of the prescribed value exists. The Edmonds-Karp algorithm
-handles that in polynomial time (polynomial in the number of
-BITS of the input), without ever listing tables.
-
-COUNTING is different. Even with only two rows, counting
-cell-bounded tables is #P-complete (Dyer-Kannan-Mount, 1997).
-Loosely: if you could count such tables in polynomial time,
-you could solve a huge family of problems that most computer
-scientists believe are hard. So we cannot expect an exact
-polynomial-time algorithm.
-
-We can hope for an approximate one. That leads to the FPRAS.
-
-
-====== 3. WHAT AN FPRAS IS ======
-
-FPRAS = Fully Polynomial Randomized Approximation Scheme.
-
-A RANDOMIZED algorithm is an algorithm that is allowed to
-flip fair coins while it runs. An FPRAS for counting Z has
-this guarantee. Give it the data plus two small numbers:
-
-  epsilon in (0,1) -- how accurate you want the answer;
-  delta in (0,1)   -- how often you allow it to fail.
-
-It returns a nonnegative number Zhat such that
-
-  (1 - epsilon) * Z <= Zhat <= (1 + epsilon) * Z
-
-with probability at least 1 - delta.
-
-"Fully polynomial" means two things:
-
-  - running time is polynomial in the number of BITS of
-    the input, not in the numeric values of r, c, or b;
-
-  - running time is polynomial in 1/epsilon and in
-    log(1/delta), not in 1/delta directly.
-
-Bit complexity is the strict version. If the input tells
-you a cell bound of 2^100, the algorithm must run in time
-proportional to about 100 digits, NOT 2^100 steps. Most naive
-approaches fail this test, which is why the paper spends so
-much effort on it.
-
-
-====== 4. THE MAIN RESULT ======
-
-The paper proves:
-
-  THEOREM (main).
-  There is one randomized algorithm that takes any
-  (r,c,b,epsilon,delta) and returns Zhat as above.
-  Three extra properties:
-
-    (1) If no viable table exists, it always returns zero
-        (deterministic, no false positive).
-
-    (2) It uses only independent unbiased random bits.
-        No preprocessing, no counting oracle, no sampling
-        oracle, no infinite precision.
-
-    (3) On every execution -- including executions that
-        fail to give a good estimate -- its total number
-        of bit operations is at most a fixed polynomial
-        in
-
-            L          = total input length,
-            1/epsilon,
-            log(1/delta).
-
-  This is a UNIFORM guarantee. The bound does not depend
-  on which run of the algorithm you got. Even the bad runs
-  finish on time.
-
-
-====== 5. THE BIG PICTURE IN ONE PAGE ======
-
-Naive counting is hopeless: cell bounds are enormous, and
-the number of tables is exponential in the number of cells.
-The paper dodges both problems through this pipeline:
-
-  (1) Tighten each cell to its feasible integer interval
-      and subtract the minimum.
-
-  (2) Split remaining cells into SMALL (bound < W) and
-      LARGE (bound >= W), for a polynomial threshold W.
-
-  (3) Build a bipartite row/column graph of LARGE cells and
-      keep a MAXIMUM-CAPACITY SPANNING FOREST.
-
-  (4) For each SMALL cell give TWO views (a row count and a
-      column count) that must sum to its bound if the two
-      views are to describe the same physical cell. This
-      turns the coupled constraint into a linear one.
-
-  (5) LEAF-ELIMINATE the forest: once you choose the free
-      values and the small counts, every tree value is
-      forced. Only a soft PENALTY remains.
-
-  (6) Build an easy-to-hard family of softened counts C(j)
-      for j = 0,1,...,H. C(0) is a product (easy). C(H)
-      is close to Z (contamination bound).
-
-  (7) Estimate C(H)/C(0) as a telescoping product of
-      adjacent RATIOS C(j+1)/C(j). Each ratio is estimated
-      by a Metropolis chain on a FINITE binary state space
-      plus a fair-bit weight evaluator for h_j.
-
-  (8) Amplify with a median rule.
-
-Everything below is the details of this pipeline.
-
-
-====== 6. STEP 1: TIGHTEN EACH CELL ======
-
-For each cell (i,j), compute the smallest and largest value
-it can take in ANY feasible table. Call them ell_ij and
-u_ij.
-
-How to compute them: binary search, at each step solving a
-small flow problem with one extra upper/lower bound added.
-Each flow test returns yes or no in polynomial bit time
-(Edmonds-Karp on this specific network).
-
-Then subtract the minimum:
-
-  new X_ij = X_ij - ell_ij,
-  new b_ij = u_ij - ell_ij,
-  new r_i  = r_i  - sum_j ell_ij,
-  new c_j  = c_j  - sum_i ell_ij.
-
-This is a bijection between the original feasible tables and
-the new ones: no table is created or destroyed, and adding
-the ell values back gives the inverse map.
-
-In the new instance, every cell has 0 and b_ij as attainable
-endpoints, and every b_ij is nonnegative.
-
-Cells with b_ij = 0 give no choice. Delete them (their row
-and column vertices stay, they are isolated).
-
-The count Z is unchanged by this whole reduction.
-
-
-====== 7. STEP 2: SMALL AND LARGE CELLS ======
-
-Pick a polynomial threshold W. A remaining cell is
-
-  SMALL if b_ij < W,
-  LARGE if b_ij >= W.
-
-W is chosen far away from both ends of the problem: much
-larger than the exponential number of rows and columns, but
-still only a polynomial in 1/epsilon and L. Concretely,
-
-  W = 100 * d * B, where B is a polynomial (a bin count
-  defined below) and d = m*n + m + n + 2.
-
-Two properties matter.
-
-  - The total bound on all small cells
-
-        p = sum over small cells of b_s
-
-    is at most d*W. That is a polynomial, so p can be
-    expanded into binary choices. This is why the small
-    cells cannot blow up bit complexity.
-
-  - Every large cell has b_s >= W, which is a huge number
-    compared to the total number of cells. That lets us
-    sample large-cell choices with grid methods instead of
-    enumerating them.
-
-The paper records the polynomial parameters
-
-  A = O(L^3 / epsilon),   B = O(L^5 / epsilon),
-  W = O(L^6 / epsilon),   H = O(L^11 / epsilon^2),
-
-where L includes the encoding of epsilon. These are the
-objects that later appear in the running-time bound. The
-numerical values look big, but they are poly(L)/poly(eps).
-
-The point of the parameters is to be big enough to make
-boring inequalities hold; the paper itself says the bounds
-are deliberately generous.
-
-
-====== 8. STEP 3: MAXIMUM-CAPACITY FOREST ======
-
-Build a bipartite graph whose vertices are the rows and the
-columns. Add one edge for every LARGE cell (i,j), with
-"capacity" b_ij.
-
-In each connected component, choose a spanning tree whose
-total capacity is as large as possible. Do this greedily:
-sort edges by decreasing capacity, add an edge if it joins
-two current components. Vertex alone in a component counts
-as a component with an empty tree.
-
-The union of these trees is called T; the large cells that
-are NOT in T are called F, the FREE cells.
-
-Two facts make this useful.
-
-  - TREE IS "AS BIG AS POSSIBLE ON PATHS". If a free cell
-    e has capacity b_e, then along the tree path between
-    its endpoints every tree cell t satisfies b_t >= b_e.
-    (Otherwise swapping that tree edge for the free edge
-    would improve the total capacity of the tree.)
-
-  - LEAF ELIMINATION. Once you specify the free values
-    z_e for every e in F, the values on the tree are
-    UNIQUELY DETERMINED by the nonroot margin equations.
-    Start at any nonroot leaf of the tree; its single
-    incident tree cell is forced by its margin; remove
-    that leaf and repeat. Because everything is integer,
-    tree values are integer when free values are.
-
-Only the ROOT of each tree is not constrained by a result
-of this elimination. Its margin deviation is
-
-  delta_root = (actual incident sum) - (prescribed margin),
-
-which turns out to be INDEPENDENT of the free values. It
-only depends on which tree cells and which small cells touch
-the root's component.
-
-A key inequality: for a feasible table X*,
-
-  | z_t - X*_t |  <= 4 * d * b_t  for every tree cell t,
-  sum over roots | delta_root |  <= 2 * d * W.
-
-So the tree values stay close, in normalized units, to any
-feasible completion. This is the main reason tree
-violations can be penalized smoothly.
-
-
-====== 9. STEP 4: TWO VIEWS OF A SMALL CELL ======
-
-Small cells are the painful ones: they couple a row and a
-column that both have to add up to prescribed sums, so you
-cannot just treat them as flow. The paper unlinks them.
-
-For a small cell s with bound b_s, temporarily give it TWO
-integer counts:
-
-  x_s = contribution seen from the ROW side, in {0,...,b_s},
-  y_s = contribution seen from the COLUMN side, in {0,...,b_s}.
-
-Then declare:
-
-  row contribution     = x_s,
-  column contribution  = b_s - y_s.
-
-The two sums see different numbers unless
-
-  x_s + y_s = b_s.
-
-When the two views AGREE (x_s + y_s = b_s), we get the same
-physical cell value x_s = b_s - y_s from either side. When
-they DISAGREE, the two views describe a kind of "half
-cell". The paper keeps both possibilities.
-
-Call a small-count profile (x,y) BALANCED if x_s + y_s = b_s
-for every small s. Balanced profiles correspond one-to-one
-with physical cell values.
-
-The full domain is
-
-  P = { (x,y) : 0 <= x_s, y_s <= b_s, and sum_s (x_s+y_s) = p }.
-
-Note: as a special case, unbalanced profiles are allowed
-and used for technical reasons. On balanced profiles the
-two views describe the same table.
-
-The total p = sum over small cells of b_s is at most d*W,
-which is polynomial. This is what makes the small cells
-"expandable" -- p binary bits of choice can be freely
-expanded into a finite set.
-
-The row and column contributions live in DISJOINT sets of
-coordinates, so the row and column equations decouple cleanly
-in flow terms. The constraint "they must agree" is exactly
-the linear equation x_s + y_s = b_s.
-
-
-====== 10. STEP 5: LEAF ELIMINATION AND PENALTY D ======
-
-Given any small-count profile (x,y) and any choice of free
-values z_e for e in F, do the leaf elimination from step 8.
-Every tree value is determined.
-
-Two things can still go wrong:
-
-  - a tree cell ends up OUTSIDE its allowed interval [0,b_t];
-  - the root's margin deviation delta_root is nonzero.
-
-Package both into one soft PENALTY:
-
-  D(x,y,z) = A * (  sum over roots of |delta_root|
-                  + sum over tree cells t of
-                    dist(z_t, [0,b_t]) / b_t  )
-
-where A is the big polynomial parameter from step 7. Note
-that D is nonnegative and D = 0 exactly when every nonroot
-margin holds and every tree cell is inside its interval.
-That is: D = 0 exactly when the profile gives a real table.
-
-The paper proves several properties of D.
-
-  RANGE.  0 <= D <= H  for the parameter
-          H = 10 * A * d^2 * (W + 1).
-
-          Even a wildly infeasible profile cannot make D
-          bigger than H.
-
-  CONVEXITY.  In the normalized free coordinates
-          u_e = z_e / (b_e + 1)  in [0,1],
-          D is a convex function of u when (x,y) is
-          fixed.
-
-  LIPSCHITZ. With the choice B = 16*A*d^2 for the
-          bin count (see below), D changes by at most
-          (1/8) * ||u - u'||_inf. This means D is very
-          smooth on the normalized grid.
-
-These three facts together say: D is a gentle, bounded,
-convex function of the free values that is zero exactly on
-the feasible tables and heavily penalizes near-violations.
-
-
-====== 11. STEP 6: SOFT COUNT h_j AND C(j) ======
-
-For each integer j from 0 to H, define a soft count
-
-  h_j(x,y) = sum over free integer choices z of
-             2^(- j * D(x,y,z) / H).
-
-If D(x,y,z) = 0 (feasible completion), the term is 1.
-If D(x,y,z) is big, the term is tiny.
-The parameter j turns the softness on:
-  j = 0  -- every completion counts as 1,
-  j = H  -- only truly feasible completions matter.
-
-Then define
-
-  C(j) = sum over BALANCED small profiles of h_j(x,y).
-
-Two extreme values matter.
-
-  C(0). When j = 0, every summand is 1*M_f (where
-  M_f = product over free cells e of (b_e + 1) is the
-  number of free assignments). Therefore
-
-    C(0) = M_f * product over small cells s of (b_s + 1).
-
-  This is a closed formula. No sampling needed.
-
-  C(H). When j = H, each feasible table contributes weight
-  exactly 1, and each infeasible completion contributes a
-  very small positive weight. In fact:
-
-    Z  <=  C(H)  <=  (1 + epsilon/32) * Z.
-
-  Proved in the next section.
-
-Everything reduces to estimating C(H)/C(0). The paper uses
-the identity
-
-  C(H) / C(0) = product_{j=0}^{H-1} C(j+1) / C(j).
-
-Each adjacent ratio is a modest correction (between 1/2 and
-1 by the initialization lemma). Multiplying H such ratios
-and then multiplying by C(0) gives the output.
-
-The reason for the two-parameter splitting is: each RATIO
-C(j+1)/C(j) can be estimated by a real Metropolis chain,
-whereas C(0) is trivially a closed form and C(H) is what we
-were after in the first place. If we could jump straight
-from C(0) to C(H), we would be done. But the jump is huge
-and the chain would be impossible to mix. So we crawl from
-j to j+1.
-
-
-====== 12. STEP 7: WHY C(H) IS CLOSE TO Z ======
-
-We need:
-
-  Z <= C(H) <= (1 + epsilon/32) * Z.
-
-The left inequality is easy: every feasible table has
-D = 0 exactly, so its term in h_H is exactly 1.
-
-The right inequality is harder, because infeasible
-completions also contribute a small positive weight to C(H).
-We must bound the total of those.
-
-The argument splits the possible ways a completion can be
-infeasible. Each "way" costs real mass.
-
-  FAR VIOLATIONS. A root deviation is nonzero, OR a tree
-  value is far (relative distance at least gamma*b_t)
-  from its interval. Then D is at least 4K by
-  construction of A and gamma. The total weight of a
-  far assignment is 2^{-4K}. The number of assignments
-  is at most prod_s (b_s+1) * prod_e (b_e+1) <= 2^{K}
-  (from binary encoding of the input). So the total
-  far mass is at most
-
-    2^{K} * 2^{-4K} = 2^{-3K} <= epsilon / 128.
-
-  NEAR VIOLATIONS. A tree value is just barely outside
-  its interval: 0 < dist(z_t, [0,b_t]) < gamma * b_t.
-  These are not caught by the far penalty above. The
-  paper handles them using LOG-CONCAVITY of the tree
-  marginal: the mass function a_t(k) = marginal mass at
-  value k is log-concave on its support. Together with
-  the fact that the extreme values 0 and b_t are actually
-  attainable (from the tightening in step 6), this
-  log-concavity forces a bound
-
-    a_t(k) / C(H)  <=  2K / b_t
-
-for any single k just outside the interval. There are
-at most gamma*b_t nearby integers on each of the two
-exterior sides of each interval, and at most d tree
-cells. Choosing gamma = epsilon / (512 d K), the total
-near-boundary mass is at most
-
-    2 sides * d cells * (gamma * b_t) * (2K / b_t)
-    =  4 d gamma K
-    =  epsilon / 128.
-
-  Summing the two contributions gives at most epsilon/64
-  total infeasible mass, and so
-
-    C(H) - Z <= (epsilon/64) * C(H),
-
-  i.e. C(H) <= Z / (1 - epsilon/64) <= (1 + epsilon/32) Z.
-
-That closes the gap. The two key ingredients are:
-the strong linear penalty D catches everything that is
-actually far, and the log-concavity of tree marginals
-puts the near miss under control.
-
-
-====== 13. STEP 8: ENCODING AS BINARY PAIRS ======
-
-Now we have to estimate C(j) at intermediate stages. That
-means summing over the balanced profiles (x,y). The paper
-uses a two-step encoding that reduces the number of profiles
-to something a Markov chain can handle.
-
-For each small cell s with bound b_s, introduce b_s LABELED
-PAIRS. Each pair has one ROW element and one COLUMN element.
-Number the pairs 1..p overall.
-
-A TRANSVERSE is a p-element subset S of the 2p elements that
-contains exactly one element of each pair.
-
-For a transverse S, let
-
-  x_s = the number of ROW elements of S in cell s,
-  y_s = the number of COLUMN elements of S in cell s.
-
-Then automatically x_s + y_s = b_s for every s. So every
-transverse produces a balanced profile. The map is very
-many-to-one: the number of transverses with a given profile
-is
-
-  product over s of  binomial(b_s, x_s).
-
-This is why we cannot just sum transverses and call it a day.
-We would double-count profiles proportional to their
-binomial multiplicities.
-
-Fix with a DIVIDING FACTOR. Instead of summing transverses
-with weight 1, give each one weight
-
-  weight(S) = h_j(x,y) / product over s of binomial(b_s, x_s).
-
-Then the total weight of all transverses with profile (x,y)
-is exactly h_j(x,y). So
-
-  sum over transverses  weight(S) = C(j).
-
-We can now think of C(j) as the total weight of the entire
-transverse class. There are no more profiles to sum over.
-The natural Markov chain walks around the transverses.
-
-The cost: the weights are h_j / binomial, which is
-irrational and not obviously amenable to signature
-arguments. So the paper uses a slightly different encoding
-to unlock the algebra (next section). But morally, this
-is what is happening.
-
-
-====== 14. STEP 9: TWO FACTORIAL LIFTS ======
-
-The plain transverse weight h_j/binomial has an awkward
-form: the binomial factor has limited algebraic structure.
-The paper uses two slightly different weights instead. Both
-were chosen because they have two DIFFERENT algebraic
-signatures, and both signatures are needed.
-
-For each p-subset S of the 2p ground elements (not just
-transverses), define
-
-  f_j(S)          = h_j(x,y) * product over s of (x_s! y_s! / b_s!),
-  f_tilde_j(S)    = h_j(x,y) * product over s of
-                    ((b_s - x_s)! (b_s - y_s)! / b_s!).
-
-Both are strictly positive on the full p-subset domain. On
-a transverse (where x_s + y_s = b_s for every s), both
-reduce to the same thing:
-
-  f_j(S) = f_tilde_j(S) = h_j(x,y) / product_s binomial(b_s, x_s).
-
-So both agree with the plain transverse weight. And both
-satisfy
-
-  sum over transverses of f_j(S) = sum over transverses of f_tilde_j(S) = C(j).
-
-So either lift recovers C(j) as a transverse sum. The two
-lifts differ on the ENLARGED state space (step 10) where
-some pairs are empty and some are full.
-
-The required factor W^2 comparison on the enlarged state
-space: if S has one empty pair and one full pair (everything
-else singly occupied), then
-
-  (1/W^2) f_j(S)  <=  f_tilde_j(S)  <=  W^2 f_j(S).
-
-Why? In the defect state, the cell containing the empty pair
-has count sum b_s - 1, and the factor f_tilde/f there equals
-(x_s+1)(y_s+1), at most W^2. The cell containing the full pair
-has count sum b_s + 1, and the factor there equals 1/(x_s y_s),
-at least 1/W^2. These are the only cells that differ. So the
-quotient is between 1/W^2 and W^2.
-
-        ---------------------------
-
-The two signatures. This is the surprising part.
-
-For any positive weight F on k-subsets of a finite set, fix
-k-2 elements and consider the symmetric matrix whose (i,h)
-entry, for i != h, is F(elements + i + h), and whose
-diagonal is zero. If this matrix has at most one positive
-eigenvalue for every choice of fixed elements, F has the
-ADDITION PROPERTY. The OMISSION property is the addition
-property of the complement weight ~F(T) = F(full set \ T).
-
-The paper proves:
-
-  f_j has the OMISSION property;
-  f_tilde_j has the ADDITION property.
-
-Both properties remain true after fixing inclusions or
-exclusions and summing pairs at occupancy 1.
-
-The proof goes through the "at most one positive eigenvalue"
-criterion for Lorentzian polynomials (Branden-Huh, Annals
-2020) together with an elementary integer summation argument
-in the paper (Section: integer signatures). The integer
-summation lemma is what turns the counts h_j(x,y) -- which
-are themselves defined by integer sums -- into the required
-signature. The two different lift factorials are precisely
-chosen so that the two different signatures go through.
-
-Why both? Different parts of the algorithm need different
-tools:
-
-  - OMISSION is what makes TRANSPORT work: moving between
-    conditional transverse distributions, or between a
-    transverse and a defect state, is a covariance-like
-    quantity computed from the omission matrix.
-
-  - ADDITION is what makes DEFECT MASS COMPARISON work:
-    two defect classes are compared using the addition
-    signature to get quadratic inequalities.
-
-Neither lift gives both signatures. That is why the paper
-has two.
-
-
-====== 15. STEP 10: DEFECT STATES AND THE METROPOLIS CHAIN ======
-
-The transverse class alone is too small for a Metropolis
-chain that mixes: once you are on a transverse, the only
-direct moves route through other transverses, and the chain
-can get stuck on parts of the state space. The paper
-enlarges the state space with additional "defect" states.
-
-  A          = the transverses (already defined),
-  A_{il}     = p-subsets in which pair i is empty,
-               pair l is full,
-               every other pair singly occupied.
-
-Call (i,l) the DEFECT TYPE of a state in A_{il}. There are
-p(p-1) defect types (at most).
-
-The ENLARGED state space is
-
-  X = A  union  union over i != l of A_{il}.
-
-The weight on X is
-
-  lambda(S) = f_j(S)                 if S in A,
-              w_{il} f_j(S)           if S in A_{il},
-
-where the "multipliers" w_{il} > 0 are what the algorithm
-learns on the fly. Let Lambda = sum over X of lambda(S),
-and let pi(S) = lambda(S)/Lambda be the resulting
-probability distribution.
-
-GOOD multipliers. Multipliers are good if, for every (i,l),
-
-  C / (4 c_{il})  <=  w_{il}  <=  4 C / c_{il},
-
-where c_{il} = sum over A_{il} of f_j(S) (the unmultiplied
-defect mass). Good multipliers do NOT equalize the defect
-masses exactly; they only put every defect inside a factor
-of 16 of the transversal mass. That is enough. With good
-multipliers,
-
-  pi(A)        >= 1 / (5 p^2),
-  pi(A_{il})   >= 1 / (20 p^2).
-
-So every "type" -- transversal or defect -- has stationary
-probability at least a small polynomial, which keeps the
-chain from getting stuck.
-
-THE METROPOLIS CHAIN. At each step:
-
-  1. With probability 1/2, HOLD (do nothing).
-
-  2. Otherwise pick a uniformly random S in the current
-     state, and a uniformly random element t of its
-     complement; propose S' = S - {s} + {t}.
-
-  3. If S' is outside X, reject (hold). Otherwise accept
-     with probability min(1, lambda(S')/lambda(S)).
-
-Because holding has probability >= 1/2, the chain is
-"lazy" and has a stable spectrum in [0,1]. Because lambda
-is strictly positive on X, the chain is irreducible.
-
-The chain has pi as its stationary distribution and is
-reversible: for exchange neighbors S,S',
-
-  pi(S) P(S,S') = min{lambda(S), lambda(S')} / (2 p^2 Lambda)
-                = pi(S') P(S',S).
-
-Good. We now have a Markov chain with the right stationary
-law. What we still need is: what to observe on it, and how
-long to run it.
-
-The observation targets are exactly the two ratios that
-interest us: the "type indicators" (which defect, or
-transversal) and the partition ratio G_j(S) = f_{j+1}(S)/f_j(S)
-on the transversal class. Both are controlled by the
-propositions below.
-
-
-====== 16. STEP 11: VARIANCE AND TRACE MIXING ======
-
-The chain mixes efficiently, meaning the running average of
-a good "observable" converges to its stationary expectation
-quickly. The paper proves this in two steps.
-
-STEP A. TRANSPORT INEQUALITY AND TRANSVERSE VARIANCE.
-The paper proves a covariance-style bound: for every real
-function g on X, under good multipliers,
-
-  C * Var_mu(g)  <=  C_p * D(g),
-
-where mu is the stationary distribution restricted to
-transverses, D is a certain Dirichlet-form energy, and
-C_p = p(1 + 8 p q^2) with q = W^2.
-
-Proof idea (in words): decompose the transverse sum by
-conditioning on choices pair-by-pair down a binary tree.
-Each internal node of the tree contributes a "between-means"
-variance term that is charged against the appropriate
-transport edge. The transport inequality itself comes from
-a "one-hole transport" lemma: given a graph with weighted
-edges, the max-flow type bound on the two-sided
-exchange-neighborhood gives a bound on the squared difference
-of weighted means in terms of the graph energy. The two
-factors C_p and D are traded off via the pair-by-pair
-decomposition and the W^2 comparison between lifts.
-
-STEP B. OBSERVABLE VARIANCE AND TRACE MIXING.
-The defect states introduce "within-defect fluctuations"
-that can be large. The fix is to observe only the DEFECT-
-FACTORED function Qg, which is the projection that keeps the
-transversal values but replaces the values on each defect
-type by their mean. The paper proves: for every g and good
-multipliers,
-
-  Var_pi(Qg)  <=  (9 C_p + 2 C_d) * D(g) / C,
-
-where C_d = 8 + 32 p q^3. Both constants are polynomial in
-p and W. Dividing through by the Dirichlet energy in the
-"energy" convention:
-
-  Var_pi(Qg)  <=  K_obs * E(g),    K_obs = 10 p^4 (9 C_p + 2 C_d).
-
-K_obs is the fundamental mixing parameter. It bounds the
-inverse spectral gap.
-
-STEP C. TRACE MIXING.  The TRACE of the chain on the
-transversal class is the induced Markov chain that only
-records the state each time it comes back to a transverse.
-The paper proves:
-
-  - the trace is reversible for mu;
-  - it has inverse gap <= K_obs;
-  - its return time satisfies E_mu T_A <= 1/pi(A).
-
-Since pi(A) >= 1/(5 p^2), expected return is O(p^2) steps.
-So a "restart" from a transverse and a short burst of trace
-steps is cheap. And the trace mixes: after s trace steps the
-distribution is within mu_min^{-1} exp(-s/K_obs) of mu
-pointwise (relative mixing).
-
-STEP D. TIME AVERAGES FROM A DOMINATED START.
-If the initial state has law nu with nu <= U * pi for a
-constant U, then running N consecutive observations from
-that start gives
-
-  E_nu [ (1/N sum_{t=0}^{N-1} G(S_t) - E_pi G)^2 ]  <=  2 U K_obs Var_pi(G) / N.
-
-This is the concrete "how long to run" bound. To get relative
-error eta on a mean of at least poly-scale you take
-N = ~(poly) * K_obs / eta^2. That is where the algorithm's
-N_av (about 10^8 * p^8 * K_obs * H / eta^2) comes from: it
-is simply chosen to make the time-average bound below eta.
-
-Why is the initial-law condition satisfiable? Because the
-chain is started at a transverse and this is dominated by a
-multiple of pi restricted to A, and pi(A) >= 1/(5 p^2) makes
-the constant U = 5 p^2. That is polynomial.
-
-
-====== 17. STEP 12: THE WEIGHT EVALUATOR (h_j) ======
-
-h_j(x,y) = sum over free integer vectors z of 2^{-j D / H}.
-
-The free range is enormous (each b_e can be 2^100). We
-cannot enumerate. The paper uses a BINNED estimator.
-
-BINS.  For each free cell e, chop its integer range
-{0,...,b_e} into B equal bins of roughly equal size (a
-couple more or less). The bin index v_e = floor(B * z_e /
-(b_e+1)) is in {0,...,B-1}. Let V = {0,...,B-1}^F be the
-grid, where F is the number of free cells.
-
-CONTINUOUS DENSITY. Associate each bin v with the constant
-value V_a(v) = 2^{- floor(a D(v)/H) } for 0 <= a <= j, where
-D(v) is the penalty function D evaluated at bin v's midpoint.
-The paper proves that this dyadic weight is within a factor
-of 4 both ways of the continuous log-concave density
-
-  rho_a(w) = 2^{- a D(w) / H}   for w in [0, B]^F.
-
-The key point: D is smooth (Lipschitz constant <= 1/8 in
-normalized coords), so on any single bin the density hardly
-changes. That is where the factor 4 comes from.
-
-BIN PARTITION FUNCTION. For 0 <= a <= j,
-
-  S_a = sum over bins v of V_a(v).
-
-RATIOS. For a < j, the observable
-
-  R_a(v) = V_{a+1}(v) / V_a(v)
-
-is 1/2 or 1 (dyadic) and has expected value S_{a+1}/S_a
-under the bin chain's stationary law pi_a. So the ratio S_j/S_0
-is estimated by j consecutive averages.
-
-CORRECTION. For the final step we also need to correct the
-bins back to integers. Define
-
-  T(v,z) = alpha_v * 2^{-j D(s)/H} / V_j(v),
-
-where alpha_v = B^F * |I_v| / M_f is the bin population
-factor (correcting for uneven bin sizes; between 1/2 and 2),
-and s is the actual integer point inside the bin. The paper
-shows 1/8 <= T <= 4 and
-
-  E T = B^F h_j(x,y) / (M_f S_j),
-
-so the whole estimator satisfies
-
-  M_f * (prod_a E_pi_a R_a) * E T = h_j(x,y).
-
-That is the target. The product of j+1 random ratios, times
-M_f, gives h_j.
-
-The correction only needs to approximate 2^{beta} with beta
-in [-2,2] to relative error < sigma, which the paper does by
-a fixed-depth dyadic bisection on rationals -- polynomial
-bit cost.
-
-MIXING AND CHAIN CONDUCTANCE. The bin chain is the same kind
-of Metropolis chain, but with continuous density rho_a. The
-paper proves its spectral gap is at least
-
-  kappa = 1 / (10^4 d^2 B),
-
-using the Prékopa-Leindler interpolation inequality: for a
-log-concave density, the region "dilute the smaller side of a
-cut by 1-t, take the union with a t-ball around it" gets a
-bound on the mass added. That gives cut expansion, which
-gives conductance, which gives mixing time O(d^2 B) per bin.
-With the paper's B chosen as poly(L)/eps, this is polynomial.
-
-FINITE-BIT UNIFORM DRAWS. The bin index itself needs
-uniform random bits. The paper uses the standard dyadic
-trick: for a range {0,...,M-1}, pick a uniform Y in
-{0,...,2^k-1} for the smallest k with M*2^{-k} <= zeta, and
-return floor(M Y / 2^k). The result is within total
-variation zeta of uniform, using exactly k bits, without
-rejection.
-
-FULL ERROR BUDGET.  Set sigma = xi_in / (50(H+1)) and
-N_in = ceil(10^6 * (H+1) / (theta * sigma^2)). Take N_in
-samples of every bin average. Chebyshev's inequality says
-every average has relative error <= sigma outside an event
-of probability < theta/4. Total log error from j+1 averages
-plus one correction is at most 4(H+1)*sigma = 2*xi_in/25,
-which is more than enough to guarantee proposition-level
-relative error xi_in with failure probability theta.
-
-COMPLEXITY PER CALL. Every loop is bounded by explicit
-polynomials; every rational has polynomial-length
-representation; no numerical large capacity enters any loop
-bound. The output is positive and in a fixed polynomial
-range on every execution -- even executions where the
-statistical guarantees fail. That is the key uniformity,
-needed later for the annealing proof.
-
-
-====== 18. STEP 13: THE ANNEALING ALGORITHM ======
-
-Combine everything. The algorithm walks j = 0,1,...,H-1
-and does the following at each step, maintaining multipliers
-for defect types.
-
-INITIALIZE. Use the closed form from step 11:
-
-  C(0) = M_f * product over small cells of (b_s + 1).
-
-For each defect type (i,l), the initial multiplier w_{il}^{(0)}
-has an exact closed form (the "initialization lemma"):
-
-  w_{il}^{(0)} = 6                      if i,l in the same cell,
-  w_{il}^{(0)} = 6 (b_s(i)+1) / (b_s(l)+2)   otherwise.
-
-This is computed exactly in polynomial bit time from the
-cell bounds. The two multipliers are in a specific ratio
-because C(0)/c_{il}(0) has a simple closed form when
-i,l are in the same versus different cells.
-
-PARAMETERS.  Set
-
-  eta = epsilon / (200(H+1)),
-  tau = 2 K_obs (H + p + K + 5),
-  B_ret = 2000 p^2 (H+1)^2 tau,
-  N_av = ceil(10^8 p^8 K_obs (H+1) / eta^2).
-
-These are the time budgets: how long to run each phase's
-"average" and how long the "restart" is allowed to take.
-
-MAIN LOOP over j = 0,...,H-1:
-
-  STEP 1 (RESTART). Draw a fresh small profile from mu_0
-  (lemma: this is just a product of independent sampler
-  draws per cell). Then for a = 1,2,...,j, run tau TRACE
-  STEPS of the chain at parameter a with multipliers
-  w^{(a)} already learned. Each trace step ends at the
-  next return to a transverse. Allow at most B_ret total
-  underlying transitions during the restart; if we run out,
-  abort and return zero.
-
-  For j = 0, the restart is just the fresh mu_0 draw.
-
-  STEP 2 (OBSERVE). From the restart endpoint, run the
-  chain at parameter j with multipliers w^{(j)} for
-  N_av consecutive observations (including the starting
-  state). Record:
-
-    - for every type (transverse or defect (i,l)),
-      the number of visits n_T;
-    - the empirical mean of the observable G_j = f_{j+1}/f_j
-      on transverses, call it u_hat.
-
-  If any type count is zero (some type was not visited
-  enough), abort and return zero.
-
-  STEP 3 (UPDATE). Compute the ratio estimate
-
-    R_hat_j = u_hat / p_hat_0,   p_hat_0 = n_0 / N_av,
-
-  and if j+1 < H, set the next multipliers
-
-    w_{il}^{(j+1)} = w_{il}^{(j)} * (n_0 / n_{il}).
-
-OUTPUT.  If no abort occurs,
-
-  Z_hat = C(0) * product_{j=0}^{H-1} R_hat_j.
-
-That is the FPRAS estimate.
-
-ACCURACY PROOF SKETCH.  Use the time-average lemma at each
-phase: after N_av observations from a restart that is
-dominated by a multiple of pi, each observable mean has
-mean squared error <= 2 U K_obs Var / N_av, with U = 5 p^2.
-By Chebyshev's inequality and a union bound over the
-p(p-1)+2 observable types, the probability that any
-empirical mean is off by more than a relative eta is at
-most 1/(100(H+1)). Summing over phases, the probability of
-some phase failing is at most 2H/(100(H+1)) < 1/50.
-
-On the "no failure" event, the multiplier update lands on a
-good multiplier for the NEXT phase, because it is exactly
-the empirical estimate of the ideal multiplier up to small
-multiplicative error. That is what makes the induction go
-through. And the ratio estimate is off by at most 4 eta in
-log terms, so the product over H phases is off by at most
-4 H eta by telescoping.
-
-That is the whole error analysis. The paper then upgrades
-the "exact arithmetic" analysis to the "bounded algebra"
-implementation, which uses:
-
-  - weight evaluations with fresh bits per call, error
-    bounded by xi (with xi = eta/(1000 J_*) where J_* is a
-    polynomial accounting for total draws);
-  - dyadic acceptance thresholds for Metropolis acceptance;
-  - dyadic integer draws for finite-choice proposals.
-
-The coupling argument: two runs (exact vs bounded) agree on
-the entire trajectory except on an event of probability at
-most 10 J_* xi < theta. So the bounded run's output is
-within log factor 4 H eta + 4 H xi of C(H)/C(0) times its
-own C(0). The comparison with Z comes from the
-contamination bound step 12.
-
-The remaining case p = 0 (no small cells) is trivially
-covered by a single weight evaluation: C(H) = h_H(empty)
-and the algorithm just evaluates that directly to relative
-error epsilon/32 with failure 1/16.
-
-
-====== 19. STEP 14: BOUNDED BITS AND AMPLIFICATION ======
-
-The "bounded algebra" is what makes this a real bit-time
-algorithm rather than a real-arithmetic idealization. The
-key moves:
-
-  - EVERY WEIGHT EVALUATION uses fresh bits. So it is
-    statistically independent of all previous evaluations
-    and choices. Each one, on its own, is a bounded
-    random variable with a fixed polynomial output range.
-
-  - EVERY ACCEPTANCE THRESHOLD is dyadic: pick k = ceil(log_2
-    (1/xi)) bits, compute the downward-rounded dyadic
-    approximation of the exact acceptance probability, and
-    compare. The distribution is within xi (absolute) of
-    the exact one.
-
-  - EVERY FINITE-CHOICE DRAW uses the dyadic-integer-draw
-    lemma: total variation <= xi, exactly k bits, no
-    rejection loop.
-
-  - EVERY output rational, including failed runs of the
-    weight evaluator, is a rational with polynomial-length
-    numerator and denominator.
-
-The result: a fixed polynomial in (L, 1/epsilon, log(1/delta))
-bounds the number of bit operations on EVERY execution --
-including executions that happen to fail to get within
-relative error epsilon.
-
-Single-run success probability is > 3/4 (from the accuracy
-proof: failure prob < 1/4). To amplify to 1-delta:
-
-  s = ceil(log_2(1/delta)),
-  R = 10 s + 1.
-
-Run the algorithm R times independently and take the MEDIAN
-of the positive rational outputs.
-
-Why does the median work? Let F be the number of runs
-outside the target relative interval. Independence plus
-failure prob <= 1/4 gives
-
-  E [ 2^F ] <= (5/4)^R.
-
-A "bad median" requires F >= R/2 (at least half the runs
-fail), and Markov's inequality bounds the probability by
-
-  P[bad median] <= E[2^F] / 2^{R/2}
-                <= (5/4)^R / (sqrt(2))^R
-                = (5 / (4 sqrt 2))^R.
-
-Since 5/(4 sqrt 2) < 1, and (5/(4 sqrt 2))^10 < 1/2, this
-is at most 2^{-s} <= delta (using R = 10 s + 1). So the
-median is inside the target relative interval with
-probability >= 1 - delta. That completes the FPRAS.
-
-The amplification reproduces exact rational comparisons --
-the median of positive rationals, sorted or unsorted, is a
-bit operation on polynomial-length fractions. All the
-bit-complexity guarantees from the single-run case carry
-through.
-
-
-====== 20. CONSEQUENCE FOR NETWORK FLOWS ======
-
-The paper ends with a corollary: counting BOUNDED INTEGRAL
-FLOWS in an arbitrary directed multigraph reduces to the
-same table problem. Given a flow instance with arc bounds
-ell_e <= f_e <= u_e and vertex balances beta_v,
-
-  F = { f in Z^E : ell_e <= f_e <= u_e,
-                    (outflow - inflow at v) = beta_v }
-
-the paper builds a bipartite table that captures exactly the
-same set. Approach:
-
-  1. Subtract lower bounds and shift balances (bijection).
-  2. For each arc e = (u,v), split it into u -> w_e -> v
-     with both arcs having cap u_e - ell_e, and give w_e
-     balance zero. The two arc values must agree, so this
-     is a bijection.
-  3. Build a q x q table, q = |V| + |E|, with rows = columns
-     = the subdivided vertex set, off-diagonal entries = arc
-     caps, diagonal entries = a big fill K.
-  4. Big fill K = 1 + sum of caps + sum of balances,
-     chosen so that the diagonal entry is always determined
-     by the row/column equations.
-
-The bijection preserves counts exactly. Then:
-
-  COUNTING: apply the main theorem to this table.
-  SAMPLING: apply self-reduction (JVV 1986): pick each cell
-  value by bisection with fresh counting calls on the two
-  children at each step. Total variation is bounded via the
-  same "amplification" argument, and cost is polynomial in
-  the input length and 1/tau.
-
-The corollary is that both counting and sampling of bounded
-integral flows in explicitly listed networks are polynomial
-bit-time computable. This is why the paper's main theorem
-is stated for the general table problem and not just for
-the narrow table application: one bijection transfers the
-whole result to a large class of flow problems.
-
-
-====== 21. PUTTING IT ALL TOGETHER: THE FULL PIPELINE ======
-
-You have seen every piece. The complete algorithm is:
-
-  1. Feasibility test: return zero if infeasible.
-  2. Tighten each cell to [0, b_s] and subtract minimums.
-  3. Split into small vs large.
-  4. Compute maximum-capacity spanning forest.
-  5. Reduce the small cell to two views with constraint
-     x_s + y_s = b_s.
-  6. Compute the penalty D and parameters H, A, B, W.
-  7. Estimate C(0) exactly.
-  8. For j = 0..H-1, run the annealing step:
-     restart at mu_0,
-     trace-run to parameter j,
-     observe defect counts and ratio G_j,
-     update multipliers.
-  9. Multiply C(0) by the H ratio estimates.
- 10. Amplify with R = 10*ceil(log_2 1/delta) + 1 independent runs
-     and take the median.
-
-That is the FPRAS.
-
-Honesty note: this document is a summary. It follows the
-original paper faithfully but omits many inequalities. For
-the full proofs, read the paper. Every stated claim here
-is what the paper actually proves.
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{enumitem,microtype}
+\usepackage[hidelinks]{hyperref}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\DeclareMathOperator{\dist}{dist}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\TV}{TV}
+\let\epsilon\varepsilon
+\newcommand{\E}{\mathbb E}
+\renewcommand{\P}{\mathbb P}
+\allowdisplaybreaks[2]
+\title{An FPRAS for Cell-Bounded Contingency Tables}
+\author{OpenAI}
+\date{September 24, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We give a fully polynomial randomized approximation scheme (FPRAS)
+for counting nonnegative integer matrices with prescribed row sums,
+column sums, and individual entry bounds.  Both dimensions vary, all
+numerical data are encoded in binary, and zero bounds (forbidden
+entries) are allowed.  The algorithm uses only independent unbiased
+random bits, and a single fixed polynomial in the input length, in
+$1/\epsilon$, and in $\log(1/\delta)$ bounds its total bit operations
+\emph{on every execution}, including executions whose numerical output
+falls outside the requested relative interval.  The same argument
+yields an FPRAS and an almost-uniform sampler for bounded integral
+single-commodity flows in arbitrary explicitly listed networks.
+\end{abstract}
+
+\section*{How to read this paper}
+\addcontentsline{toc}{section}{How to read this paper}
+
+The paper has one theorem and one corollary, and one long proof of
+each.  A reader meeting the problem for the first time should read
+this guide, then the introduction (Section~\ref{sec:intro}), then the
+statement of the main estimate in Section~\ref{sec:scales} together with
+the contamination bound at its end, then the annealing algorithm in
+Section~\ref{sec:algorithm} and the proof of the main theorem there.
+Those four places contain the whole idea.  The remaining sections are
+the technical engines that make the idea rigorous:
+Section~\ref{sec:scales} also builds the small/large decomposition;
+Section~\ref{sec:integer-signatures} proves the summation lemma and the
+near-boundary estimate; Section~\ref{sec:signatures} constructs the two
+factorial lifts and their quadratic signatures;
+Section~\ref{sec:transport} proves the transport, variance, and trace
+bounds; and Section~\ref{sec:evaluation} implements the approximate
+evaluation of the completion weights.
+
+Three conventions recur.  Every count is an integer; every capacity is
+written in binary; every randomized procedure draws only independent
+unbiased bits (``fair coins'') and runs for a deterministic number of
+steps chosen in advance.  A quantity of the form ``$1-\epsilon$'' is a
+\emph{relative} error, not an absolute one.
+
+\section{Introduction}\label{sec:intro}
+
+\paragraph{The problem.}
+A \emph{cell-bounded contingency table} is a nonnegative integer matrix
+with prescribed row sums, prescribed column sums, and prescribed
+individual entry bounds.  Formally, for positive integers $m,n$, margins
+$r\in\mathbb Z_{\ge0}^m$ and $c\in\mathbb Z_{\ge0}^n$ of equal total, and
+bounds $b\in\mathbb Z_{\ge0}^{m\times n}$, let
+\begin{equation}\label{eq:feasible-set}
+\begin{aligned}
+ \Omega(r,c,b)&=\Bigl\{X\in\mathbb Z_{\ge0}^{m\times n}:\;
+   \sum_{j=1}^n X_{ij}=r_i,\quad
+   \sum_{i=1}^m X_{ij}=c_j,\quad
+   X_{ij}\le b_{ij}\ \text{for all } i,j\Bigr\},\\
+ Z(r,c,b)&=|\Omega(r,c,b)|.
+\end{aligned}
+\end{equation}
+Each table is counted once.  A bound $b_{ij}=0$ forbids the entry; no
+positivity is imposed on the support or the margins.  In the binary
+encoding model a capacity may be exponentially larger than its
+description, and both $m$ and $n$ are part of the input.  The problem is
+to compute $Z(r,c,b)$, or to approximate it well in this model.
+
+\paragraph{A tiny example.}
+Take $m=n=2$, $r=(2,1)$, $c=(1,2)$, and every $b_{ij}=2$.  Writing
+$X=\begin{psmallmatrix}a&b\\c&d\end{psmallmatrix}$, the constraints read
+$a+b=2$, $c+d=1$, $a+c=1$, $b+d=2$.  Solving gives $a=d$, $c=1-a$,
+$b=2-a$ with $a\in\{0,1\}$, so
+\[
+ \begin{pmatrix}0&2\\1&0\end{pmatrix},
+ \qquad
+ \begin{pmatrix}1&1\\0&1\end{pmatrix},
+\]
+and $Z=2$.  Real inputs have many rows and columns and astronomically
+large capacities.
+
+\paragraph{Why it is hard.}
+Deciding whether a feasible table exists is easy: build a directed
+network with a source, the rows, the columns, and a sink; give the
+source--row, row--column, and column--sink arcs capacities $r_i$,
+$b_{ij}$, and $c_j$; then a feasible table is exactly an integral flow
+of value $N=\sum_i r_i=\sum_j c_j$, and Edmonds--Karp decides
+feasibility in time polynomial in the number of \emph{bits} of the
+input (see \cite{EK1972}).  Counting is different.  Dyer, Kannan, and
+Mount \cite[Theorem~1]{DKM1997} proved that exact counting is
+$\#\mathrm P$-complete already for two rows, so no exact
+polynomial-time algorithm is expected.  An approximation is still
+possible; that is the object of an FPRAS.
+
+\paragraph{What an FPRAS is.}
+An FPRAS for $Z$ receives the data together with rational
+$\varepsilon,\delta\in(0,1)$ and returns a nonnegative rational
+$\widehat Z$ with
+\[
+ \P\bigl((1-\varepsilon)Z\le\widehat Z\le(1+\varepsilon)Z\bigr)\ge1-\delta.
+\]
+``Fully polynomial'' means the running time is bounded by a fixed
+polynomial in the number of bits $L$ of the input (including the
+encodings of $\varepsilon$ and $\delta$), in $1/\varepsilon$, and in
+$\log(1/\delta)$ -- never in $1/\delta$ or in the numeric capacities
+themselves.  Bit complexity is the strict form of this demand: an input
+that names a cap of $2^{100}$ must cost polynomial time in the roughly
+$100$ digits, not $2^{100}$ steps.  Most naive approaches fail exactly
+here.
+
+\paragraph{The main result.}
+The paper proves the following.
+
+\begin{theorem}\label{thm:main}
+There is one randomized algorithm with the following guarantee.  Given
+$(r,c,b)$ as above and rational $\varepsilon,\delta\in(0,1)$, it outputs
+a nonnegative rational $\widehat Z$ such that
+\[
+ \P\bigl((1-\varepsilon)Z(r,c,b)\le\widehat Z
+                 \le(1+\varepsilon)Z(r,c,b)\bigr)\ge1-\delta.
+\]
+If $\Omega(r,c,b)$ is empty, the output is $0$ on every execution.  The
+algorithm uses independent unbiased bits, and one fixed polynomial in
+$L$, $\varepsilon^{-1}$, and $\log(\delta^{-1})$ bounds its total bit
+operations on every execution, where $L$ is the total binary input
+length, including the accuracy parameters.  No counting or sampling
+oracle is required.
+\end{theorem}
+
+The theorem allows arbitrary cell bounds and margins: no fixed number of
+rows or columns, no lower bound on positive capacities, no density or
+balance assumption.  Its running-time guarantee covers preprocessing,
+random-bit generation, rational arithmetic, and output, even on
+executions in the failure event.  The polynomial exponents are
+deliberately generous; the content is a uniform complexity guarantee,
+not a practical running-time estimate.
+
+\paragraph{A second result: flows.}
+Section~\ref{sec:flows} records a consequence for integer flows.  For an
+explicitly given directed multigraph with finite integer arc bounds and
+prescribed vertex balances, a single bijection to a cell-bounded table
+transfers Theorem~\ref{thm:main}, yielding both an FPRAS for the number
+of feasible integral flow vectors and a sampler that is within total
+variation $\tau$ of uniform at cost polynomial in the input length and
+$\tau^{-1}$.
+
+\paragraph{History and significance.}
+The enumeration of fixed-margin arrays is classical in statistics and
+combinatorics; Diaconis and Gangolli \cite{DG1995} survey its methods.
+Ordinary contingency tables are the special case of \eqref{eq:feasible-set}
+in which the margins force $X_{ij}\le\min\{r_i,c_j\}$; even these are
+$\#\mathrm P$-complete to count exactly for two rows \cite{DKM1997}.
+Approximate counting is nevertheless efficient under broader conditions
+than exact counting.  For ordinary tables, Dyer, Kannan, and Mount
+\cite{DKM1997} gave geometric sampling and counting for sufficiently
+large margins, and Morris \cite{Morris2002} weakened the required margin
+bounds.  Dyer and Greenhill \cite{DG2000} handled arbitrary two-row
+margins.  Cryan and Dyer \cite{CD2003}, and later Dyer \cite{Dyer2003},
+obtained an FPRAS for a fixed number of rows, and Gopalan, Klivans,
+Meka, \v{S}tefankovi\v{c}, Vempala, and Vigoda \cite{GKM2011} gave a
+deterministic FPTAS for a fixed number of rows.  These results already
+accept binary-encoded margins; their restriction is on the number of
+rows or on the sizes of the margins, not on the encoding.
+
+Individual caps connect the table problem to several other models.  When
+every cap is $0$ or $1$ the table is a subgraph of the allowed bipartite
+graph with prescribed degrees; Jerrum, Sinclair, and Vigoda
+\cite{JSV2004} give an FPRAS for this whole case, and all-one margins
+give perfect matchings.  Bez\'akov\'a, Bhatnagar, and Vigoda
+\cite{BBV2007} gave a direct annealing algorithm for binary tables.
+More generally, capped tables are integral flows in a bipartite network:
+Cryan, Dyer, and Randall \cite{CDR2010} gave an FPRAS for integral flows
+with sufficiently large tight capacities, and for cell-bounded tables
+with a fixed number of rows and arbitrary positive margins and caps.
+They identified unrestricted approximation as an open problem.  Their
+tight-capacity reduction and maximum-capacity spanning-tree
+representation are the direct antecedents of the large-cell construction
+here; a forest and soft constraints let us accommodate arbitrary
+mixtures of small and large bounds, with both dimensions variable and
+zero bounds permitted.
+
+Convex optimization gives complementary estimates.  Barvinok
+\cite[Theorem~1.3]{Barvinok2009} bounds ordinary weighted table counts,
+including forbidden cells, within a factor $N^{O(m+n)}$ where $N$ is the
+total margin; Barvinok, Luria, Samorodnitsky, and Yong \cite{BLSY2010}
+obtain relative approximations in complexity $N^{O(\log N)}$ for
+specified smooth-margin classes.  This scale is quasipolynomial in the
+numeric total, not in its binary length.  Br\"and\'en, Leake, and Pak
+\cite[Theorem~2.1]{BLP2021} give capacity bounds for arbitrary
+individual caps with explicit multiplicative factors in the margins and
+dimensions.  Theorem~\ref{thm:main}, by contrast, delivers any requested
+relative tolerance in polynomial binary time with no smoothness
+assumption.  The geometric object here is the set of all integer points
+of a transportation polytope, not only its vertices (for instance the
+$2\times2$ tables with every margin equal to two form a segment with
+three integer points and two vertices); Guo and Jerrum
+\cite[Proposition~4.2]{GJ2023} treat vertices of promised $0/1$
+polytopes from network matrices, a different scope.  Counting also
+yields sampling by self-reduction \cite[Theorem~6.3]{JVV1986}, which
+Section~\ref{sec:flows} carries out by bisecting cell intervals with
+exact feasibility tests at every branch.
+
+\paragraph{Organization.}
+Section~\ref{sec:scales} performs the deterministic reductions, splits
+cells into small and large, builds the maximum-capacity forest and the
+soft penalty $D$, and defines the softened counts $h_j$ and $C(j)$, with
+the contamination bound as its goal.  Section~\ref{sec:integer-signatures}
+proves the integer summation lemma and the log-concavity of tree
+marginals, and thereby completes the proof of the contamination bound.
+Section~\ref{sec:signatures} introduces the paired binary encoding, the
+two factorial lifts $f_j$ and $\widetilde f_j$, their quadratic
+signature properties, and the defect-mass inequalities.
+Section~\ref{sec:transport} builds the enlarged Metropolis chain and
+proves the one-hole transport, transversal-variance, defect-mean,
+observable-variance, time-average, and trace-mixing bounds.
+Section~\ref{sec:evaluation} gives the bounded weight-evaluation
+procedure via bins, the Pr\'ekopa--Leindler interpolation inequality, the
+bin conductance bound, and the finite-bit uniform-draw lemma.
+Section~\ref{sec:algorithm} assembles the annealing algorithm, proves
+the reference-experiment accuracy, couples the bounded implementation to
+it, and proves Theorem~\ref{thm:main} by amplification.
+Section~\ref{sec:flows} proves the flow corollary.
+
+\paragraph{Conventions.}
+All logarithms with subscript $2$ are binary; $\log$ without a subscript
+in exponent estimates is natural.  A symmetric matrix has
+\emph{at most one positive eigenvalue} when its positive inertia index
+is at most one, counting multiplicity; this property of quadratic forms
+is preserved by restriction and by limits.  A sum over edges in a
+Dirichlet form is over unordered edges unless stated otherwise.  Every
+$\lceil\cdot\rceil$ and $\lfloor\cdot\rfloor$ of a binary logarithm used
+for parameters or bit counts is computable by integer shifts and
+comparisons.  The large matrices, conditioning trees, and transport
+flows that appear in proofs are analytic devices: the algorithm never
+forms them.
+
+\section{Tight capacities and two scales}\label{sec:scales}
+
+This section performs the deterministic reductions and sets every
+polynomial parameter that the rest of the proof uses.  The plan is
+fixed once and for all: first make each cell bound \emph{tight} (its
+two endpoints attained), then split the remaining cells by size into a
+polynomially bounded \emph{small} part and a \emph{large} part handled
+by a spanning forest, then attach a soft penalty that measures how far
+a candidate completion is from being a genuine table.  The use of tight
+capacities and a maximum-capacity spanning forest follows the
+representation of integral flows in \cite{CDR2010}, but the estimates
+below allow both dimensions and all capacities to vary.
+
+\subsection{Feasibility, tightening, and parameters}
+
+\paragraph{Feasibility is a flow question.}
+Form a directed network with a source $\sigma$, the row vertices, the
+column vertices, and a sink $\tau$.  Give the source--row arcs
+capacities $r_i$, the row--column arcs capacities $b_{ij}$, and the
+column--sink arcs capacities $c_j$.  An integral flow of value
+$N=\sum_i r_i=\sum_j c_j$ is exactly a feasible table: at that value
+every arc incident to the source or the sink is saturated, and the
+row--column values are the table entries.  The shortest-augmenting-path
+algorithm of Edmonds and Karp \cite[Theorem~1]{EK1972} uses $O(VE)$
+augmentations, where $V$ and $E$ are the numbers of vertices and arcs;
+the present network is simple, so $E=O(V^2)$ and the augmentation count
+is $O(V^3)$, independent of the numerical capacities.  Each augmenting
+path is found by breadth-first search in $O(V+E)$ operations, and
+starting from the zero flow, augmentation by the minimum residual
+capacity preserves integrality.  All flow and residual-capacity values
+have polynomial binary length, so this is a deterministic
+polynomial-bit feasibility test for the present network.  If the input
+is infeasible the final algorithm returns zero; we now suppose it is
+feasible.
+
+\paragraph{Tightening.}
+For a feasible input let $\ell_s$ and $u_s$ be the minimum and the
+maximum feasible integer values of cell $s=(i,j)$.  Each extremum is
+computable by binary search using flow feasibility with one additional
+upper or lower bound: a lower bound is subtracted from its cell and
+from the two incident margins before the flow test, and a negative
+# ^C interrupted by user!
