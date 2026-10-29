@@ -1,3 +1,432 @@
+===============================================================================
+MIN-UNCUT HARDNESS
+A PLAIN-ENGLISH WALKTHROUGH OF THE PAPER FOR HIGH SCHOOL READERS
+===============================================================================
+
+This document accompanies a technical paper titled "Constant-factor hardness
+of Min-UnCut". That paper is written for research mathematicians. It uses
+tools from PCP theory, Fourier analysis, Gaussian probability, and Fourier-
+Hermite decompositions, none of which are taught in high school.
+
+So this file is not a replacement for the paper. It is a companion designed to:
+
+  (1) state the main results in plain language,
+  (2) explain why anyone cares,
+  (3) sketch how the proof is built, part by part,
+  (4) gloss the technical jargon,
+  (5) be honest about what is skipped.
+
+If you are reading this as a high schooler, the useful thing is to come away
+knowing WHAT the paper proves and roughly HOW the proof works. You do not
+need to be able to prove it yourself to understand it. That is true of every
+research paper.
+
+===============================================================================
+PART 1 - THE PROBLEM
+===============================================================================
+
+1.1  Graphs and cuts
+
+A graph is a set of points (vertices, singular vertex) together with a set of
+lines (edges) between pairs of them. A graph is unweighted if every edge counts
+the same. A graph is simple if no edge repeats and no edge loops from a vertex
+back to itself.
+
+A bipartition (or cut) of a vertex set V is a choice of two colors, say RED
+and BLUE, applied to every vertex. Given a bipartition and an edge uv:
+
+   * the edge is CUT if u and v receive different colors,
+   * the edge is UNCUT if u and v receive the same color.
+
+A graph is BIPARTITE if some bipartition cuts every edge. Equivalently: you
+can 2-color the vertices so that every edge runs red-to-blue. Bipartite graphs
+are well understood and easy to test for.
+
+Many practical problems reduce to bipartiteness: scheduling two teams, task
+assignment, conflict graphs, etc. But most graphs that occur in nature are
+not bipartite. The next question is therefore "how far is this graph from
+being bipartite", which is exactly what Min-UnCut measures.
+
+1.2  Min-UnCut
+
+Given a graph G = (V,E) and a bipartition S of V, define:
+
+   uncut(G, S)  = number of edges with both endpoints in S or both outside S
+   OPT_uncut(G) = the minimum of uncut(G, S) over all bipartitions S
+
+OPT_uncut(G) is zero if and only if G is bipartite. Otherwise it counts the
+smallest number of edges that must be "sacrificed" to get a bipartite graph.
+
+Equivalently: OPT_uncut(G) is the smallest number of edges whose deletion
+leaves a bipartite graph. Why? Delete the uncut edges of an optimal S; the
+remaining edges form a bipartite graph. Conversely, any subset D whose
+deletion leaves a bipartite graph induces a bipartition S with every uncut
+edge in D, so uncut(G, S) <= |D|. Taking minimums both ways gives equality.
+This is the interpretation used throughout the paper: Min-UnCut IS
+"minimum edge-deletion to bipartite".
+
+1.3  Why Min-UnCut is not just Max-Cut in disguise
+
+Max-Cut asks for the maximum number of CUT edges. Min-UnCut asks for the
+minimum number of UNCUT edges, and |E| = cut + uncut. So
+
+   OPT_uncut(G) = |E| - MAXCUT(G).
+
+At first glance, approximating one approximates the other. But the two
+objectives are not equally sensitive to the total |E|. If OPT_uncut is tiny
+(the graph is nearly bipartite), a Max-Cut algorithm that promises "within
+factor r of the optimum" may still output an uncut count far larger than
+r * OPT_uncut. The two approximation problems genuinely differ in the
+near-bipartite regime, and that regime is where this paper lives.
+
+1.4  Approximating OPT is easier than computing it, sort of
+
+Computing OPT_uncut exactly is NP-hard (because MAX-CUT is). So nobody
+expects an efficient exact algorithm unless P = NP. The interesting question
+is about APPROXIMATION:
+
+   For which constants r > 1 is there a polynomial-time algorithm that,
+   on every input graph G, outputs SOME bipartition S with
+   uncut(G, S) <= r * OPT_uncut(G)?
+
+An algorithm like that is called an r-approximation. Smaller r is better.
+r = 1 would be exact, which we believe is impossible.
+
+1.5  What was known before this paper
+
+Two things were known.
+
+(a) An algorithm side. Agarwal, Charikar, Makarychev, and Makarychev (2005)
+    gave a randomized polynomial-time algorithm achieving roughly
+    sqrt(log n) * OPT_uncut(n). Here n is the number of vertices, and
+    sqrt(log n) grows slowly; for practical sizes it is a small number.
+    That is a very strong approximation ratio, but it is not a CONSTANT.
+
+(b) A hardness side, under UGC. If the Unique Games Conjecture holds (an
+    unproven but widely believed conjecture), then no constant factor r > 1
+    is achievable in polynomial time. That is, Min-UnCut is NP-hard to
+    approximate within ANY fixed constant, CONDITIONAL on UGC.
+
+There were also UNCONDITIONAL hardness results for specific small constants:
+Hastad-Huang-Manokaran-O'Donnell-Wright (2017) ruled out r below 11/8 for
+the closely related "minimum violated 2-variable parity equations" problem.
+Wiman (2018) improved that to below 1.45685, and Martinsson (2024) to below
+73139148/49096883, which is about 1.48969. Each of these numbers was the
+record at the time. None of them reached every constant.
+
+===============================================================================
+PART 2 - WHAT "HARDNESS OF APPROXIMATION" MEANS
+===============================================================================
+
+2.1  P and NP, one paragraph
+
+P is the class of problems solved by a fast (polynomial-time) algorithm.
+NP is the class of problems where, given a proposed solution, one can CHECK
+whether it is correct in polynomial time. Every P problem is in NP. Nobody
+has proven P != NP; it is the most famous open problem in computer science.
+
+A problem L is NP-hard if every NP problem can be reduced to L in polynomial
+time. If L were solvable in polynomial time, then so would every NP problem,
+implying P = NP. Since almost nobody believes P = NP, "NP-hard" is used as
+shorthand for "probably not solvable in polynomial time".
+
+2.2  Gap reductions
+
+Often the cleanest way to prove hardness of approximation is a GAP
+REDUCTION. Given a starting hard problem (here: 3SAT), you construct, in
+polynomial time, an instance Y of the target problem. The construction has
+a "gap" built in:
+
+     YES case:  Y is "easy" (e.g., OPT_uncut(Y) <= k)
+     NO  case:  Y is "hard" (e.g., OPT_uncut(Y) > K * k)
+
+Here k is a positive integer that is coded in the output. K is a fixed
+constant. If you could K-approximate your problem, you could apply the
+approximation algorithm to Y and check whether its answer is <= k or > Kk.
+That classifies the original 3SAT instance, which is NP-hard, so the
+approximation itself is NP-hard. That is exactly the shape of the argument
+in this paper.
+
+2.3  Randomized vs deterministic
+
+The paper's main theorem is about DETERMINISTIC algorithms. If we allow
+randomized approximation algorithms with a fixed success probability, the
+paper's methods still give NP being contained in RP (a randomized analogue
+of P), which is also believed to be false. So randomized approximations are
+hard too, just with a slightly different conclusion.
+
+2.4  Why a "positive threshold" k is stronger than "OPT = 0 vs OPT > 0"
+
+Testing "is OPT_uncut exactly zero?" is just testing bipartiteness, which is
+easy (polynomial time). The paper needs a gap where YES is a POSITIVE number
+of uncut edges (k >= 1) and NO is a much larger number (Kk). This positive
+threshold is what makes the argument robust against the approximation
+algorithm's ability to handle small fluctuations. Without it the reduction
+would not prove approximation hardness at all.
+
+===============================================================================
+END OF PART 1 AND PART 2
+===============================================================================
+
+===============================================================================
+PART 3 - THE MAIN THEOREM
+===============================================================================
+
+3.1  Statement
+
+THEOREM (main). For every fixed integer K >= 2, there exists a deterministic
+polynomial-time algorithm which, on input a 3SAT formula phi, outputs:
+   * G, a simple undirected unweighted graph, and
+   * k, a positive integer (coded in binary),
+such that:
+
+   phi is satisfiable    =>   OPT_uncut(G) <= k,
+   phi is unsatisfiable  =>   OPT_uncut(G) >  K * k.
+
+"Deterministic polynomial-time" means: the algorithm has no randomness, and
+its running time is a polynomial function of the bit-length of phi. All
+constants that appear (K, k, the hidden constants inside G) are EFFECTIVE:
+the algorithm can compute them. No advice, no oracle, no extra input.
+
+3.2  What this says, and why it matters
+
+The gap between the YES case (OPT <= k) and the NO case (OPT > Kk) is a
+multiplicative factor K. If any polynomial-time algorithm could approximate
+OPT_uncut within a factor K, then running it on G and comparing its output
+to the threshold k would decide 3SAT in polynomial time. That would give
+P = NP. Since K >= 2 was arbitrary, we get: for EVERY fixed C > 1, a
+polynomial-time C-approximation for Min-UnCut would imply P = NP.
+
+Or, in the usual phrasing: Min-UnCut is NP-hard to approximate within any
+fixed constant factor > 1. That is a strong statement. Before this paper,
+that was known only under the Unique Games Conjecture, or unconditionally
+for specific small factors below 1.49.
+
+3.3  The corollary for minimum 2CNF clause deletion
+
+COROLLARY. For every fixed real C > 1, minimum 2CNF clause deletion is
+NP-hard to approximate within factor C.
+
+Sketch proof. Given G, produce a 2CNF formula F_G by replacing each edge uv
+with the TWO two-literal clauses (x_u OR x_v) and (NOT x_u OR NOT x_v).
+
+  If u,v are assigned equal values, one clause is violated.
+  If they differ, both clauses are satisfied.
+
+So for any vertex bipartition S and corresponding assignment a to variables,
+   unsat(F_G, a)  =  uncut(G, S).
+Deleting an assignment's violated clauses therefore has cost = uncut(G,S).
+Conversely 2SAT-satisfiability of any deletion set yields an assignment with
+cost <= |D|. Therefore OPT_del(F_G) = OPT_uncut(G) exactly.
+
+Then apply the main theorem with K >= max(2, C). The gap (k vs Kk) survives
+the transformation verbatim. So an approximation within factor C decides
+3SAT, done.
+
+===============================================================================
+PART 4 - THE PROOF: ROADMAP AT 30,000 FEET
+===============================================================================
+
+The proof is long. Its logic has SEVEN STAGES, each a separate paper-sized
+contribution. Here they are in order.
+
+STAGE 1  --  START FROM HASTAD'S 3LIN GAP
+   Take Hastad's (2001) unconditional hardness for equations
+   x_a + x_b + x_c = tau (mod 2). For every fixed small rational zeta > 0,
+   it is NP-hard to distinguish instances where
+   (YES) some assignment satisfies >= 1-zeta of the equations, from
+   (NO)  no assignment satisfies more than 3/4.
+   The key numbers: 3/4 is FIXED; zeta can be arbitrarily tiny. The output
+   is a uniform explicit list of equations with the same gap.
+
+STAGE 2  --  BUILD A TWO-PLAYER GAME WITH AFFINE HINTS
+   Player 1 sees a tuple of t equations; player 2 sees a mix of equations
+   (most coordinates) and of individual variables (some coordinates); they
+   must agree on those variables. Show: even if both players receive q
+   "affine hints" (linear functions on the label space), the game's
+   soundness still decays exponentially in the hidden-coordinate count t_0.
+
+STAGE 3  --  BUILD FOUR BIT-COMPARISON TESTS
+   A "folded bit proof" on an affine alphabet A is a function
+   f : {all functions A -> {-1, +1}} -> {-1, +1} with f(-P) = -f(P).
+   The intended meaning: f(P) = P(a) for some specific label a (an
+   "evaluation" proof). Arbitrary folded functions are penalized by four
+   tests. Only evaluation proofs pass all four with small total cost.
+
+STAGE 4  --  INNER DECODING VIA FOURIER ANALYSIS
+   Show: a folded bit proof that passes the first three tests with small
+   cost must be close to an evaluation, and in fact contains a large ODD
+   Fourier coefficient (an odd functional alpha of the dual D(A)^*).
+   This is the deep Fourier-analytic step.
+
+STAGE 5  --  COMPOSE INNER AND OUTER
+   Add a fourth test comparing the two players' answers on the same pulled-
+   back query. Show that small total cost forces the extracted labels on
+   the two sides to agree under the affine map, contradicting the outer
+   game's soundness when the 3LIN instance is in the NO case. Conclusion:
+   the four tests form a comparison system with YES cost <= 4 and NO
+   cost > J, for any prescribed constant J.
+
+STAGE 6  --  DISCRETIZE THE GAUSSIANS
+   The four tests use Gaussian randomness. Approximate the whole joint
+   distribution by a finite RATIONAL distribution (with a common
+   denominator computable from J alone). This uses truncation to a cube,
+   discretization to a grid, rational polynomial integration of the
+   Gaussian density, and a total-variation error analysis. Result: a
+   finite WEIGHTED comparison system with cost change < 1/2, so its YES
+   cost is < 4.5 and NO cost is > 10K - 0.5, where J = 10K.
+
+STAGE 7  --  REALIZE EACH COMPARISON AS ONE UNCUT EDGE
+   A weighted equality or inequality between two Boolean "vertex variables"
+   is realized as a path:
+      length-4 path for "equal"  (u = v)
+      length-3 path for "different"  (u != v)
+   INTERNAL vertices are fresh. For any fixed signs on the endpoints, the
+   path's minimum uncut cost is 0 exactly when the demanded relation holds,
+   and 1 otherwise. Summing over all paths gives a simple unweighted graph
+   G with  OPT_uncut(G) = D_0 * (min cost of the comparison system), where
+   D_0 is the common denominator multiplied to make costs integers.
+
+COMBINING THE STAGES.
+   Set J = 10 K. Stage 5 gives a system with YES cost <= 4 and NO cost > J.
+   Stage 6 turns that into a finite system with YES cost < 4.5 and
+   NO cost > 10 K - 0.5.
+   Stage 7 turns that into a graph G with
+      YES: OPT_uncut(G) < 4.5 D_0
+      NO:  OPT_uncut(G) > (10 K - 0.5) D_0.
+   Set k = 5 D_0. Then YES gives OPT < k, NO gives OPT > Kk whenever
+   K >= 1/10 (which is trivial since K >= 2). Done.
+
+The rest of this document explains Stages 1, 2, 3-4, and 5-7 in more detail.
+
+===============================================================================
+PART 5 - STAGE 1 AND STAGE 2: HASTAD'S GAP AND THE OUTER GAME
+===============================================================================
+
+5.1  Hastad's 3LIN gap in plain language
+
+Fix a list of M equations of the form x_a + x_b + x_c = tau (mod 2), where
+every x_i and tau is a bit and the indices a,b,c may repeat. You want a
+single assignment to all variables satisfying as many equations as possible.
+
+Define:
+   YES-case:  some assignment satisfies >= (1 - zeta) of the equations.
+   NO-case:   no assignment satisfies > 3/4 of the equations.
+
+Hastad proved (J. ACM 2001) that for every fixed rational zeta > 0, this
+distinction is NP-hard. It is a landmark of the PCP theorem era.
+
+The paper turns this into a hard problem on a UNIFORM list (every list
+entry has weight 1/M) at a small additional cost in zeta. This is a routine
+rounding step: replicate each equation j roughly Q w_j times, with Q chosen
+large enough that the satisfaction proportions change by at most epsilon.
+
+After this, the input to the reduction is a uniform list of 3-bit parity
+equations, and the gap is (1 - zeta) versus 3/4 (strictly below 1).
+
+5.2  The outer game
+
+The reduction builds a two-player game from the equation list:
+
+   * The verifier picks a tuple U = (E_1, ..., E_t) of t independent
+     uniform list entries.
+   * It picks a random t_0-element subset H of the t coordinates.
+   * For each hidden coordinate j in H, it picks a uniform position
+     p_j in {1,2,3}.
+   * The first player sees (U) and its label is a tuple
+     a in A(E_1) x ... x A(E_t), where each A(E_j) is the affine space
+     of valid (a_1,a_2,a_3) for equation E_j (three bits mod 2 summing
+     to tau_j, respecting repeats).
+   * The second player sees a tagged tuple V where coordinate j is "the
+     VALUE of variable v(E_j, p_j)" if j in H, otherwise "the full
+     equation E_j". Its label alphabet A_V is F_2 for hidden coordinates
+     (bit) and A(E_j) for revealed coordinates (three bits).
+   * The verifier accepts iff the two labels agree on the projection
+     pi_e: A_U -> A_V. That is, at each hidden coordinate j, the first
+     player's a_j at position p_j equals the second player's bit b_j.
+
+The verifier uses FRESH slots deliberately: even if two visible variables
+have the same name, the two coordinates of A_V are independent bits. This
+matters for the analysis to be "conflict-free".
+
+5.3  Soundness of the outer game
+
+Lemma ("lemma:base-equation-game"). If no assignment satisfies more than
+3/4 of the equation list, the ordinary version of this game (t=1, no hints)
+has value at most 11/12. Proof: fix the second player's deterministic
+strategy, which assigns a bit to every variable name. That's a candidate
+global assignment. On at least 1/4 of sampled equations the assignment is
+WRONG. Every valid first answer to a wrong equation disagrees in at least
+one of three positions; a uniform position then detects the disagreement
+with probability >= 1/3. So overall the game fails with probability
+>= 1/12.
+
+By Holenstein's parallel repetition theorem (Theory of Computing 2009),
+the r-fold repeated game then has value at most c^r for a universal c < 1.
+This c never needs to be explicit beyond c <= (1 - 1/(6000 * 12^3))^{1/4}
+which is < 1.
+
+5.4  Adding affine hints: hints do NOT break soundness
+
+The hard direction of the paper needs the decoder to have access to shared
+public randomness. The paper's device is AFFINE HINTS. Fix an integer q.
+Give both players q independent uniform affine functions L_1, ..., L_q in
+D(A_V). The first player sees their pullbacks pi_e^*(L), the second sees
+the functions L themselves. Both then play the game as before, but with
+extra shared info.
+
+Question: does this break soundness? Answer: NO, soundness survives.
+
+Lemma ("lemma:hint-soundness"). Under the NO-case assumption,
+   Value(game with q hints) <= (1 - 2^{-q} (1 - c))^{t_0}.
+Here c is the repetition constant. With q fixed and t_0 large, the value
+drops below any prescribed positive threshold.
+
+Proof sketch. Write each hint in coordinates as
+   L_l(z) = constant_l + sum_j beta_lj z_j + sum_j sum_p beta_ljp z_jp.
+
+Call a hidden coordinate j "ACTIVE" if beta_lj = 0 for every hint l. For
+random coefficients, each hidden coordinate is active with probability
+2^{-q}; so |Active| ~ Binomial(t_0, 2^{-q}). Conditional on the active
+set, the active coordinates sample independent equation-and-position pairs,
+fresh from the original distribution. The hidden hints' coefficients all
+vanish there, so the active coordinates behave EXACTLY like the original
+r-repetition game with r = |Active|. Its soundness is c^{|Active|}.
+
+Average over |Active| to get the (1 - 2^{-q}(1-c))^{t_0} formula. The
+"physical" reconstruction works because the hint representation is a truth
+table, not a formula: at a coordinate where the hint's coefficient is
+zero, the coefficient contributes zero to the truth table no matter where
+the coordinate was sampled from.
+
+5.5  Joint smoothness: pullback through the affine map
+
+Second important property. Fix any first question U. Draw the rest of the
+outer sample at random. Now pull back d independent uniform affine
+functions L_1, ..., L_d through the random map pi_e. Their joint
+distribution is CLOSE to independent uniform functions on A_U^d? Yes.
+
+Lemma ("lemma:smoothness"). The total variation distance is at most
+   1/2 * sqrt( (2^{4 d t_0} - 1) * t_0^2 / t ).
+For fixed d, t_0, and target Delta > 0, choosing t large enough makes this
+less than Delta.
+
+Proof idea. A uniform affine function on A_V restricts, after pullback, to
+(the constant part) + (linear coefficients on product blocks). For j not
+in H, the coefficient is uniform; for j in H, it depends on a shared
+random position p_j. Overlap between two independent copies of H is small
+with high probability. Off the overlap, the two distributions are
+independent. On the overlap (probability <= t_0^2/t), the densities can
+differ but are bounded by 2^{4 d t_0}. So E[(g-1)^2] is small. Then TV via
+Cauchy-Schwarz.
+
+Why this matters: the decoder in the inner stage uses random affine
+functions as shared randomness. The joint statistics of those functions,
+once pulled back, are almost independent -- close enough that the
+decoder's error analysis goes through.
+
+END OF PART 5
+
 
 ===============================================================================
 PART 6 - STAGE 3 AND STAGE 4: FOUR BIT-COMPARISON TESTS AND DECODING
