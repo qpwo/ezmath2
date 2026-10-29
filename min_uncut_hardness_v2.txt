@@ -1,0 +1,693 @@
+
+===============================================================================
+PART 6 - STAGE 3 AND STAGE 4: FOUR BIT-COMPARISON TESTS AND DECODING
+===============================================================================
+
+6.1  Folded bit proofs
+
+Up to this point each player answered its question with a LABEL: a tuple
+of bits, one per visible coordinate, subject to the equation constraints.
+That is a lot of structure to rely on. What if a player cheats: instead of
+a label, it plays some arbitrary function of its question? The paper has
+to handle that.
+
+The device is a "folded bit proof". Fix an affine alphabet A (think of an
+affine space over F_2, like the tuple space A_U or A_V). A "query" is a
+function P : A -> {-1, +1}. A "folded bit proof" is a function
+
+   f : {all P : A -> {-1, +1}}  -->  {-1, +1}
+
+satisfying the folding condition  f(-P) = -f(P)  for every query P.
+
+Intended (honest) proof:   f(P) = P(a)  for some fixed label a in A.
+
+This is a long-code style encoding. A proof either looks like an evaluation
+f(P) = P(a) (there is a "real" label a underneath), or it looks like a mess.
+The FOUR TESTS in the next subsection are four independent yes/no questions
+comparing two such folded proofs. Together they extract the hidden label.
+
+A subtle but essential convention: a query is determined by its truth table
+on A, not by its "formula" or its provenance. Two descriptions of the same
+function P get the same answer. This makes the bit proofs compatible with
+the outer game's "truth table encoding" convention for hints.
+
+6.2  The four tests
+
+Fix positive constants sigma, eta, delta in (0,1), with eta <= sigma, and
+0 < delta < 1. Let m, n >= 2. Put X = [n]^m, N = n^m, and let
+
+   R = { (i, y) : i in [m],  y in [n]^{[m] \ {i}} }
+
+be the set of "rows", indexed by a coordinate i and a tuple y on the other
+coordinates. Y = |R| = m n^{m-1}. An array is a family of independent
+uniform bits on R.
+
+For a row-sampled array B and a level a in the affine A, the "face sum" is
+
+   B(a) = sum_{i=1}^m B^i_{x_{-i}}   (mod 2),  viewed as a bit for each x in X.
+
+The "face code" is the subspace of F_2^X of all sums of the form
+B(a) for a in A. For any vector u in R^X and word d in R^code, the code
+table is
+
+   P_{u,d}(z) = sign( <u, (-1)^z> / sqrt(N)  +  d_z ).
+
+Here z is a codeword, so the sign is a function of z, hence a query on A
+via z = B(a). Sample u = c + sigma g and d = eta lambda, where c, g in R^X
+and lambda in R^code are independent standard Gaussians. Denote the
+resulting query P = P_{c + sigma g, eta lambda}.
+
+The four tests:
+
+   T1  Compare  f( P_{c, 0}(B) )  to  f( P(B) ).
+       Denominator  b_1 = 10 sigma.
+
+   T2  Resample B', choosing each row B^i_y to be freshly uniform with
+       probability delta^2 / m, unchanged with prob 1 - delta^2/m.
+       Compare  f(P(B))  to  f(P(B')), using the SAME c,g,lambda (so
+       the same table P).  Denominator  b_2 = 10 (delta + eta).
+
+   T3  Draw z uniformly at random from the face code. Compare
+       f( P^{z,+}(B) )  to  f( P^{z,-}(B) ).  Here P^{z,+} is the same
+       table with its entry at codeword z forced to +1.
+       Denominator  b_3 = 1/|code|.
+
+   T4  (Only in composition.) Compare the two players' answers on the
+       same pullback. See PART 7.
+
+Each test contributes to COST as (prob of failing test) / (denominator).
+Denominators are not probabilities; they are normalizations, chosen so:
+   * an honest evaluation proof fails test j with prob <= b_j, hence
+     normalized cost <= 1 per test;
+   * a cheating proof that fails many tests pays a lot of total cost.
+
+6.3  Honest proofs have cost <= 4 in total
+
+The paper proves (Lemma "lemma:honest"):
+   * T1 fails with probability <= 2 sigma when f(P) = P(a) for a real a.
+   * T2 fails with probability <= 2 delta + 2 eta.
+   * T3 fails with probability exactly 1/|code|, i.e., only when z = B(a).
+   * T4 fails with probability 0 when BOTH players use the same label a
+     and it goes through the same affine map.
+
+Why T1 fails rarely: the two sides differ only in c vs c + sigma g plus
+an eta lambda. Both are Gaussian perturbations of a fixed vector. The
+probability that a "sign flip" happens is O(sigma) via the random-hyperplane
+identity (arcsin of small angle <= small angle).
+
+Why T2 fails rarely: the two arrays differ only at "resampled" rows, which
+happen with probability delta^2 per row. A union bound over the m rows
+gives Hamming distance <= delta^2 in expectation, so squared distance
+<= delta. Then the sign-flip probability is O(delta) by the same identity.
+
+Why T3 fails rarely: T3 asks the table at z to be forced DIFFERENTLY on
+two sides, so failure happens only when z is exactly B(a), a single codeword
+out of |code| possibilities.
+
+6.4  What "cheating" proofs cost
+
+The reverse direction is what makes the decoder work. If a folded bit proof
+f passes the first three tests at total normalized cost <= J, then f must
+be "close to" some evaluation. That is the content of Stage 4.
+
+Informally: the tests measure three different kinds of instability.
+- T1 measures instability in the Gaussian level.
+- T2 measures instability in the array B itself.
+- T3 measures instability in the table P at one specific codeword.
+
+A proof that is stable in all three senses -- that means its success
+probabilities depend only mildly on the true label -- has to look like an
+evaluation. The rigorous version of that statement is the inner decoding
+theorem.
+
+===============================================================================
+PART 6B - INNER DECODING (STAGE 4), GLOSSED
+===============================================================================
+
+6.5  The statement
+
+Set J >= 1. If a folded bit proof f passes T1, T2, T3 with total cost <= J
+(so its failure probabilities obey p_j <= J b_j), then something strong
+happens. Define a smoothed function F_B: R^X -> R and its gradient
+
+   F_B(c)  = E_{g, lambda}[ f( P_{c + sigma g, eta lambda}(B) ) ],
+   h_x(B,c)  = sqrt(N) * d/dc_x F_B(c).
+
+The INNER DECODING THEOREM says: pick a uniform random x in X, a uniform
+random i in [m], and independent uniform background B outside row (i, x_{-i}).
+With some probability p > 0 (depending only on J), the function
+
+   b  |-->  h_x( B[ row (i,x_{-i}) <- b ], c )
+
+has a Fourier coefficient of magnitude at least theta (also depending only
+on J) at an ODD frequency of the dual D(A)^*. "Odd" means alpha(1) = 1.
+
+Why care? An odd frequency is in bijection with a LABEL of A. Proof: for a
+label a in A, the evaluation functional ev_a : b |-> b(a) satisfies
+ev_a(1) = 1 (odd). Conversely every odd functional is ev_a for a unique a
+(choose coordinates A = F_2^r; odd functionals are exactly the evaluation
+maps). So "an odd frequency" IS "a point of A" in disguise.
+
+So the inner decoding theorem unpacks into: small test cost forces the bit
+proof to hide a real label. That is the "decode a label from a bit proof"
+step.
+
+6.6  How the proof works, in three moves
+
+MOVE 1 - SMOOTHING AND DEGREE CUTOFF (Lemma smoothing-cutoffs).
+   F_B is a smoothed function of c. Its Gaussian energy is huge: h has
+   L^2 norm ~1/sigma at least. Fourier-Hermite expansion in c has small
+   high-degree tails: most of the energy sits in low Gaussian degree
+   <= s. Similarly in B: the row-resampling test T2 bounds the total
+   Fourier row-degree beyond Rm by a small tail. So a "low-degree projection"
+
+   L = (project to low B-row degree) * (project to low c-degree) * h
+
+   carries at least half of h's energy.
+
+MOVE 2 - A LOW-DEGREE CORRELATION (Proposition correlation).
+   Define the "face correlation"
+
+   d_X(v) = max over z in code of |(1/N) sum_x v_x (-1)^{z_x}|.
+
+   This is the largest agreement of v with a character of the face code.
+   The claim: with L as above, E[d_X(L)] >= 1/(4T) for T = O(J).
+
+   Proof idea: write h as ~average of code characters weighted by mu_z.
+   The test T3 (forcing one entry of the truth table to be +1 vs -1)
+   bounds E[sum_z |mu_z|] <= 2J / eta. So h is in a convex hull of "code
+   characters" times total weight <= 2J/eta. Convex hull correlation with L
+   equals (up to the weight) the face correlation d_X(L). The total weight
+   exceeding T is a rare event; the truncation at T gives the 1/(4T) bound.
+
+MOVE 3 - EXTRACT AN ODD FOURIER COEFFICIENT (Section inner-box).
+   This is the deepest step. It uses TWO SYMMETRIES of the array:
+
+   Cylinder gauge:    for any row-slice q (fixing all bits except one), the
+                      sum of the two "local frequencies" on the two mirrored
+                      rows is zero in the dual space.
+   Row gauge:         adding the constant-1 affine function to row r,
+                      multiplied by the truth-table index I, forces
+                      alpha_r(1) = k_x + sum_u k_u I_u (mod 2).
+                      This is what makes coefficients ODD when k_x = 1
+                      (evaluate at the point x).
+
+   Partition the Fourier terms of L into at most 1 + (m choose 2) "classes"
+   by which pair of rows (i,j) they involve. Pick the class assignment
+   deterministically from (x, I, S) only, so no frequencies are enumerated.
+   Inside each surviving class, the two local frequencies are EQUAL and ODD.
+
+   Now use two tricks:
+   (a) Restrict to a small subbox Y = product_i Y_i inside X, with each
+       Y_i a random ell-subset of [n]. Subbox averaging + Cauchy-Schwarz
+       localize the components.
+   (b) Box Cauchy-Schwarz (Gowers-style). Given a function v on Y, the
+       iterated Cauchy-Schwarz inequality says
+           d_Y(v)^{2^m}  <=  E over cube  of  product of v at vertices.
+       Each surviving term causes a "square" (four corners) of query
+       queries on distinct rows. Because rows are independent, each
+       four-corner sum factors, and the four-fourier coefficient bound
+       gives the small factor eps_0^2 H^2.
+
+   The upshot: E[d_X(L^{ij})] is bounded by a sum of six small terms
+   (e_loc, sigma^{-2}/H, e_atom, sigma^{-2}/A_0, 2 A_0 (m/ell)^{1/2^m},
+   sqrt(H(gamma + H^2/A_0))). Choosing the parameters in order
+   H -> gamma -> A_0 -> ell -> n -> (p, theta) makes each term smaller
+   than d_0 / 10. Summing over the (1 + (m choose 2)) classes gives
+   E[d_X(L)] < 1/(4T), contradiction.
+
+   So the low-cost hypothesis FAILS, meaning some surviving class contains a
+   large odd coefficient. That is an extracted label.
+
+6.7  What this says, plainly
+
+The inner decoding theorem is: small test cost => the bit proof contains
+an encoded label, extractable via Fourier analysis on the array. The blowup
+in "cost" is exponential in the number of rows m, and the "probability of
+extraction" is a tiny positive constant. Both depend only on J -- not on
+the affine alphabet A. That independence is the technical meat.
+===============================================================================
+PART 7 - STAGE 5: COMPOSITION - PUTTING INNER AND OUTER TOGETHER
+===============================================================================
+
+7.1  The fourth test
+
+We now have a bit proof on each side of the outer game:
+   * f_U  on A_U  (first player's proof),
+   * f_V  on A_V  (second player's proof).
+
+The first three tests (T1, T2, T3) are played on f_V under the marginal of
+V. The fourth test (T4) tests agreement between f_U and f_V: it samples
+a full outer edge e, an independent uniform face array B on the alphabet A_V,
+and the Gaussian query table P, and compares
+
+   f_U( P( pi_e^* B ) )   versus   f_V( P( B ) ).
+
+The idea: if f_U and f_V were "evaluations" at labels a and b, then T4 asks
+    f_U(P(pi_e^* B))  =  P(pi_e^* B)(a)  =  P( B( pi_e a ) ),
+    f_V(P(B))        =  P(B)(b)  =  P( B(b) ).
+These agree precisely when pi_e(a) = b, i.e., the outer game's acceptance.
+
+7.2  The composed statement (Proposition "prop:bit-gap")
+
+Fix J >= 20. Build a four-test comparison system from the equation list
+using the inner construction. Result:
+
+   YES case:  some collection of proofs has cost <= 4.
+   NO case:   every collection of proofs has cost > J.
+
+Cost = sum_j (failure probability) / b_j, with positive rational budgets b_j.
+All alphabet sizes bounded by constants depending only on J. The four
+tests' local numerical parameters depend only on J -- not on the input 3SAT.
+
+7.3  Proof sketch
+
+The YES direction is easy. In the YES case there is a global assignment
+satisfying >= 1-zeta of the equation list. Give each question the
+corresponding evaluation label. When the label lands in its affine alphabet,
+T1..T3 pass with probability <= 1 per test. When the label is broken by an
+unsatisfied equation (probability <= t zeta), all four tests may fail but
+this costs at most t zeta <= b_4, small. So total cost <= 4.
+
+The NO direction uses a CONTRADICTION. Suppose low cost <= J. Then:
+
+   Step 1. The first three tests pass with small failure probabilities,
+   so by inner decoding both f_V and (via pullback) f_U on each fixed
+   background have odd Fourier coefficients >= theta with probability >= p
+   (independent of alphabet size).
+
+   Step 2. The fourth test compares f_U and f_V on the SAME pulled-back B.
+   Small fourth-test failure probability means f_U(pi_e^* B) and f_V(B)
+   agree with high probability. A Gaussian differentiation argument then
+   gives control on TWO ROW FUNCTIONS
+
+        H_V(b) = h_{x,V}(B[B^i_{x_{-i}}<-b], c),
+        H_U(a) = h_{x,U}(pi_e^* B [B^i_{x_{-i}}<-a'], c)  --  pullback.
+
+   These are close in L^2 on the second alphabet's rows:
+       E || H_V - H_U o pi_e^* ||^2 <= 4 J b_4 / sigma^2,
+   where b_4 is a small budget chosen so this is < p/4 -- tiny.
+
+   Step 3. The first player's function H_U has a truncated version r_U
+   (Fourier terms >= u kept). The REMAINDER of r_U, pulled back through
+   the affine map, still has small Fourier fourth moments:
+       E sum_beta |hat(r_U o pi_e^*)(beta)|^4 <= u^2 M_*^2 + 2 Delta M_r^4,
+   where Delta is the joint-smoothness bound from Part 5.5 and M_r = M_*(1 + M_*/u).
+   This is the "restricted fourth moment inequality".
+
+   Step 4. Here is where the fourth test forces agreement. On the event
+   that H_V has an odd coefficient beta of magnitude >= theta, and the
+   pullback has small L^2 distance and small fourth moment, the pullback
+   coefficient of H_U at beta must have magnitude >= 3theta/4. Since H_U's
+   kept part r_U has small Fourier coefficient at every frequency only for
+   the REMOVED part (which is bounded away from theta/4), at least one
+   removed frequency alpha satisfies pi_e^* alpha = beta. That alpha is odd
+   because pi_e^*(1) = 1 and beta is odd.
+
+   Step 5. Local lists. Let the first player list the odd frequencies of
+   H_U of magnitude >= u. Second player lists odd frequencies of H_V of
+   magnitude >= theta. On the agreement event each list contains a pair
+   agreeing under pi_e. Pick uniformly from nonempty lists. Success
+   probability at least
+       s_* = (p/2) / [ (1 + M_*^2/u^2) (1 + M_*^2/theta^2) ] > 0.
+   This is the outer game's value at the hinted questions. But we chose
+   t_0 large enough (Lemma hint-soundness) that this value is strictly
+   BELOW s_*. Contradiction.
+
+   So no NO-case proof set has cost <= J.
+
+7.4  The parameter order (this is why effectiveness holds)
+
+Every inner selection is made before the outer repetition parameter t:
+
+   J  ->  inner constants  ->  b_4, u, Delta, s_*  ->  t_0  ->  t  ->  zeta.
+
+All strict inequalities can be imposed with rational slack and integer
+searches using the displayed bounds. Explicitly:
+   M_*^2 = N/sigma^2  is rational;
+   M_r  <=  N/sigma + N/(sigma^2 u)  is a rational upper bound.
+So the search uses rationals only. No real-number oracle. No advice.
+
+The last step sets zeta with t zeta <= b_4 and invokes Theorem max3lin; its
+NO bound 3/4 does not depend on zeta, so the repetition constants are stable.
+
+===============================================================================
+PART 8 - STAGE 6 AND STAGE 7: FINITE GRAPH
+===============================================================================
+
+8.1  The four tests use Gaussian randomness -- that's fine mathematically,
+     but not as input to a computational reduction
+
+The proof so far is about a PROBABILISTIC comparison system: the tests
+use continuous Gaussians c, g, lambda. A polynomial-time algorithm cannot
+sample a physical continuous Gaussian. It must output a tangible graph G.
+
+The paper solves this by DISCRETIZING Gaussians to a finite RATIONAL
+distribution, with error at most 1/2 in cost.
+
+8.2  Discretization (Lemma "lem:finite-game")
+
+Given accuracy eps > 0, construct a finite rational distribution on the
+joint table (T_0, T_1) that is within total variation eps of the Gaussian
+one. Steps:
+
+   Step A. TRUNCATION. Gaussian in dimension d = 2N + |code|.
+   Only threshold values matter; if all of them have |value| <= T_G,
+   we are inside a bounded cube. Second-moment Markov bound on each
+   coordinate gives prob of exiting cube <= d / T_G^2. Pick T_G
+   so that d/T_G^2 < eps/4.
+
+   Step B. GRID. Partition [-T_G, T_G] into L equal intervals with
+   rational midpoints. Rounding to midpoints changes thresholds by
+   <= A h where A = 2N+1 and h = 2 T_G / L. The chance that this flips
+   any sign is <= S A h with S = 2|code|. Choose L so that S A h < eps/4.
+
+   Step C. EXACT RATIONAL MASSES. The Gaussian weight of each
+   cube cell has dense form. Approximate the Gaussian density with a
+   RATIONAL polynomial Q_r(v) = sum_{j=0}^{2r} (-1)^j v^{2j} / (2^j j!)
+   chosen so that the Taylor truncation error e_r satisfies
+       0 <= Q_r(v) - exp(-v^2/2) <= e_r,   for |v| <= T_G,
+   with 2 d T_G e_r < eps/4. Normalize so cell probabilities SUM TO
+   EXACTLY ONE. The whole computation is integer + rational arithmetic
+   (via the polynomial antiderivative). No real-number oracle.
+
+   Step D. COMMON DENOMINATOR. Let Q_1 be a common denominator of all
+   rational cell masses, and Q = (Q_1)^d. Enumerate L^d cells, compute
+   their sign tables on the fly (each sign is computed by exact rational
+   arithmetic; a sign of `a + b sqrt(N)` is decided by comparing a^2 and
+   N b^2), and set the finitely many final rational probabilities.
+   The common denominator of the whole distribution is Q.
+
+   Error budget: TV distance is at most d / T_G^2 + S A h + 2 d T_G e_r < eps.
+   Set eps = 1 / (8(1 + W)) with W = sum 1/b_j. Then each test's cost
+   changes by < eps, so total cost changes by < 1/2. Hence:
+      YES cost < 4.5
+      NO  cost > J - 0.5 = 10 K - 0.5.
+
+8.3  Canonical proof variables
+
+The finite comparison system now has a well-defined set of "sign variables":
+one for each pair {P, -P} of Boolean tables on each actual question's
+alphabet, at each side (first or second). Given a folded proof f, each
+proof variable y_{q, R} is assigned the sign f(P) at that question with
+P a "representative" (P(a_*) = +1 for reference label a_*).
+
+Every weighted comparison between f_x(P) on one question and f_y(P') on
+another becomes a SIGNED DEMAND
+
+   y_{q, R(P)} y_{q', R(P')} = tau(P) tau(P').
+
+When the right side is +1 the demand is "equal"; when -1 it is "different".
+These demands are exactly what the graph construction will realize.
+
+8.4  Numerical multiplicities
+
+The number of elementary comparison demands at first glance is enormous:
+outer samples are H_K M_0^t, and second-sample encodings add more factors
+(A_K). But after CAREFULLY choosing a common denominator D_0 = C_K M_0^t
+with C_K = H_K A_K B_K, every elementary demand multiplicity is an
+INTEGER, plus a few extra dummy choices (like drawing an unused random
+position) which cost polynomial work but do not change distributions.
+
+The total multiplicity sum is
+   D_0 * sum_j 1/b_j = D_0 W = O_K(M_0^t),
+i.e., polynomial in the equation list length for fixed K. So there is no
+super-polynomial blowup in the graph size.
+
+8.5  Path realization (Lemma "lem:graph-realization")
+
+A single unit-multiplicity demand becomes a gadget. Let u, v be the two
+vertex-signs involved.
+
+   * Equality u = v gets a length-4 path u - x1 - x2 - x3 - v.
+   * Inequality u != v gets a length-3 path u - x1 - x2 - v.
+   * If u = v (self-demand), a length-4 cycle (u = x1 = x2 = x3 = u is
+     just a 4-cycle) for equality -- min cost 0; a triangle u - x1 - x2 - u
+     for inequality -- min cost 1.
+
+Why: for a length-L path, the number r of uncut edges and the parity of
+endpoint signs satisfy x_0 x_L = (-1)^{L-r} (alternating signs = 0 uncut).
+Four edges, even length: alternating signs gives endpoints equal.
+Three edges, odd length: alternating gives endpoints opposite. Both are
+achievable exactly. So min cost = 0 iff the demanded relation holds,
+else 1. Self-demand cases (u = v) are handled by the cycle/triangle analog
+with the same minimum values.
+
+CRUCIALLY: internal gadget vertices are fresh. This means gadgets do not
+share edges even if they share endpoints. So the resulting graph is simple,
+unweighted, with |V(G)| <= 3 * total multiplicity + |sign variables| and
+similarly for edges.
+
+8.6  Combining: OPT_uncut(G) = D_0 * min cost
+
+For any assignment of signs to the sign variables:
+   cost of failing demands
+   = total uncut edges in graph G.
+
+Because each unit demand contributes 0 or 1 based on the signs at its two
+endpoints, and we sum over units. Multiply by D_0 for integer-valued cost.
+
+Hence:
+   OPT_uncut(G) = D_0 * (minimum comparison cost).
+
+Combine with the discretization error:
+   YES: OPT_uncut(G) < D_0 * 4.5  < 5 D_0 =: k
+   NO:  OPT_uncut(G) > D_0 * (10 K - 0.5) >= 10 K D_0 - D_0/2 > 5 K D_0 = K k
+        (since K >= 2, 5K >= 10, and 10K - 0.5 - 5K = 5K - 0.5 > 0).
+
+So the theorem holds. The algorithm:
+   - runs the polynomial-time Hastad-to-3LIN step;
+   - does the inner + outer sampling using the explicit rational distribution;
+   - enumerates all comparison demands;
+   - builds G by the path gadget;
+   - outputs G and k = 5 D_0.
+
+Every step is finite work per outer sample, and total work is polynomial in
+the input length for fixed K. No advice, no oracle, no Gaussians in the
+final output.
+
+===============================================================================
+PART 9 - THE 2CNF CLAUSE-DELETION COROLLARY IN PLAIN TERMS
+===============================================================================
+
+The corollary is easy once the theorem is in hand.
+
+For any graph G, build the 2CNF formula F_G:
+
+   each vertex v becomes a Boolean variable x_v;
+   each edge (u,v) becomes two clauses (x_u OR x_v), (NOT x_u OR NOT x_v).
+
+Given any assignment a to the variables, the corresponding vertex bipartition
+is S = { v : a(x_v) = 1 }.  An edge uv:
+
+   * u in S, v in S   (equal assignment):  the clause (NOT x_u OR NOT x_v)
+     is violated because NOT x_u = NOT x_v = 0.
+   * u not in S, v not in S (equal, both 0): the clause (x_u OR x_v) is
+     violated.
+   * u in S, v not in S (or vice versa): both clauses are satisfied.
+
+So the number of unsatisfied clauses equals the number of uncut edges.
+
+Claim:  OPT_del(F_G) = OPT_uncut(G), exactly.
+
+Proof: given any assignment a, deleting all clauses it falsifies leaves a
+2SAT formula (satisfiable by a), with cost = unsat(F_G, a) = uncut(G, S_a).
+So OPT_del <= OPT_uncut.
+
+Conversely, given any feasible deletion set D with |D| small, 2SAT is
+satisfiable, so there is an assignment a satisfying F_G \ D. Every original
+clause that a falsifies is in D, so unsat(F_G, a) <= |D|. So OPT_uncut <=
+OPT_del. Done.
+
+Combine with main theorem: the graph G from a 3SAT instance yields a
+formula F_G with
+   YES: OPT_del(F_G) <= k
+   NO:  OPT_del(F_G) > Kk.
+An approximation within factor C decides 3SAT in polynomial time, done.
+
+===============================================================================
+
+===============================================================================
+PART 10 - WHAT THIS DOCUMENT SKIPS, AND WHY
+===============================================================================
+
+The technical paper is much longer than this document. What is missing?
+
+SKIPPED: FULL PROOFS OF THE FOURIER AND PROBABILISTIC STEPS.
+   The inner decoding theorem and the composition proposition are dense
+   analyses of Fourier coefficients, Gaussian energies, and total-variation
+   bounds. Reproducing those proofs faithfully at a high-school level would
+   not be honest: the whole POINT of the original is the precision of those
+   inequalities. This document states the shape of each inequality, but
+   does not walk through the Cauchy-Schwarz lines.
+
+SKIPPED: THE EXACT VALUES OF THE CONSTANTS.
+   The paper's constants are enormous. sigma = 1/(2560 J); delta = eta =
+   sigma^2/(2560 J); R = ceil(delta^{-2}); T = ceil(32 J / (eta sigma^4));
+   s chosen so s + 2 > sigma^{-2}; and so on. In practice these are so large
+   that the resulting graphs have astronomically many vertices even for
+   trivial inputs. The point is NOT practical efficiency. The point is
+   that the constants are EFFECTIVE, i.e., computable by a
+   polynomial-time algorithm, whatever their magnitude.
+
+SKIPPED: TODOS AND OPEN PROBLEMS.
+   The paper does not address the tightest achievable constant. It only
+   shows that EVERY constant factor is achievable. The best possible
+   constant factor is not known. Approximation-algorithm-side improvements
+   (e.g., better than the sqrt(log n) bound under weaker assumptions) are
+   also not addressed.
+
+SKIPPED: TECHNICAL LEMMAS ABOUT CANONICAL ENCODINGS.
+   The paper carefully specifies what a "question" reveals: namely the
+   truth table of the affine function on the canonical alphabet, with no
+   "provenance" metadata attached. This convention is essential to the
+   soundness proof (the "zero summand contributes zero" argument) but
+   uninteresting to read at a high level. This document mentions it once
+   in Part 5.4 and otherwise assumes it.
+
+SKIPPED: HISTORICAL AND COMPARATIVE DETAILS.
+   The footnotes about Khot-Safra, Khot-Minzer-Safra, Dinur-Khot-Kindler-
+   Minzer-Safra, and Gowers are important scholarly context but not needed
+   to understand the main result. See the paper's Section 1.2 for those.
+
+===============================================================================
+PART 11 - GLOSSARY
+===============================================================================
+
+affine alphabet  --  A nonempty subset of F_2^r of the form "one solution
+                     to Ax = b". Concretely for us: the set of valid answer
+                     labels for an equation question. Dimension <= 2 here.
+
+bipartite  --  A graph whose vertices can be 2-colored so that every edge
+                has endpoints of opposite colors.
+
+bit proof  --  A Boolean function from queries (functions A -> {-1,+1}) to
+                {-1,+1}, with the folding condition f(-P) = -f(P). The
+                "honest" one is f(P) = P(a) for some label a in A.
+
+cut / uncut  --  Under a bipartition S of V: an edge is CUT if its
+                endpoints are on opposite sides, and UNCUT if they are on
+                the same side.
+
+D_0  --  The common denominator chosen so that weighted comparison costs
+         become integers. D_0 = C_K M_0^t, and its multiples give the
+         final graph's OPT_uncut(G).
+
+face code  --  The set of sums, over the arrays in B, that produce functions
+               on X of the form x |-> B(x)(a). Nonempty subspace of F_2^X.
+
+folded  --  f(-P) = -f(P). Reduces the number of sign variables by a factor
+            of two and lets the outer game's symmetry arguments go through.
+
+gap reduction  --  A polynomial-time map from 3SAT to another problem
+                   P with a "YES / NO" separation of a specified
+                   factor K.
+
+3LIN  --  The constraint-set problem: a list of equations of the form
+          x_a + x_b + x_c = tau (mod 2) with x_i in {0,1}. We start from
+          Hastad's gap for it.
+
+J  --  The "NO-case threshold constant". We set J = 10 K so that the
+        final YES/NO separation is K.
+
+k  --  The positive integer threshold in the main theorem. We set k = 5 D_0.
+
+K  --  The factor in the main theorem. Any fixed integer >= 2.
+
+M, N, m, n, t, t_0, q  --  Structural parameters of the reduction.
+   m,n: the array decomposition (X = [n]^m, N = n^m).
+   M = m n^{m-1}: the number of "rows".
+   t:  tuple length in the outer game (large).
+   t_0: number of hidden coordinates (small).
+   q:  number of affine hints given to both players.
+
+Min-UnCut  --  The problem of minimizing the number of uncut edges over
+               all vertex bipartitions. Equivalently, minimum edge-deletion
+               to bipartite.
+
+NP-hard  --  A problem L such that every NP problem reduces to L in
+             polynomial time. Implies L cannot be in P unless P = NP.
+
+OPT_uncut(G)  --  The minimum over bipartitions S of uncut(G, S).
+
+P, NP, RP  --  Complexity classes: polynomial-time solvable, polynomial-time
+               verifiable, and randomized-polynomial-time-one-sided-error
+               respectively. The main theorem's conclusion is that a
+               C-approximation implies P = NP (for deterministic) or
+               NP is contained in RP (for randomized).
+
+parallel repetition  --  A technique for amplifying the soundness of
+                         two-player games: play r independent rounds,
+                         accept iff every round accepts.
+
+pi_e  --  The affine map from the first player's alphabet A_U to the second
+          player's A_V, induced by the outer sample e. Acceptance is
+          pi_e(a) = b for the two players' labels.
+
+pseudorandom  --  Not used in this paper, but the intuition is that the
+                  decoder only sees "generic-looking" affine hints.
+
+smoothness  --  Total-variation closeness of a pulled-back joint
+                distribution to the uniform one. Bounded by
+                1/2 * sqrt((2^{4dt_0} - 1) t_0^2 / t).
+
+UGC (Unique Games Conjecture)  --  A conjecture about a class of two-player
+                                    games. If true, it would imply many
+                                    hardness results, including for Min-UnCut.
+                                    This paper is UNCONDITIONAL: it does not
+                                    rely on UGC.
+
+===============================================================================
+PART 12 - READING GUIDE: HOW TO ACTUALLY USE THIS DOCUMENT
+===============================================================================
+
+If you are a high schooler reading this, the useful thing to know is:
+
+  (1) The theorem: approximating Min-UnCut within ANY fixed constant
+      factor is NP-hard. This is a FULL unconditional result.
+
+  (2) The intuition. You realize Min-UnCut as a "long-code test" and then
+      show that passing the test forces you to have a real label. Then a
+      two-player game says labels are hard to coordinate, so a hard
+      comparison system exists. Then real-world graph construction
+      translates comparisons to edges.
+
+  (3) The mechanism. The hard technical steps are:
+        - The four tests (Part 6.2). Why four? One for each "kind of
+          perturbation" the graph-side answer can suffer under: Gaussian
+          shift, array resampling, one-entry truth-table flip, plus the
+          cross-side agreement check.
+        - Inner decoding (Part 6B). Small cost forces an odd Fourier
+          coefficient. That IS a label by the odd-evaluation bijection.
+        - Composition (Part 7). Outer game soundness vs inner decoding
+          lists, contradiction.
+        - Discretization + path gadget (Part 8). Turn probability into a
+          graph.
+
+  (4) What you can usefully skip on first read: the length of the
+      inequalities in Parts 6 and 7. The important CONSEQUENCES are:
+      "small cost implies theta-large odd coefficient" (part 6) and
+      "YES cost <= 4, NO cost > J" (part 7). Everything else is bookkeeping
+      to make those precise.
+
+  (5) What you should NOT skip: Part 8. It's where the math becomes a real
+      graph. The path gadget is the single most beautiful step: one
+      "un-cut" edge per exceeded inequality, no cheating.
+
+If you are a parent trying to be honest with your kid: this is a serious
+technical paper. It is fine to say "I don't understand all of it either."
+What YOU should be able to explain, after reading this document, is:
+
+   "Computers probably cannot check whether a graph is close to bipartite
+    as well as they can check whether it IS bipartite. And that is not
+    just an intuition -- it is a theorem. The theorem says: if you could
+    get any constant-factor approximation to the minimum number of edges
+    to delete, you could solve the hardest problems in computer science,
+    which we believe is impossible."
+
+That is the takeaway. Everything else in the paper exists to make that
+sentence airtight.
+
+===============================================================================
+END OF DOCUMENT
+===============================================================================
