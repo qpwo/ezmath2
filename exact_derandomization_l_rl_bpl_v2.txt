@@ -1,31 +1,4 @@
-================================================================================
-EXACT DERANDOMIZATION OF LOGARITHMIC SPACE:  L = RL = BPL
-================================================================================
-
-A self-contained exposition of the proof, rewritten so that a careful reader
-with high-school mathematics can follow every step.  All statements are proved
-in full.  Mathematical notation is written in plain ASCII.
-
---------------------------------------------------------------------------------
-HOW TO READ THIS DOCUMENT
---------------------------------------------------------------------------------
-
-The document is one long argument.  It is organized so that you can read it
-straight through, and so that you can also look up any piece in isolation.
-
-  Part 1   What is being proved, and the shape of the proof.
-  Part 2   Turning a randomized machine into a finite matrix problem.
-  Part 3   The random environment: rank channels for retaining vertices.
-  Part 4   The exact hierarchy: the deterministic quantity we will estimate.
-  Part 5   Atoms: expressing a matrix entry as an expectation.
-  Part 6   Averaging: estimating a conditional mean with a short random walk.
-  Part 7   Estimation: the additive schedule and its error bounds.
-  Part 8   Compression: replacing a whole array by a short list.
-  Part 9   Fingerprints: comparing endpoints without storing addresses.
-  Part 10  Arithmetic: computing one digit of one number in bounded space.
-  Part 11  The controller: all data live at once fit in logarithmic space.
-  Part 12  Conclusion: from an estimator to a decision procedure.
-  Part 13  An effective compiler: from a program to explicit bounds.
+All statements are proved in full; notation is plain ASCII.
 
 Every numbered statement (Theorem, Lemma, Proposition, Corollary) is followed
 by a proof.  Nothing is left to the reader except elementary algebra, which is
@@ -47,18 +20,18 @@ Notation conventions used throughout:
     context; the context is always clear.
   * E[.] is expectation, Pr[.] probability.  The error power in the
     statistical part is always s = 8.
-  * We write p0(x) for the acceptance probability of a fixed machine run
+  * Let p0(x) denote the acceptance probability of a fixed machine run
     started at configuration x.
 
 Symbols that recur, gathered here so that no reader has to hunt for them:
 
    n           length of the input.
    B           log2(n+2), rounded up and padded to a power of two.  Every
-               space bound in this document is O(B).
-   H, q        q = 2^H.  Each stage of Part 4 divides every entry by q, and
+               space bound below is O(B).
+   H, q        q = 2^H.  Each hierarchy stage divides every entry by q, and
                H is chosen once, at the very beginning.
-   f, b, u, a  rates on the dyadic grid of Section 2.4, with 0 < f <= 1.
-               They are the sampling probabilities of the channels of Part 3.
+   f, b, u, a  rates on the dyadic grid, with 0 < f <= 1.
+               They are the sampling probabilities of the rank channels.
    pi_f        the probability that one channel at rate f retains a given
                identifier.  It is Theta(f), with constants in (3.1).
    M           the statistical budget of a task.  Bigger budget, smaller error.
@@ -68,7 +41,7 @@ Symbols that recur, gathered here so that no reader has to hunt for them:
    K_prec      fixed integer: one unit of budget buys a factor 2^{-1/K_prec}.
    h_*         block height of the fingerprint scheme, about epsilon log2 B.
    s           the error power, always 8, so that L_8 norms are used.
-   u_0         the n_j-th largest size in the compression of Part 8.
+   u_0         the n_j-th largest size in the shortlist compression.
    n_j         capacity of the exception list at group j; n_j >= K always.
    C_mass      row mass bound a*sum_y d_y <= C_mass, equation (5.2),
                restated as (8.1).
@@ -77,14 +50,7 @@ Symbols that recur, gathered here so that no reader has to hunt for them:
    C_b         the fixed coefficient in every error bound; it may depend on
                the construction constants but never on the input or on B.
 
-================================================================================
-PART 1.  WHAT IS PROVED, AND HOW
-
-IN ONE SENTENCE.  What is proved, in which machine model, and how the thirteen parts fit together.
-
-================================================================================
-
-1.1 The three classes.
+What is proved, in which machine model, and how the thirteen parts fit together.
 
 L consists of languages decidable by an ordinary deterministic Turing machine
 with a read-only input tape and O(log(n+2)) bits of work tape.  Such a machine
@@ -102,12 +68,17 @@ The main theorem is L = RL = BPL.  Since L is contained in RL (a deterministic
 machine ignores its coins: it accepts with probability 1 or 0) and RL is
 contained in BPL (two independent repetitions of an RL machine accept with
 probability 0 or at least 3/4), it is enough to prove BPL is contained in L.
-That is what the whole document does.
 
-1.2 The plan.
+The undirected case was settled first: Reingold (2004) gives a deterministic
+log-space algorithm for undirected st-connectivity. That result covers exactly
+those RL problems whose transition graphs are symmetric; the argument below
+handles the full two-sided class BPL without any symmetry assumption.
 
-(a)  Reduce a randomized computation to a finite linear-algebra problem
-     (Part 2).  Acceptance probability becomes one coordinate of
+pdf: pdfrefs/reingold-2005.pdf
+url: https://eccc.weizmann.ac.il/report/2004/094/
+
+(a)  Reduce a randomized computation to a finite linear-algebra problem.
+     Acceptance probability becomes one coordinate of
      p0 = (I - S)^{-1} e for an explicit finite strictly-forward substochastic
      matrix S and an explicit 0/1 vector e.
 
@@ -115,14 +86,14 @@ That is what the whole document does.
      replaces S by a matrix of much smaller entries on a larger vertex set,
      carrying the removed mass into a reward vector.  After L = O(B) stages
      the reward at the copy of the start equals the acceptance probability
-     up to an error that is inverse-polynomial in n (Part 4).
+     up to an error that is inverse-polynomial in n.
 
 (c)  Represent each matrix entry and each reward entry as an expectation over
-     a small random environment (Parts 3 and 5).  The environment is a finite
+     a small random environment.  The environment is a finite
      set of random matrices over a finite field plus some random bit strings.
 
 (d)  Estimate each such expectation in a shared environment by sampling and
-     conditional averaging (Parts 6 and 7), with a fully integrated error
+     conditional averaging with a fully integrated error
      bound of the form
 
         (1/N) E sum_v (X_f(v)/f) |Wbar(v) - W(v)|^8  <=  C 2^{-8p},
@@ -130,58 +101,62 @@ That is what the whole document does.
      where p is a tunable precision exponent, N bounds the number of vertices
      at a stage, and X_f(v) is an indicator for "v was retained".
 
-(e)  Keep the algorithm logarithmic-space (Parts 8 to 11): arrays are kept as
+(e)  Keep the algorithm logarithmic-space: arrays are kept as
      short lists of exceptions to a default; endpoints are compared by short
      fingerprints rather than stored; numbers are computed digit by digit; and
      a single cursor plus one scratch area implements all recursion.
 
 (f)  Convert the integrated bound at one specified start into a decision by
      taking a median over a finite, explicitly enumerable family of
-     environments (Part 12).
+     environments (the median step).
 
 (g)  Show the construction is effective in the sense that a source machine
      plus its resource bounds can be compiled into a deterministic machine
-     with explicit bounds (Part 13).
+     with explicit bounds.
 
-1.3 What is genuinely new and what is standard.
+Prior facts, and how they enter.  The one-sided case predates the two-sided:
+Aleliunas, Karp, Lipton, Lovasz and Rackoff (1979) placed RL in L by showing
+that any finite Markov chain has a short walk reaching a fixed endpoint
+whenever one exists, so a polynomial family of walk lengths suffices.  Savitch
+(1970) removed nondeterminism for unrestricted space at a quadratic cost.
+Saks and Zhou (1999) reached BPL in DSPACE(log^{3/2} of n).  Nisan (1992)
+constructed pseudorandom generators for space-bounded computation.  Schwartz
+(1980), DeMillo and Lipton (1978) and Zippel (1979) supplied the polynomial
+identity test.   Pyne, Raz and Zhan (2023) and Murtagh, Song and Weinstein
+(2024) turned such estimation into a single deterministic algorithm.
+
 
 Standard inputs, quoted precisely where used:
 
   * Property (T) of SL_H(Z) for H >= 3 and relative property (T) of
     SL_2(Z) semidirect Z^2, with Shalom's quantitative constants.  These give
-    a uniform spectral gap for the averaging walk in Part 6.
+    a uniform spectral gap for the averaging walk; the underlying SL_2(F_p)
+    expansion rate is Bourgain and Gamburd (2008).
+    pdf: pdfrefs/shalom-1999.pdf
+    url: https://www.numdam.org/article/PMIHES_1999__90__145_0.pdf
+    pdf: pdfrefs/bourgain-gamburd-2008.pdf
+    url: https://arxiv.org/pdf/math/0608239
   * Polynomial identity testing (Schwartz) and affine universal hashing
-    (Carter-Wegman) for the fingerprints in Part 9.
-  * The contour/edge-flip traversal of Cook and McKenzie for enumerating
-    incoming ports without storing addresses, in Part 11.
+    (Carter-Wegman) for the fingerprints.
+    pdf: pdfrefs/carter-wegman-1979.pdf
+    url: https://doi.org/10.1016/0022-0000(79)90044-8
+  * The contour/edge-flip traversal of Cook and McKenzie (1987, Journal of
+    Algorithms) for enumerating
+    incoming ports without storing addresses, in the controller construction.
   * Catalytic (transparent) computation in the sense of Buhrman, Cleve,
-    Koucky, Loff and Speelman, used for one equality test in Part 9.
+    Koucky, Loff and Speelman (2014, STOC), used for one equality test of the
+    fingerprints.
 
-Everything else -- the hierarchy, the atom representation, the additive
-schedule with telescoping budgets, the compression with its first-overflow
-analysis, the adaptive fingerprint block comparison, the digit arithmetic, and
-the controller space accounting -- is developed here with complete proofs.
-
-================================================================================
-PART 2.  THE MODEL: FROM MACHINES TO MATRICES
-
-IN ONE SENTENCE.  A randomized machine with a time bound is turned into a finite matrix, so its acceptance probability becomes one entry of an inverse.
-
-================================================================================
-
-2.1 Conventions for machines.
-
-A randomized machine has: a finite control; a read-only input tape with
-endmarkers; finitely many work tapes; and a source of fresh independent fair
-coin flips.  The input head stays between the endmarkers.  Space counts every
-traversed writable cell, in bits, whether or not it holds a blank.  A
-transducer may additionally have one one-way write-only output tape whose
-contents are never read.
+A randomized machine with a time bound is turned into a finite matrix, so its
+acceptance probability becomes one entry of an inverse. A randomized machine
+has: a finite control; a read-only input tape with endmarkers; finitely many
+work tapes; and a source of fresh independent fair coin flips.  The input head
+stays between the endmarkers.  Space counts every traversed writable cell, in
+bits, whether or not it holds a blank.  A transducer may additionally have one
+one-way write-only output tape whose contents are never read.
 
 All randomized running-time bounds hold on every random tape (not merely with
 probability one).
-
-2.2 The configuration reduction.
 
 LEMMA 2.1 (configuration reduction).
 Fix a randomized machine M with polynomial worst-case time T(n) and
@@ -254,8 +229,6 @@ the acceptance probability.  The port structure is constant-degree because
 each vertex has constantly many successor and predecessor configurations
 after merging duplicates.  QED
 
-2.3 The size convention.
-
 Fix an integer parameter B which is a power of two, comparable to
 log2(n+2), and at least a fixed large constant.  For example take the least
 power of two at least max(K0, ceil(log2(n+2))) for a fixed K0 chosen later.
@@ -266,14 +239,12 @@ exponent.
 Every stage l of the hierarchy will have vertex set Vl of size at most
 N = 2^{C_N B} for one fixed constant C_N.
 A vertex at stage l is a base identifier followed by l symbols from a fixed
-radix D0 (chosen in Part 4).  Encode the base identifier as a fixed-width
+radix D0 (chosen in the hierarchy).  Encode the base identifier as a fixed-width
 radix-D0 word, prepend the digit 1, and append one copy digit per stage.
 Then stage-l identifiers occupy the interval [D0^{w+l}, 2 D0^{w+l}) for a base
 width w, and these intervals are disjoint, so identifiers from different
 stages never collide.  Appending a fixed suffix is an affine map on the
-numerical identifier; that fact is used in Part 11.
-
-2.4 Sampling-rate grid.
+numerical identifier; that fact is used in the controller construction.
 
 Fix integers H >= 4 and 2 <= h0 < H.  Put b_k = 2^{-Hk} for k >= 0.  Stage l
 of the hierarchy will have density f = b_l.  All sampling rates below come
@@ -281,28 +252,20 @@ from this grid.  The statistical error power is s = 8.
 
 All discrete constants of the construction (ranks, thresholds, gaps) are
 chosen once and for all from finitely many strict inequalities; the exact
-order of choices is recorded in Section 12.2.  The finite field of Part 3 is
+order of choices is described below.  The finite field of the rank channels is
 chosen last, with size 2^{O(B)}.  Increasing the field size never changes the
-probabilistic constants proved in Part 3.
+probabilistic constants proved for the rank channels.
 
-================================================================================
-PART 3.  THE RANDOM ENVIRONMENT
-
-IN ONE SENTENCE.  A small random environment is built whose retention tests pick out identifiers one at a time, with probabilities of a known size.
-
-================================================================================
-
-The matrices we must estimate are expectations of functions of a small random
-object.  The object is: a fixed finite number of independent "rank channels",
-each a random matrix over a finite field, together with a finite string of
-independent fair bits.  This part defines the channels, computes the
-probabilities of the events we use, and proves that a short random walk
-averages the environment very quickly.
-
-3.1 Rank channels.
+A small random environment is built whose retention tests pick out identifiers
+one at a time, with probabilities of a known size. The matrices to be
+estimated are expectations of functions of a small random object.  The object
+is: a fixed finite number of independent "rank channels", each a random matrix
+over a finite field, together with a finite string of independent fair bits.
+This part defines the channels, computes the probabilities of the events used,
+and proves that a short random walk averages the environment very quickly.
 
 Fix integers H >= 4 and 2 <= h0 < H.  Fix a prime P (chosen at the very end of
-the construction, with log P = O(B); see Section 12.2).  A channel is a
+the construction, with log P = O(B); the choice appears below).  A channel is a
 uniformly random matrix
 
    A = (a_0 , F)  in  F_P^{H x h0},
@@ -310,7 +273,7 @@ uniformly random matrix
 where F denotes the last h0 - 1 columns, conditioned on F having linearly
 independent columns.  An ordered tuple of h0 - 1 linearly independent columns
 is called a frame; let q_fr be the probability that a uniformly random tuple
-is a frame.  Because P >= 2H we have q_fr >= 1/2 (the standard product
+is a frame.  Because P >= 2H, q_fr >= 1/2 (the standard product
 computation: the j-th column is independent of the previous ones with
 probability at least 1 - P^{j-H} >= 1 - 1/2, and j <= h0 - 1 <= H - 2).
 
@@ -336,8 +299,6 @@ that the box is empty.  So pi_{b_k} is comparable to b_k:
    pi_{b_k} = (L_k/P)^H and L_k/P is within a factor 2 of 2^{-k},
    hence  b_k <= pi_{b_k} <= 2^H b_k.        (3.1)
 
-3.2 Independence and sampling.
-
 LEMMA 3.1 (marginals and pair independence).
 In the unconditional law (A uniform, no conditioning), for distinct field
 elements y != y', the vectors a(y) and a(y') are independent and uniform in
@@ -353,8 +314,8 @@ translate of a_0.  So a(y) is uniform given F, hence uniform after
 conditioning on frame.
 
 For the unconditional pair statement: suppose alpha v(y) + beta v(y') = 0 in
-F_P^{h0}.  The j-th coordinate is alpha y^j + beta (y')^j.  At j = 0 we get
-alpha = -beta.  At j = 1 we then get beta (y - y') = 0, so beta = 0 since
+F_P^{h0}.  The j-th coordinate is alpha y^j + beta (y')^j.  At j = 0,
+alpha = -beta.  At j = 1, beta (y - y') = 0, so beta = 0 since
 y != y'.  Hence the two evaluation functionals have rank 2, so A -> (a(y),
 a(y')) is surjective onto a space of dimension 2H, and (a(y), a(y')) is
 uniform on F_P^{H} x F_P^{H}.  Both coordinates lie in their boxes with
@@ -381,8 +342,6 @@ most pi.  Chebyshev's inequality gives Pr[|N - mean| >= mean/2] <=
 4 Var / mean^2 <= 4/(q pi).  Conditioning divides the probability by q_fr.
 QED
 
-3.3 Affine changes of coordinates.
-
 LEMMA 3.3 (affine invariance).
 Fix alpha in F_P^* and beta in F_P.  The map y -> alpha y + beta on
 identifiers acts on the coefficient array A by an invertible linear map.
@@ -402,9 +361,7 @@ linear changes of the full array, so it preserves uniformity conditional on
 any event defined in terms of the column space property "the last h0-1 columns
 are independent".  QED
 
-3.4 A short walk that averages the environment.
-
-We now record the one genuinely analytic input about groups.  Let G_H =
+Now record the one genuinely analytic input about groups.  Let G_H =
 SL_H(Z) and let Sigma be the fixed symmetric generating set consisting of the
 elementary matrices I + E_{ij}(1) for i != j together with their inverses.
 For a unitary representation rho of G_H and a vector xi, write
@@ -496,8 +453,8 @@ Step 2: one component has gap bounded below.
 On a transitive component, Lemma 3.4 gives a lazy walk with L_2 contraction
 1 - gamma_H for gamma_H = 1/(4 m C_H^2), where m is the component size (at
 most the number of retained identifiers times the number of frames, whose
-dependence on P is quadratic and whose gap contribution is what we now
-separate).  Rather than repeat the computation, apply Lemma 3.4 with m
+dependence on P is quadratic and whose gap contribution is separated now
+here).  Rather than repeat the computation, apply Lemma 3.4 with m
 replaced by the constant bound on the number of frames times the number of
 retained identifiers in the admissible range; because the identifier count is
 at most P and P <= 2^{k} on the grid, the size is at most a fixed polynomial
@@ -509,7 +466,7 @@ Write the resulting gap as gamma > 0.
 
 Step 3: interpolate.
 Let Pi be the projection onto constants on the component.  For a self-adjoint
-contraction we have
+contraction,
 
    ||K^d - Pi||_{2->2} <= (1-gamma)^d,     ||K^d - Pi||_{inf->inf} <= 2.
 
@@ -519,8 +476,6 @@ The diagonal case of Riesz-Thorin interpolation (Riesz 1927) gives for
    ||K^d - Pi||_{s->s} <= 2^{1-2/s} (1-gamma)^{2d/s},
 
 which is the required form with c_s = 2 gamma / s and C_s = 2^{1-2/s}.  QED
-
-3.5 Generating paths without storing their endpoints.
 
 The walk above is applied by a controller that can only visit vertices one at
 a time; it must be able to "guess" the wraparound that makes an affine
@@ -552,23 +507,18 @@ channel, and the rule never refers to the designated identifier.  The unique
 valid wrap is read off coordinatewise.  A single step costs a fixed number of
 generator choices and wrap choices; iterating gives O(d) bits.  QED
 
-3.6 Padding.
-
 Identifiers carry a fixed padding suffix that encodes stage and role
 information.  The channel argument is the pair (identifier, suffix).  The
-arguments of Parts 4 to 11 all hold uniformly in the suffix: the retention
-events, the walks and the error estimates never use which suffix is attached.
-Consequently two identifiers that agree except for their suffix are used
-interchangeably by every operation of the construction, and a stage-to-stage
-projection never changes the suffix of the target it produces.
+arguments of the hierarchy, the atom representation, the additive schedule,
+the compression, the fingerprints, the digit arithmetic and the controller all
+hold uniformly in the suffix: the retention events, the walks and the error
+estimates never use which suffix is attached. Consequently two identifiers
+that agree except for their suffix are used interchangeably by every operation
+of the construction, and a stage-to-stage projection never changes the suffix
+of the target it produces.
 
-================================================================================
-PART 4.  THE EXACT HIERARCHY
-
-IN ONE SENTENCE.  The matrix is replaced stage by stage, each stage cutting every entry by a factor q and moving the removed mass into a reward that is easy to read off.
-
-================================================================================
-
+The matrix is replaced stage by stage, each stage cutting every entry by a
+factor q and moving the removed mass into a reward that is easy to read off.
 This part constructs, for each stage, a new strictly-forward substochastic
 matrix whose entries are smaller by a factor q = 2^H on a vertex set at most
 twice as large, together with a reward vector that records what was removed.
@@ -577,13 +527,11 @@ dense-looking one whose contribution at the start is provably close to the
 acceptance probability.  Nothing here is random: this is a deterministic
 identity, proved exactly, about finite matrices.
 
-4.1 The one-stage problem.
-
 Fix an integer H >= 4 and put q = 2^H.  A stage receives as input
 
   * a finite ordered set V of vertices, with an integer "time" attached to
     each vertex, all distinct;
-  * a rate f = b_l from the grid of Section 2.4, 0 < f <= 1;
+  * a rate f = b_l from the dyadic grid, 0 < f <= 1;
   * a nonnegative matrix C on V with
 
        C(x,y) = 0 unless time(x) < time(y),
@@ -607,8 +555,6 @@ matrices, with these goals:
 
 The matrix D is the "residual"; the matrix E >= 0 is a "correction".
 
-4.2 Why D = C - E + EC is the right object.
-
 LEMMA 4.1 (the residual identity).
 For any matrix E,
 
@@ -623,12 +569,10 @@ Proof.
 to p: (I+E)(I-C)p = (I+E)W, and the right side is (I-D)p.  QED
 
 So the reward vector W is transported through the stage by the invertible
-(left multiplication by I+E) while the transition matrix becomes D.  We need D
+(left multiplication by I+E) while the transition matrix becomes D.  D must
 to remain nonnegative and substochastic, so that the iteration can continue.
 
-4.3 The correction function Q.
-
-We want E to be zero on columns that are already "sparse" and to remove a
+E must be zero on columns that are already "sparse" and to remove a
 definite fraction everywhere else.  Fix rational numbers
 
    0 < theta_1 < theta_2 < q^{-1}/32.
@@ -662,8 +606,6 @@ so Q^{1/8} is comparable to (t-theta_1)_+, which is Lipschitz with constant
 one times a fixed factor.  On a compact interval strictly inside
 (theta_1, infinity) both Q and Q^{-7/8} are bounded, so the derivative of
 Q^{1/8} = (1/8) Q^{-7/8} Q' is bounded.  QED
-
-4.4 The fixed column multiplier: the ideal correction.
 
 For a column multiplier g : V -> [0,1], define the ideal correction as the
 fixed point of the map
@@ -729,11 +671,9 @@ the fixed base (L_Q/theta_1), so choosing k_* a fixed integer larger than
 (say) 4 L_Q/theta_1 + 100 gives Delta_{k_*} <= f/(100 q^3).  This k_* is
 henceforth fixed, independently of everything that follows.  QED
 
-4.5 The pilot: choosing the column multiplier.
-
 The multiplier g must be chosen so that correction is enabled exactly on
 columns which are "overloaded", i.e. have more than a bounded number of
-substantial entries.  That set is detected by ranks, which we can later
+substantial entries.  That set is detected by ranks, usable later
 estimate.  All the constants below are fixed.
 
 Choose
@@ -789,7 +729,7 @@ The row and column supports of every matrix in this statement are contained
 in R(C) and T(C) respectively.
 
 Proof.
-Since Q(0) = 0 and 0 <= Q(t) <= t for t >= 0, we have Ehat_i <= G_i.  Induct on
+Since Q(0) = 0 and 0 <= Q(t) <= t for t >= 0, Ehat_i <= G_i.  Induct on
 i.  If Ehat_{i-1} 1 <= (i-1) 1 then
 
    G_i 1 = C 1 + Ehat_{i-1} C 1 <= 1 + Ehat_{i-1} 1 <= i 1,
@@ -806,15 +746,13 @@ forward, and C + (.)C preserves the property by induction from E_0 = 0.  A zero
 row of C stays a zero row in all these expressions, and a zero column of C
 stays a zero column in every product FC, so the supports are as claimed.  QED
 
-4.6 The detector: correcting only overloaded columns.
-
 The pilot decides, column by column, whether correction is switched on.  The
 decision is made from a rank of the column's entries, and it must never be
 switched on for a column with only boundedly many substantial entries; that
 is what keeps the vertex set from blowing up.
 
 Two constants appear.  From Lemma 3.1 the retention probability at rate f is
-pi_f, and by (3.1) we have f <= pi_f <= 2^H f.  Let c_pi = 1.  Let C_pair
+pi_f, and by (3.1) f <= pi_f <= 2^H f.  Let c_pi = 1.  Let C_pair
 and C_var be fixed constants, depending only on the channel parameters, that
 bound the correlations among the retention indicators of a fixed finite set of
 sources conditioned on retaining one designated identifier; they exist because
@@ -878,7 +816,7 @@ forces G_i(x,y) > delta_0 f.  Let M = #{x : G_i(x,y) > delta_0 f}.  The
 expected number of retained members of that set is at most M 2^H f, so by
 Markov the probability that more than J of them are retained is at most
 M 2^H f / J^0 -- more precisely at most M 2^H f / (J+1) times a fixed
-constant.  If M <= J/(4 * 2^H f) this is at most 1/4.  Hence if U_i > 1/4 we
+constant.  If M <= J/(4 * 2^H f) this is at most 1/4.  Hence if U_i > 1/4,
 must have M > J/(4 * 2^H f).
 
 Proof of (iii).  ghat_i(y) > 0 requires max_{r<=i} U_r(y) < 4/5, because
@@ -886,8 +824,6 @@ gamma vanishes on [4/5,1].  In particular U_i(y) < 4/5 < 19/20, so by (i) the
 count in (i) is at most R_*/f.  The actual correction uses the same g, and
 G'_i <= G_i pointwise (Lemma 4.4), so the last assertion follows from
 g(y) > 0 requiring ghat_{k_*}(y) > 0, hence ghat_i(y) > 0.  QED
-
-4.7 The residual.
 
 Recall E = E_{k_*} and D = C - E + EC.  Write A = G'_{k_*} = C + E_{k_*-1} C
 and delta_M = (E - E_{k_*-1}) C, which is nonnegative.
@@ -905,7 +841,7 @@ With C_dom = 2 k_* / theta_1 + 1:
  (iii) If g(y) = 1 then D(x,y) <= theta_2 f + f/(32 q) for every x.
 
 Proof.
-(i)  We have A - E >= min(A, theta_1 f) entrywise.  Indeed E = f Q(A/f) g <=
+(i)  A - E >= min(A, theta_1 f) entrywise.  Indeed E = f Q(A/f) g <=
 f Q(A/f) <= (A - theta_1 f)_+ by (4.2), so A - E >= A - (A-theta_1 f)_+ >=
 min(A, theta_1 f).  Since delta_M >= 0,
 
@@ -921,7 +857,7 @@ sum_z E(x,z) C(z,y) <= k_* f (C 1)(x) <= k_* f.  Together with C <= f this
 gives D <= (k_*+1) f.  Strict forwardness and supports: C, E and E C are
 strictly forward with supports inside R(C) x T(C) by Lemma 4.4.
 
-(ii)  We have C + E + E C = A + E + delta_M.  On the other hand
+(ii)  C + E + E C = A + E + delta_M.  On the other hand
 A - E >= (theta_1/k_*) A because A <= k_* f by (4.10), so
 (2 k_*/theta_1)(A - E) >= 2 A >= A + E (as E <= A).  Therefore
 
@@ -938,14 +874,12 @@ Delta(x,y) <= Delta_{k_*}(x,y) <= f/(32 q) once k_* is chosen large enough
 (it is, by Lemma 4.3).  Hence D(x,y) <= theta_2 f + f/(32 q) there.  QED
 
 Lemma 4.6(ii) is the reason the error can be controlled `relative to D': every
-contribution that we shall have to estimate separately is pointwise dominated
+contribution estimated separately is pointwise dominated
 by a fixed multiple of the same nonnegative matrix D, so the error of each
 contribution can be charged to D itself rather than to its own size.
 
-4.8 Copies: reducing density without blowing up the vertex set.
-
 The residual D still has entries up to (k_*+1) f, which is far more than the
-target f/q.  We route the remaining mass to copies of the destination, and use
+target f/q.  Route the remaining mass to copies of the destination, and use
 the detector to make sure only overloaded destinations need copies.
 
 Choose an integer
@@ -1038,7 +972,7 @@ nonprimary active copy has its parent in O, and
 
    |A(C+)| <= n' + (D_0 - 1) |O| .
 
-It remains to bound |O|.  We use Lemma 4.5(ii).  For x in O there is an index
+It remains to bound |O|.  Using Lemma 4.5(ii).  For x in O there is an index
 i with U_i(x) > 1/4, and then the column x of G_i has more than
 J/(4 * 2^H f) entries exceeding delta_0 f.  Summing column sums of G_i, and
 using that every row of G_i sums to at most i <= k_*,
@@ -1049,9 +983,7 @@ using that every row of G_i sums to at most i <= k_*,
 Hence |O| <= 4 * 2^H k_* n' / (J delta_0) <= n'/(D_0 - 1) by (4.17).
 Therefore |A(C+)| <= n' + n' = 2n'.  QED
 
-4.9 Reward transport and the final deterministic target.
-
-Now we iterate.  Keep two vectors: the transition matrix C_l on V_l and the
+Now iterate.  Keep two vectors: the transition matrix C_l on V_l and the
 reward vector W_l on V_l.  The invariant is
 
    (I - C_l) p^{(l)} = W_l                                            (4.20)
@@ -1077,7 +1009,7 @@ and (4.20) give
                        = P^r (I + E_l) W_l
                        = W_{l+1} ,
 
-where we used I - D = (I + E_l)(I - C_l) (Lemma 4.1).  So (4.20) holds at
+using I - D = (I + E_l)(I - C_l) (Lemma 4.1).  So (4.20) holds at
 stage l+1 with p^{(l+1)} = \bar p.
 
 Consequences.  W_{l+1} >= 0 whenever W_l >= 0 (both P^r and I + E_l are
@@ -1123,34 +1055,27 @@ Choosing L.  Take L an integer with
 
    (H-1) L  >  log2( 16 |V_0| ) ,    and   L = O(B) ,                     (4.24)
 
-so that the error in (4.23) is below 1/16.  Later we increase the constant
-multiplying B in L to get any inverse-polynomial accuracy (Section 12.2).
+so that the error in (4.23) is below 1/16.  Later the constant is increased
+multiplying B in L to get any inverse-polynomial accuracy.
 
 What is left.  The quantity W_L(x_L) is a deterministic, exactly defined real
 number in [0,1].  It satisfies W_L(x_L) > 7/16 if the machine accepts with
 probability at least 1/2, and W_L(x_L) = 0 if the acceptance probability is 0.
 So it is enough to compute W_L(x_L) to within 1/32.  The whole rest of the
-document is a deterministic algorithm computing W_L(x_L) to within any
-inverse power of n in logarithmic space.  The obstacle is that W_L(x_L) is
-defined through matrix inverses and ranks over huge vertex sets; Parts 5 to 11
-replace every such quantity by an average that can be sampled, and bound the
-resulting error.
+document is a deterministic algorithm computing W_L(x_L) to within any inverse
+power of n in logarithmic space.  The obstacle is that W_L(x_L) is defined
+through matrix inverses and ranks over huge vertex sets; the atom
+representation through the controller replace every such quantity by an
+average that can be sampled, and bound the resulting error.
 
-================================================================================
-PART 5.  ATOMS: WRITING A TABLE ENTRY AS AN EXPECTATION
-
-IN ONE SENTENCE.  Every entry of every table is written exactly as the average of an explicit nonnegative function of the environment, with few nonzero positions per row.
-
-================================================================================
-
-Every quantity we must compute is eventually an entry of a matrix like D, W,
-or a correction.  An entry is a sum over a huge vertex set of products of
-entries of other tables.  This part shows how to write it as an expectation of
-an explicitly given function of the environment, with two properties that Part
-7 will use: the function is nonnegative with bounded row support, and it is
-Lipschitz with respect to its inputs in the root metric.
-
-5.1 The two channels of a table.
+Every entry of every table is written exactly as the average of an explicit
+nonnegative function of the environment, with few nonzero positions per row.
+Every quantity needed is eventually an entry of a matrix like D, W, or a
+correction.  An entry is a sum over a huge vertex set of products of entries
+of other tables.  This part shows how to write it as an expectation of an
+explicitly given function of the environment, with two properties that the
+additive schedule will use: the function is nonnegative with bounded row
+support, and it is Lipschitz with respect to its inputs in the root metric.
 
 A row task specifies: an input matrix, a stage, an iteration label, a start
 rate u, an end scale a, an optional usage rate t <= a, the channel roles, and
@@ -1165,7 +1090,7 @@ Two channels are used for a row task:
      which selects which "right" endpoints are visible.
 
 Products additionally use a midpoint channel Z at rate f.  All channels are
-independent, each distributed as in Part 3.
+independent, each distributed as a rank channel.
 
 For a row task, write d_y >= 0 for the true first raw input at the endpoint y,
 measured in units of a, and
@@ -1178,9 +1103,7 @@ preparatory function h.  There is a fixed constant C_mass with
 
    a * sum_y d_y  <=  C_mass .                                                 (5.2)
 
-5.2 The retained-sum identity.
-
-This is the single most used computation in the document.  It says: dividing
+This is the single most-used computation below.  It says: dividing
 a retained sum by the retention probability gives back the full sum, exactly
 in expectation, with a nonnegative error in the root metric that is controlled
 by the support structure.
@@ -1214,10 +1137,8 @@ where the row sum at x is the true quantity and Y_a(y) is the target
 retention indicator.  The factor 1/pi_a cancels the sampling rate, so the
 normalized estimator has the correct mean.
 
-5.3 Atoms: entries as products of a correction and a bin.
-
-The stage of Part 4 asks us to compute, for every pair (x,y), the three
-unsigned contributions C(x,y), E(x,y), and (E C)(x,y).  By Part 4 each of them
+The hierarchy stage requires computing, for every pair (x,y), the three
+unsigned contributions C(x,y), E(x,y), and (E C)(x,y).  By the hierarchy each of them
 is pointwise dominated by a fixed multiple of D(x,y).  So it is enough to
 write each of them in a common "atom" form: a product of a correction term and
 a bin term, with explicit threshold structure.
@@ -1254,9 +1175,7 @@ remaining channels.  The three channels are independent, so the conditions
 multiply.  The factor f/pi_f is exactly the reciprocal of the midpoint
 retention probability required by Lemma 5.1.  QED
 
-5.4 Thresholds, support margins, and exposed classes.
-
-The tables we compute are not arbitrary nonnegative matrices: they are built
+The tables computed are not arbitrary nonnegative matrices: they are built
 from finitely many fixed row functions, each of which has threshold structure.
 This structure is what makes bounded row support possible.
 
@@ -1272,7 +1191,7 @@ e_H with 3 g_H < e_H, such that:
    H vanishes when v_y <= e_H ;
    the gate "rho_y <= g_H" equals one on a full neighborhood of zero.
 
-We require that the eighth roots of the functions in H are bounded and
+The eighth roots of the functions in H are bounded and
 Lipschitz in the two arguments, on the fixed sensitivity ranges.
 
 LEMMA 5.3 (bounded support over the whole family).
@@ -1319,11 +1238,9 @@ The point of the exposed class is that the support of a product is contained
 in a set of at most K-1 endpoints, and that set is itself detectable by a
 smooth function of the same two numbers.
 
-5.5 Ports and their multiplicity.
-
 Tables are indexed by pairs of actual identifiers.  To walk a table (to find
 the inverses of its edges, or to enumerate the incoming vertices of a
-column), we need each row to have few "ports": positions where the entry can
+column), each row must to have few "ports": positions where the entry can
 be nonzero, each with a bounded inverse.
 
 LEMMA 5.5 (bounded port structure).
@@ -1352,8 +1269,6 @@ computation.
 task parameters and the transformed environment; the midpoint is its vertex
 argument and the old source is deliberately not a parameter.  QED
 
-5.6 Assembly: bounding a component by the residual.
-
 The remaining technical point is that when a correction and a bin are
 multiplied, the result stays comparable to the residual.
 
@@ -1375,22 +1290,15 @@ The last assertion follows by multiplying A_b <= C on the left by the
 nonnegative matrix F.  QED
 
 So each product term of the estimation, and each of its pieces, is dominated
-by a fixed multiple of the residual D of Part 4.  This is the point at which
-the "relative error" accounting of Part 7 becomes possible: errors are always
+by a fixed multiple of the residual D of the hierarchy.  This is the point at which
+the relative-error accounting of the additive schedule becomes possible: errors are always
 measured against D, never against an individual term that might be larger.
 
-================================================================================
-PART 6.  AVERAGING: HOW A SHORT WALK REPLACES AN EXPECTATION
-
-IN ONE SENTENCE.  A short random walk inside the environment mixes quickly, by property (T), so the walk value is close to the average with an error independent of the field size.
-
-================================================================================
-
-6.1 The operator and what it does.
-
-Part 3 produced a rational Markov operator K on the conditional environment,
-with stationary law the uniform conditional law and, for every fixed
-2 <= s < infinity,
+A short random walk inside the environment mixes quickly, by property (T), so
+the walk value is close to the average with an error independent of the field
+size. The rank channel construction produced a rational Markov operator K on
+the conditional environment, with stationary law the uniform conditional law
+and, for every fixed 2 <= s < infinity,
 
    ||K^d - Pi||_{s -> s}  <=  C_s 2^{-c_s d}                                  (6.1)
 
@@ -1429,7 +1337,7 @@ Proof.
 Immediate: K acts as the identity on frozen coordinates, and as a rapidly
 mixing averaging operator on the varied ones.  In the applications the
 residual dependence is always of the prescribed form "times a membership mask
-1{Y_t(y)=1}", which is allowed by the error metrics of Part 7.  QED
+1{Y_t(y)=1}", which is allowed by the error metrics of the additive schedule.  QED
 
 LEMMA 6.3 (paired differences).
 Let F_1 and F_2 be two functions of the environment built from the same word
@@ -1446,15 +1354,8 @@ Lemma 6.3 is the reason the whole estimation is written in terms of
 differences of adjacent budgets: the noise of a difference is controlled by
 the norm of the difference, which is much smaller than either term.
 
-================================================================================
-PART 7.  ESTIMATION: THE ADDITIVE SCHEDULE
-
-IN ONE SENTENCE.  A budget schedule splits each task into dyadic groups; the averaging error and the sampling noise are shown to add up to 2^{-p} with no loss under nesting.
-
-================================================================================
-
-7.1 Budgets and the precision exponent.
-
+A budget schedule splits each task into dyadic groups; the averaging error and
+the sampling noise are shown to add up to 2^{-p} with no loss under nesting.
 The algorithm has a single integer budget M.  Estimating a quantity to
 precision 2^{-p} costs M units of budget, and the relation between the two is
 fixed by one constant:
@@ -1482,9 +1383,9 @@ The precision exponent of a task with parameters a, u, i_* and budget M is
    p = M/K_prec - H L - A_* i_* ,                                             (7.2)
 
 where i_* = sum over the scales in the dependency chain of |h_b|, H L comes
-from the density bound of Part 4 (each stage divides entries by q = 2^H and
+from the density bound of the hierarchy (each stage divides entries by q = 2^H and
 the chain has length L), and A_* is a large fixed constant whose role is to
-let us make the final statistical coefficient arbitrarily small.
+makes the final statistical coefficient arbitrarily small.
 
 LEMMA 7.1 (child precision).
 Suppose a child at budget m has parameters a', u', i_*'.  Then subtracting
@@ -1502,9 +1403,7 @@ Proof.
 Direct subtraction; the claim about the sizes of a' is the definition of the
 two kinds of children.  QED
 
-7.2 The error metric: root discrepancy.
-
-Ordinary error is the wrong measure when the target can be large.  We measure
+Ordinary error is the wrong measure when the target can be large.  The measure is
 discrepancies in the root metric and control the ordinary error through the
 boundedness of the outputs.
 
@@ -1520,7 +1419,7 @@ For a vertex array on a channel of rate u,
 
 Table values are extended by zero outside their membership domain.  The
 denominator u is the nominal rate; the comparability of actual and nominal
-rates of Part 3 absorbs the resulting absolute constants.  s = 8 throughout.
+rates of the rank channels absorbs the resulting absolute constants.  s = 8 throughout.
 
 LEMMA 7.2 (the root metric controls ordinary error).
 For 0 <= z, w <= C,
@@ -1560,8 +1459,6 @@ the triangle inequality bounds the absolute difference of the sums.
 directly.  If H' > 2H + a then |H - H'| > H'/2, H + H' < 3H'/2, and H' > a;
 hence L(H,H') >= c H' >= c a while the left side of (7.9) is at most a.  QED
 
-7.3 The scale and domain comparison.
-
 LEMMA 7.4 (scale cost of passing to a child).
 Compare a budget-m sample term with the same term computed with true
 stochastic inputs.  For a first-channel mean contribution use its clipped
@@ -1597,8 +1494,6 @@ source-domain comparison costs (f/u)^{1/s} in norm while its precision gains
 because u <= f.  Relation (7.11) is the reason for the definition (7.1) of
 c_b: a scale distance |h_b| costs budget proportional to it and gains
 exponentially small error.
-
-7.4 The additive schedule in full.
 
 Fix a task with budget M and precision p.  For every first-channel term of the
 task labelled by a scale b, set c_b by (7.1).  Every child factor of a term,
@@ -1659,8 +1554,6 @@ its value at (x,y) uses only the (x,y) entry of the input array.  Summing
 contributions at the same endpoint before applying it is therefore part of the
 definition of the input array, not an extra assumption.  QED
 
-7.5 Mean prefixes.
-
 LEMMA 7.6 (mean prefixes are small).
 Assume that all earlier table and vector tasks, and all their children in the
 dependency order, satisfy the corresponding bounds with a common coefficient
@@ -1700,8 +1593,6 @@ is at most
 with B_1 fixed once K_prec and c_0 are fixed, and with the coefficient 2^{-A_*}
 absorbed into c_*: increasing A_* decreases c_* without changing B_1.  QED
 
-7.6 Prefix noise.
-
 LEMMA 7.7 (the noise of a mean prefix is much smaller than the prefix).
 For a fixed K_n, choose the walk length coefficient ell large enough.  Then
 every noise term has norm at most C_b c_* 2^{-p - K_n d_j}, where c_* is the
@@ -1740,7 +1631,7 @@ Subtract the same stochastic true-atom term from the budget-m and the
 budget-(m-1) term and use the triangle inequality.
 
 A product has only constantly many left paths in the union of the compared
-rows, so the row cap of Part 5 and the incoming cap of Lemma 5.5 bound the sums
+rows, so the row cap of the atoms and the incoming cap of Lemma 5.5 bound the sums
 without any averaging.  For a coarse bin the absolute coefficient costs b/a in
 the norm rather than its s-th root; for a fine bin the importance factor stays
 inside the power.  Both are bounded by 2^{O(|h_b|)}.  Equation (7.3) pays the
@@ -1750,8 +1641,6 @@ are 2^{O(d)}, because in this group |h_b| = O(d) and M - m = O(d).
 This proves (7.18).  Replacing the comparison to truth by a comparison of the
 two coupled child versions gives the same bound by the identical
 inequalities; no independence between children is used anywhere.  QED
-
-7.7 The estimation theorem.
 
 THEOREM 7.9 (error bounds for the actual estimators).
 For every allowed task, with precision p defined in (7.2), the actual row
@@ -1786,7 +1675,7 @@ d_j = M, M/2, M/4, ... gives at most
    C_b c_* 2^{-p} ( sum_j 2^{B_1 d_j} + sum_j 2^{-K_n d_j} )  <=  C_b 2^{-p}
 
 provided c_* is small enough, which is achieved by taking A_* large.  The
-assembly factors of Part 5 are constant, and the root-Lipschitz property of the
+assembly factors of the atoms are constant, and the root-Lipschitz property of the
 row functions (Lemma 5.3 and Lemma 5.4) turns the bounds on the raw arrays into
 bounds on the outputs in the root metric.  Finally the ordinary error bound
 (7.20) follows from the root bound by Lemma 7.2 and the bounded-output estimate
@@ -1799,20 +1688,13 @@ both the scale factors (through 2^{B_1 d}) and the sampling noise (through
 2^{-K_n d}), and the geometric sums over dyadic slacks are bounded by fixed
 constants.
 
-================================================================================
-PART 8.  COMPRESSION: A WHOLE ARRAY AS A SHORT LIST
-
-IN ONE SENTENCE.  Each array is stored as a short list of exceptions to one common default, and the compression is proved not to change the row functions that are read.
-
-================================================================================
-
-After each dyadic group the estimation produces a raw array on all retained
-endpoints.  Storing it is impossible: there are 2^{O(B)} endpoints.  What we
-store instead is a short list of exceptions to a single common default value.
+Each array is stored as a short list of exceptions to one common default, and
+the compression is proved not to change the row functions that are read. After
+each dyadic group the estimation produces a raw array on all retained
+endpoints.  Storing it is impossible: there are 2^{O(B)} endpoints.  What is
+stored instead is a short list of exceptions to a single common default value.
 This part defines the update, proves that it does not damage the row functions
-we care about, and proves that the list stays short.
-
-8.1 The row interface.
+of interest, and proves that the list stays short.
 
 Fix a row task, its start rate u, and its first-channel endpoint rate a.  Write
 d_y >= 0 for the true first raw input at y, in units of a.  The second raw input
@@ -1834,15 +1716,14 @@ their hash arguments.  Row integration is
    integral of F  =  (1/N) E sum_x (X_u(x)/u) F(x) ,                          (8.2)
 
 and endpoint integration means inserting the sum over retained endpoints.  The
-prefix estimates supplied by Part 7 and used below are, for each group index i,
+prefix estimates supplied by the additive schedule and used below are, for
+each group index i,
 
    ( integral sum_y beta_i(y)^s )^{1/s}  <=  c_* 2^{-p + B_1 d_i} ,
    ( integral sum_y gamma_i(y)^s )^{1/s} <=  c_* 2^{-p - K_n d_i} ,          (8.3)
 
 where beta_i(y) is the mean discrepancy at y in group i and gamma_i(y) the
 prefix noise there.  Lemma 7.6 and Lemma 7.7 supply exactly these.
-
-8.2 The update map.
 
 Let S = (S^1, S^2) be the current raw prefix (one or two channels), restricted
 to the retained endpoints, and let z be the current common default.  Define the
@@ -1883,7 +1764,7 @@ The update (8.6) has the following properties.
 Proof.
 (i) If m_y <= 2u_0 then A_y = 0, so w_y = z'.
 (ii) If m_y >= 3u_0 then A_y = 7(m_y - 2u_0) and, as m_y >= 3u_0 implies
-7m_y - 14u_0 >= m_y + 3u_0, we get |S_y - z'| <= m_y + 3u_0 <= A_y; so the clip
+7m_y - 14u_0 >= m_y + 3u_0, |S_y - z'| <= m_y + 3u_0 <= A_y; so the clip
 is inactive and w_y = S_y.
 (iii) Clipping r to [-A,A] gives a point between r and 0; adding z' gives a
 point between S_y and z'.
@@ -1913,8 +1794,6 @@ the remaining updates and the final root functions multiplied by at most
 
 for a fixed C_1 > 1, by iterating (v).  This statement concerns full arrays and
 defaults; it does not require the two exceptional lists to agree.
-
-8.3 Deterministic comparison: preloss and the first overflow.
 
 Let d_1 > d_2 > ... > d_{m_*} = 1 be the decreasing powers of two indexing the
 slack groups, and include empty groups.  Let S_i = (S_i^1, S_i^2) be the
@@ -1970,7 +1849,7 @@ than rho_i by (8.10).  Hence
 
 so by (8.8) the change of size at most 6 rho_i is bounded by C rho_i e_i(y).
 Adding these changes proves (8.11).  The statement about the reference
-calculation is the comparison argument of Section 8.4 applied with the
+calculation is the comparison argument applied with the
 identified input; it uses only the Lipschitz bound (8.7) and the identity of the
 increments, which is the same in both calculations.  QED
 
@@ -1984,7 +1863,7 @@ The constant does not depend on the largest true first entry.
 
 Proof.
 Let C be a fixed constant larger than the coefficient in (8.12), let K_0 be the
-fixed rank bound K of Section 8.1 taken over the whole family HH, and assume the
+fixed rank bound K of the row interface taken over the whole family HH, and assume the
 fixed constants are chosen so that K_0 >= 6 C_mass.  Let L_1 be a fixed level above
 every sensitivity threshold of HH and above 1.  The whole difficulty is the factor
 (1 + d_y); three observations remove it, and none of them depends on how large
@@ -2048,8 +1927,6 @@ agree, thresholds agree, and all other coordinates agree already.  The relevant
 output behavior is therefore the same in the sentinel and the original
 calculations, which transfers (8.12) to the original pair.  QED
 
-8.4 The integrated compression bound.
-
 PROPOSITION 8.4 (compression preserves the error budget).
 Fix the constants in the order c_1, then c_2, then K_n, then c_*.  Compression
 preserves the prescribed row error budget, with arbitrarily small fixed
@@ -2096,7 +1973,7 @@ and by (8.3) the total false-type error power over all j is at most
    which converges by choosing c_2 > s c_1 + s B_1 with a fixed positive margin,
    and n_j >= K.
 
-Step 5: true types and means.  On Theta_j we instead use the stability bound
+Step 5: true types and means.  On Theta_j the alternative is the stability bound
 (8.12).  Its inner sum is at most C(d_j+1)^{A} 2^{B_1 d_j} for a fixed A, by
 (8.7) and dyadic grouping; the outer sum, with the exponential factor
 2^{-((c_2 - c_1)/s - B_1) d_j}, converges once c_2 is chosen larger.
@@ -2104,10 +1981,8 @@ Taking K_n large enough handles the noise sum (8.3).  All constants are fixed
 before c_* is chosen, which gives (8.13) and the asserted spare coefficient.
 QED
 
-8.5 Range clamping.
-
 The remaining issue is that estimates may be numerically enormous even when
-they are close in the root metric.  We cut them off at radii that provably do
+they are close in the root metric.  They are cut off at radii that provably do
 not change any relevant row function.
 
 In exact endpoint grouping the additive increments do not depend on which
@@ -2158,22 +2033,15 @@ sensitivity ranges.  Differing large components have matching signs and
 identical saturated behaviour, so the final row functions agree.  A scalar clip
 is 1-Lipschitz, which gives the comparison statement.  QED
 
-================================================================================
-PART 9.  FINGERPRINTS: COMPARING ENDPOINTS WITHOUT STORING ADDRESSES
-
-IN ONE SENTENCE.  Two endpoints are compared through short keys instead of stored addresses, and the damage caused by key collisions is bounded.
-
-================================================================================
-
-The compression of Part 8 merges increments that sit at the same endpoint.  To
-test whether two endpoints are the same, an algorithm may not store either
-address across a recursive call: an address has O(B) bits and one per level
-would overflow the space budget.  This part replaces the address by a short key
-computed from it, and proves that two distinct endpoints collide with small
-probability.  The same keys let us compare a candidate against a stored list
-without ever holding two addresses at once.
-
-9.1 The key.
+Two endpoints are compared through short keys instead of stored addresses, and
+the damage caused by key collisions is bounded. The shortlist compression
+merges increments that sit at the same endpoint.  To test whether two
+endpoints are the same, an algorithm may not store either address across a
+recursive call: an address has O(B) bits and one per level would overflow the
+space budget.  This part replaces the address by a short key computed from it,
+and proves that two distinct endpoints collide with small probability.  The
+same keys compare a candidate against a stored list without ever holding two
+addresses at once.
 
 Fix a prime q with log2 q = O(log B) and q > 2.  Fix a family of B "key
 slots".  To each vertex v of the stage universe assign a polynomial
@@ -2211,8 +2079,6 @@ the two cases proves (9.3); and L-1 = O(B) with q = 2^{Theta(log B)} gives the
 stated order.  A polynomial evaluation by Horner's rule and the residue
 arithmetic use O(log q) = O(log B) bits.  QED
 
-9.2 Blocks of budgets.
-
 Fix a small positive rational epsilon, chosen last, and put
 
    h_*  = floor( epsilon log2 B ) ,
@@ -2236,8 +2102,6 @@ environment, so a fixed ancestor variant may produce that environment from
 later-indexed master bits while the descendant's values depend only on its own
 effective coordinates.
 
-9.3 The row-group distribution rule.
-
 For a dyadic group, if its slack is d > 2 h_* then compare endpoint identifiers
 exactly.  If d <= 2 h_* then use the key of the task's block, as follows.
 
@@ -2250,15 +2114,13 @@ exactly.  If d <= 2 h_* then use the key of the task's block, as follows.
   (e) Do not combine or discard old representatives in this key step.
 
 Then apply the same full-array compression, clamping and shortlist rule as in
-Part 8.  Two facts are immediate and are used constantly below:
+the shortlist compression.  Two facts are immediate and are used constantly below:
 
   * distinct actual representatives remain distinct: two introduced
     representatives have different keys, and an introduced representative's key
     differs from every old key;
   * increments at the same actual endpoint are always combined, even when other
     endpoints collide with it.  Stored values are never summed by key.
-
-9.4 The clean calculation.
 
 For an analytical comparison at a budget M in I_b, define the clean calculation
 for block b by replacing key comparisons with exact identifier comparisons
@@ -2292,9 +2154,7 @@ list operations ignore the present salt.  The last larger dyadic slack, if any,
 is at most 4h_*, so the boundary shortlist has at most 2^{O(h_*)} positions; if
 there is no larger group the boundary list is empty.  QED
 
-9.5 Escaped candidates.
-
-To control adaptive candidates we first bound a set of endpoints determined by
+To control adaptive candidates first bound a set of endpoints determined by
 the clean calculation.  An actual path leaving that set is charged to a child
 witness discrepancy.  Write E_x for the clean envelope of row x: the union of
 the clean supports of the witnesses at the vertices reachable from x, which has
@@ -2389,8 +2249,6 @@ are measurable with respect to the salts earlier than b.  Conditioning,
 because the key is determined by the salt of block b while H_x and E_x are not,
 so Lemma 9.1 applies.  Integrating gives (9.9) after enlarging C.  QED
 
-9.6 The catalytic equality test.
-
 Retaining a log B-bit key at each tight recursive frame would already be too
 costly.  The next lemma lets the controller compare two endpoints using only a
 constant amount of local data, at the price of four excursions to the endpoints.
@@ -2420,8 +2278,6 @@ Only a phase and a result bit must survive across excursions; the key index is
 recomputed at each visit in shared scratch, and the accumulated result bit is
 never used to choose an endpoint path.  QED
 
-9.7 The coupled estimate.
-
 PROPOSITION 9.7 (the actual estimator is close to the clean one).
 For every allowed task, the actual and clean outputs differ by at most
 C_b 2^{-p} in the metric of (7.5), and the clipped vectors by the corresponding
@@ -2446,7 +2302,7 @@ D_1 > D_2 + 1; choose epsilon so small that
 Since h_* <= epsilon log2 B, the direct charge satisfies
 2^{C h_*} B^{-1/(2s)} <= 2^{-(1/(2s epsilon) - C) h_*} <= (1/4) 2^{-D_1 h_*} <=
 (1/4) lambda_M, after increasing the fixed minimum B to absorb the coefficient.
-For a child budget m in I_b used at group slack d we have
+For a child budget m in I_b used at group slack d,
 lambda_m = lambda_M 2^{-D_2(M-m)} <= lambda_M 2^{-D_2 d}, so the geometric sum
 closes.  Both charges fit inside the slack allowed by the clean bound of
 Proposition 8.4, leaving room to add the actual-clean discrepancy to the clean
@@ -2473,23 +2329,17 @@ spare constant, and the inactive-task bounds are the fixed bounded-range
 bounds.  Applying the ordinary vector statement to W_l and taking the s-th
 power gives (9.12).  QED
 
-================================================================================
-PART 10.  ARITHMETIC: ONE DIGIT OF ONE NUMBER, IN BOUNDED SPACE
-
-IN ONE SENTENCE.  Every number is computed one digit at a time from integer approximations, and the live records are shown to shrink as the requested digit place drops.
-
-================================================================================
-
-The estimates of Parts 7 to 9 produce, for each required entry and each
-requested precision, a real number defined by a finite recipe: averages,
-comparisons, products, reciprocals, ranks, sums.  This part shows that any such
-recipe can be evaluated digit by digit, that the digits are eventually
-consistent, and that the number of live bits during a digit query is bounded by
-the size of the recipe's descriptors plus a constant times the drop in the
-requested precision.  This last form is what makes whole recursive evaluations
-fit into logarithmic space, because the drops telescope along a nested call.
-
-10.1 Streams and digits.
+Every number is computed one digit at a time from integer approximations, and
+the live records are shown to shrink as the requested digit place drops. The
+estimates of the additive schedule, the compression and the fingerprints
+produce, for each required entry and each requested precision, a real number
+defined by a finite recipe: averages, comparisons, products, reciprocals,
+ranks, sums.  This part shows that any such recipe can be evaluated digit by
+digit, that the digits are eventually consistent, and that the number of live
+bits during a digit query is bounded by the size of the recipe's descriptors
+plus a constant times the drop in the requested precision.  This last form is
+what makes whole recursive evaluations fit into logarithmic space, because the
+drops telescope along a nested call.
 
 Fix the digit alphabet
 
@@ -2504,10 +2354,11 @@ For its truncation x^{[K]} = sum_{j=0}^{K} x_j 2^{-j},
 
    | x - x^{[K]} |  <=  6 * 2^{-K} .                                         (10.3)
 
-The stream need not be a usual binary expansion, and no uniqueness is required:
-redundant signed-digit expansions are classical (Avizienis), and the redundancy
-is what lets consecutive finite approximations define one exact stream even when
-they use different truncations.
+The stream need not be a usual binary expansion, and no uniqueness is
+required: redundant signed-digit expansions are classical (Avizienis, 1961,
+IRE Trans. EC-10(3), signed-digit number representations), and the redundancy
+is what lets consecutive finite approximations define one exact stream even
+when they use different truncations.
 
 An arithmetic root has public parameters, a clock t, and descriptions of its
 operand interfaces.  These parameters are regenerable from the outer controller
@@ -2556,8 +2407,6 @@ because the consistency between successive approximations is supplied by the
 difference formula.  Every primitive below is therefore proved by producing such
 integers, not by producing digits directly.
 
-10.2 Evaluating a Boolean circuit gate by gate.
-
 The first and simplest recipe is: evaluate a Boolean circuit of bounded fan-in,
 whose gates are described by arithmetic on the root parameters, and which has
 depth O(t).  Because repeated subcircuits may be recomputed rather than stored,
@@ -2582,8 +2431,6 @@ a later scan recreates them from the same root and saved choices.  Circuit
 acyclicity gives termination.  This is an evaluation of the circuit unfolded into
 a formula; repeated gates are recomputed, so no array of previously computed
 values is stored.  QED
-
-10.3 Elementary operations and residues.
 
 LEMMA 10.2 (finite comparisons and bounded elementary operations).
 The normalized operations of taking a pair average, a maximum or a minimum, and
@@ -2626,9 +2473,7 @@ at most Delta * C_0, because the operand overshoot is at most C_0.  With these
 common coefficients the clock differences telescope along the composed path, and
 the finite number of constant terms remains a constant.  QED
 
-10.4 Word arithmetic: carries, sums, and counts.
-
-We also use a few explicit Boolean arithmetic facts.  A carry bit in binary
+A few explicit Boolean arithmetic facts.  A carry bit in binary
 addition is described by a generate/propagate pair (g,p).  Composition of
 adjacent intervals is the associative operation
 
@@ -2657,9 +2502,7 @@ tree depth over the W positions.  The bit-count construction is the classical
 carry-save reduction: three rows to two, repeated, which halves the row count
 every round.  QED
 
-10.5 Multiplication by minimum-index bands.
-
-To multiply two streams we add the contributions of the diagonals i + j = const,
+To multiply two streams, add the contributions of the diagonals i + j = const,
 in bands, and stop early using the redundancy of the digits.
 
 LEMMA 10.4 (multiplication).
@@ -2691,8 +2534,6 @@ All gate descriptions, term coordinates, bit positions and tail shifts are
 computable by replaying paths and doing integer index arithmetic from t and q.
 Lemma 10.1 converts these depth bounds to suspended storage.  Finally the last
 band bounds every intrinsic path and local word width by O(t+1).  QED
-
-10.6 Reciprocals and the early-word convention.
 
 A reciprocal needs a long word for its denominator, but that word can be
 released before any late operand query.
@@ -2767,8 +2608,6 @@ requested bounded digit, and releases that prefix before a suffix branch is
 evaluated.  The original reciprocal clock t remains regenerable throughout.  This
 order of operations is the lifetime rule used in (10.4): j <= floor(t/2) + c
 gives the explicit payment t+1 <= 2(t-j) + 2c + 1 for the early word.
-
-10.7 Indexed ranks, sums, and scales.
 
 LEMMA 10.6 (order statistics of a semantic list).
 Let a row hold a semantic list of at most n entries with a fixed descriptor
@@ -2858,8 +2697,6 @@ test chooses its precision from d and rho, not from an enclosing numerical clock
 with its structural starting clock defined as zero, its operand requests have
 j = O(d), and increasing a in (10.4) pays also for the term -b j.  QED
 
-10.8 The numerical interface.
-
 THEOREM 10.9 (the numerical interface).
 Fix the syntactic hypotheses below.  Then every numerical recipe used by the
 construction has a deterministic digit procedure satisfying (10.3a) and the space
@@ -2893,22 +2730,15 @@ telescope along the composed path.
 Application to graph procedures requires a separate certificate, proved in Part
 11: Lemma 11.5 and Theorem 11.7 verify (a)-(d) for the estimator procedures.  An incoming
 rank over the whole vertex universe has no prescribed 2^{O(d)} descriptor bound
-and uses the separate construction of Section 11.8.  QED
+and uses the separate construction for invalid ports.  QED
 
-================================================================================
-PART 11.  THE CONTROLLER: FITTING ALL LIVE DATA INTO LOG SPACE
-
-IN ONE SENTENCE.  All the recipes run with one cursor, one scratch area and one catalyst, so the whole computation fits in O(B) bits.
-
-================================================================================
-
-Parts 7 to 10 produce, for every table and vector entry, a finite recipe: which
-operand interfaces to call, at which digits, and how to combine the answers.  What
-remains is to run all of these recipes at once inside one machine whose live data
-is O(B) bits, with a single cursor and no accumulated stack of addresses.  That is
-this part.
-
-11.1 Shared facilities.
+All the recipes run with one cursor, one scratch area and one catalyst, so the
+whole computation fits in O(B) bits. The additive schedule, the compression,
+the fingerprints and the digit arithmetic produce, for every table and vector
+entry, a finite recipe: which operand interfaces to call, at which digits, and
+how to combine the answers.  What remains is to run all of these recipes at
+once inside one machine whose live data is O(B) bits, with a single cursor and
+no accumulated stack of addresses.  That is this part.
 
 The machine has exactly the following long-lived memory.
 
@@ -2917,7 +2747,7 @@ The machine has exactly the following long-lived memory.
   * The top root parameters: the finite task list, the constants, L, M_top, the
     field size, and the designated start vertex.
   * The master environment: all channel matrices and all salt strings, O(B) bits
-    in total (Part 3 and Section 9.2).
+    in total (the rank channels and the clean comparison).
   * A catalytic bit vector V of length B, of arbitrary initial contents, restored
     by every procedure that touches it.
   * One cursor: a vertex identifier together with its stage interpretation.
@@ -2930,8 +2760,6 @@ has no content that must survive a recursive graph operation: every such
 operation starts its scratch calculations canonically.  Before every input access,
 the requested position is regenerated in shared scratch, and any copy of an
 address inside that computation is discarded before the next graph operation.
-
-11.2 The interfaces.
 
 Each table or vector task exposes the following operations.
 
@@ -2957,8 +2785,6 @@ motion or excursion fails with cursor and catalyst unchanged.  Rank operands
 retain their separately prescribed baseline or padding values: an absent real port
 is not a virtual default coordinate.
 
-11.3 Regenerable records.
-
 DEFINITION 11.1 (regenerable record).
 A local record is a delimited binary word with a tag from a fixed finite alphabet.
 It may contain immediate descriptor choices, bounded port or copy symbols, offsets,
@@ -2968,8 +2794,6 @@ root operation and its numerical clock, together with the active records, determ
 every descendant tuple and clock by a scratch computation that calls no graph
 procedure and uses no cursor that has been left behind.  Such records are called
 regenerable.
-
-11.4 Program graphs and contours.
 
 A terminal program has a fixed root tuple and root clock.  Its initial
 configuration is the cursor x, a distinguished initiation tag, and the original
@@ -3020,8 +2844,6 @@ local edge ordering at the current vertex to decide the next edge; the reverse
 step is determined by the same local data.  No global counter is needed because
 the traversal is a permutation of the directed edges and the sentinel marks the
 return point.  QED
-
-11.5 Records and their bounds.
 
 The records to be charged are listed in Table 11.1.
 
@@ -3077,8 +2899,6 @@ and the clock differences add.  Ordered terminal delegations add their own
 immediate records, with the same estimate at each boundary, including on rollback.
 QED
 
-11.6 Replay and salt visibility.
-
 LEMMA 11.5 (parameter replay and salt visibility).
 The records of Lemma 11.4 are regenerable in the sense of Definition 11.1.  With
 respect to their own effective environments, actual procedures at a budget in
@@ -3093,11 +2913,9 @@ clock and the active records, since the descriptors stored are exactly the
 immediate choices from which the next choice is computed.  Salt visibility is
 enforced at the interface: the environment accessor of a task at budget in block b
 computes keys, ports and validity predicates from the effective environment, and
-by Section 9.2 that environment is a function of salts with index at most b.  The
+by the clean comparison that environment is a function of salts with index at most b.  The
 guards check this by construction, and since the effective tuple is part of the
 program's root data, both directions of a paired port see the same tuple.  QED
-
-11.7 Incoming ports and inverse ranks.
 
 LEMMA 11.6 (capped incoming ports and incoming score ranks).
 Fix an endpoint y and a precision level.  The following can be computed by a
@@ -3128,8 +2946,6 @@ inverse step which reaches an earlier partial-suffix state replaces the current
 score state by that suffix state without retaining the final q or the endpoint
 address; unique-sink recovery supplies both again when the tour ends.  QED
 
-11.8 Total behavior on invalid ports.
-
 An argument is range-valid when its tuple, operation type, cursor type, port code
 and clock lie in the permitted finite ranges.  A range-valid port can still name a
 hole.  Every exported existence predicate is a total restoring test of its earlier
@@ -3150,14 +2966,13 @@ ranks are padded by zero, whereas a compressed-array rank uses copies of its
 baseline.  A historical validity flag in a caller is never accepted as a
 certificate of presence.
 
-11.9 The realization theorem.
-
-THEOREM 11.7 (realization of the estimator interfaces).
-Fix the construction constants and an admissible top budget M_top = O(B).  For
-every actual task tuple reachable from it, the row, vector and prefix interfaces
-defined in Parts 5 to 9 admit deterministic uniform implementations by restoring
-queries and cursor motions.  The following assertions hold for every master
-environment, without any accuracy promise on its estimated values.
+THEOREM 11.7 (realization of the estimator interfaces). Fix the construction
+constants and an admissible top budget M_top = O(B).  For every actual task
+tuple reachable from it, the row, vector and prefix interfaces defined through
+the atoms, the estimation, the compression and the fingerprints admit
+deterministic uniform implementations by restoring queries and cursor motions.
+The following assertions hold for every master environment, without any
+accuracy promise on its estimated values.
 
  (1) Every test or numerical digit query terminates, returns its defined value, and
      restores the cursor and catalyst.  Its result is independent of incoming
@@ -3220,19 +3035,12 @@ and the finite control.  The sum of caller records is bounded by the telescoping
 sum over the chain of explicit controllers, each contribution bounded by its own
 allowance, and the allowances decrease.  Hence (4).  QED
 
-================================================================================
-PART 12.  CONCLUSION: FROM AN ESTIMATOR TO A DECISION
-
-IN ONE SENTENCE.  A median over finitely many explicit environments removes the randomness, which yields a log-space decision and hence L = RL = BPL.
-
-================================================================================
-
-Everything is now in place.  The estimator computes, for each of finitely many
-explicitly enumerable environments, a dyadic approximation of the reward at the
-designated start.  This part takes the median over those environments and reads
-off the answer.
-
-12.1 The final reward task and the precision budget.
+A median over finitely many explicit environments removes the randomness,
+which yields a log-space decision and hence L = RL = BPL. Everything is now in
+place.  The estimator computes, for each of finitely many explicitly
+enumerable environments, a dyadic approximation of the reward at the
+designated start.  This part takes the median over those environments and
+reads off the answer.
 
 Take a = u = f = b_L for the final reward task, so the task's own rate is the
 final stage rate.  Its rank satisfies i_* = O(L+1) because there are L stages and
@@ -3240,18 +3048,16 @@ finitely many labels per stage, and (7.2) reads
 
    p  =  M_top / K_prec  -  H L  -  A_* i_* .                                (12.1)
 
-Let r be the accuracy exponent we want, and fix the integer C_tail >= 1 bounding
+Let r be the desired accuracy exponent, and fix the integer C_tail >= 1 bounding
 (f/pi_f) C_b^8 throughout the admissible range, which exists by Lemma 3.1 and
 (3.1).  Choose the fixed linear coefficient of M_top = O(B) large enough that
 
    p  >=  r + 3 + ( C_N B + ceil(log2 C_tail) + 3 ) / 8 ,                    (12.2)
 
 where C_N is the stage-size constant of Theorem 4.8, so that the total number of
-environments satisfies N <= 2^{C_N B}.  The top-budget and field-size choices of
-Section 12.2 allow this enlargement, and the admissible-range condition of Part 3
+environments satisfies N <= 2^{C_N B}.  The top-budget and field-size choices
+permit this enlargement, and the admissible-range condition of the rank channels
 still bounds every descendant rate.
-
-12.2 The order of the choices.
 
 The construction has the following order of choices.  Each step needs only
 finitely many strict inequalities between fixed constants, all supplied by the
@@ -3289,11 +3095,9 @@ number of salt blocks but leaves the sampler's gap uniform, because all earlier
 salt bits form one free component in Lemma 3.5.  The storage estimate (9.6)
 therefore remains O(B).
 
-12.3 Good environments and the dyadic answer.
-
 For a retained encoding sigma, write Wbar_L^sigma(z) for the estimator value at
 the designated start z, computed by Theorem 10.9 as a digit stream, and W_L(z)
-for the exact reward of Part 4.
+for the exact reward of the hierarchy.
 
 THEOREM 12.1 (fixed inverse-polynomial accuracy).
 Fix a randomized machine M with polynomial worst-case running time and
@@ -3335,7 +3139,7 @@ applied to the s-th power, that
 Step 2: enumerate the environments exactly.  Enumerate each field-matrix entry in
 {0,1,...,P-1} and each raw salt bit string, retaining precisely those encodings
 whose positive-degree columns form a frame and for which X_f(z) = 1.  The
-retained encodings are equally weighted, and they give the law in (12.6).  We
+retained encodings are equally weighted, and they give the law in (12.6).  The
 enumerate the original salt strings, not the reduced fingerprint parameters:
 different raw strings that induce the same fingerprint remain separate encodings,
 and their multiplicities reproduce the original probability law.  At least one
@@ -3393,8 +3197,6 @@ passes, and K+1 digit queries per numerator.  Their product is still
 the inaccurate ones, by Theorem 11.7.  The output is written only after the
 median is computed.  QED
 
-12.4 The class equality.
-
 THEOREM 12.2 (L = RL = BPL).
 L = RL = BPL.
 
@@ -3417,8 +3219,6 @@ on a no input, and at least
 on a yes input.  Comparing the answer with 1/2 decides the language, uniformly in
 logarithmic space.  Therefore BPL, and hence RL, is contained in L, and the three
 classes coincide.  QED
-
-12.5 Arbitrary requested accuracy.
 
 Increasing the numerical clock alone approximates the same estimator value more
 accurately; it does not reduce the statistical error.  To handle an arbitrary
@@ -3471,51 +3271,12 @@ Apply Theorem 12.3 with precision request 1^{q+3}: the returned z satisfies
 then z >= 2^{-q} - 2^{-q-3} > (1/2) 2^{-q}.  Comparing z with 2^{-q-2} decides.
 QED
 
-12.6 Summary of the whole argument.
-
-For the reader who wants the shape of the proof in one paragraph:
-
-  * A randomized log-space machine becomes a finite strictly-forward
-    substochastic matrix S with p_0 = (I-S)^{-1} e (Part 2).
-  * The deterministic hierarchy replaces S by a matrix of entries below f/q after
-    L = O(B) stages, transporting the removed mass into a reward vector, so that
-    the reward at the copied start is within 2|V_0|2^{-(H-1)L} of p_0 (Part 4).
-  * Every entry of every table is exactly the mean of an explicit nonnegative
-    function of a small random environment; that environment is a few random
-    matrices over a finite field plus O(B) random bits, whose retention events have
-    the required independence and comparability (Parts 3 and 5).
-  * Conditional averaging with property (T) lets a short walk replace the mean,
-    with an L_s contraction independent of the field size (Part 6), and the
-    additive budget schedule turns that into an error 2^{-p} per task with no loss
-    under nesting (Part 7).
-  * Arrays are kept as short exception lists with a default, and the compression is
-    proved not to disturb the row functions; the first-overflow analysis and the
-    clamping make the error budget close (Part 8).
-  * Endpoint comparisons use short fingerprints whose collision probability is
-    O(1/B), with a clean comparison calculation controlling the corruption that
-    aliasing introduces (Part 9).
-  * All numbers are computed digit by digit with a suspended-space certificate of
-    the form c_str d + c_num (t-j), so the drops telescope (Part 10).
-  * One cursor, one scratch area, one catalyst, and a contour traversal of the
-    program graphs realize all the recipes in O(B) space (Part 11).
-  * A median over the explicitly enumerable environments converts a per-environment
-    approximation into a deterministic decision in logarithmic space (Part 12).
-
-================================================================================
-PART 13.  AN EFFECTIVE COMPILER: FROM A PROGRAM TO EXPLICIT BOUNDS
-
-IN ONE SENTENCE.  One fixed interpreter plus explicit padding turns the construction into a compiler that also reports integer space and time bounds.
-
-================================================================================
-
-Part 12 gives, for each fixed randomized machine and each fixed accuracy exponent,
-one deterministic machine.  Here we make that uniform in the source: a single
-finite object, computed from the source description and its supplied resource
-bounds, behaves like the deterministic simulation and comes with explicit
-integer bounds on its space and time.  Nothing in this part uses an evaluation
-oracle or an external stack.
-
-13.1 A total resource-capped interpreter.
+The median step gives, for each fixed randomized machine and each fixed
+accuracy exponent, one deterministic machine.  Here the construction makes
+that uniform in the source: a single finite object, computed from the source
+description and its supplied resource bounds, behaves like the deterministic
+simulation and comes with explicit integer bounds on its space and time.
+Nothing in this part uses an evaluation oracle or an external stack.
 
 LEMMA 13.1 (a total resource-capped interpreter).
 There is one fixed randomized Turing machine U with polynomial worst-case running
@@ -3578,8 +3339,6 @@ acceptance probability may lie strictly between 1/4 and 3/4.  This is why the
 construction uses probability approximation rather than a bare language-class
 containment.
 
-13.2 Fixing one deterministic library.
-
 Apply Theorem 12.1 to the fixed machine U with accuracy exponent 3, and compare its
 dyadic answer with 1/2.  The error on an input of length m is at most
 (m+2)^{-3} <= 1/8.  Hence the resulting deterministic machine accepts whenever
@@ -3627,8 +3386,6 @@ arbitrary machine description: the existence of the fixed list was proved by
 Theorem 12.1, and no constant is selected as a noncomputable function of the
 source machine or its ordinary input.  QED
 
-13.3 The compiler.
-
 Input: the source description, and positive integers a, b whose meaning is that
 the source (with those parameters) obeys the resource bounds used below.
 
@@ -3644,7 +3401,7 @@ prefix is (13.2) and whose remaining bits are zero.  The prefix length is exactl
 
    L_pre = (dc+1) + dc + (n+1) + dc * n = (dc+1)(n+2) .                      (13.7)
 
-Since B_n >= 1, we have 2^{B_n} >= n+2, and 2^{P-1} >= dc+1, so this length is at
+Since B_n >= 1, 2^{B_n} >= n+2, and 2^{P-1} >= dc+1, so this length is at
 most N_pad.  The interpreter's length parameter is
 
    ell_pad := lambda_{N_pad} = P B_n + 1 .                                   (13.8)
@@ -3691,17 +3448,15 @@ the stipulated class.  The generated simulation is total and obeys the bounds be
 even when the supplied source promises fail; those promises are used to establish
 that its decision agrees with the source.
 
-13.4 Explicit simultaneous bounds.
-
-LEMMA 13.3 (explicit bounds for the generated machine).
-Let the source description have code length dc, let a, b be the supplied resource
-parameters, and let the generated machine be D as in Section 13.3.  Let t be the
-number of work tapes of D, let g >= 2 bound the work alphabet sizes including blank,
-origin and termination symbols, let q_D bound the number of states including
-callback phases, and let u >= 1 dominate its explicit transition-table bit length,
-all alphabet sizes including the input alphabet, the number of states, and the
-number of tapes.  Then D has the following bounds, and they are computed from finite
-syntax with no dependence on n or x:
+LEMMA 13.3 (explicit bounds for the generated machine). Let the source
+description have code length dc, let a, b be the supplied resource parameters,
+and let the generated machine be D as in the compiler construction.  Let t be
+the number of work tapes of D, let g >= 2 bound the work alphabet sizes
+including blank, origin and termination symbols, let q_D bound the number of
+states including callback phases, and let u >= 1 dominate its explicit
+transition-table bit length, all alphabet sizes including the input alphabet,
+the number of states, and the number of tapes.  Then D has the following
+bounds, and they are computed from finite syntax with no dependence on n or x:
 
    rho = 100 (P+2) ,        S = 1 + (t+1)(2 rho + 1)(g+2) ,
    K   = 4 S ,              c = 2 S + 1 ,
@@ -3740,18 +3495,17 @@ Parts (i) and (ii): D simulates A on the virtual padded input described in Secti
 agrees with the source's decision whenever the source's acceptance probability is at
 least 2/3 or at most 1/3, which the supplied bounds guarantee on the stipulated class.
 
-Part (iii): the work and time internal to probability approximation -- environment
-enumeration, numerical digits, recursive interfaces, recomputation and precision
-management -- belong to the one complete library machine proved in Theorem 12.1, and
-its tapes remain counted throughout the virtualization.  The compiler adds only the
-exact input operations analysed in Section 13.3, without an evaluation oracle and
-without an external stack.  Configuration counting gives polynomial time, because
-this entire deterministic machine uses exact logarithmic space.  The integer bounds
-(13.10) are computed from finite syntax, and the only dependence on n enters through
-beta_n and through the length of the virtual input, both of which are declared in
-(13.6).  QED
-
-13.5 Closing remark.
+Part (iii): the work and time internal to probability approximation --
+environment enumeration, numerical digits, recursive interfaces, recomputation
+and precision management -- belong to the one complete library machine proved
+in Theorem 12.1, and its tapes remain counted throughout the virtualization.
+The compiler adds only the exact input operations analysed in the compiler
+construction, without an evaluation oracle and without an external stack.
+Configuration counting gives polynomial time, because this entire
+deterministic machine uses exact logarithmic space.  The integer bounds
+(13.10) are computed from finite syntax, and the only dependence on n enters
+through beta_n and through the length of the virtual input, both of which are
+declared in (13.6).  QED
 
 The construction is effective in the following sense.  Everything the algorithm does
 is determined by finitely many integers and finitely many rational constants, all
